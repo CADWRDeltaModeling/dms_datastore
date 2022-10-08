@@ -1,0 +1,46 @@
+cdec_gln_gln_temp_2000_2004.csv: <Hour>
+cdec_pct_pct_temp_2001_2001.csv: <Hour>
+cdec_pct_pct_temp_2020_9999.csv: <Hour>
+cdec_pct_pct_temp_1999_1999.csv: <Hour>
+cdec_pts@upper_pts_temp_1999_1999.csv: <Hour>
+cdec_pts@upper_pts_temp_2000_2019.csv: <Hour>
+cdec_pts@upper_pts_temp_2020_9999.csv: <Hour>
+cdec_vic_vic_temp_1999_1999.csv: <Hour>
+cdec_vic_vic_temp_2000_2019.csv: <Hour>
+cdec_vic_vic_temp_2020_9999.csv: <Day>
+des_anh@upper_50_do_1983_1999.csv: <Hour>
+des_anh@upper_50_do_2000_2007.csv: <Hour>
+des_anh@upper_50_ec_1983_1999.csv: <Hour>
+des_anh@upper_50_temp_1983_1999.csv: <Hour>
+des_anh@upper_50_temp_2000_2007.csv: <Hour>
+des_anh@upper_50_turbidity_2003_2007.csv: <10 * Minutes>
+des_bts_40_do_1983_1999.csv: <Hour>
+des_bts_40_do_2000_2007.csv: <Hour>
+des_bts_40_turbidity_2003_2007.csv: <10 * Minutes>
+des_mal@upper_60_do_1984_1999.csv: <Hour>
+des_mal@upper_60_do_2000_2008.csv: <Hour>
+des_mal@upper_60_ec_1984_1999.csv: <Hour>
+des_mal@upper_60_temp_1984_1999.csv: <Hour>
+des_mal@upper_60_temp_2000_2008.csv: <Hour>
+des_mal@upper_60_turbidity_2003_2007.csv: <10 * Minutes>
+des_mrz@upper_40_do_1983_1999.csv: <Hour>
+des_mrz@upper_40_do_2000_2007.csv: <Hour>
+des_mrz@upper_40_ec_1983_1999.csv: <Hour>
+des_mrz@upper_40_temp_1983_1999.csv: <Hour>
+des_mrz@upper_40_temp_2000_2007.csv: <Hour>
+des_mrz@upper_40_turbidity_2003_2007.csv: <10 * Minutes>
+des_msd2_10_do_1984_1999.csv: <Hour>
+des_msd2_10_do_2000_2007.csv: <Hour>
+des_msd2_10_ec_1984_1999.csv: <Hour>
+des_msd2_10_ec_2000_2007.csv: <Hour>
+des_msd2_10_temp_1984_1999.csv: <Hour>
+des_msd2_10_temp_2000_2007.csv: <Hour>
+des_msd2_10_turbidity_2003_2007.csv: <10 * Minutes>
+des_rvb_30_do_1983_1999.csv: <Hour>
+des_rvb_30_do_2000_2007.csv: <Hour>
+des_rvb_30_ec_1983_1999.csv: <Hour>
+des_rvb_30_ec_2000_2007.csv: <Hour>
+des_rvb_30_temp_1983_1999.csv: <Hour>
+des_rvb_30_temp_2000_2007.csv: <Hour>
+des_rvb_30_turbidity_2003_2007.csv: <10 * Minutes>
+des_srh_70_turbidity_2003_2007.csv: <10 * Minutes>
