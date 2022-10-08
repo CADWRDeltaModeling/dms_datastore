@@ -1,0 +1,24 @@
+Value Parameter,Value Units,Aquarius Code,DWR Variable Name 
+Specific cond at 25C,uS/cm,00095,ec
+Suspnd sedmnt conc,mg/l,80154,ssc
+Temperature; water,degC,00010,water_temperature
+Discharge,ft^3/s,00061,flow
+Gage height,ft,72293,elev
+Suspnd sedmnt disch,tons/day,80155,sed_discharge
+Diss oxygen saturtn,%,00301,do_sat
+Susp sediment;wu;est,mg/l,99409,ssc
+Turbidity; FNU,_FNU,63680,turbidity
+NO3+NO2;water;insitu as N,mg/l,99133,no3+no2
+Mean water velocity,ft/s,72255,velocity_mean
+Dissolved oxygen,mg/l,00300,do
+fChl; water; in situ,ug/l,32316,chla
+fDOM; water; in situ,QSE,32295,fdom
+pH,pH Units,00400,ph
+Relative fChl; water; in situ,RFU,32315,chla_rfu
+Relative fPC; water; in situ,RFU,32321,fpc_rfu
+Stream level; NAVD,ft,63160,elev
+Depth; sensor,ft,72147,depth
+Sensor velocity,ft/s,72254,velocity
+Relative fDOM; water; in situ,RFU,32322,fdom_rfu
+OrthoPO4; in situ as P,mg/l,51289,po4
+fPC; water; in situ,ug/l,32319,fpc
