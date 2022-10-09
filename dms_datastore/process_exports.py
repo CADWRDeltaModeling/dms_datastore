@@ -15,7 +15,7 @@ from vtools.functions.filter import *
 from vtools.functions.interpolate import *
 from vtools.functions.period_op import *
 from scipy.ndimage.filters import gaussian_filter1d
-from vtools.datastore.read_ts import *
+from dms_datastore.read_ts import *
 from vtools.functions.merge import *
 
 def process_bbid(bbid_csv,interval,stime,etime):

@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from vtools.functions.filter import *
 from vtools.data.vtime import *
 import os.path as osp
-from vtools.datastore.read_ts import *
+from dms_datastore.read_ts import *
 from vtools.functions.merge import *
 from vtools.functions.error_detect import med_outliers
 import datetime as dtm

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from vtools.functions.interpolate import *
 from vtools.functions.filter import *
 from vtools.data.vtime import *
-from vtools.datastore.read_ts import * 
+from dms_datastore.read_ts import * 
 from schimpy.unit_conversions import ec_psu_25c,CFS2CMS,CMS2CFS
 from vtools.functions.error_detect import *
 import pyhecdss

@@ -4,7 +4,7 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-from vtools.datastore.read_ts import *
+from dms_datastore.read_ts import *
 import glob
 from vtools.functions.merge import ts_merge
 

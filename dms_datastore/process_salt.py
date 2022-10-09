@@ -9,7 +9,7 @@ from vtools.functions.filter import *
 from vtools.data.vtime import *
 import os
 import os.path as osp
-from vtools.datastore.read_ts import *
+from dms_datastore.read_ts import *
 import datetime as dtm  
 import schimpy.unit_conversions as units
 from schimpy.unit_conversions import ec_psu_25c

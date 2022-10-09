@@ -4,7 +4,7 @@ import os
 import numpy as np
 import schimpy.unit_conversions as units
 import matplotlib.pylab as plt
-from vtools.datastore.read_ts import *
+from dms_datastore.read_ts import *
 from shutil import copyfile
 import numpy as np
 import pandas as pd
