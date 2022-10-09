@@ -34,6 +34,7 @@ setup(
                                           'download_des=dms_datastore.download_des:main',
                                           'compare_directories=dms_datastore.compare_directories:main',
                                           'populate_repo=dms_datastore.populate_repo:main',
-                                          'station_info=dms_datastore.station_info:main']
+                                          'station_info=dms_datastore.station_info:main',
+                                          'reformat=dms_datastore.reformat:main']
 										   }
 )
