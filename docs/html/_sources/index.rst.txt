@@ -65,11 +65,10 @@ Read data
 '''''''''
 
 There are three main routines [actually 2 one in dev], `read_ts`, `read_multi.ts_multifile_read` and `ts_**`. All are based on how they deal with 
-filenames that are wildcards to represent time sharding by years (file name ends in *_2020.csv) or blocks of years (*_2015_2019.csv):
+filenames that are wildcards to represent time sharding by years (file name ends in _2020.csv) or blocks of years (_2015_2019.csv):
 
 * read_ts is mostly designed around heterogeneous legacy formats. It can read wildcard if the files are otherwise the same basic format.
-* ts_multifile_read is a wrapper around read_ts that allows mixes of different formats. This would be useful if, for instance, historical 
-  data comes from one source/format and real-time data from another.
+* ts_multifile_read is a wrapper around read_ts that allows mixes of different formats. This would be useful if, for instance, historical data comes from one source/format and real-time data from another.
 * read_ts_multi assumes data is all in dms_datastore standard format and constructs multi-column views quickly.
 
 
