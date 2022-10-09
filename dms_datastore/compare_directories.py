@@ -4,7 +4,7 @@ import glob
 import os
 import sys
 import matplotlib.pyplot as plt
-from vtools.datastore.read_ts import *
+from dms_datastore.read_ts import *
 import shutil
 
 def almost_match(x,y):
