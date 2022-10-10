@@ -6,7 +6,7 @@ import re
 import concurrent.futures
 import pandas as pd
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
-from dms_datastore import station_config
+from dms_datastore import dstore_config
 from dms_datastore.read_ts import read_ts
 from dms_datastore.download_nwis import nwis_download,parse_start_year
 from dms_datastore.download_noaa import noaa_download
@@ -38,9 +38,9 @@ NSAMPLE_DATA=200
 downloaders = {"dwr_des":des_download,"noaa":noaa_download,"usgs":nwis_download,"usbr":cdec_download,'cdec':cdec_download}
 
 def populate_repo(agency,param,dest,start,end,overwrite=False,ignore_existing=None):
-    slookup = station_config.config_file("station_dbase")
-    vlookup = station_config.config_file("variable_mappings") 
-    subloclookup = station_config.config_file("sublocations")
+    slookup = dstore_config.config_file("station_dbase")
+    vlookup = dstore_config.config_file("variable_mappings") 
+    subloclookup = dstore_config.config_file("sublocations")
     df = pd.read_csv(slookup,sep=",",comment="#",header=0,dtype={"agency_id":str})
     df=df.loc[df.agency.str.lower()==agency,:]
     df["agency_id"] = df["agency_id"].str.replace("\'","",regex=True)  
@@ -197,8 +197,8 @@ def list_ncro_stations(dest):
 
 def populate_repo2(df,dest,start,overwrite=False,ignore_existing=None):
     """ Currently used by ncro realtime """
-    slookup = station_config.config_file("station_dbase")
-    vlookup = station_config.config_file("variable_mappings") 
+    slookup = dstore_config.config_file("station_dbase")
+    vlookup = dstore_config.config_file("variable_mappings") 
     df["station_id"] = df["id"].str.replace("'","")
     df["subloc"] = "default"
     

@@ -8,12 +8,12 @@ import string
 import datetime as dt
 import numpy as np
 from vtools.datastore.process_station_variable import process_station_list,stationfile_or_stations
-from vtools.datastore import station_config
+from vtools.datastore import dstore_config
 
 ncro_inventory_file = "ncro_por_inventory.txt"
 
 def station_dbase():
-    dbase_fname=station_config.config_file("station_dbase")
+    dbase_fname=dstore_config.config_file("station_dbase")
     dbase_df = pd.read_csv(dbase_fname,header=0,comment="#",index_col="id")
     is_ncro = dbase_df.agency.str.lower().str.contains("ncro")
     print(is_ncro[is_ncro.isnull()])

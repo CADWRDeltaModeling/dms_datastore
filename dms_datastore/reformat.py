@@ -7,8 +7,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
-from populate_repo import interpret_fname
-from dms_datastore.station_config import config_file,station_dbase
+from dms_datastore.populate_repo import interpret_fname
+from dms_datastore.dstore_config import config_file,station_dbase
 
 
 def block_bounds(ts,block_size):

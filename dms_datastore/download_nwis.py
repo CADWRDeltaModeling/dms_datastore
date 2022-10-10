@@ -22,7 +22,7 @@ import string
 import datetime as dt
 import numpy as np
 from vtools.datastore.process_station_variable import process_station_list,stationfile_or_stations
-from vtools.datastore import station_config
+from vtools.datastore import dstore_config
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
@@ -150,8 +150,8 @@ def main():
         etime = dt.datetime.now()
     
     stationfile=stationfile_or_stations(args.stationfile,args.stations)
-    slookup = station_config.config_file("station_dbase")
-    vlookup = station_config.config_file("variable_mappings")            
+    slookup = dstore_config.config_file("station_dbase")
+    vlookup = dstore_config.config_file("variable_mappings")            
     df = process_station_list(stationfile,param=param,station_lookup=slookup,
                                   agency_id_col="agency_id",param_lookup=vlookup,source='usgs') 
     nwis_download(df,destdir,stime,etime,param,overwrite)  

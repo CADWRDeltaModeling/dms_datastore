@@ -4,18 +4,18 @@
 import sys
 import pandas as pd
 import argparse
-from vtools.datastore import station_config
+from vtools.datastore import dstore_config
 
 def station_info(search):
-    station_lookup = station_config.config_file("station_dbase")
+    station_lookup = dstore_config.config_file("station_dbase")
     if search == "config":
-        print(station_config.configuration())
+        print(dstore_config.configuration())
         return
-    #vlookup = station_config.config_file("variable_mappings")
+    #vlookup = dstore_config.config_file("variable_mappings")
     #slookup = pd.read_csv(station_lookup,sep=",",comment="#",header=0,usecols=["id","agency",
     #                                                                           "agency_id","name",
     #                                                                           "x","y","lat","lon"]).squeeze()
-    slookup = station_config.station_dbase()[["agency","agency_id","name","x","y","lat","lon"]]
+    slookup = dstore_config.station_dbase()[["agency","agency_id","name","x","y","lat","lon"]]
     slookup.loc[:,"station_id"] = slookup.index.str.lower()
     lsearch = search.lower()
     match_id = slookup.station_id.str.contains(lsearch)

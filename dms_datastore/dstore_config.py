@@ -5,7 +5,7 @@ import pandas as pd
 config = None    
 localdir = os.path.join(os.path.split(__file__)[0],"config_data")
     
-with open(os.path.join(localdir,"station_config.yaml"), 'r') as stream:
+with open(os.path.join(localdir,"dstore_config.yaml"), 'r') as stream:
     config = yaml.load(stream,Loader=yaml.FullLoader)
 
 station_dbase_cache = None

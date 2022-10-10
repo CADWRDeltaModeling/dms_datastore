@@ -12,7 +12,7 @@ import datetime as dtm
 import re
 import os
 from vtools.datastore.process_station_variable import process_station_list,stationfile_or_stations
-from vtools.datastore import station_config
+from vtools.datastore import dstore_config
 
 
 default_stationlist = {"9414290":"San Francisco",
@@ -297,8 +297,8 @@ def main():
         return
     else:
         stationfile=stationfile_or_stations(args.stationfile,args.stations)
-        slookup = station_config.config_file("station_dbase")
-        vlookup = station_config.config_file("variable_mappings")            
+        slookup = dstore_config.config_file("station_dbase")
+        vlookup = dstore_config.config_file("variable_mappings")            
         df = process_station_list(stationfile,param=param,station_lookup=slookup,
                                   agency_id_col="agency_id",param_lookup=vlookup,source='noaa')
 
