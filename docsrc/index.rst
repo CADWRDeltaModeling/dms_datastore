@@ -15,6 +15,7 @@ mostly focused on environmental data for the Bay-Delta.
    :caption: Contents:
    
    self
+   install
    concepts
    station_info
    download_data
@@ -48,8 +49,8 @@ units and names in a way that can encapsulate many of the quirks and ambiguities
 Installation
 ============
 
-[NOTE: THE CONDA PART ISN'T TRUE YET] dms_datastore is on GitHub and available from Conda on the cadwrdms channel. 
-... . Background is available here [REF].
+.. include:: install_text.rst
+
 
 
 Quickstart: Things You Can Do Quickly with dms_datastore

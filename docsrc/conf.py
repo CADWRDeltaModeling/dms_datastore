@@ -58,7 +58,8 @@ templates_path = ['_templates']
 
 intersphinx_mapping = {'pandas': ('http://pandas.pydata.org/pandas-docs/stable',None),
  'python': ('http://docs.python.org/', None),
- 'xarray' : ('http://xarray.pydata.org/en/stable',None)
+ 'xarray' : ('http://xarray.pydata.org/en/stable',None),
+ 'vtools3' : ('https://cadwrdeltamodeling.github.io/vtools3/html/',None)
  }
 source_suffix = '.rst'
 master_doc = 'index'
