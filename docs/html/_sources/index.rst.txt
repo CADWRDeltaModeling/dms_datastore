@@ -3,38 +3,57 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
+##############
 dms_datastore!
-==================
+##############
+
+dms_datastore is a package for downloading and managing a repository of csv files of continuous time series data, 
+mostly focused on environmental data for the Bay-Delta. 
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 3
    :caption: Contents:
+   
+   self
+   concepts
+   station_info
+   download_data
+   read_data_meta
+   repository
+
+
 
 NOTE: THE DMS_DATASTORE IS STILL UNDER CONSTRUCTION. NO RELEASE HAS BEEN MADE
 
-dms_datastore is a package for downloading and managing a repository of csv files of continuous time series data, 
-mostly focused on environmental data for the Bay-Delta. It provides definitions of the concept of stations, methods of access, 
-units and names in a way that can encapsulate many of the quirks of individual providers. 
+Introduction
+============
 
 The main functionality includes:
 
-* Automatic downloading scripts along a mostly uniform interface for major data providers, most of which are public.
-* Station lists and a command line utility to lookup information from the station lists.
-* A multithreaded populating routine that orchestrates comprehensive downloads for the Bay-Delta into a repository.
-* Unified routines for reading time series in multiple downloaded 
-  formats while reconciling differences between providers (time zones, QA flags, timestamping conventions, etc). 
-* Reformatting and alignment to repackage time series in a single Pandas-compatible common csv format with metadata headers.
-* Screening routines that coordinate tools from vtools and elsewhere to provide basic checks on data.
+ * Automatic downloading scripts for major data providers.
+
+ * Station lists and a utility to lookup infor from the station lists.
+
+ * Populating routine that orchestrates downloads into a repository.
+
+ * Readers for downloaded formats. 
+
+ * Reformatting and time alignment to repackage time series in a common csv format with metadata headers.
+
+ * Screening routines.
+
+Along the way, the package provides definitions of the concept of stations, methods of access, 
+units and names in a way that can encapsulate many of the quirks and ambiguities of individual providers.  
 
 Installation
-------------
+============
 
 [NOTE: THE CONDA PART ISN'T TRUE YET] dms_datastore is on GitHub and available from Conda on the cadwrdms channel. 
 ... . Background is available here [REF].
 
 
-Some Useful Things You Can Do Quickly with dms_datastore
----------------------------------------------------------------
+Quickstart: Things You Can Do Quickly with dms_datastore
+========================================================
 
 Get station info
 ''''''''''''''''
@@ -70,20 +89,6 @@ filenames that are wildcards to represent time sharding by years (file name ends
 * read_ts is mostly designed around heterogeneous legacy formats. It can read wildcard if the files are otherwise the same basic format.
 * ts_multifile_read is a wrapper around read_ts that allows mixes of different formats. This would be useful if, for instance, historical data comes from one source/format and real-time data from another.
 * read_ts_multi assumes data is all in dms_datastore standard format and constructs multi-column views quickly.
-
-
-
-
-
-
-
-You can download data quickly from 
-
-
-
-
-
-
 
 
 Indices and tables

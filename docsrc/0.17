@@ -1,0 +1,18 @@
+conda-forge/win-64                                          Using cache
+
+***
+
+NOTE: You are using the EXPERIMENTAL libmamba solver integration.
+
+If something is not working as expected, please:
+
+1. Go to https://github.com/conda/conda/issues/new/choose
+2. Choose the "Libmamba Solver Feedback (Experimental Feature)" option
+
+Thank you for your help!
+
+***
+
+Collect all metadata (repodata.json): ...working... done
+Solving environment: ...working... Terminate batch job (Y/N)? 
+Terminate batch job (Y/N)? 

@@ -26,12 +26,21 @@ author = 'Eli Ateljevich, CA DWR'
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
 
+html_static_path = ['_static']
+html_css_files = ['theme_overrides.css']
+html_context = {
+    'css_files': [
+        '_static/theme_overrides.css',  # override wide tables in RTD theme
+        ],
+     }
+
+
 
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-extensions = [ #'nbsphinx', 
+extensions = [ 'sphinx_rtd_theme',#'nbsphinx', 
           'sphinx.ext.mathjax',
           'sphinx.ext.autodoc', 
           'sphinx.ext.viewcode',
@@ -69,9 +78,12 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'alabaster'
-html_theme_options = {
-    'logo': 'dwrsmall.gif'}
+#html_theme = 'alabaster'
+html_theme = "sphinx_rtd_theme"
+html_theme_path = ["_themes", ]
+
+#html_theme_options = {
+#    'logo': 'dwrsmall.gif'}
 
 #html_logo = 'dwrsmall.gif'
 # Add any paths that contain custom static files (such as style sheets) here,
