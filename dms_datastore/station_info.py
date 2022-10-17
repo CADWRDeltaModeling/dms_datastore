@@ -4,7 +4,7 @@
 import sys
 import pandas as pd
 import argparse
-from vtools.datastore import dstore_config
+from dms_datastore import dstore_config
 
 def station_info(search):
     station_lookup = dstore_config.config_file("station_dbase")

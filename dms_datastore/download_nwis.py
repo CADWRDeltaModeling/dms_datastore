@@ -21,8 +21,8 @@ import os
 import string
 import datetime as dt
 import numpy as np
-from vtools.datastore.process_station_variable import process_station_list,stationfile_or_stations
-from vtools.datastore import dstore_config
+from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
+from dms_datastore import dstore_config
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
@@ -48,6 +48,7 @@ def nwis_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
     These dates are passed on to CDEC ... actual return dates can be
     slightly different
     """
+    print(stations)
     if end is None: 
         end = dt.datetime.now()
         endfile = 9999
@@ -59,12 +60,15 @@ def nwis_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
     
     failures = []
     skips = []
+    successes = set()
     for ndx,row in stations.iterrows():
         agency_id = row.agency_id
         station = row.station_id
         param = row.src_var_id
         paramname = row.param
         subloc = row.subloc
+        if (station,paramname) in successes: 
+            continue
 
         yearname = f"{start.year}_{endfile}" #if start.year != end.year else f"{start.year}"
         outfname = f"usgs_{station}_{agency_id}_{paramname}_{yearname}.rdb"
@@ -88,7 +92,7 @@ def nwis_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
         print(station_query)
         try: 
             if sys.version_info[0] == 2:
-                response = urllib2.urlopen(station_query)
+                raise ValueError("Python 2 no longer supported")
             elif sys.version_info[0] == 3:
                 response = urllib.request.urlopen(station_query)
         except:
@@ -100,11 +104,14 @@ def nwis_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                 station_html = "" # Catches incomplete read error
             if len(station_html) > 30 and not "No sites found matching" in station_html:
                 found = True
+                print(f"Writing to path: {path}")
                 with open(path,"w") as f:
                     f.write(station_html)
+                successes.add((station,paramname))
             if not found: 
-                print("Station %s query failed or produced no data" % station)
-                failures.append(station)
+                print(f"Station {station} query failed or produced no data")
+                if (station,paramname) not in failures: 
+                    failures.append((station,paramname))
     
     if len(failures) == 0:
         print("No failed stations")

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import argparse
 import urllib.request
 import pandas as pd
 import re
@@ -7,8 +8,8 @@ import os
 import string
 import datetime as dt
 import numpy as np
-from vtools.datastore.process_station_variable import process_station_list,stationfile_or_stations
-from vtools.datastore import dstore_config
+from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
+from dms_datastore import dstore_config
 
 ncro_inventory_file = "ncro_por_inventory.txt"
 
@@ -85,7 +86,7 @@ def download_ncro_period_record(inventory,dbase,dest,variables=["flow","elev","e
             elif not entry.empty:
                station_id = str(entry[0])
                     
-        if station_id is "":
+        if station_id == "":
             raise ValueError(f"Item {agency_id} not found in station database after accounting for Q and 00 suffixes")
             
         fname = f"ncro_{station_id}_{agency_id}_{var}_{sdate.year}_{edate.year}.csv".lower()
@@ -124,9 +125,20 @@ def download_ncro_por(dest):
     download_ncro_period_record(idf.loc[is_in_dbase,:],dbase,dest,variables=["flow","elev","ec","temp","do","ph","turbidity","cla"])
 
 
+def create_arg_parser():
+    parser = argparse.ArgumentParser()   
+    parser.add_argument('--por', dest = "por", action='store_true',
+                        help = 'Do period of record download. Must be explicitly set to true in anticipation of other options')    
+    parser.add_argument('--dest', dest = "dest_dir", default=".", help = 'Destination directory for downloaded files.')
+
+
+
 def main():
+    parser = create_arg_parser()
+    args = parser.parse_args()
+    destdir = args.dest_dir
+    por = args.por
     dest = '.'
-    #dest = "//cnrastore-bdo/Modeling_Data/continuous_station_repo/raw/incoming/dwr_ncro"
     download_ncro_por(dest)
     
 

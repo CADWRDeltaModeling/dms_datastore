@@ -3,6 +3,8 @@
 import concurrent.futures
 import glob
 import os
+import traceback
+import argparse
 import pandas as pd
 import matplotlib.pyplot as plt
 from dms_datastore.read_ts import *
@@ -250,6 +252,9 @@ def reformat_source(inpath,src,outpath):
         df = read_ts(fpath,force_regular=False)       
         df.index.name = "datetime"
         df.sort_index(inplace=True) # possibly non-monotonic
+        if df.first_valid_index() is None:
+            print(f"Skipping {fpath} because no valid data found")
+            continue
         #nonmonotone = df.loc[df.index.to_series().diff() < pd.to_timedelta('0 seconds')]
 
         
@@ -271,10 +276,8 @@ def reformat_source(inpath,src,outpath):
                 content = content + f"{item}: {hdr_meta[item]}\n"
         write_ts_csv(df,newfname,content,chunk_years=True)
 
-def main():
-    all_agencies = ["usgs","des","cdec","noaa","ncro"]
-    inpath = "raw"
-    outpath= "formatted"  
+def format_main(inpath="raw",output="formatted",agencies=["usgs","des","cdec","noaa","ncro"]):
+    all_agencies = agencies
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         future_to_agency = {executor.submit(reformat_source,inpath,agency,outpath): \
                             agency for agency in all_agencies}
@@ -284,8 +287,31 @@ def main():
         try:
             data = future.result()
         except Exception as exc:
-            print('%r generated an exception: %s' % (agency, exc))
-        
+            trace=traceback.format_exc()
+            print(f'{agency} generated an exception: {exc} with traceback:\n{trace}')
+            
+def create_arg_parser():
+    parser = argparse.ArgumentParser('Delete files contained in a list')
+
+    parser.add_argument('--raw', dest="raw", default=None,
+                        help='Directory where files will be stored. ')
+    parser.add_argument('--formatted', dest="formatted", default=None,
+                        help='Directory where files will be stored. ')                        
+    parser.add_argument('--agencies', nargs='+', default=[],
+                        help='Agencies to process. If not specified, does ["usgs","des","cdec","noaa","ncro"].')
+    return parser
+
+
+def main():
+    parser = create_arg_parser()
+    args = parser.parse_args()
+    raw_dir = args.raw_dir
+    formatted_dir = args.formatted
+    agencies = args.agencies
+    if agencies is None or len(agencies) == 0:
+        agencies = ["usgs","des","cdec","noaa","ncro"]    
+    
+    populate_main(raw_dir,formatted_dir,agencies)
 
 
 if __name__ == "__main__":

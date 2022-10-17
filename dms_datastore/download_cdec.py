@@ -19,8 +19,8 @@ import string
 import datetime as dt
 import numpy as np
 import pandas as pd
-from vtools.datastore.process_station_variable import process_station_list, stationfile_or_stations
-from vtools.datastore import dstore_config
+from dms_datastore.process_station_variable import process_station_list, stationfile_or_stations
+from dms_datastore import dstore_config
 
 cdec_base_url = "cdec.water.ca.gov"
 

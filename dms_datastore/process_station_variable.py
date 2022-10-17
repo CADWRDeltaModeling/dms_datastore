@@ -4,6 +4,7 @@
 import pandas as pd
 import os
 
+
 def stationfile_or_stations(stationfile,stations):
     """ Process stationfile arguments and station arguments 
         Delivers the one that will be used in process_station_list 
@@ -113,6 +114,40 @@ def process_station_list(stationlist,id_col="id",agency_id_col="agency_id",
     
     return station_df   #[["station_id","agency_id","subloc","param","src_var_id"]]
             
+
+def read_station_subloc(fpath):
+    """Read a BayDeltaSCHISM station_sublocs.csv  file into a pandas DataFrame
+
+       The BayDelta SCHISM format has a header and uses "," as the delimiter and has these columns:
+       id,subloc,z
+
+       The id is the station id, which is the key that joins this file to the station database. 'subloc' is a label that describes
+       the sublocation or subloc and z is the actual elevation of the instrument
+
+       Example might be:
+       id,subloc,z
+       12345,upper,-0.5
+
+       Other columns are allowed, but this will commonly merged with the station database file so we avoid column names like 'name' that might collide
+
+     Parameters
+     ----------
+     fpath : fname
+        Path to input station.in style file
+
+     Returns
+     -------
+     Result : DataFrame
+         DataFrame with hierarchical index (id,subloc) and data column z
+
+    """
+
+    df = pd.read_csv(fpath,sep=",",header=0,index_col=["id","subloc"],comment='#')
+    df["z"] = df.z
+    return df[["z"]]
+
+
+
 
         
 if __name__ == '__main__':

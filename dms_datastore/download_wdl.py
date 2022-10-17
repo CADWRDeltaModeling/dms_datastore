@@ -17,8 +17,8 @@ import datetime as dtm
 import numpy as np
 import argparse
 import pandas as pd
-from vtools.datastore.process_station_variable import process_station_list,stationfile_or_stations
-from vtools.datastore import dstore_config
+from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
+from dms_datastore import dstore_config
 
 
 items = {"flow": "FLOW_15-MINUTE",

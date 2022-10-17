@@ -32,6 +32,11 @@ def configuration():
     config_ret["config_file_location"] = __file__
     return config_ret
 
+
+def get_config(label):
+    return config_file(label)
+
+
 def config_file(label):
     fname = config[label]
     
@@ -40,7 +45,9 @@ def config_file(label):
     if os.path.exists(localpath):  
         return localpath
     else:
-        if os.path.exists(fname): 
-            return fname
+        # assume it is in the config_data directory
+        assume_fname = os.path.join("config_data",fname)
+        if os.path.exists(assume_fname): 
+            return assume_fname
         else:
             raise ValueError(f"File not found {fname} for label {label} either on its own or in local directory {localdir}")

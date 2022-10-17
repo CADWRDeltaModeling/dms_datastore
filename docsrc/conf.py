@@ -48,7 +48,8 @@ extensions = [ 'sphinx_rtd_theme',#'nbsphinx',
           'matplotlib.sphinxext.plot_directive',
           'sphinx.ext.intersphinx',
           'sphinx.ext.autodoc',
-          #'sphinxarg.ext',
+          #'sphinx_argparse_cli',
+          'sphinxarg.ext',
           'sphinx.ext.doctest',
           'numpydoc']
 

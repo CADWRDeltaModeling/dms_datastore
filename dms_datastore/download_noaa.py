@@ -11,8 +11,8 @@ import calendar
 import datetime as dtm
 import re
 import os
-from vtools.datastore.process_station_variable import process_station_list,stationfile_or_stations
-from vtools.datastore import dstore_config
+from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
+from dms_datastore import dstore_config
 
 
 default_stationlist = {"9414290":"San Francisco",

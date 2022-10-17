@@ -10,8 +10,8 @@ import os
 import datetime as dt
 import time
 import re
-from vtools.datastore.process_station_variable import process_station_list,stationfile_or_stations
-from vtools.datastore import dstore_config
+from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
+from dms_datastore import dstore_config
 import pandas as pd
 
 des_local_dir = os.path.split(__file__)[0]

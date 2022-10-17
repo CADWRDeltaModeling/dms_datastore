@@ -32,9 +32,11 @@ setup(
                                           'download_wdl=dms_datastore.download_wdl:main',
                                           'download_nwis=dms_datastore.download_nwis:main',
                                           'download_des=dms_datastore.download_des:main',
+                                          'download_ncro=dms_datastore.download_ncro:main',
                                           'compare_directories=dms_datastore.compare_directories:main',
                                           'populate_repo=dms_datastore.populate_repo:main',
                                           'station_info=dms_datastore.station_info:main',
-                                          'reformat=dms_datastore.reformat:main']
+                                          'reformat=dms_datastore.reformat:main',
+                                          'delete_from_filelist=dms_datastore.delete_from_filelist:main']
 										   }
 )
