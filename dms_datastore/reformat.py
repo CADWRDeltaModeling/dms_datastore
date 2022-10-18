@@ -108,7 +108,8 @@ def ncro_unit(header_text,param):
                      "temp":"deg_c",
                      "velocity":"ft/s",
                      "flow":"ft^3/s",
-                     "fdom" : "ug/l"}
+                     "fdom" : "ug/l",
+                     "do" : "mg/l"}
     
     # 860.00 - pH () " header_text comes in without comments \s\((\.?)\)
     var = re.compile("[0-9.]+\s-\s(.+)\((.*)\)")
@@ -152,7 +153,7 @@ def infer_internal_meta_for_file(fpath):
     meta_out["longitude"] = slookup.loc[station_id,'lon']
     meta_out["projection_x_coordinate"] = slookup.loc[station_id,'x']
     meta_out["projection_y_coordinate"] = slookup.loc[station_id,'y']    
-    meta_out["projection_authority_id"]   = "epsg:32610"; 
+    meta_out["projection_authority_id"]   = "epsg:26910"; 
     meta_out["crs_note"] = "Reported lat-lon are agency provided. Projected coordinates may be revised." 
     original_hdr = ncro_header(fpath) if meta_out["source"] == "ncro" else original_header(fpath,"#") 
     if source == "cdec": 
@@ -160,7 +161,12 @@ def infer_internal_meta_for_file(fpath):
         meta_out["unit"] = unit
         meta_out["agency_unit"] = agency_unit
     elif source == "ncro":
-        unit = ncro_unit(original_hdr,meta["param"])
+        try:
+            unit = ncro_unit(original_hdr,meta["param"])
+        except:
+            print(f"Unit not parsed in {fpath}, original header:")
+            print(str(original_hdr))
+            unit = "Unknown"
         meta_out["unit"] = unit
         
     
@@ -276,7 +282,7 @@ def reformat_source(inpath,src,outpath):
                 content = content + f"{item}: {hdr_meta[item]}\n"
         write_ts_csv(df,newfname,content,chunk_years=True)
 
-def format_main(inpath="raw",output="formatted",agencies=["usgs","des","cdec","noaa","ncro"]):
+def reformat_main(inpath="raw",outpath="formatted",agencies=["usgs","des","cdec","noaa","ncro"]):
     all_agencies = agencies
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         future_to_agency = {executor.submit(reformat_source,inpath,agency,outpath): \
@@ -305,13 +311,13 @@ def create_arg_parser():
 def main():
     parser = create_arg_parser()
     args = parser.parse_args()
-    raw_dir = args.raw_dir
+    raw_dir = args.raw
     formatted_dir = args.formatted
     agencies = args.agencies
     if agencies is None or len(agencies) == 0:
         agencies = ["usgs","des","cdec","noaa","ncro"]    
     
-    populate_main(raw_dir,formatted_dir,agencies)
+    reformat_main(inpath=raw_dir,outpath=formatted_dir,agencies=agencies)
 
 
 if __name__ == "__main__":
