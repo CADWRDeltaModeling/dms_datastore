@@ -434,11 +434,13 @@ def populate_main(dest,agencies):
     do_ncro = ("ncro" in all_agencies) or ("dwr_ncro" in all_agencies)
     do_des = ("des" in all_agencies) or ("dwr_des" in all_agencies)    
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
         future_to_agency = {executor.submit(populate,dest,agency): agency 
                             for agency in all_agencies if (agency not in ["dwr_ncro","ncro"])}
         if do_ncro:
-            dwr_future_to_agency[executor.submit(populate_ncro_repo,dest)] = "ncro"
+            future_to_agency[executor.submit(populate_ncro_repo,dest)] = "ncro"
+        else: 
+            raise ValueError("ncro issue")
     
     for future in concurrent.futures.as_completed(future_to_agency):
         agency = future_to_agency[future]
