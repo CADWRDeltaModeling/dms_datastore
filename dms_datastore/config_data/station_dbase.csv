@@ -37,7 +37,7 @@ tms,B91160,Sacramento River at Threemile Slough,38.106,-121.7,613974.4,4218374.1
 tpi,B95421,Tom Paine Sl above intake,37.79054048,-121.4187437,639228.5,4183752.9,,B95421,TPI,dwr_ncro,,,x,wdl: B95421 for stage and B9542100 for temp and EC
 tpp,B95425,Tom Paine Sl near Pescadero,37.76724044,-121.3514436,645200.2,4181269.9,,B95425,TPP,dwr_ncro,x,,,
 tps,B95420,Tom Paine Sl above the mouth,37.79054048,-121.4187437,639228.5,4183752.9,,B95420,TPS,dwr_ncro,x,,,
-pdup,B9541050,Paradise Cut Upstream,37.801022,-121.373076,643229.,4184985.,,B8541050,,dwr_ncro,x,,,
+pdup,B9541050,Paradise Cut Upstream,37.801022,-121.373076,643229,4184985,,B8541050,,dwr_ncro,x,,,
 trp,TRP,Tracy Pumping Plant,37.80027343,-121.584902,626865,4186450,,,TRP,dwr_om,,x,x,Moved from facility to trash rack
 uni,UNI,Union Island,37.82209337,-121.3750095,643018.6,4187320.1,C8,,UNI,usbr,,,x,Historically called bifurcation of Middle and Old Rivers
 vic,VIC,Victoria Island,37.89122605,-121.48825,632927.2,4194823.6,,,VIC,usbr,,,x,Not confirmed
@@ -261,19 +261,27 @@ cbs,'381502121411201,Cache Slough below Shag Slough,38.25069,-121.68669,614881,4
 lcts,'381749121400201,Liberty Cut at Five Points,38.296844,-121.667086,616555,4239591,,,,usgs,x,x,x,
 lct,11455146,Liberty Cut at Holland Tract,38.32885,-121.6675306,616465,4243143,,,,usgs,x,x,x,
 mrx,B955006,Middle River near Tracy Blvd,37.88141,-121.46739,634779.4549,4193764.353,,B95506,MRX,dwr_ncro,x,,x,
-mhb,11335000,Cosumnes River at Michigan Bar,38.50028,-121.04417,670551.,4263137.,,,,usgs,x,x,x,Used for Cosumnes boundary
-wbr,11325500,Mokelumne River at Woodbridge,38.15861,-121.30250,648720.,4224775.,,,,usgs,x,x,x,Used for Moke boundary
-awb,11446980,American River below Watt Ave Bridge,38.56722,-121.38722,640504.,4269986.,,,,usgs,x,x,x,Used for American temp boundary
-rye,11455385,Cache Slough above Ryer Island Ferry,38.19395556,-121.6580028,617515.,4228186.,,,,usgs,x,x,x,Replaces ryi
+mhb,11335000,Cosumnes River at Michigan Bar,38.50028,-121.04417,670551,4263137,,,,usgs,x,x,x,Used for Cosumnes boundary
+wbr,11325500,Mokelumne River at Woodbridge,38.15861,-121.3025,648720,4224775,,,,usgs,x,x,x,Used for Moke boundary
+awb,11446980,American River below Watt Ave Bridge,38.56722,-121.38722,640504,4269986,,,,usgs,x,x,x,Used for American temp boundary
+rye,11455385,Cache Slough above Ryer Island Ferry,38.19395556,-121.6580028,617515,4228186,,,,usgs,x,x,x,Replaces ryi
 c16,'380356122023701,Suisun Bay at Channel Marker 16 Near Port Chicago,38.06553,-122.04352,583902.55,4213517.57,,,C16,usgs,,,x,
-c24,'380318121571501,Suisun Bay at Channel Marker 24A Near Bay Point,38.05510,-121.95429,591743.04,4212444.61,,,C24,usgs,,,x,
+c24,'380318121571501,Suisun Bay at Channel Marker 24A Near Bay Point,38.0551,-121.95429,591743.04,4212444.61,,,C24,usgs,,,x,
 co5,11455498,Suisun Bay at Channel Marker 5 at Collinsville,38.06578,-121.83581,602123.11,4213753.24,,,C05,usgs,,,x,
 c10,11455495,Suisun Bay at Channel Marker 10 Near Collinsville,38.05983,-121.79989,605282.66,4213133.12,,,C10,usgs,,,x,
 m13,11455485,Sacramento R Below Toland Landing Near Rio Vista,38.07781,-121.76729,608116.21,4215165.61,,,M13,usgs,,,x,
 knl,A02200,Sacramento River at Knights Landing,38.803348,-121.716391,611458.99,4295736.72,,A02200,KNL,dwr_ncro,,,x,
-klup,A0223002,Sacramento River above CBD,38.805210,-121.723720,610819.69,4295934.45,,A0223002,,dwr_ncro,,,x,
-wlk,11390500,Sacramento River below Wilkins Sl near Grimes,39.00990,-121.82469,601759.47,4318532.21,,,WLK,usgs,,,x,
-ssw,A02108,Sacramento River above Sacramento Weir,38.60805,-121.55930,625441.04,4274267.15,,,SSW,dwr_ncro,,,x,
-ssa,B95100,San Joaquin River at San Andreas Landing,38.103333,-121.591389,623502.,4218217.,,,SSA,dwr_ncro,,,x,
+klup,A0223002,Sacramento River above CBD,38.80521,-121.72372,610819.69,4295934.45,,A0223002,,dwr_ncro,,,x,
+wlk,11390500,Sacramento River below Wilkins Sl near Grimes,39.0099,-121.82469,601759.47,4318532.21,,,WLK,usgs,,,x,
+ssw,A02108,Sacramento River above Sacramento Weir,38.60805,-121.5593,625441.04,4274267.15,,A02108,SSW,dwr_ncro,,,x,
+ssa,B95100,San Joaquin River at San Andreas Landing,38.103333,-121.591389,623502,4218217,,B95100,SSA,dwr_ncro,,,x,
+otw,B9538900,Old River  downstream of Tracy WW Outfall,37.806422,-121.408642,640088,4185530,,B9538900,,dwr_ncro,,,x,
+oap,B9538600,Old River above Paradise Cut,37.806892,-121.414681,639555,4185573,,B9538600,,dwr_ncro,,,x,
+obp,B9538500,Old River below Paradise Cut,37.804229,-121.420224,639072,4185270,,B9538500,,dwr_ncro,,,x,
+otd,B9538100,Old River above Tracy Drain,37.801982,-121.442831,637086,4184987,,B9538100,,dwr_ncro,,,x,
+obr,B9537400,Old River at Bethany Rd Drain,37.7853,-121.5046,631678,4183047,,B9537400,,dwr_ncro,,,x,
+wkl,B9537100,Wicklund Cut near Moth,37.789726,-121.516244,630645,4183522,,B9537100,,dwr_ncro,,,x,SOR28
+wbb,B9537200,Wicklund Cut at Bethany Rd Bridge,37.780386,-121.517321,630566,4182484,,B9537200,,dwr_ncro,,,x,
+mhc,B9536900,Mountain House Creek,37.796918,-121.525642,629804,4184307,,B9536900,,dwr_ncro,,,x,
 # dup ssw2,11426000,Sacramento Weir Spill to Yolo Bypass,38.440277,-121.554166,626181,4255656,,,SSW2,usgs,,,x,Only reports hourly flow and not realtime
 #id,agency_id,name,lat,lon,x,y,d1641_id,wdl_id,cdec_id,agency,stage,flow,quality,notes
