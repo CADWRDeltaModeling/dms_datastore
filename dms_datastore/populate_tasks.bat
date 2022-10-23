@@ -1,4 +1,8 @@
 
-call populate_repo.py
-call delete_non_15_min.py
-call reformat.py
+
+echo populate
+populate_repo --dest=raw
+echo delete 
+delete_from_filelist dpath=raw 
+echo reformat
+reformat --inpath raw --outpath formatted

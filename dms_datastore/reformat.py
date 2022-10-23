@@ -175,7 +175,7 @@ def infer_internal_meta_for_file(fpath):
     return meta_out
 
 
-def reformat():
+def reformat_prev():
     allfiles = glob.glob("raw/*.csv") + glob.glob("raw/*.rdb")
     #allfiles = glob.glob("raw/des_bdl_49_temp_2009_2018.csv")
     allfiles.sort()
@@ -237,12 +237,44 @@ def test_cdec_units(fname):
         x = cfunits.Units(cdu)
         print(x)
 
+def sufficient(ts,min_valid=8):
+    """ Decide if the unformatted file is too incomplete to format """
+    first = ts.first_valid_index()
+    if first is None:
+        return None
+    ts = ts[first:ts.last_valid_index()]
+    ngood = ts.notnull().sum(axis=None)[0]
+    return None if ngood < min_valid else ts
+       
+    
 
-def reformat_source(inpath, src, outpath):
-    glob0 = os.path.join(inpath, f"{src}*.csv")
-    glob1 = os.path.join(inpath, f"{src}*.rdb")
-    allfiles = glob.glob(glob0) + glob.glob(glob1)
+
+def reformat(inpath, outpath, pattern):
+    """ Reformat file to standard csv format
+
+    Parameters
+    ----------
+    inpath : str
+        Directory with source files.
+
+    outpath : str
+        Directory receiving output files
+
+    pattern : str
+        Pattern (filename with wildcards in accordance with globbing) to choose files
+
+    """    
+
+
+    if (inpath is not None) and (inpath != ''):
+        pattern = [os.path.join(inpath,pat) for pat in pattern]
+
+    allfiles=[]
+    for pat in pattern:
+        allfiles = allfiles + glob.glob(pat)
     allfiles.sort()
+    
+    failures=[]
     block_size = 1
     startupstr = None  # file name fragment for resuming or None if start from beginning
     # below doesn't have to be the case, but hard wire
@@ -253,44 +285,68 @@ def reformat_source(inpath, src, outpath):
         startupstr = ''
     else:
         at_start = False
-    for fpath in allfiles:
+    
+    nfile = len(allfiles)
+    report_interval = 10 if nfile < 100 else 100
+    for ifile,fpath in enumerate(allfiles):
+        if (ifile % report_interval) == 0: print(f"{ifile}/{nfile} input files processed")
+    
         if startupstr in fpath:
             at_start = True
         if not at_start:
             continue
-        hdr_meta = infer_internal_meta_for_file(fpath)
+        
+        try: 
+            hdr_meta = infer_internal_meta_for_file(fpath)
 
-        df = read_ts(fpath, force_regular=False)
-        df.index.name = "datetime"
-        df.sort_index(inplace=True)  # possibly non-monotonic
-        if df.first_valid_index() is None:
-            print(f"Skipping {fpath} because no valid data found")
-            continue
-        #nonmonotone = df.loc[df.index.to_series().diff() < pd.to_timedelta('0 seconds')]
+            df = read_ts(fpath, force_regular=False)
+            df.index.name = "datetime"
+            df.sort_index(inplace=True)  # possibly non-monotonic
+            # test that there are enough good values and trim to good indices
+            df = sufficient(df,min_valid=8)
+            if df is None:
+                print(f"Skipping {fpath} because insufficient valid data found")
+                continue
 
-        # This names things uniformally
-        if not ("usgs_" in fpath and df.shape[1] > 1):
-            df.columns = ["value"]
+            # This names things uniformally
+            if not ("usgs_" in fpath and df.shape[1] > 1):
+                df.columns = ["value"]
 
-        newfname = os.path.join(outpath, os.path.split(fpath)[1])
-        newfname = newfname[:-14] + ".csv"
-        content = ""
-        for item in hdr_meta:
-            if item == "original_header":
-                if (hdr_meta[item] is None) or (len(hdr_meta[item]) <= 1):
-                    content = content + "original_header: None"
+            newfname = os.path.join(outpath, os.path.split(fpath)[1])
+            newfname = newfname[:-14] + ".csv"
+            content = ""
+            for item in hdr_meta:
+                if item == "original_header":
+                    if (hdr_meta[item] is None) or (len(hdr_meta[item]) <= 1):
+                        content = content + "original_header: None"
+                    else:
+                        content = content + "original_header: |\n"
+                        content = content + hdr_meta[item]
                 else:
-                    content = content + "original_header: |\n"
-                    content = content + hdr_meta[item]
-            else:
-                content = content + f"{item}: {hdr_meta[item]}\n"
-        write_ts_csv(df, newfname, content, chunk_years=True)
+                    content = content + f"{item}: {hdr_meta[item]}\n"
+            write_ts_csv(df, newfname, content, chunk_years=True)
+        except:
+            print(f"Failed on file/pattern: {fpath}")
+            failures.append(fpath)
+            continue
+
+    print("Reformatting complete. Reformatting failed on these files:")
+    for srcfail in failures:
+        print(srcfail)
 
 
 def reformat_main(inpath="raw", outpath="formatted", agencies=["usgs", "des", "cdec", "noaa", "ncro"]):
+    if not isinstance(agencies,list): 
+        agencies = [agencies]
     all_agencies = agencies
+    known_ext={"usgs": [".csv",".rdb"]}
+    pattern={}
+    for agency in agencies:
+        exts = known_ext[agency] if agency in known_ext else ['.csv']
+        pattern[agency] = [f"{agency}*{ext}" for ext in exts]
+    
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        future_to_agency = {executor.submit(reformat_source, inpath, agency, outpath):
+        future_to_agency = {executor.submit(reformat, inpath, outpath, pattern[agency]):
                             agency for agency in all_agencies}
 
     for future in concurrent.futures.as_completed(future_to_agency):
@@ -303,27 +359,42 @@ def reformat_main(inpath="raw", outpath="formatted", agencies=["usgs", "des", "c
 
 
 def create_arg_parser():
-    parser = argparse.ArgumentParser('Delete files contained in a list')
+    parser = argparse.ArgumentParser('Reformat files from raw to standard format and add metadata')
 
-    parser.add_argument('--raw', dest="raw", default=None,
+    parser.add_argument('--inpath', dest="inpath", default=None,
                         help='Directory where files will be stored. ')
-    parser.add_argument('--formatted', dest="formatted", default=None,
+    parser.add_argument('--outpath', dest="outpath", default=None,
                         help='Directory where files will be stored. ')
+    parser.add_argument('--pattern',dest="pattern",default=None,nargs='+',help="File name or pattern to reformat. If omitted, uses agencies to form patterns")
     parser.add_argument('--agencies', nargs='+', default=[],
-                        help='Agencies to process. If not specified, does ["usgs","des","cdec","noaa","ncro"].')
+                        help='Agencies to process, in which case pattern should be omitted. If not specified, does ["usgs","des","cdec","noaa","ncro"].')
     return parser
 
 
 def main():
     parser = create_arg_parser()
     args = parser.parse_args()
-    raw_dir = args.raw
-    formatted_dir = args.formatted
+    in_dir = args.inpath
+    out_dir = args.outpath
     agencies = args.agencies
-    if agencies is None or len(agencies) == 0:
+    pattern = args.pattern  
+    print(f"in_dir={in_dir},out_dir={out_dir},agencies={agencies},pattern={pattern}")
+    
+    
+    if (pattern is not None) and ((agencies is not None) and len(agencies)>0):
+        raise ValueError(f"File pattern and list of agencies cannot both be specified")
+    
+    if (pattern is None) and (agencies is None or len(agencies) == 0):
         agencies = ["usgs", "des", "cdec", "noaa", "ncro"]
 
-    reformat_main(inpath=raw_dir, outpath=formatted_dir, agencies=agencies)
+    if pattern is None:
+        # Send to multithreaded driver
+        reformat_main(inpath=in_dir, outpath=out_dir,agencies=agencies)
+    else:
+        # Send to simple python with pattern
+        reformat(inpath=in_dir,outpath=out_dir,pattern=pattern)
+       
+
 
 
 if __name__ == "__main__":
