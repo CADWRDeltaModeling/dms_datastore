@@ -42,7 +42,7 @@ test:
     - pytest
 
 about:
-  home: https://github.com/water-e/dms_datastore
+  home: https://github.com/CADWRDeltaModeling/dms_datastore
   summary: Downloading tools and data repository management
   license: {{ data.get('license') }}
   license_file: LICENSE
