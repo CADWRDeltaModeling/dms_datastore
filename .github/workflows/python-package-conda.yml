@@ -28,6 +28,6 @@ jobs:
         source $CONDA/etc/profile.d/conda.sh
         conda activate test_dms_datastore
         conda config --set anaconda_upload yes
-        #conda build -c cadwr-dms -c defaults --user cadwr-dms --token "$ANACONDA_CHANNEL_UPLOAD_TOKEN" conda.recipe
+        conda build -c cadwr-dms -c defaults --user cadwr-dms --token "$ANACONDA_CHANNEL_UPLOAD_TOKEN" conda.recipe
         conda activate
         conda remove -n test_dms_datastore --all
