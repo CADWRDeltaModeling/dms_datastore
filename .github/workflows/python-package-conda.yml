@@ -24,10 +24,10 @@ jobs:
       env: 
         ANACONDA_CHANNEL_UPLOAD_TOKEN: ${{ secrets.ANACONDA_CHANNEL_UPLOAD_TOKEN }}
       run: |
-        conda create -n test_schimpy -y conda-build conda-verify numpy anaconda-client
+        conda create -n test_dms_datastore -y conda-build conda-verify numpy anaconda-client
         source $CONDA/etc/profile.d/conda.sh
-        conda activate test_schimpy
+        conda activate test_dms_datastore
         conda config --set anaconda_upload yes
         conda build -c cadwr-dms -c defaults -c plotly --user cadwr-dms --token "$ANACONDA_CHANNEL_UPLOAD_TOKEN" conda.recipe
         conda activate
-        conda remove -n test_schimpy --all
+        conda remove -n test_dms_datastore --all
