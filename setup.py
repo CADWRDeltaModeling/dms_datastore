@@ -17,7 +17,6 @@ setup(
     license="BSD",
     long_description=readme,
     install_requires=requirements,
-    test_suite='tests',
     #extras_require=extras,
     include_package_data=True,
     packages=find_packages(),
