@@ -3,9 +3,11 @@ import versioneer
 
 with open('README.rst') as readme_file:
     readme = readme_file.read()
-requirements = [ "vtools3", 
-                 "pandas",
-]
+requirements = [ "vtools3",
+                 "beautifulsoup4",
+                 "pandas",]
+setup_requirements = ['pytest-runner', ]
+test_requirements = ['pytest>=3', ]
 
 setup(
     name='dms_datastore',
@@ -15,6 +17,9 @@ setup(
     license="BSD",
     long_description=readme,
     install_requires=requirements,
+    setup_requires=setup_requirements,
+    test_suite='tests',
+    tests_require=test_requirements,
     #extras_require=extras,
     include_package_data=True,
     packages=find_packages(),
