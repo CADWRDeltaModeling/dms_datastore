@@ -7,7 +7,7 @@ requirements = [ "vtools3",
                  "beautifulsoup4",
                  "pandas",]
 setup_requirements = ['pytest-runner', ]
-test_requirements = ['pytest-runner','pytest', ]
+test_requirements = ['pytest', ]
 
 setup(
     name='dms_datastore',
