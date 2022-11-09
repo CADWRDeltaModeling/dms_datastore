@@ -53,7 +53,7 @@ vol,42,Suisun Slough 300' south of Volanti Slough,38.180526,-122.0469582,583348,
 bdl,49,Montezuma Slough near Beldons Landing,38.186785,-121.9707745,590134.7,4227040.1,S49,,BDL,dwr_des,x,,x,Not confirmed. Moved to pier.
 ibs,97,Cordelia Slough at Ibis club,38.15729922,-122.1136785,577650.9,4223639,S97,,IBS,dwr_des,x,,x,
 lis,B91560,Yolo Bypass at Lisbon,38.47503915,-121.5885124,623124,4259467.4,,B91560,LIS,dwr_ncro,x,x,,
-wci,WCI,West Canal near Clifton Court Intake,37.83161222,-121.5540556,627243.2,4188117.2,,B95338,WCI,dwr_ncro,,x,x,
+wci,B95338,West Canal near Clifton Court Intake,37.83161222,-121.5540556,627243.2,4188117.2,,B95338,WCI,dwr_ncro,,x,x,
 ori,B95341,Old River near Clifton Court Intake,37.82797167,-121.5526014,627377.4,4187715.2,,B95341,ORI,dwr_ncro,,x,x,ADCP flow station
 rcs,RCS,Ridge Cut Slough at Knight's Landing,38.79378266,-121.7253592,610695,4294664.3,,A02939,RCS,dwr_ncro,x,x,x,
 nsl,E33670,Montezuma Slough at National Steel,38.12202682,-121.8882107,597451.6,4219938,S64,E33670,NSL,dwr_ncro,x,x,x,
@@ -93,7 +93,7 @@ vcu,11312672,Victoria Canal near Byron,37.8708333,-121.53,629291.6,4192502.2,,,V
 mdm,11312676,Middle R at Middle River,37.94266627,-121.5338075,628839.5,4200455,,,MDM,usgs,x,x,x,
 hlt,11312685,Middle R near Holt,38.00305556,-121.5108985,630737.3,4207200.2,,,HLT,usgs,x,x,x,"USGS collects flow data on a pile they installed.  NCRO collects temp, EC, turbidity and chlorophyll on pile with USGS and uses USGS telemetry.  All data on CDEC"
 odm,11312968,Old R near Delta Mendota Canal,37.81025086,-121.5423248,628312.5,4185763.1,,,ODM,usgs,x,x,," At ODM which is on a pile, USGS collects flow while NCRO collects  temp, pH, EC, DO, turbidity and chlorophyll using USGS telemetry equipment."
-odm2,B9536500,Old River Barrier near DMC (Below),37.81025086,-121.5423248,628312.5,4185763.1,,,ODM,dwr_ncro,x,x,," At ODM which is on a pile, USGS collects flow while NCRO collects  temp, pH, EC, DO, turbidity and chlorophyll using USGS telemetry equipment. This station is below the Dam and is run by the water quality program at NCRO"
+odm2,B9536600,Old River Barrier near DMC (Below),37.81025086,-121.5423248,628312.5,4185763.1,,,ODM,dwr_ncro,x,x,," At ODM which is on a pile, USGS collects flow while NCRO collects  temp, pH, EC, DO, turbidity and chlorophyll using USGS telemetry equipment. This station is below the Dam and is run by the water quality program at NCRO"
 glc,11313240,Grantline Canal,37.82010741,-121.5447222,628084.5,4186853.4,,,GLC,usgs,x,x,,"Replaces a station located on the Tracy Rd Bridge (5 miles east of the piling). Located on pile (B95320).  USGS measures flow whiles NCRO measures temp, EC pH, DO turbidity and chlorophyll.  USGS telemeters this data  "
 oh4,11313315,Old R near Byron,37.89103627,-121.5702283,625718.9,4194688.9,,,OH4,usgs,x,x,x,On bridge
 obi,11313405,Old R at Bacon Island,37.96791667,-121.5743889,625222.5,4203213.9,,,OBI,usgs,x,x,,
@@ -260,7 +260,7 @@ lhtse,11455167,Prospect Slough at Toe Drain Near Courtland,38.33541,-121.6582,61
 cbs,'381502121411201,Cache Slough below Shag Slough,38.25069,-121.68669,614881,4234438,,,,usgs,x,x,x,
 lcts,'381749121400201,Liberty Cut at Five Points,38.296844,-121.667086,616555,4239591,,,,usgs,x,x,x,
 lct,11455146,Liberty Cut at Holland Tract,38.32885,-121.6675306,616465,4243143,,,,usgs,x,x,x,
-mrx,B955006,Middle River near Tracy Blvd,37.88141,-121.46739,634779.4549,4193764.353,,B95506,MRX,dwr_ncro,x,,x,
+mrx,B95506,Middle River near Tracy Blvd,37.88141,-121.46739,634779.4549,4193764.353,,B95506,MRX,dwr_ncro,x,,x,
 mhb,11335000,Cosumnes River at Michigan Bar,38.50028,-121.04417,670551,4263137,,,,usgs,x,x,x,Used for Cosumnes boundary
 wbr,11325500,Mokelumne River at Woodbridge,38.15861,-121.3025,648720,4224775,,,,usgs,x,x,x,Used for Moke boundary
 awb,11446980,American River below Watt Ave Bridge,38.56722,-121.38722,640504,4269986,,,,usgs,x,x,x,Used for American temp boundary
