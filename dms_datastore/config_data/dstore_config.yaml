@@ -1,10 +1,11 @@
 
 
 
-station_dbase : station_dbase.csv   # From BayDeltaSCHISM
+station_dbase : station_dbase.csv
 variable_mappings: variable_mappings.csv
 variable_definitions: variables.csv
 sublocations: station_subloc.csv
 
 file_deletion_list: non_15_min_files_checked.txt
 
+repo: "//cnrastore-bdo/Modeling_Data/continuous_station_repo_beta/formatted_1yr"
