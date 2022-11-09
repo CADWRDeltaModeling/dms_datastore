@@ -3,6 +3,7 @@
 import concurrent.futures
 import glob
 import os
+import sys
 import traceback
 import argparse
 import pandas as pd
@@ -121,10 +122,11 @@ def ncro_unit(header_text, param):
         # No choice but to guess based on probable units for the parameter
         return param_defaults[param]  # No guarantee this will work
     for line in header_text.split("\n"):
+        line=line.strip()
         if "Variables:" in line:
             parsing = True
         elif parsing:
-            varmatch = var.match(line)
+            varmatch = var.match(line.strip())
             agency_variable = varmatch.group(1).strip()
             agency_unit = varmatch.group(2).strip()
             parsing = False
@@ -214,11 +216,22 @@ def reformat_prev():
                     content = content + "original_header: None"
                 else:
                     content = content + "original_header: |\n"
-                    content = content + hdr_meta[item]
+                    content = content + ensure_indent(hdr_meta[item])
             else:
                 content = content + (item + ": " + hdr_meta[item] + "\n")
         write_ts_csv(df, newfname, content, chunk_years=True)
 
+def ensure_indent(txt):
+    lines = txt.split("\n")
+    if txt.startswith(" "): 
+        # assume we are good to go
+        return txt
+    else:
+        indented = ["  " + line for line in lines]
+        out = "\n".join(indented)
+        return out
+        
+    
 
 def test_ncro_header(fname):
     print(ncro_header(fname))
@@ -321,11 +334,12 @@ def reformat(inpath, outpath, pattern):
                         content = content + "original_header: None"
                     else:
                         content = content + "original_header: |\n"
-                        content = content + hdr_meta[item]
+                        content = content + ensure_indent(hdr_meta[item])
                 else:
                     content = content + f"{item}: {hdr_meta[item]}\n"
             write_ts_csv(df, newfname, content, chunk_years=True)
         except:
+            raise
             print(f"Failed on file/pattern: {fpath}")
             failures.append(fpath)
             continue
@@ -344,19 +358,21 @@ def reformat_main(inpath="raw", outpath="formatted", agencies=["usgs", "des", "c
     for agency in agencies:
         exts = known_ext[agency] if agency in known_ext else ['.csv']
         pattern[agency] = [f"{agency}*{ext}" for ext in exts]
+
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
         future_to_agency = {executor.submit(reformat, inpath, outpath, pattern[agency]):
                             agency for agency in all_agencies}
-
-    for future in concurrent.futures.as_completed(future_to_agency):
-        agency = future_to_agency[future]
-        try:
-            data = future.result()
-        except Exception as exc:
-            trace = traceback.format_exc()
-            print(f'{agency} generated an exception: {exc} with traceback:\n{trace}')
-
+                            
+        for future in concurrent.futures.as_completed(future_to_agency):
+            agency = future_to_agency[future]
+            try:
+                data = future.result()
+                print("Data",data)
+            except Exception as exc:
+                trace = traceback.format_exc()
+                print(f'{agency} generated an exception: {exc} with traceback:\n{trace}')
+                sys.stdout.flush()
 
 def create_arg_parser():
     parser = argparse.ArgumentParser('Reformat files from raw to standard format and add metadata')
