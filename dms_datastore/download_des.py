@@ -62,7 +62,7 @@ def write_ts(fpath,df,meta):
     with open(fpath,'w',encoding="utf-8") as fout:
         for item in meta.keys():
             fout.write(f"# {item} : {meta[item]}\n")
-        df.to_csv(fout,sep=",",header=True,line_terminator="\n",date_format="%Y-%m-%dT%H:%M")
+        df.to_csv(fout,sep=",",header=True,lineterminator="\n",date_format="%Y-%m-%dT%H:%M")
  
 def des_metadata(station_id,agency_id,rid):
     meta = {}
