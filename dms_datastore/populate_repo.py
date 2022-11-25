@@ -26,6 +26,7 @@ import pandas as pd
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations,read_station_subloc
 from schimpy.station import *
 from dms_datastore import dstore_config
+from dms_datastore.filename import interpret_fname,meta_to_filename
 from dms_datastore.read_ts import read_ts
 from dms_datastore.download_nwis import nwis_download,parse_start_year
 from dms_datastore.download_noaa import noaa_download
@@ -42,76 +43,9 @@ downloaders = {"dwr_des":des_download,"noaa":noaa_download,
                "usgs":nwis_download,"usbr":cdec_download,
                "cdec":cdec_download}
 
-def populate_repo(agency,param,dest,start,end,overwrite=False,ignore_existing=None):
-    """ Populate repository for the given agency/source and parameter
-    
-    Parameters
-    ----------
-    agency : str
-        Agency to populate
-    param : str
-        Parameter to populate. Should be a variable on the variables.csv table
-    dest : str
-        Location to put files
-    start : int
-        year to start
-    end : int
-        year to end or 9999 to go to now
-    overwrite : bool
-        passed to downloading script
-    ignore_existing : list of existing files to ignore
-    
-    Returns
-    -------
 
-   """
 
-    # todo: This may limit usefulness for things like atmospheric    
-    slookup = dstore_config.config_file("station_dbase")
-    vlookup = dstore_config.config_file("variable_mappings") 
-    subloclookup = dstore_config.config_file("sublocations")
-    df = pd.read_csv(slookup,sep=",",comment="#",header=0,dtype={"agency_id":str})
-    df=df.loc[df.agency.str.lower()==agency,:]
-    df["agency_id"] = df["agency_id"].str.replace("\'","",regex=True)  
-    
-    dfsub = read_station_subloc(subloclookup)
-    df = merge_station_subloc(df,dfsub,default_z=-0.5)
 
-    #This will be used to try upper and lower regardless of whether they are listed
-    maximize_subloc = False
-
-    df=df.reset_index()    
-    if ignore_existing is not None:
-        df = df[~df["id"].isin(ignore_existing)]
-        
-
-    dest_dir = dest
-    source = agency if agency != 'usbr' else 'cdec'
-    agency_id_col = "cdec_id" if source == 'cdec' else "agency_id"
-    
-
-    df=df[["id","subloc"]]
-    stationlist = process_station_list(df,param=param,param_lookup=vlookup,
-                                       station_lookup=slookup,agency_id_col=agency_id_col,source=source)
-    
-    if maximize_subloc:
-        stationlist["subloc"] = 'default'
-        if param not in  ['flow','elev']:
-            sl1 = stationlist.copy()
-            sl1['subloc'] = 'upper'
-            sl2 = stationlist.copy()
-            sl2['subloc'] = 'lower'
-            stationlist = pd.concat([stationlist,sl1,sl2],axis=0)
-    #if agency == "noaa":
-    #    if param == 'elev' or param == 'prediction':    
-    #        stationlist = stationlist[stationlist.agency_id.str.startswith("9")]
-    downloaders[agency](stationlist,dest_dir,start,end,param,overwrite)
-
-def _write_renames(renames,outfile):
-    """ Logger to write rename failures """
-    writedf = pd.DataFrame.from_records(renames,columns = ["from","to"])
-    writedf.to_csv(outfile,sep=",",header=True) 
-    
 def revise_filename_syears(pat,force=True,outfile="rename.txt"):
     """ Revise start year of files matching pat to the first year of valid data
     
@@ -222,6 +156,79 @@ def revise_filename_syear_eyear(pat,force=True,outfile="rename.txt"):
         print("Bad files:")
         for b in bad: print(b)
 
+
+
+def populate_repo(agency,param,dest,start,end,overwrite=False,ignore_existing=None):
+    """ Populate repository for the given agency/source and parameter
+    
+    Parameters
+    ----------
+    agency : str
+        Agency to populate
+    param : str
+        Parameter to populate. Should be a variable on the variables.csv table
+    dest : str
+        Location to put files
+    start : int
+        year to start
+    end : int
+        year to end or 9999 to go to now
+    overwrite : bool
+        passed to downloading script
+    ignore_existing : list of existing files to ignore
+    
+    Returns
+    -------
+
+   """
+
+    # todo: This may limit usefulness for things like atmospheric    
+    slookup = dstore_config.config_file("station_dbase")
+    vlookup = dstore_config.config_file("variable_mappings") 
+    subloclookup = dstore_config.config_file("sublocations")
+    df = pd.read_csv(slookup,sep=",",comment="#",header=0,dtype={"agency_id":str})
+    df=df.loc[df.agency.str.lower()==agency,:]
+    df["agency_id"] = df["agency_id"].str.replace("\'","",regex=True)  
+    
+    dfsub = read_station_subloc(subloclookup)
+    df = merge_station_subloc(df,dfsub,default_z=-0.5)
+
+    #This will be used to try upper and lower regardless of whether they are listed
+    maximize_subloc = False
+
+    df=df.reset_index()    
+    if ignore_existing is not None:
+        df = df[~df["id"].isin(ignore_existing)]
+        
+
+    dest_dir = dest
+    source = agency if agency != 'usbr' else 'cdec'
+    agency_id_col = "cdec_id" if source == 'cdec' else "agency_id"
+    
+
+    df=df[["id","subloc"]]
+    stationlist = process_station_list(df,param=param,param_lookup=vlookup,
+                                       station_lookup=slookup,agency_id_col=agency_id_col,source=source)
+    
+    if maximize_subloc:
+        stationlist["subloc"] = 'default'
+        if param not in  ['flow','elev']:
+            sl1 = stationlist.copy()
+            sl1['subloc'] = 'upper'
+            sl2 = stationlist.copy()
+            sl2['subloc'] = 'lower'
+            stationlist = pd.concat([stationlist,sl1,sl2],axis=0)
+    #if agency == "noaa":
+    #    if param == 'elev' or param == 'prediction':    
+    #        stationlist = stationlist[stationlist.agency_id.str.startswith("9")]
+    downloaders[agency](stationlist,dest_dir,start,end,param,overwrite)
+
+def _write_renames(renames,outfile):
+    """ Logger to write rename failures """
+    writedf = pd.DataFrame.from_records(renames,columns = ["from","to"])
+    writedf.to_csv(outfile,sep=",",header=True) 
+    
+
 def existing_stations(pat):
     allfiles = glob.glob(pat)
     existing = set()
@@ -317,47 +324,6 @@ def populate_ncro_realtime(dest,realtime_start=pd.Timestamp(2021,1,1)):
 
 
 
-def interpret_fname(fname,to_meta=True):
-    fname = os.path.split(fname)[1]
-    meta = {}
-    datere = re.compile(r"([a-z0-9]+)_([a-z0-9@]+)_([a-z0-9]+)_([a-z0-9]+).*_(\d{4})_(\d{4})(?:\..{3})")
-    datere1 = re.compile(r"([a-z0-9]+)_([a-z0-9@]+)_([a-z0-9]+)_([a-z0-9]+).*_(\d{4})(?:\..{3})")
-    m = datere.match(fname)
-    if m is None:
-        m = datere1.match(fname)
-        single_date = True
-    else:
-        single_date = False
-    if m is not None:
-        meta['filename'] = m.group(0)
-        meta['agency'] = m.group(1)
-        station_id = m.group(2)
-        if "@" in station_id: 
-            station_id,subloc = station_id.split("@")
-        else: 
-            subloc = None
-           
-        meta['station_id'] = station_id
-        meta['subloc'] = subloc
-        meta['agency_id'] = m.group(3)
-        meta['param'] = m.group(4)
-        if single_date:
-            meta['year'] = m.group(5)
-        else:
-            meta['syear'] = m.group(5)
-            meta['eyear'] = m.group(6)
-        return meta
-    else:
-        raise ValueError(f"Naming convention not matched for {fname}")
-
-def meta_to_filename(meta):
-    station_id = meta['station_id'] if meta['subloc'] is None else f"{meta.station_id}@{meta.subloc}"
-    if 'syear' in meta and 'eyear' in meta:
-        year_part = f"{meta['syear']}_{meta['eyear']}"
-    else:
-        year_part = f"{meta['year']}"
-    return  f"{meta['agency']}_{station_id}_{meta['agency_id']}"+\
-            f"_{meta['param']}_{year_part}.csv"
     
 
 def rationalize_time_partitions(pat):
