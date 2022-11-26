@@ -287,12 +287,11 @@ def populate(dest,all_agencies=None):
     if not isinstance(all_agencies,list):
         all_agencies = [all_agencies]
     
-    
     for agency in all_agencies:
         if agency == "noaa": 
             varlist = ["elev","predictions"]  # handled in next section
         else:
-            varlist = ["flow","elev","ec","temp","do","turbidity"]   
+            varlist = ["flow","elev","ec","temp","do","turbidity","velocity","ph","ssc"] 
         
         for var in varlist:
             populate_repo(agency,var,dest,pd.Timestamp(1980,1,1),pd.Timestamp(1999,12,31,23,59),ignore_existing=ignore_existing)
@@ -387,7 +386,6 @@ def populate_main(dest,agencies):
     do_purge = False
     if not os.path.exists(dest):
         os.mkdir(dest)
-        print("Directory ",dest," created")
         print("Directory ",dest," created")
     else:
         if do_purge: purge(dest)

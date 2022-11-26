@@ -57,7 +57,7 @@ Stream level; NAVD,usgs,63160,elev,
 Turbidity; FNU,usgs,63680,turbidity,
 Depth; sensor,usgs,72147,depth,
 Sensor velocity,usgs,72254,velocity,
-Mean water velocity,usgs,72255,velocity_mean,Mean velocity over cross-section
+Mean water velocity,usgs,72255,velocity,Mean velocity over cross-section
 Gage height,usgs,72293,elev,
 Suspnd sedmnt conc,usgs,80154,ssc,
 Suspnd sedmnt disch,usgs,80155,sed_discharge,

@@ -138,6 +138,32 @@ def ncro_unit(header_text, param):
                 raise ValueError(f"unrecognized variable/unit {agency_variable}, {agency_unit}")
 
 
+usgs_params = pd.read_csv(os.path.join(os.path.split(__file__)[0],"usgs_parameter_cd_query.txt"),
+                          sep="\t",dtype={"parm_cd":str},comment="#",index_col="parm_cd")
+
+def usgs_unit(header_text):
+    
+    
+    unit_remap = {"ft":"feet","ft3/s":"ft^3/s",
+                  "uS/cm @25C":"microS/cm","ft":"feet",
+                  "ft/sec":"ft/s","m/sec":"m/s",
+                  "ng/m3":"ng/m^3","deg C":"deg_c"}    
+    parsing=False
+    
+    for line in header_text.split("\n"):
+        line = line.strip()
+        if "Parameter" in line and "Description" in line:
+            parsing=True
+        elif parsing:
+            parts = line.split()
+            paramcode = parts[2]
+            first_cut = usgs_params.loc[paramcode,"parm_unit"]
+            out = unit_remap[first_cut] if first_cut in unit_remap else first_cut
+            return out
+    raise ValueError("Unknown unit")
+    return "unknown"
+
+
 def infer_internal_meta_for_file(fpath):
     slookup = station_dbase()
     fname = os.path.split(fpath)[1]
@@ -157,7 +183,7 @@ def infer_internal_meta_for_file(fpath):
     meta_out["projection_x_coordinate"] = slookup.loc[station_id, 'x']
     meta_out["projection_y_coordinate"] = slookup.loc[station_id, 'y']
     meta_out["projection_authority_id"] = "epsg:26910"
-    meta_out["crs_note"] = "Reported lat-lon are agency provided. Projected coordinates may be revised."
+    meta_out["crs_note"] = "Reported lat-lon are agency provided. Projected coordinates may have been revised based on additional information."
     original_hdr = ncro_header(
         fpath) if meta_out["source"] == "ncro" else original_header(fpath, "#")
     if source == "cdec":
@@ -172,6 +198,16 @@ def infer_internal_meta_for_file(fpath):
             print(str(original_hdr))
             unit = "Unknown"
         meta_out["unit"] = unit
+    elif source == "usgs":
+        uunit = usgs_unit(original_hdr)
+        meta_out["unit"] = uunit
+    elif source == "des":
+        yml = read_yaml_header(fpath)
+        print("original header")
+        print(original_hdr)
+        print("done")
+        meta_out["agency_unit"] = yml["agency_unit_name"]
+        meta_out["unit"] = yml["unit"]
 
     meta_out["original_header"] = original_hdr
     return meta_out
