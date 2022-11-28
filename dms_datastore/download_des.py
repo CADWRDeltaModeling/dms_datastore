@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 """ Download robot for Nationla Water Informaton System (NWIS)
     The main function in this file is nwis_download. 
     
@@ -15,6 +17,8 @@ from dms_datastore import dstore_config
 import pandas as pd
 
 des_local_dir = os.path.split(__file__)[0]
+
+
 
 # These are the current flag definitions for both EMP and MARSH as of 9/14/2020.
 # There is no web service to retrieve this information.
@@ -63,7 +67,23 @@ def write_ts(fpath,df,meta):
         for item in meta.keys():
             fout.write(f"# {item} : {meta[item]}\n")
         df.to_csv(fout,sep=",",header=True,lineterminator="\n",date_format="%Y-%m-%dT%H:%M")
- 
+
+
+des_unit_map = {"ÂµS/cm":"microS/cm",
+                "μS/cm":"microS/cm",
+                "°C":"deg_c",
+                "°F":"deg_f","CFS":"ft^3/s",
+                "ft (MSL)":"feet","inches":"inches",
+                "ft/s":"ft/s","W/m2":"Wm^-2",
+                "µg/L":"ug/l","mg/L":"mg/l",
+                "1":"psu","% saturation":"% saturation",
+                "NTU":"NTU","FNU":"FNU",
+                "mph":"mph","Degrees":"deg",
+                "ft":"feet","km/h":"km/h",
+                "pH Units":"pH"}
+                
+
+
 def des_metadata(station_id,agency_id,rid):
     meta = {}
     meta["provider"] = "DWR-DES"
@@ -264,7 +284,10 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                     download_success = False
                 if download_success:
                     meta = des_metadata(station,agency_id,rid)
-                    meta["subloc"]=subloc                
+                    meta["subloc"]=subloc
+                    agency_unit = meta["agency_unit_name"].strip()
+                    print("yo",agency_unit,agency_unit == "µS/cm",agency_unit=="μS/cm")
+                    meta["unit"] = des_unit_map[agency_unit]                    
                     write_ts(path,df,meta)   
     
     if len(failures) == 0:
