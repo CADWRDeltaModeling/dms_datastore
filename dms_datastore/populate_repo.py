@@ -403,8 +403,6 @@ def populate_main(dest,agencies):
                             for agency in all_agencies if (agency not in ["dwr_ncro","ncro"])}
         if do_ncro:
             future_to_agency[executor.submit(populate_ncro_repo,dest)] = "ncro"
-        else: 
-            raise ValueError("ncro issue")
     
     for future in concurrent.futures.as_completed(future_to_agency):
         agency = future_to_agency[future]
