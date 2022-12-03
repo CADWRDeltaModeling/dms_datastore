@@ -134,7 +134,7 @@ def noaa_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
 
         product_info = {"water_level" :      { "agency": "noaa",
                                                "unit": "meters",
-                                               "datum": "NAVD",
+                                               "datum": "NAVD88",
                                                "station_id": f"{agency_id}",
                                                 "station_name": f"{station_name}", 
                                                "param": "elev",
@@ -142,7 +142,7 @@ def noaa_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                                                "source": "http://tidesandcurrents.noaa.gov/"},
                         "predictions" :      { "agency": "noaa",
                                                 "unit": "meters",
-                                                "datum": "NAVD",
+                                                "datum": "NAVD88",
                                                 "station_id": "{}".format(agency_id),
                                                 "station_name": f"{station_name}", 
                                                 "param": "predictions",
@@ -193,7 +193,7 @@ def noaa_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                 date_end = "{:4d}{:02d}{:02d}".format(year, month,day_end)
                 base_url = headers["source"]
 
-                datum = "NAVD"
+                datum = "NAVD88"
                 datum_str = f"&datum={datum}" if param in ("water_level","predictions") else ""
                 url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric{datum_str}&format=csv"
 
