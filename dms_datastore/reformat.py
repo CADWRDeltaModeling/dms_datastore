@@ -57,7 +57,7 @@ def infer_unit(fname, param, src):
         variable_mappings = pd.read_csv(variablemapfile, header=0, comment="#")
     thisvar = variable_mappings.loc[(variable_mappings.var_name == param)
                                      & (variable_mappings.src_name == src), :]
-    print(thisvar)
+
 
 
 def ncro_header(fname):
@@ -73,7 +73,6 @@ def ncro_header(fname):
                 blanks_in_row = blanks_in_row + 1 if len(item.strip()) == 0 else 0
                 if blanks_in_row == 2:
                     return "\n".join(header)
-                # print(header)
                 header.append(item.strip())
 
 
@@ -87,6 +86,10 @@ def cdec_unit(fname):
     else:
         unit = "unmapped"
     return unit, agency_unit
+
+def noaa_unit(fname):
+    header = read_yaml_header(fname)
+    return header['unit']
 
 
 def ncro_unit(header_text, param):
@@ -203,11 +206,10 @@ def infer_internal_meta_for_file(fpath):
         meta_out["unit"] = uunit
     elif source == "des":
         yml = read_yaml_header(fpath)
-        print("original header")
-        print(original_hdr)
-        print("done")
         meta_out["agency_unit"] = yml["agency_unit_name"]
         meta_out["unit"] = yml["unit"]
+    elif source == "noaa":
+        meta_out['unit'] = read_yaml_header(fpath)['unit']
 
     meta_out["original_header"] = original_hdr
     return meta_out
@@ -284,7 +286,7 @@ def test_cdec_units(fname):
     for fname in all_files:
         cdu = cdec_unit(fname)
         x = cfunits.Units(cdu)
-        print(x)
+
 
 def sufficient(ts,min_valid=8):
     """ Decide if the unformatted file is too incomplete to format """
@@ -438,6 +440,9 @@ def main():
     
     if (pattern is None) and (agencies is None or len(agencies) == 0):
         agencies = ["usgs", "des", "cdec", "noaa", "ncro"]
+
+    if in_dir is None or out_dir is None:
+        raise ValueError("inpath and outpath must be specified explicitly")
 
     if pattern is None:
         # Send to multithreaded driver
