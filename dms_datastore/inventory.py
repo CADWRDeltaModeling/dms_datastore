@@ -60,7 +60,7 @@ def repo_inventory(fpath,full=True,by="file_pattern"):
     # Dictionary with station_id,agency_id,variable,,start,end, etc
     allmeta = [interpret_fname(fname) for fname in allfiles] 
     metadf = pd.DataFrame(allmeta)
-    metadf['original_filename'] = metadf.filename
+    metadf['original_filename'] = metadf.filename  # preserves the entire filename so first file can be parsed
     metadf['filename'] = metadf.apply(lambda x: to_wildcard(x.filename),axis=1)
     grouped_meta = metadf.groupby(["filename"]).agg(
         {
@@ -70,7 +70,7 @@ def repo_inventory(fpath,full=True,by="file_pattern"):
          "agency": "first",
          "agency_id":['first'],
          "year":['min','max'],
-         "original_filename":['first']   # this will be used to scrape metadata then dropped
+         "original_filename":['first']   # the first file will be used to scrape metadata then dropped
          }
         )
     grouped_meta.columns = ['station_id','subloc','param','source',
@@ -125,7 +125,9 @@ def repo_data_inventory(fpath,full=True,by="file_pattern"):
     metadf = pd.DataFrame(allmeta)
     metadf['original_filename'] = metadf.filename
     metadf['filename'] = metadf.apply(lambda x: to_wildcard(x.filename),axis=1)
-    grouped_meta = metadf.groupby(["station_id","subloc","param"]).agg(
+
+    meta2 = metadf.groupby(["station_id","subloc","param"]).first()
+    grouped_meta = metadf.groupby(["station_id","subloc","param"],dropna=False).agg(
         {
          "agency": lambda ser: reduce(prioritize_source,ser),
          "agency_id":['first'],
@@ -134,12 +136,10 @@ def repo_data_inventory(fpath,full=True,by="file_pattern"):
          }
         )
     grouped_meta.columns = ['agency','agency_id','min_year','max_year','original_filename'] 
-
     metastat = grouped_meta.join(station_db,on="station_id",
                             rsuffix="_dbase",how="left")
                             
     metastat.rename(mapper={"lat":"agency_lat","lon":"agency_lon"},axis='columns')
-    print(metastat[['original_filename']])
     metastat['unit'] = metastat.apply(
                           lambda x: scrape_header_metadata(
                           os.path.join(fpath,x.original_filename)),axis=1)
