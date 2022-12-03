@@ -1,5 +1,6 @@
 # id is sensor location, 
-# subloc is the "sublocation" which can differentiate anything you want that the agency reports as a station, but typically is used for multiple sensor depths
+# subloc is the "sublocation" which can differentiate anything you want 
+# that the agency reports as a station, but typically is used for multiple sensor depths
 # z is instrument elevation in meters NAVD
 id,subloc,z,comment
 mal,upper,-1.0,
