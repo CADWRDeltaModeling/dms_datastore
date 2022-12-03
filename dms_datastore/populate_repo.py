@@ -206,10 +206,10 @@ def populate_repo(agency,param,dest,start,end,overwrite=False,ignore_existing=No
     agency_id_col = "cdec_id" if source == 'cdec' else "agency_id"
     
 
-    df=df[["id","subloc"]]
+    df=df[["id","subloc"]]  
     stationlist = process_station_list(df,param=param,param_lookup=vlookup,
                                        station_lookup=slookup,agency_id_col=agency_id_col,source=source)
-    
+    print(stationlist)
     if maximize_subloc:
         stationlist["subloc"] = 'default'
         if param not in  ['flow','elev']:
@@ -218,9 +218,7 @@ def populate_repo(agency,param,dest,start,end,overwrite=False,ignore_existing=No
             sl2 = stationlist.copy()
             sl2['subloc'] = 'lower'
             stationlist = pd.concat([stationlist,sl1,sl2],axis=0)
-    #if agency == "noaa":
-    #    if param == 'elev' or param == 'prediction':    
-    #        stationlist = stationlist[stationlist.agency_id.str.startswith("9")]
+
     downloaders[agency](stationlist,dest_dir,start,end,param,overwrite)
 
 def _write_renames(renames,outfile):
@@ -292,14 +290,34 @@ def populate(dest,all_agencies=None):
             varlist = ["elev","predictions"]  # handled in next section
         else:
             varlist = ["flow","elev","ec","temp","do","turbidity","velocity","ph","ssc"] 
-        
-        for var in varlist:
-            populate_repo(agency,var,dest,pd.Timestamp(1980,1,1),pd.Timestamp(1999,12,31,23,59),ignore_existing=ignore_existing)
-            populate_repo(agency,var,dest,pd.Timestamp(2000,1,1),pd.Timestamp(2019,12,31,23,59),ignore_existing=ignore_existing)
-            populate_repo(agency,var,dest,pd.Timestamp(2020,1,1),None,overwrite=True)
-            ext = 'rdb' if agency == 'usgs' else '.csv'
-            revise_filename_syear_eyear(os.path.join(dest,f"{agency}*_{var}_*.{ext}"))
-            print(f"Done with agency {agency} variable: {var}")
+
+        # DES/DISE data from web services comes in by instrument, which can be phased in and out
+        # in an overlapping way over time. Some of the early instruments have a one hour time interval
+        # which introduces some complications mixing them in with faster collection later. It also causes
+        # time blocking to be really weird because the neat 20 year blocks we are hoping for get truncated
+        # as the new instruments come in and out of existence. 
+        # These things happen in the mid 2000s (often 2007 ish). 
+        # At the moment, I (Eli) tried to avoid this complication by consolidating the pre-2020 history.
+        # It looks like big files, and this is possible, but many will be truncated because of limited
+        # instrument lifetimes ... so 1980-2019 will come out as 1984-2007 or something like that.        
+        if agency == "dwr_des":
+            for var in varlist:
+                populate_repo(agency,var,dest,
+                              pd.Timestamp(1980,1,1),
+                              pd.Timestamp(2019,12,31,23,59),ignore_existing=ignore_existing)
+                populate_repo(agency,var,dest,pd.Timestamp(2020,1,1),None,overwrite=True)
+                ext = 'rdb' if agency == 'usgs' else '.csv'
+                revise_filename_syear_eyear(os.path.join(dest,f"{agency}*_{var}_*.{ext}"))
+                print(f"Done with agency {agency} variable: {var}")
+        else:
+            for var in varlist:
+                populate_repo(agency,var,dest,pd.Timestamp(1980,1,1),pd.Timestamp(1999,12,31,23,59),ignore_existing=ignore_existing)
+                populate_repo(agency,var,dest,pd.Timestamp(2000,1,1),pd.Timestamp(2019,12,31,23,59),ignore_existing=ignore_existing)
+                populate_repo(agency,var,dest,pd.Timestamp(2020,1,1),None,overwrite=True)
+                ext = 'rdb' if agency == 'usgs' else '.csv'
+                revise_filename_syear_eyear(os.path.join(dest,f"{agency}*_{var}_*.{ext}"))
+                print(f"Done with agency {agency} variable: {var}")
+
 
  
 def purge(dest):
@@ -343,7 +361,8 @@ def rationalize_time_partitions(pat):
             if meta == meta2: continue
             same_series = (meta["agency"] == meta2["agency"]) and\
                           (meta["param"] == meta2["param"]) and\
-                          (meta["station_id"] == meta2["station_id"])
+                          (meta["station_id"] == meta2["station_id"] and\
+                           meta["subloc"] == meta2["subloc"])
             if same_series:
                 already_checked.add(meta2['filename'])           
                 near_misses.append(meta2)
@@ -357,19 +376,26 @@ def rationalize_time_partitions(pat):
                 #print(meta)
                 issuperseded = False
                 
-               
+                superseding = []
                 for meta2 in near_misses:
-                    if meta == meta2: continue
-                    issuperseded |= meta2['syear'] <= meta['syear'] and meta2['eyear'] >= meta['eyear'] 
+                    if meta == meta2:
+                        continue
+                    superseded_thisfile = meta2['syear'] <= meta['syear'] and meta2['eyear'] >= meta['eyear'] 
+                    issuperseded |= superseded_thisfile
+                    if superseded_thisfile: superseding.append(meta2) # this file is a superset of the one being checked
                 if issuperseded: 
                     fnamesuper = meta['filename']
-                    print(f"superseded: {fnamesuper}")
+                    print(f"superseded: {fnamesuper} superseded by:")
+                    for sf in superseding: 
+                        print("  ",sf)
                     os.remove(os.path.join(repodir,fnamesuper))  
                     superseded.append(fnamesuper)
             
         else: 
             print(f"Main series: {meta['filename']} had no similar file names")
-    for sup in superseded: print(sup)
+    print("Superseded files:")
+    for sup in superseded: 
+        print(sup)
     
 def populate_ncro_repo(dest):
     download_ncro_por(dest)     # period of record for NCRO QA QC'd
@@ -414,8 +440,8 @@ def populate_main(dest,agencies):
             print(f'{agency} generated an exception: {exc} with trace:\n{trace}')
 
     # A fixup mostly for DES, addresses overlapping years of  same variable
-    if do_des:
-        rationalize_time_partitions(os.path.join(dest,"des*"))  
+    #if do_des:
+        #rationalize_time_partitions(os.path.join(dest,"des*"))  
     
     if do_ncro:
         revise_filename_syear_eyear(os.path.join(dest,f"ncro_*.csv"))  
