@@ -9,8 +9,23 @@ import re
 from vtools.functions.merge import *
 from vtools.data.vtime import minutes
 
+__all__ = ["original_header","read_yaml_header","read_ts"]
 
 def original_header(fpath,comment="#"):
+    """Scrapes the header from a file assuming all the lines at the top are the header 
+    
+    Parameters
+    ----------
+    fpath : str 
+        Path to the file being parsed
+        
+    comment : str
+        Comment character, default '#'
+    
+    Returns
+    -------
+    Header as single string, possibly with embedded end lines
+    """
     original_head=[]
     with open(fpath,'r') as infile:
         for line in infile:
@@ -23,6 +38,19 @@ def original_header(fpath,comment="#"):
 
 
 def read_yaml_header(fpath):
+    """ Reads yaml-based header at top of file
+    
+    Parameters
+    ----------
+    fpath : str
+        File with header to read
+    
+    Returns
+    -------
+    Nested yaml data structure (lists and dicts)
+    
+    """
+    
     header = original_header(fpath)
     header = "\n".join([x.replace("#","") for x in header.split("\n")])
     yamlhead = yaml.safe_load(header)
@@ -704,13 +732,20 @@ def read_ts(fpath, start=None, end=None, force_regular=True,nrows=None, selector
             time to start reading
         end: datetime.datetime, optional
             time to end reading
+        force_regular : bool
+            coerce the series to regular, which will align times neatly and discard oversampling
+        nrows : int
+            max number of rows to read. this is good for testing big files
+        selector : str
+            column label with file to extract
+        hint : str
+            first few characters of reader to use, such as 'cdec' or 'nwis'. Speeds the read.
 
         Returns
         -------
-        vtools.data.timeseries.TimeSeries
-            the time series from the file
-        dict
-            metadata of the time series
+        ts : pandas.DataFrame
+        Dataframe representing the series. If you want to squeeze univariate, need to do this on return
+        
     """
     from os.path import split as op_split
     readers = [read_dms1,
