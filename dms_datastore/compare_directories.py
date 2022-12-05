@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 from dms_datastore.read_ts import *
 import shutil
 
+__all__ = ["compare_dir"]
+
+
 def almost_match(x,y):
     xmatch = os.path.split(x)[1]
     xmatch = os.path.splitext(xmatch)[0]
@@ -59,18 +62,21 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
     nmatch = len(base_matched)    
     
     print(f"\nExact base matches: {nmatch}")
-    if apply_change:
+    # files that have changed but name is present in both
+    if apply_change or apply_update:
         for item in base_matched:   # move from comp to base
             shutil.copy(os.path.join(comp,item),os.path.join(base,item))
 
     if year2: 
+        # files whose name is present in both except for the final year of 
+        # a two part year suffix like _2007_2021 and _2007_2022
         nnear = len(almost)
         print(f"\nNear matches except for final year, written as base: comp (total {nnear})")
         keys = list(almost.keys())
         keys.sort()
         for item in almost.keys():
             print(f"{item}: {almost[item]}")
-            if apply_change:
+            if apply_change or apply_update:
                 os.remove(os.path.join(base,item))  # get rid of the original in base
                 # copy in the almost matching one from comp
                 shutil.copy(os.path.join(comp, almost[item]), os.path.join(base,almost[item]))    
@@ -79,6 +85,7 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
         nnear = 0
     
     # take all comp_files and removed ones that have been matched or almost matched
+    # from the lists so it doesn't get treated twice
     for item in comp_matched:
         comp_files.remove(item)   # removing items from set, not files here
     for item in almost.values():   # remove almost match
@@ -89,12 +96,13 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
     base_not_matched = list(base_not_matched)
     base_not_matched.sort()
     
-    
-    
     print(f"\nUnmatched files in base dir (total {nunbase}):")
     for item in base_not_matched:
         print(item)
         if apply_change:
+            # this would be apply_change, which mirrors the 
+            # compare dir. This can be helpful, but approach with caution
+            # apply_update doesn't do this
             os.remove(os.path.join(base,item))
 
         
@@ -104,7 +112,7 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
     print(f"\nUnmatched files in comp dir (total {nuncomp})")
     for item in comp_files:
         print(item)
-        if apply_change:
+        if apply_change or apply_update:
             shutil.copy(os.path.join(comp, item), os.path.join(base,item))
 
 def create_arg_parser():
