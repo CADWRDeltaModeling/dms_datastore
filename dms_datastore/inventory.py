@@ -4,13 +4,13 @@
 import os
 import re
 import glob
+import argparse
 from functools import reduce
-from filename import interpret_fname
-from dstore_config import station_dbase
+from dms_datastore.filename import interpret_fname
+from dms_datastore.dstore_config import station_dbase
 from dms_datastore.read_ts import read_yaml_header
 import pandas as pd
-#import matplotlib.pyplot as plt
-#from dms_datastore.read_ts import *
+
 
 def to_wildcard(fname,remove_source=True):
 
@@ -132,10 +132,12 @@ def repo_data_inventory(fpath,full=True,by="file_pattern"):
          "agency": lambda ser: reduce(prioritize_source,ser),
          "agency_id":['first'],
          "year":['min','max'],
+         "filename": ['first'],
          "original_filename":['first']   # this will be used to scrape metadata then dropped
          }
         )
-    grouped_meta.columns = ['agency','agency_id','min_year','max_year','original_filename'] 
+    grouped_meta.columns = ['agency','agency_id','min_year','max_year',
+                            'filename','original_filename'] 
     metastat = grouped_meta.join(station_db,on="station_id",
                             rsuffix="_dbase",how="left")
                             
@@ -149,11 +151,56 @@ def repo_data_inventory(fpath,full=True,by="file_pattern"):
     return metastat
     
     
+def create_arg_parser():
+    """ Create an argument parser
+    """
+    parser = argparse.ArgumentParser(description="Create inventory files, including a file inventory, a data inventory and an obs-links file.")
+    parser.add_argument('--repo', type=str, 
+                        help="directory to be catalogued")
+    parser.add_argument('--out_files', default = None,
+                        help="Output path for file inventory. Default is file_inventory_{todaydate}.csv ")
+    parser.add_argument('--out_data', default= None,
+                        help="Output path for data inventory. Default is file_inventory_{todaydate}.csv")
+    parser.add_argument('--out_obslinks',default= None,
+                        help="Output path for obslinks.csv file. Default is obs_links_{todaydate}.csv")
+    return parser
+
+
+def main():
+    """ A main function to convert polygon files
+    """
+    parser = create_arg_parser()
+    args = parser.parse_args()
+    out_files = args.out_files
+    out_data = args.out_data
+    out_obslinks = args.out_obslinks
+    repo = args.repo
+    
+    nowstr = pd.Timestamp.now().strftime("%Y%m%d")
+    # inventory based on describing every file
+    if out_files is None: out_files = f"./inventory_files_{nowstr}.csv"
+    inv=repo_inventory(repo)
+    inv.to_csv(out_files)
+    # inventory based on describing unique datasets 
+    # this may be bigger/smaller than the number of files based because of:
+    #     multivariate data in files that are/aren't split into multiple streams
+    #     data from the same instrument gathered from multiple sources, 
+    #        such as period of record and real time multivariate data in files
+    if out_data is None: out_data = f"./inventory_datasets_{nowstr}.csv"
+    inv2=repo_data_inventory(repo)
+    inv2.to_csv(out_data)        
+    db_obs = inv2.copy()
+    db_obs['vdatum'] = 'NAVD88'    # todo: hardwire, not always true
+    db_obs['datum_adj'] = 0.       # todo: hardwire, not always true, should be incorporated in station_dbase
+    db_obs['source'] = db_obs["agency"] # move agency to source
+    db_obs['agency'] = db_obs["agency_dbase"]  
+    db_obs.reset_index(inplace=True)
+    db_obs['variable'] = db_obs.param
+    # param is the variable in the file, variable is the model variable being associated with the data
+    db_obs.loc[db_obs.param == 'ec','variable'] = 'salt'
+    db_obs['subloc'] = db_obs.subloc.fillna('default')
+    if out_obslinks is None: out_obslinks = f"./obs_links_{nowstr}.csv"
+    db_obs.to_csv(out_obslinks,sep=",",index=False)
+    
 if __name__ == "__main__":
-    test=repo_inventory("W:/continuous_station_repo_beta/formatted_1yr")
-    print(test)
-    test.to_csv("W:/continuous_station_repo_beta/test.csv")
-    test2=repo_data_inventory("W:/continuous_station_repo_beta/formatted_1yr")
-    print(test2)
-    test2.to_csv("W:/continuous_station_repo_beta/test2.csv")        
-   
+    main()
