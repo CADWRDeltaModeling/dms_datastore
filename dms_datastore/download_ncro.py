@@ -11,6 +11,8 @@ import numpy as np
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
 
+__all__=["download_ncro_por"]
+
 ncro_inventory_file = "ncro_por_inventory.txt"
 
 def station_dbase():

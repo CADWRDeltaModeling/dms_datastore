@@ -14,6 +14,7 @@ import os
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
 
+__all__ = ["noaa_download"]
 
 default_stationlist = {"9414290":"San Francisco",
                "9414750":"Alameda",

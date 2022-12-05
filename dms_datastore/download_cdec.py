@@ -22,6 +22,8 @@ import pandas as pd
 from dms_datastore.process_station_variable import process_station_list, stationfile_or_stations
 from dms_datastore import dstore_config
 
+__all__=["cdec_download"]
+
 cdec_base_url = "cdec.water.ca.gov"
 
 

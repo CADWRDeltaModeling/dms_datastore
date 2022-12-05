@@ -16,6 +16,8 @@ from dms_datastore.process_station_variable import process_station_list,stationf
 from dms_datastore import dstore_config
 import pandas as pd
 
+__all__=["des_download"]
+
 des_local_dir = os.path.split(__file__)[0]
 
 
