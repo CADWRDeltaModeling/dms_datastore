@@ -34,7 +34,8 @@ from dms_datastore.download_cdec import cdec_download
 from dms_datastore.download_ncro import download_ncro_por,download_ncro_inventory,station_dbase
 from dms_datastore.download_des import des_download
 
-
+__all__ = ["revise_filename_syears","revise_filename_syear_eyear","populate_repo","populate_ncro_realtime"
+           "populate_ncro_repo","rationalize_time_partitions"]
 
 # number of data to read in search of start date or multivariate
 NSAMPLE_DATA=200
@@ -440,8 +441,8 @@ def populate_main(dest,agencies):
             print(f'{agency} generated an exception: {exc} with trace:\n{trace}')
 
     # A fixup mostly for DES, addresses overlapping years of  same variable
-    #if do_des:
-        #rationalize_time_partitions(os.path.join(dest,"des*"))  
+    if do_des:
+        rationalize_time_partitions(os.path.join(dest,"des*"))  
     
     if do_ncro:
         revise_filename_syear_eyear(os.path.join(dest,f"ncro_*.csv"))  

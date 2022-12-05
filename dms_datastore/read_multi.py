@@ -9,6 +9,7 @@ from dms_datastore import dstore_config
 import glob
 from vtools.functions.merge import ts_merge
 
+__all__ = ["read_ts_repo","ts_multifile_read"]
 
 def read_ts_repo(station_id,variable,repo=None,src_priority=None):
     """ Read time series data from a repository, prioritizing sources
