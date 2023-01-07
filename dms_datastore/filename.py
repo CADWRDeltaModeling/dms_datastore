@@ -74,7 +74,14 @@ def meta_to_filename(meta):
         Filename corresponding to metadata
     
     """
-    station_id = meta['station_id'] if meta['subloc'] is None else f"{meta.station_id}@{meta.subloc}"
+    if not 'station_id' in meta:
+        raise ValueError(f"station_id not in meta: {meta}")
+    else:
+        sid = meta['station_id']
+    if not 'subloc' in meta: 
+        subloc['meta'] = None
+    print(meta)
+    station_id = sid if meta['subloc'] is None else f"{sid}@{meta['subloc']}"
     if 'syear' in meta and 'eyear' in meta:
         year_part = f"{meta['syear']}_{meta['eyear']}"
     else:
