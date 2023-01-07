@@ -824,6 +824,41 @@ def path_pattern(path_pattern):
         fdir,fpat = path_pattern
     return fdir,fpat
 
+
+def infer_freq_robust(index,preferred=['H','15T','6T','10T','H','D']):
+    index = index.round('1min')
+
+    if len(index) < 8: 
+        # not enough to quibble, use the 8 points
+        f = pd.infer_freq(index)
+    else:
+        f = pd.infer_freq(index[-7:-1])
+
+        if f is None:
+            index = index.round('1min')
+            istrt = 3*len(index)//4
+            f = pd.infer_freq(index[istrt:istrt+7])
+        if f is None:
+            # Give it one more shot halfway through
+            istrt = len(index)//2
+            f = pd.infer_freq(index[istrt:istrt+7])
+        if f is None:
+            f = pd.infer_freq(index[0:7])                
+        if f is None:
+            for p in preferred:
+                freq = pd.tseries.frequencies.to_offset(p)
+                tester = index.round(p)
+                diff = (index - tester) < freq/6
+                print(diff.sum()/len(diff))
+                if diff.all(): 
+                    print("15T")
+                    return p
+        if f is None:
+            raise ValueError("read_ts set to infer frequency, but multiple attempts failed. Set to string to manually ")
+        return f
+
+
+
 def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
                     format_compatible_fn = lambda x: False,
                     qaqc_selector=None,
@@ -977,28 +1012,13 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
     big_ts = ts_merge(tsm)  # pd.concat(tsm)
     if force_regular: 
         if freq == 'infer': 
-            big_ts.index = big_ts.index.round('1min')
-            if len(big_ts) < 8: 
-                f = pd.infer_freq(big_ts.index)
-            else:
-                f = pd.infer_freq(big_ts.index[-7:-1])
-                if f is None:
-                    big_ts.index = big_ts.index.round('1min')
-                    istrt = 3*len(big_ts)//4
-                    f = pd.infer_freq(big_ts.iloc[istrt:istrt+7].index)
-                if f is None:
-                    # Give it one more shot halfway through
-                    istrt = len(big_ts)//2
-                    f = pd.infer_freq(big_ts.iloc[istrt:istrt+7].index)
-                if f is None:
-                    big_ts.index=big_ts.index.round('1min')
-                    f = pd.infer_freq(big_ts.iloc[0:7].index)                
-                    #f = minutes(15)
-                    if f is None:
-                        raise ValueError("read_ts set to infer frequency, but multiple attempts failed. Set to string to manually ")
-        else: 
-            raise NotImplementedError("force_regular with prescribed frequency not implemented yet")
-        # Round to neat times, which may cause duplicates
+            f = infer_freq_robust(big_ts.index)
+
+        else:
+            f = pd.tseries.frequencies.to_offset(freq)
+        if f is None:
+            raise NotImplementedError("force_regular but could not discover freq")
+        # Round to neat times, which may cause duplicates or gaps
         big_ts.index = big_ts.index.round(f)
         big_ts = big_ts.loc[~big_ts.index.duplicated(keep='first')]
         # Now everything is on an expected timestamp, so subsample leaving uncovered times NaN
