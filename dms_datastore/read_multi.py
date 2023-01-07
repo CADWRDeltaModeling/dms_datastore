@@ -4,14 +4,16 @@
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
-from dms_datastore.read_ts import read_ts
+from dms_datastore.read_ts import read_ts,read_yaml_header
 from dms_datastore import dstore_config
 import glob
-from vtools.functions.merge import ts_merge
+from vtools.functions.merge import ts_merge,ts_splice
+from schimpy.unit_conversions import *
 
 __all__ = ["read_ts_repo","ts_multifile_read"]
 
-def read_ts_repo(station_id,variable,repo=None,src_priority=None):
+def read_ts_repo(station_id,variable,
+                 subloc=None,repo=None,src_priority=None,meta=False,force_regular=False):
     """ Read time series data from a repository, prioritizing sources
   
     station_id : str
@@ -28,21 +30,121 @@ def read_ts_repo(station_id,variable,repo=None,src_priority=None):
         in the config file under the name 'repo'.
         
     """
+    print("here",station_id,variable,subloc,repo)
+
+    if subloc is not None:
+        if "@" in station_id:
+            raise ValueError("@ short hand and subloc are mutually exclusive")
+        else:
+            station_id = station_id+"@"+subloc if subloc != 'default' else station_id
+    
     if repo is None:
         repository = dstore_config.config_file('repo')
     elif os.path.exists(repo):
         repository=repo
     else:
-        repository = dstore_config_file(repo)
+        repository = dstore_config.config_file(repo)
 
     if src_priority is None:
         src_priority = "*" #dstore_config.config("source_priority")
     pats = []
-    print(pats)
     for src in src_priority:
         pats.append(os.path.join(repository,f"{src}_{station_id}_*_{variable}_*.*"))
-    return ts_multifile_read(pats) 
-    
+    return ts_multifile(pats,meta=meta) 
+
+def detect_dms_unit(fname):
+    meta = read_yaml_header(fname)
+    unit =  meta['unit'] if 'unit' in meta else None
+    if unit in ["FNU","NTU"]:
+        return"FNU",None
+    elif unit in ["uS/cm","microS/cm"]:
+        return "microS/cm",None
+    elif unit == "meters":
+        return "meters", None
+    elif unit == "cfs":
+        return "ft^3/s",None
+    elif unit == "deg_f":
+        return "deg_c",fahrenheit_to_celsius
+    else:
+        return unit, None
+
+def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=True):
+    """ within a pattern assumes unit consistency and uses merge. between it assumes splice with earlier better"""
+    if not(isinstance(pats,list)):
+        pats = [pats]
+
+    units = []
+    metas = []
+    some_files = False
+    for fp in pats:
+        tsfiles = glob.glob(fp)
+        if len(tsfiles) == 0: 
+            print(f"No files for pattern {fp}")
+            continue
+        # assume consistency within each pattern
+        unit,transform = detect_dms_unit(tsfiles[0])
+        units.append((unit,transform))
+        metas.append(read_yaml_header(tsfiles[0]))
+        some_files = True
+    if not some_files:
+        print(f"No files for pats")
+        return None
+    bigts = [] # list of time series from each pattern in pats
+    patternfreq = []
+    total_series = 0
+    for fp,utrans in zip(pats,units):  # loop through patterns
+        tsfiles = glob.glob(fp)
+        tss = []
+        unit,transform = utrans
+        commonfreq = None
+        for tsfile in tsfiles:  # loop through files in pattern
+            print(tsfile)
+            ts = read_ts(tsfile,force_regular=force_regular)  # read one by one, not by pattern
+            if ts.shape[1] > 1:   # not sure about why we do this here
+                if selector is not None:
+                    ts = ts[selector].to_frame()
+            if column_names is not None:
+                if isinstance(column_names,str): column_names = [column_names]
+                ts.columns=column_names
+            # possibly apply unit transition
+            ts = ts if transform is None else transform(ts)
+            tss.append(ts)
+            tsfreq = ts.index.freq if  hasattr(ts.index,"freq") else None
+            if commonfreq is None: 
+                commonfreq = tsfreq
+            elif tsfreq < commonfreq: 
+                print(f"frequency change detected from {commonfreq} to {tsfreq} within pattern")
+                commonfreq = tsfreq
+                if commonfreq == 'D':
+                    severe = True
+                    print("Severe")  # Need to test on CLC
+        patternfreq.append(commonfreq)  
+        # Series within a pattern are assumed compatible, so use merge, which will fill across series
+        if len(tss) == 0:
+            print(f"No series for subpattern: {fp}")
+        else:
+            patfull = ts_merge(tss)
+            total_series = total_series + len(tss)
+            if commonfreq is not None: 
+                patfull = patfull.asfreq(commonfreq)
+            bigts.append(patfull)
+                
+    #if total_series == 0: 
+    #    for p in pats: 
+    #        print(p)
+    #    raise ValueError("Patterns produced no matches")
+
+    # now organize freq across patterns
+    cfrq = None
+    for f in patternfreq:
+        if cfrq is None:
+            cfrq = f 
+        elif f < cfrq:
+            cfrq = f        
+           
+    fullout = ts_splice(bigts,transition="prefer_first")
+    if cfrq is not None: fullout = fullout.asfreq(cfrq)
+    return metas,fullout if meta else fullout
 
 def ts_multifile_read(pats,transforms=None,selector=None,column_name=None):
 
@@ -86,24 +188,24 @@ def ts_multifile_read(pats,transforms=None,selector=None,column_name=None):
 if __name__ == "__main__":
     # NCRO example
     
-    dirname = "//cnrastore-bdo/Modeling_Data/continuous_station_repo/raw/" 
-    rpats = ["ncro_gle_*temp*.csv","cdec_gle*temp*.csv"]
+    dirname = "//cnrastore-bdo/Modeling_Data/continuous_station_repo_beta/formatted_1yr" 
+    rpats = ["ncro_gle_b9532000_temp*.csv","cdec_gle*temp*.csv"]
     pats =  [os.path.join(dirname,p) for p in rpats]
-    ts = ts_multifile_read(pats,column_name='value')
+    ts = ts_multifile(pats)
     print(ts)
     ts.plot()
     plt.show()
 
     # Example for USGS
-    usgs_list = ['lib','ucs','srv','dsj','dws','sdi','fpt','lps','mld','sjj','sjg']
-    for nseries in usgs_list:
-        print(nseries)
-        
-        dirname = "//cnrastore-bdo/Modeling_Data/continuous_station_repo/raw/" 
-        pat = os.path.join(dirname,f"usgs_{nseries}_*turbidity_*.rdb")
-        ts = ts_multifile_read(pat,column_name=nseries)
-        print(ts)
-        ts.plot()
-        plt.show()
+    #usgs_list = ['lib','ucs','srv','dsj','dws','sdi','fpt','lps','mld','sjj','sjg']
+    #for nseries in usgs_list:
+    #    print(nseries)
+    #    
+    #    dirname = "//cnrastore-bdo/Modeling_Data/continuous_station_repo/raw/" 
+    #    pat = os.path.join(dirname,f"usgs_{nseries}_*turbidity_*.rdb")
+    #    ts = ts_multifile_read(pat,column_name=nseries)
+    #    print(ts)
+    #    ts.plot()
+    #    plt.show()
 
 
