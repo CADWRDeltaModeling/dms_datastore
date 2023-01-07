@@ -4,7 +4,7 @@ ben,B94175,Mokelumne River at Benson's Ferry,38.2555,-121.44,636491.3,4235314.6,
 ccs,CCS,Cache Slough,38.29713655,-121.7477601,609500.3,4239525.4,,,CCS,usbr,,,x,Old Vallejo Pumping Plant
 ccy,11452500,Cache Creek at Yolo,38.726635,-121.807152,603778.3506,4287183,,,CCY,usgs,,,,
 cis,B95290,Old River at Coney Island,37.8461,-121.5369,628727.8,4189748.3,,B95290,CIS,dwr_ncro,x,,,
-clc,CLC,Clifton Court,37.8298,-121.5574,626952,4187911.6,C9,,CLC,dwr_om,,,x,"Not 100% sure this is C9. If so, C9 was at one time outside Forebay on other side of the levee"
+clc,CLC,Clifton Court,37.8298,-121.5574,626952,4187911.6,C9,,CLC,dwr,,,x,"Not 100% sure this is C9. If so, C9 was at one time outside Forebay on other side of the levee"
 dbi,B95260,Discovery Bay at Indian Slough,37.91798191,-121.5868197,624214.6,4197656.5,,B95260,DBI,dwr_ncro,x,,,
 dgl,B95325,Doughty Cut above Grant Line Canal,37.815,-121.425,638631.8,4186457.6,,B95325,DGL,dwr_ncro,x,,x,
 emm2,B91120,Sacramento River at Emmaton,38.08428584,-121.7388746,610598.8,4215917.6,,B91120,,dwr_ncro,,,x,DWR and USBR at same site at end of pier. Bureau listed as D22A
@@ -38,7 +38,7 @@ tpi,B95421,Tom Paine Sl above intake,37.79054048,-121.4187437,639228.5,4183752.9
 tpp,B95425,Tom Paine Sl near Pescadero,37.76724044,-121.3514436,645200.2,4181269.9,,B95425,TPP,dwr_ncro,x,,,
 tps,B95420,Tom Paine Sl above the mouth,37.79054048,-121.4187437,639228.5,4183752.9,,B95420,TPS,dwr_ncro,x,,,
 pdup,B9541050,Paradise Cut Upstream,37.801022,-121.373076,643229,4184985,,B8541050,,dwr_ncro,x,,,
-trp,TRP,Tracy Pumping Plant,37.80027343,-121.584902,626865,4186450,,,TRP,dwr_om,,x,x,Moved from facility to trash rack
+trp,TRP,Tracy Pumping Plant,37.80027343,-121.584902,626865,4186450,,,TRP,dwr,,x,x,Moved from facility to trash rack
 uni,UNI,Union Island,37.82209337,-121.3750095,643018.6,4187320.1,C8,,UNI,usbr,,,x,Historically called bifurcation of Middle and Old Rivers
 vic,VIC,Victoria Island,37.89122605,-121.48825,632927.2,4194823.6,,,VIC,usbr,,,x,Not confirmed
 bks,BKS,Barker Slough Pumping Plant,38.27639642,-121.7969582,605228,4237166.9,,,BKS,dwr,,x,x,Slightly moved closer to slough. D1461 site was in another side slough upstream.
