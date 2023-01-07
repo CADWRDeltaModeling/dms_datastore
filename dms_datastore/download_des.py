@@ -84,7 +84,7 @@ des_unit_map = {"ÂµS/cm":"microS/cm",
                 "NTU":"NTU","FNU":"FNU",
                 "mph":"mph","Degrees":"deg",
                 "ft":"feet","km/h":"km/h",
-                "pH Units":"pH"}
+                "pH Units":"pH","Cal/cm2/min":"Cal/cm2/min"}
                 
 
 
