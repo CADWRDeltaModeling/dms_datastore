@@ -33,6 +33,8 @@ The dataprep work area no longer has the entire history of CCF, because this inv
 todo: 
 1. Automate the appending of this data to an original and of a forecast to this file.
 2. Automate the estimation of gate heights given irregular timing (e.eg. priority 3) and a file of SWP pumping flows. There is a function doing this approximation in this file but it isn't hooked up anymore.
+Sample usage:
+process_ccfb_gate_height.py --infile ccf_gate_height_wonderware_2022_9999.csv --basefile D:/Delta/BayDeltaSCHISM/data/time_history/ccfb_gate.th --transition 2022-05-20 --outfile ccfb_gate_20220818.th
 
 """
 
