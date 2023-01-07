@@ -18,6 +18,7 @@ Water Temperature,dwr_des,Water Temperature,temp,
 Air Temperature,dwr_des,Air Temperature,air_temp,
 Wind direction,dwr_des,Wind direction,wind_dir,
 Wind velocity,dwr_des,Wind velocity,wind_speed,
+Solar radiation,dwr_des,Solar radiation,solar_radiation
 Stage,dwr_des,Stage,elev,
 Turbidity,dwr_des,Turbidity,turbidity,
 pH,dwr_des,pH,ph,
