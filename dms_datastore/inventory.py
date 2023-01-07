@@ -11,19 +11,26 @@ from dms_datastore.dstore_config import station_dbase
 from dms_datastore.read_ts import read_yaml_header
 import pandas as pd
 
+__all__ = ['repo_file_inventory','repo_data_inventory']
 
-def to_wildcard(fname,remove_source=True):
-
+def to_wildcard(fname,remove_source=False):
+    """ Convert filename to a wildcard for date. 
+    If remove_source, the source slot will also be wildcard
+    """
     pat1 = r".*_(\d{4}_\d{4})\.csv"
     re1 = re.compile(pat1)
     if re1.match(fname): 
-        print("match1")
+        print("match1",fname)
     else:
         pat2 = r".*(_\d{4})\.csv"
         re2 = re.compile(pat2)
         if re2.match(fname):
             out = fname[0:-8]+"*"+fname[-4:]
-            return out      
+    if remove_source:
+        outparts = out.split("_")
+        outparts[0] = "*"
+        out = "_".join(outparts)
+    return out      
     
 
 def scrape_header_metadata(fname):
@@ -31,7 +38,7 @@ def scrape_header_metadata(fname):
     return yml['unit'] if 'unit' in yml else None
 
 
-def repo_inventory(fpath,full=True,by="file_pattern"):
+def repo_file_inventory(fpath,full=True,by="file_pattern"):
     """Create a Pandas Dataframe containing all the unique time series in a directory
     Currently assumes yearly sharding in time.
     
@@ -124,7 +131,7 @@ def repo_data_inventory(fpath,full=True,by="file_pattern"):
     allmeta = [interpret_fname(fname) for fname in allfiles] 
     metadf = pd.DataFrame(allmeta)
     metadf['original_filename'] = metadf.filename
-    metadf['filename'] = metadf.apply(lambda x: to_wildcard(x.filename),axis=1)
+    metadf['filename'] = metadf.apply(lambda x: to_wildcard(x.filename,remove_source=True),axis=1)
 
     meta2 = metadf.groupby(["station_id","subloc","param"]).first()
     grouped_meta = metadf.groupby(["station_id","subloc","param"],dropna=False).agg(
@@ -179,7 +186,7 @@ def main():
     nowstr = pd.Timestamp.now().strftime("%Y%m%d")
     # inventory based on describing every file
     if out_files is None: out_files = f"./inventory_files_{nowstr}.csv"
-    inv=repo_inventory(repo)
+    inv=repo_file_inventory(repo)
     inv.to_csv(out_files)
     # inventory based on describing unique datasets 
     # this may be bigger/smaller than the number of files based because of:
