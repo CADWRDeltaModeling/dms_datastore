@@ -41,7 +41,7 @@ __all__ = ["revise_filename_syears","revise_filename_syear_eyear","populate_repo
 NSAMPLE_DATA=200
 
 downloaders = {"dwr_des":des_download,"noaa":noaa_download,
-               "usgs":nwis_download,"usbr":cdec_download,
+               "usgs":nwis_download,"usbr":cdec_download,"dwr":cdec_download,
                "cdec":cdec_download}
 
 
@@ -203,14 +203,13 @@ def populate_repo(agency,param,dest,start,end,overwrite=False,ignore_existing=No
         
 
     dest_dir = dest
-    source = agency if agency != 'usbr' else 'cdec'
+    source = 'cdec' if agency in ['dwr','usbr'] else agency
     agency_id_col = "cdec_id" if source == 'cdec' else "agency_id"
     
 
     df=df[["id","subloc"]]  
     stationlist = process_station_list(df,param=param,param_lookup=vlookup,
                                        station_lookup=slookup,agency_id_col=agency_id_col,source=source)
-    print(stationlist)
     if maximize_subloc:
         stationlist["subloc"] = 'default'
         if param not in  ['flow','elev']:
@@ -274,23 +273,27 @@ def populate_repo2(df,dest,start,overwrite=False,ignore_existing=None):
 
 
 
-def populate(dest,all_agencies=None):
+def populate(dest,all_agencies=None,varlist=None):
     """ Driver script that populates agencies in all_agencies with destination dest """
     print("dest: ",dest,"agencies: ",all_agencies)
     purge = False
     ignore_existing=None #[]
     current = pd.Timestamp.now()
     if all_agencies is None: 
-        all_agencies = ["usgs","dwr_des","usbr","noaa"]
+        all_agencies = ["usgs","dwr_des","usbr","noaa","dwr"]
 
     if not isinstance(all_agencies,list):
         all_agencies = [all_agencies]
+
     
     for agency in all_agencies:
         if agency == "noaa": 
-            varlist = ["elev","predictions"]  # handled in next section
+            if varlist is None or len(varlist)==0: 
+                varlist = ["elev","predictions"]  # handled in next section
         else:
-            varlist = ["flow","elev","ec","temp","do","turbidity","velocity","ph","ssc"] 
+            if varlist is None or len(varlist)==0:
+                varlist = ["flow","elev","ec","temp","do",
+                           "turbidity","velocity","ph","ssc"] 
 
         # DES/DISE data from web services comes in by instrument, which can be phased in and out
         # in an overlapping way over time. Some of the early instruments have a one hour time interval
@@ -351,9 +354,7 @@ def rationalize_time_partitions(pat):
     allmeta = []
     already_checked = set()
     for fname in allfiles:
-        print(fname)
-        fname_meta = interpret_fname(fname)
-        print(fname_meta)        
+        fname_meta = interpret_fname(fname)       
         allmeta.append(fname_meta)
     for meta in allmeta:
         if meta['filename'] in already_checked: continue
@@ -409,7 +410,7 @@ def ncro_only(dest):
 
 
 
-def populate_main(dest,agencies):
+def populate_main(dest,agencies=None,varlist=None):
     do_purge = False
     if not os.path.exists(dest):
         os.mkdir(dest)
@@ -419,14 +420,14 @@ def populate_main(dest,agencies):
     
     failures = []
     if agencies is None or len(agencies)==0:
-        all_agencies = ["usgs","dwr_des","usbr","noaa","dwr_ncro"]
+        all_agencies = ["usgs","dwr_des","usbr","noaa","dwr_ncro","dwr"]
     else:
         all_agencies = agencies
     do_ncro = ("ncro" in all_agencies) or ("dwr_ncro" in all_agencies)
     do_des = ("des" in all_agencies) or ("dwr_des" in all_agencies)    
     
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-        future_to_agency = {executor.submit(populate,dest,agency): agency 
+        future_to_agency = {executor.submit(populate,dest,agency,varlist): agency 
                             for agency in all_agencies if (agency not in ["dwr_ncro","ncro"])}
         if do_ncro:
             future_to_agency[executor.submit(populate_ncro_repo,dest)] = "ncro"
@@ -457,8 +458,10 @@ def create_arg_parser():
 
     parser.add_argument('--dest', dest="dest", default=None,
                         help='Directory where files will be stored. ')
-    parser.add_argument('--agencies', nargs='+', default=[],
-                        help='Text file listing files to delete.')
+    parser.add_argument('--agencies', nargs='+', default=None,
+                        help='Agencies to download. If none, a default list is used')
+    parser.add_argument('--variables', nargs='+', default=None,
+                        help='Variables to download. If none, a default list is used')
     return parser
 
 
@@ -466,11 +469,12 @@ def main():
     parser = create_arg_parser()
     args = parser.parse_args()
     dest = args.dest
+    varlist = args.variables
     if dest is None: 
         raise ValueError("Destination directory must be specified")
     agencies = args.agencies
-    print(dest,agencies)
-    populate_main(dest,agencies)
+    print(dest,agencies,varlist)
+    populate_main(dest,agencies,varlist=varlist)
     
 
 
