@@ -31,7 +31,7 @@ def block_comment(txt):
 def block_uncomment(txt):
     split = txt.split("\n")
     def uncomment(x):
-        return x[1:] if x[0]=="#" else x
+        return x[1:] if len(x)>0 and x[0]=="#" else x
     split = [uncomment(x) for x in split  ]
     return "\n".join(split)
 
@@ -112,7 +112,7 @@ def write_ts_csv(ts,fpath,metadata=None,chunk_years=False,format_version="dwr-dm
             s = max(pd.Timestamp(bnd[0],1,1),ts.first_valid_index())
             e = min(pd.Timestamp(bnd[1],12,31,23,59,59),ts.last_valid_index())
             tssub = ts.loc[s:e]
-            if tssub.empty or (len(tssub) < 10 and tssub.isnull().all(axis=None)): 
+            if (tssub.count() < 16).all():  # require 15 values per column. all() is for multiple columns 
                 continue
             new_date_range_str = f"{bnd[0]}_{bnd[1]}"
             if single_year_label:
@@ -121,7 +121,8 @@ def write_ts_csv(ts,fpath,metadata=None,chunk_years=False,format_version="dwr-dm
                 else: 
                     new_date_range_str = f"{bnd[0]}"
             newfname = fpath
-            newfname = fpath.replace(".csv","_"+new_date_range_str + ".csv")  # coerces to csv
+            if not new_date_range_str in newfname:
+                newfname = fpath.replace(".csv","_"+new_date_range_str + ".csv")  # coerces to csv
             with open(newfname,'w',newline="\n") as outfile:
                 outfile.write(meta_header)
                 tssub.to_csv(outfile,header=True,sep=",",date_format="%Y-%m-%dT%H:%M:%S",**kwargs)
