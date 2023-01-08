@@ -445,6 +445,7 @@ def read_usgs1(fpath_pattern,start=None,end=None,selector=None,force_regular=Tru
                          format_compatible_fn = is_usgs1,
                          qaqc_selector=qaselect,
                          qaqc_accept=['', ' ', ' ', 'A','P','A:[99]','A:[91]','A:R','Approved','e'],
+                         extra_na=['Fld','Eqp','Dis','Mnt'],
                          extra_cols="tz_cd",
                          parsedates=["datetime"],
                          indexcol="datetime",
