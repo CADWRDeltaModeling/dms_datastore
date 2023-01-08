@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import concurrent.futures
 import glob
+import re
 import os
 import sys
 import traceback
@@ -84,7 +85,7 @@ def cdec_unit(fname):
     unit_reformat = {"FEET": "feet", "MG/L": "mg/l", "CFS": "ft^3/s", "PH": "pH", "PSU": "psu",
         "DEG F": "deg_f", "DEG C": "deg_c", "FT/SEC": "ft/s", "uS/cm": "uS/cm", "NTU": "NTU", "FNU": "FNU"}
     ts = pd.read_csv(fname, header=0, nrows=1)
-    agency_unit = ts.UNITS.iloc[0]
+    agency_unit = ts.UNITS.iloc[0].strip()
     if agency_unit in unit_reformat:
         unit = unit_reformat[agency_unit]
     else:
@@ -121,9 +122,8 @@ def ncro_unit(header_text, param):
                      "flow": "ft^3/s",
                      "fdom": "ug/l",
                      "do": "mg/l"}
-
     # 860.00 - pH () " header_text comes in without comments \s\((\.?)\)
-    var = re.compile("[0-9.]+\s-\s(.+)\((.*)\)")
+    var = re.compile("[0-9\.]+\s-\s(.+)\((.*)\)")
     parsing = False
     if header_text is None:
         # No choice but to guess based on probable units for the parameter
@@ -132,8 +132,13 @@ def ncro_unit(header_text, param):
         line=line.strip()
         if "Variables:" in line:
             parsing = True
+        if "Qualities" in line:
+            parsing = False
+            raise ValueError("Unit line not found")
         elif parsing:
             varmatch = var.match(line.strip())
+            if varmatch is None:          
+                continue
             agency_variable = varmatch.group(1).strip()
             agency_unit = varmatch.group(2).strip()
             parsing = False
@@ -141,7 +146,8 @@ def ncro_unit(header_text, param):
                 return unit_reformat[agency_unit.lower()]
             elif agency_variable in var_to_unit:
                 return var_to_unit[agency_variable]
-            else:
+            else: 
+                print(f"Unrecognized variable/unit {agency_variable}, {agency_unit}")
                 raise ValueError(f"unrecognized variable/unit {agency_variable}, {agency_unit}")
 
 
@@ -297,8 +303,8 @@ def sufficient(ts,min_valid=8):
     first = ts.first_valid_index()
     if first is None:
         return None
-    ts = ts[first:ts.last_valid_index()]
-    ngood = ts.notnull().sum(axis=None)[0]
+    ts2 = ts[first:ts.last_valid_index()]
+    ngood = ts2.notnull().sum(axis=None)[0]  # todo: coordinate with write_ts
     return None if ngood < min_valid else ts
        
     
@@ -319,7 +325,10 @@ def reformat(inpath, outpath, pattern):
         Pattern (filename with wildcards in accordance with globbing) to choose files
 
     """    
-
+    if isinstance(pattern,str):
+        label = pattern
+    else:
+        label = pattern[0]
 
     if (inpath is not None) and (inpath != ''):
         pattern = [os.path.join(inpath,pat) for pat in pattern]
@@ -344,7 +353,8 @@ def reformat(inpath, outpath, pattern):
     nfile = len(allfiles)
     report_interval = 10 if nfile < 100 else 100
     for ifile,fpath in enumerate(allfiles):
-        if (ifile % report_interval) == 0: print(f"{ifile}/{nfile} input files processed")
+        if (ifile % report_interval) == 0: 
+            print(f"{ifile}/{nfile} input files processed for {label}")
     
         if startupstr in fpath:
             at_start = True
@@ -353,12 +363,15 @@ def reformat(inpath, outpath, pattern):
         
         try: 
             hdr_meta = infer_internal_meta_for_file(fpath)
-
-            df = read_ts(fpath, force_regular=False)
+            try:
+                df = read_ts(fpath, force_regular=False)
+            except:
+                print(f"Could not read file: {fpath}")
+                raise
             df.index.name = "datetime"
             df.sort_index(inplace=True)  # possibly non-monotonic
             # test that there are enough good values and trim to good indices
-            df = sufficient(df,min_valid=8)
+            df = sufficient(df,min_valid=15)
             if df is None:
                 print(f"Skipping {fpath} because insufficient valid data found")
                 continue
@@ -386,7 +399,7 @@ def reformat(inpath, outpath, pattern):
             failures.append(fpath)
             continue
 
-    print("Reformatting complete. Reformatting failed on these files:")
+    print(f"Reformatting complete for {label}. Reformatting failed on these files:")
     for srcfail in failures:
         print(srcfail)
 
@@ -415,6 +428,7 @@ def reformat_main(inpath="raw", outpath="formatted", agencies=["usgs", "des", "c
                 trace = traceback.format_exc()
                 print(f'{agency} generated an exception: {exc} with traceback:\n{trace}')
                 sys.stdout.flush()
+    print("Exiting reformat_main")
 
 def create_arg_parser():
     parser = argparse.ArgumentParser('Reformat files from raw to standard format and add metadata')
