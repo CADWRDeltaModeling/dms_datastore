@@ -1,3 +1,5 @@
+# cache dir
+**/cache
 # jupyter notebooks temp dir
 **/.ipynb_checkpoints
 # tests data
