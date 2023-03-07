@@ -9,3 +9,16 @@ sublocations: station_subloc.csv
 file_deletion_list: non_15_min_files_checked.txt
 
 repo: "//cnrastore-bdo/Modeling_Data/continuous_station_repo_beta/formatted_1yr"
+
+source_priority:
+  ncro: ['ncro']
+  dwr_ncro: ['ncro']
+  des: ['des']
+  dwr_des: ['des']
+  usgs: ['usgs']
+  noaa: ['noaa']
+  usbr: ['cdec']
+  dwr_om: ['cdec']
+  dwr: ['cdec']
+  ebmud: ['usgs','ebmud','cdec']
+

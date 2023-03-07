@@ -12,8 +12,19 @@ from schimpy.unit_conversions import *
 
 __all__ = ["read_ts_repo","ts_multifile_read"]
 
+
+def infer_source_priority(station_id):
+    if 'source_priority' not in dstore_config.config:
+        return None
+    priorities = dstore_config.config["source_priority"]
+    db = dstore_config.station_dbase()
+    agency = db.loc[station_id,'agency']
+    return priorities[agency] if agency in priorities else None
+
+
 def read_ts_repo(station_id,variable,
-                 subloc=None,repo=None,src_priority=None,meta=False,force_regular=False):
+                 subloc=None,repo=None,
+                 src_priority=None,meta=False,force_regular=False):
     """ Read time series data from a repository, prioritizing sources
   
     station_id : str
@@ -45,8 +56,11 @@ def read_ts_repo(station_id,variable,
     else:
         repository = dstore_config.config_file(repo)
 
+    if  src_priority == 'infer':
+        src_priority = infer_source_priority(station_id)
     if src_priority is None:
         src_priority = "*" #dstore_config.config("source_priority")
+
     pats = []
     for src in src_priority:
         pats.append(os.path.join(repository,f"{src}_{station_id}_*_{variable}_*.*"))
@@ -76,16 +90,20 @@ def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=T
     units = []
     metas = []
     some_files = False
+    pats_revised = []  # for culling empty patterns
     for fp in pats:
         tsfiles = glob.glob(fp)
         if len(tsfiles) == 0: 
             print(f"No files for pattern {fp}")
             continue
+        else:
+            pats_revised.append(fp)
         # assume consistency within each pattern
         unit,transform = detect_dms_unit(tsfiles[0])
         units.append((unit,transform))
         metas.append(read_yaml_header(tsfiles[0]))
         some_files = True
+    pats = pats_revised 
     if not some_files:
         print(f"No files for pats")
         return None
@@ -99,7 +117,8 @@ def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=T
         commonfreq = None
         for tsfile in tsfiles:  # loop through files in pattern
             print(tsfile)
-            ts = read_ts(tsfile,force_regular=force_regular)  # read one by one, not by pattern
+            # read one by one, not by pattern/wildcard
+            ts = read_ts(tsfile,force_regular=force_regular)  
             if ts.shape[1] > 1:   # not sure about why we do this here
                 if selector is not None:
                     ts = ts[selector].to_frame()
@@ -135,7 +154,7 @@ def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=T
     #    raise ValueError("Patterns produced no matches")
 
     # now organize freq across patterns
-    cfrq = None
+    cfrq = None     # this will be the common frequency
     for f in patternfreq:
         if cfrq is None:
             cfrq = f 
