@@ -1,3 +1,5 @@
+# cache dir
+**/cache
 # jupyter notebooks temp dir
 **/.ipynb_checkpoints
 # tests data
@@ -8,7 +10,8 @@ tests/data
 **/dask-worker-space
 # python pickled data
 **/*.pkl 
-
+# csv files -- usually data
+**/*.csv
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
