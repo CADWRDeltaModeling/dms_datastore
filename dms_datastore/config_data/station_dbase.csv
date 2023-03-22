@@ -285,31 +285,18 @@ wcbr,B9537200,Wicklund Cut at Bethany Rd Bridge,37.780386,-121.517321,630566,418
 mhcm,B9536900,Mountain House Creek,37.796918,-121.525642,629804,4184307,,B9536900,,dwr_ncro,,,x,
 tppa,B9542400,Tom Paine Slough at Paradise Ave,37.774225,-121.382297,642469,4181997,,B9542400,,dwr_ncro,,,x,
 # dup ssw2,11426000,Sacramento Weir Spill to Yolo Bypass,38.440277,-121.554166,626181,4255656,,,SSW2,usgs,,,x,Only reports hourly flow and not realtime
-OBRD?,B9537400?,Old River at Bethany Rd Drain (SOR24)?,37.7853,-121.5046,631677.7375,4183047.034,,B9537400?,,dwr_des,,,x,(MSS) 9/17/2021 - Current?
-OTBD?,B9538100?,Old River upstream of Tracy Blvd Drain (SOR16U)?,37.8019821,-121.4428305,637086.3566,4184986.856,,B9538100?,,dwr_des,,,x,(MSS) 12/16/2021 - Current?
-WCNM?,B9537100?,Wicklund Cut near Mouth (SOR28)?,37.7897257,-121.5162436,630644.6063,4183521.762,,B9537100?,,dwr_des,,,x,(MSS) 12/16/2021 - Current?
-MHCM?,B9536900?,Mountain House Creek (SOR31)?,37.796918,-121.525642,629804.4448,4184306.707,,B9536900?,,dwr_des,,,x,(MSS) 2/23/2022 - Current?
-OAAD?,B9537500?,Old River Anchored at ADCP Downstream  ?,37.782395,-121.498374,632231.1776,4182733.49,,B9537500?,,dwr_des,,,x,(MSS) 6/15/2022 - Current?
-ORFU?,B9537600?,Old River Flux Station Upstream?,37.785827,-121.480866,633766.8116,4183139.204,,B9537600?,,dwr_des,,,x,(MSS) 6/15/2022 - Current?
-OTWW?,B9538900?,Old River downstream of Tracy WW outfall (SOR7)?,37.80642233,-121.4086418,640087.9817,4185530.245,,B9538900?,,dwr_des,,,x,(MSS) 11/4/2021 - Current?
-PCCD?,B9538500?,Old River at Paradise Cut Confluence Downstream?,37.8042294,-121.420224,639072.4439,4185269.618,,B9538500?,,dwr_des,,,x,(MSS)11/4/2021 - Current?
-PCCU?,B9538600?,Old River at Paradise Cut Confluence Upstream?,37.806892,-121.414681,639555.43,4185573.322,,B9538600?,,dwr_des,,,x,(MSS) 11/4/2021 - Current?
-#PCSB?,**?,Paradise Cut Upstream at South Bridge?,37.799595,-121.369035,643588.0411,4184832.807,,**?,,dwr_des,,,x,(MSS) 2/15/2023 - Current?
-#PCNB?,**?,Paradise Cut Upstream at North Bridge?,37.800737,-121.367426,643727.4474,4184961.996,,**?,,dwr_des,,,x,(MSS) 2/15/2023 - Current?
-TPP?,B95425?,Tom Paine Slough near Pescadero?,37.76738889,-121.3510833,645231.6224,4181286.966,,B95425?,,dwr_des,,,x,(MSS) 1/13/2022 - Current?
-TPPA?,B9542400?,Tom Paine Slough at Paradise Ave?,37.774225,-121.382297,642469.1064,4181997.479,,B9542400?,,dwr_des,,,x,(MSS) 1/19/2022 - Current?
-#GLW?,**?,Grant Line Canal West?,37.82029,-121.521,630172.109,4186906.468,,**?,,dwr_des,,,x,(MSS) 2/7/2023 - Current?
-#id,agency_id,name,lat,lon,x,y,d1641_id,wdl_id,cdec_id,agency,stage,flow,quality,notes
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
-,,,,,,,,,,,,,,
+obrd,B9537400,Old River at Bethany Rd Drain (SOR24),37.7853,-121.5046,631677.7375,4183047.034,,B9537400,,dwr_des,,,x,(MSS) 9/17/2021 - Current
+otbd,B9538100,Old River upstream of Tracy Blvd Drain (SOR16U),37.8019821,-121.4428305,637086.3566,4184986.856,,B9538100,,dwr_des,,,x,(MSS) 12/16/2021 - Current
+wcnm,B9537100,Wicklund Cut near Mouth (SOR28),37.7897257,-121.5162436,630644.6063,4183521.762,,B9537100,,dwr_des,,,x,(MSS) 12/16/2021 - Current
+mhcm,B9536900,Mountain House Creek (SOR31),37.796918,-121.525642,629804.4448,4184306.707,,B9536900,,dwr_des,,,x,(MSS) 2/23/2022 - Current
+oaad,B9537500,Old River Anchored at ADCP Downstream,37.782395,-121.498374,632231.1776,4182733.49,,B9537500,,dwr_des,,,x,(MSS) 6/15/2022 - Current
+orfu,B9537600,Old River Flux Station Upstream,37.785827,-121.480866,633766.8116,4183139.204,,B9537600,,dwr_des,,,x,(MSS) 6/15/2022 - Current
+otww,B9538900,Old River downstream of Tracy WWTP,37.80642233,-121.4086418,640087.9817,4185530.245,,B9538900,,dwr_des,,,x,(MSS) 11/4/2021 - Current
+pccd,B9538500,Old River at Paradise Cut Confluence Downstream,37.8042294,-121.420224,639072.4439,4185269.618,,B9538500,,dwr_des,,,x,(MSS)11/4/2021 - Current
+pccu,B9538600,Old River at Paradise Cut Confluence Upstream,37.806892,-121.414681,639555.43,4185573.322,,B9538600,,dwr_des,,,x,(MSS) 11/4/2021 - Current
+#pcsb,**,Paradise Cut Upstream at South Bridge,37.799595,-121.369035,643588.0411,4184832.807,,**,,dwr_des,,,x,(MSS) 2/15/2023 - Current
+#pcnb,**,Paradise Cut Upstream at North Bridge,37.800737,-121.367426,643727.4474,4184961.996,,**,,dwr_des,,,x,(MSS) 2/15/2023 - Current
+tpp,B95425,Tom Paine Slough near Pescadero,37.76738889,-121.3510833,645231.6224,4181286.966,,B95425,,dwr_des,,,x,(MSS) 1/13/2022 - Current
+tppa,B9542400,Tom Paine Slough at Paradise Ave,37.774225,-121.382297,642469.1064,4181997.479,,B9542400,,dwr_des,,,x,(MSS) 1/19/2022 - Current
+#glw,**,Grant Line Canal West,37.82029,-121.521,630172.109,4186906.468,,**,,dwr_des,,,x,(MSS) 2/7/2023 - Current
+##id,agency_id,name,lat,lon,x,y,d1641_id,wdl_id,cdec_id,agency,stage,flow,quality,notes
