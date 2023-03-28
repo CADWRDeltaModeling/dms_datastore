@@ -41,7 +41,11 @@ def read_ts_repo(station_id,variable,
         in the config file under the name 'repo'.
         
     """
-    print("here",station_id,variable,subloc,repo)
+    # Do this before adding the sublocation and creating the pattern
+    if  src_priority == 'infer':
+        src_priority = infer_source_priority(station_id)
+    if src_priority is None:
+        src_priority = "*" #dstore_config.config("source_priority")
 
     if subloc is not None:
         if "@" in station_id:
@@ -56,15 +60,15 @@ def read_ts_repo(station_id,variable,
     else:
         repository = dstore_config.config_file(repo)
 
-    if  src_priority == 'infer':
-        src_priority = infer_source_priority(station_id)
-    if src_priority is None:
-        src_priority = "*" #dstore_config.config("source_priority")
+
 
     pats = []
     for src in src_priority:
         pats.append(os.path.join(repository,f"{src}_{station_id}_*_{variable}_*.*"))
-    return ts_multifile(pats,meta=meta) 
+    retval = ts_multifile(pats,meta=meta) 
+    print(type(retval))
+    print("meta is",meta)
+    return retval
 
 def detect_dms_unit(fname):
     meta = read_yaml_header(fname)
@@ -163,7 +167,8 @@ def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=T
            
     fullout = ts_splice(bigts,transition="prefer_first")
     if cfrq is not None: fullout = fullout.asfreq(cfrq)
-    return metas,fullout if meta else fullout
+    retval = (metas,fullout) if meta else fullout
+    return retval
 
 def ts_multifile_read(pats,transforms=None,selector=None,column_name=None):
 
