@@ -1,0 +1,66 @@
+
+# ============== Input
+
+repo_name: Operational Data Repository
+  repo_loc: //cnrastore-bdo/Modeling_Data/realtime_repo
+  download_dir: {{repo_loc}}/download_{{access_date}}
+  prescreened_dir: {{repo_loc}}/screen_{{access_date}}
+  processed_dir: {{repo_loc}}/processed_{access_date}}
+  
+  data_streams:
+    - station: fpt
+      source: nwis
+      variables:
+        - discharge
+          prescreen: flow_tidal   # this should be univariate and uncontroversial
+            bounds: [ -300000,30000]
+            change_bounds: [-20000.,20000]
+            tidal_scale: 10000.
+        - ec:
+          prescreen: ec_low
+            bounds: [25.,1000.]
+            
+    - station: SFFPX # this is the sanfrancisco station
+      source: noaa
+      variables:
+        - elev
+          prescreen: None
+          
+    - station: MAL  # stations with multiple depths. 
+      source: des
+      variables:
+        - DO
+          prescreen: None
+        - tur
+          prescreen: None
+          
+    - station: MDM   # nwis bio station. 
+      source: nwis
+      variables:
+        - Chla
+          prescreen: bio_lim
+            bounds: [0., 200.]
+            
+    - station: JER   # cdec station.
+      source: cdec
+      variables: 
+        - ec
+          prescreen: None
+        - temp
+        
+    - station: RYF
+      source: usgs
+      variables:
+        - NO3+NO2
+          prescreen: None
+        - sal
+          prescreen: None
+          
+    - station: ONG
+      source: cdec
+        - NO3
+          prescreen: None
+        - DOC
+          prescreen: None
+        - TOC
+          prescreen: None
