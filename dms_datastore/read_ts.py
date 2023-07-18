@@ -217,6 +217,9 @@ def cdec1_date_parser(*args):
     if len(args) == 2:
         x = args[0] + args[1]
         return dtm.datetime.strptime(x, "%Y%m%d%H%M")
+    elif len(args) == 1 and " " in args[0]:
+        x = args[0].replace(" ","")
+        return dtm.datetime.strptime(x, "%Y%m%d%H%M")
     else:
         return dtm.datetime.strptime(args, "%Y%m%d%H%M")
 
