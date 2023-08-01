@@ -5,7 +5,7 @@ with open('README.rst') as readme_file:
     readme = readme_file.read()
 requirements = [ "vtools3",
                  "beautifulsoup4",
-                 "pandas",]
+                 "pandas>=2",]
 setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
