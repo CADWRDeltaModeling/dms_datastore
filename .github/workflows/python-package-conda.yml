@@ -12,16 +12,16 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - name: Set up Python 3.7
+    - name: Set up Python 3.8
       uses: actions/setup-python@v2
       with:
-        python-version: 3.7
+        python-version: 3.8
     - name: Add conda to system path
       run: |
         # $CONDA is an environment variable pointing to the root of the miniconda directory
         echo $CONDA/bin >> $GITHUB_PATH
     - name: Conda build package and upload to anaconda.org
-      env: 
+      env:
         ANACONDA_CHANNEL_UPLOAD_TOKEN: ${{ secrets.ANACONDA_CHANNEL_UPLOAD_TOKEN }}
       run: |
         conda create -n test_dms_datastore -y conda-build conda-verify numpy anaconda-client
