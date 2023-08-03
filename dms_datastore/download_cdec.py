@@ -21,6 +21,7 @@ import numpy as np
 import pandas as pd
 from dms_datastore.process_station_variable import process_station_list, stationfile_or_stations
 from dms_datastore import dstore_config
+from .logging_config import logger
 
 __all__=["cdec_download"]
 
@@ -98,13 +99,13 @@ def cdec_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                 dest_dir, f"cdec_{station}@{subloc}_{agency_id}_{p}_{yearname}.csv").lower()
 
         if os.path.exists(path) and overwrite is False:
-            print("Skipping existing station because file exists: %s" % path)
+            logger.info("Skipping existing station because file exists: %s" % path)
             skips.append(path)
             continue
         stime = start.strftime("%m-%d-%Y")
         etime = end if end == "Now" else end.strftime("%m-%d-%Y")
         found = False
-        print(f"Downloading station {station} parameter {p}")
+        logger.info(f"Downloading station {station} parameter {p}")
         zz = [z]
         for code in zz:
             dur_codes = ["E", "H", "D", "M"] if freq is None else [freq]
@@ -120,7 +121,7 @@ def cdec_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                     found = True
                     with open(path, "w") as f:
                         f.write(station_html)
-                    print("Found, duration code: %s" % dur)
+                    logger.info("Found, duration code: %s" % dur)
                     break
             if found:
                 break
@@ -128,11 +129,11 @@ def cdec_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
             failures.append((station, p))
 
     if len(failures) == 0:
-        print("No failed stations")
+        logger.info("No failed stations")
     else:
-        print("Failed query stations: ")
+        logger.info("Failed query stations: ")
         for failure in failures:
-            print(failure)
+            logger.info(failure)
 
 
 def process_station_list2(file, cdec_ndx, param_ndx=None):

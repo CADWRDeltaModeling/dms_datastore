@@ -15,6 +15,7 @@ import re
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
 import pandas as pd
+from .logging_config import logger 
 
 __all__=["des_download"]
 
@@ -57,7 +58,7 @@ def query_station_data(program_id,result_id,start,end):
     if pd.isnull(end): end = pd.Timestamp.now()
     url = f'https://dwrmsweb0263.ad.water.ca.gov/TelemetryDirect/api/Results/ResultData?program={program_id}' \
           f'&resultid={result_id}&start={start:%Y-%m-%d:%H:%M:%S}&end={end:%Y-%m-%d:%H:%M:%S}&version=1'
-    print('url=' + url)
+    logger.info('url=' + url)
     data_df = pd.read_csv(url, parse_dates=['time'], index_col='time', sep='|', encoding="utf-8", dtype={"value":float})
     data_df.sort_index(inplace=True)
     data_df['qaqc_flag_desc'] = data_df['qaqc_flag_id'].map(_flag_dict)
@@ -159,12 +160,12 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
     inventoryfile = os.path.join(des_local_dir,"inventory_full.csv")
 
     if os.path.exists(inventoryfile) and (time.time() - os.stat(inventoryfile).st_mtime) < 6000.:
-        print(f"Loading existing inventory file {inventoryfile}")
+        logger.info(f"Loading existing inventory file {inventoryfile}")
         inventory_full = pd.read_csv(inventoryfile,header=0,sep=",",\
               dtype={"interval_id":int,"aggregate_id":int,"station_active":str},
               parse_dates=["start_date","end_date"])
     else:
-        print(f"Reloading and saving inventory file {inventoryfile}")
+        logger.info(f"Reloading and saving inventory file {inventoryfile}")
         inventory100 = inventory("emp",100)
         inventory200 = inventory("marsh",200)
         inventory100["program_id"] = 100
@@ -190,7 +191,7 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
         try:
             tst_id = int(agency_id)
         except:
-            print(f"agency_id '{agency_id}' for station {station} was not convertable to an integer which is unexpected for DES. Check file lists")
+            logger.info(f"agency_id '{agency_id}' for station {station} was not convertable to an integer which is unexpected for DES. Check file lists")
             failures.append((station,param))
             continue
             
@@ -223,7 +224,7 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
 
             
         if len(rids) == 0: 
-            print(f"No Data for station {station} and param {paramname}, agency station id {agency_id}")
+            logger.info(f"No Data for station {station} and param {paramname}, agency station id {agency_id}")
             failures.append((station,paramname))
             continue # next request
 
@@ -249,10 +250,10 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
             if "saturation" in rid.unit_name: continue
             if "NFU" in rid.unit_name: continue
             if fend < start: 
-                print(f"skipping one file because fend < {start}")
+                logger.info(f"skipping one file because fend < {start}")
                 continue
             if fstart > end: 
-                print(f"skipping one file because fstart > {end}")
+                logger.info(f"skipping one file because fstart > {end}")
                 continue
             fstart = max(start,fstart)
             fend = min(fend,end)
@@ -270,20 +271,20 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
             outfname = outfname.lower()
             path = os.path.join(dest_dir,outfname)
             if os.path.exists(path) and not overwrite:
-                #print("\nSkipping existing station because file exists: %s" % outfname)
+                #logger.info("Skipping existing station because file exists: %s" % outfname)
                 skips.append(path)
                 continue
             else:
-                print(f"\nAttempting to download station: {station} variable {paramname} from {fstart} to {fend}")                                
+                logger.info(f"Attempting to download station: {station} variable {paramname} from {fstart} to {fend}")                                
                 try:
                     df = query_station_data(prog_id,rid_code,fstart,fend)
                     if df.shape[0]<=1:
                         download_success = False
-                        print("Empty")               
+                        logger.info("Empty")               
                     else:
                         download_success = True
                 except:
-                    print("Download failed",station,subloc,paramname)
+                    logger.info("Download failed",station,subloc,paramname)
                     failures.append((station,paramname))
                     download_success = False
                 if download_success:
@@ -295,11 +296,11 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                     write_ts(path,df,meta)   
     
     if len(failures) == 0:
-        print("No failed stations")
+        logger.info("No failed stations")
     else:
-        print("Failed query stations: ")
+        logger.info("Failed query stations: ")
         for failure in failures:
-            print(failure)
+            logger.info(failure)
 
 def process_station_list2(file):
     stations = []

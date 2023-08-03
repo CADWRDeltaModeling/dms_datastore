@@ -8,6 +8,7 @@ import argparse
 import matplotlib.pyplot as plt
 from dms_datastore.read_ts import *
 import shutil
+from .logging_config import logger
 
 __all__ = ["compare_dir"]
 
@@ -22,7 +23,7 @@ def almost_match(x,y):
 
 
 def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=None):
-    print(f"Computing matches between base={base} and comp={comp}") 
+    logger.info(f"Computing matches between base={base} and comp={comp}") 
     if not(os.path.exists(base)):
         raise ValueError("Base directory does not exist")
     if not(os.path.exists(comp)):
@@ -61,7 +62,7 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
     
     nmatch = len(base_matched)    
     
-    print(f"\nExact base matches: {nmatch}")
+    logger.info(f"\nExact base matches: {nmatch}")
     # files that have changed but name is present in both
     if apply_change or apply_update:
         for item in base_matched:   # move from comp to base
@@ -71,11 +72,11 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
         # files whose name is present in both except for the final year of 
         # a two part year suffix like _2007_2021 and _2007_2022
         nnear = len(almost)
-        print(f"\nNear matches except for final year, written as base: comp (total {nnear})")
+        logger.info(f"\nNear matches except for final year, written as base: comp (total {nnear})")
         keys = list(almost.keys())
         keys.sort()
         for item in almost.keys():
-            print(f"{item}: {almost[item]}")
+            logger.info(f"{item}: {almost[item]}")
             if apply_change or apply_update:
                 os.remove(os.path.join(base,item))  # get rid of the original in base
                 # copy in the almost matching one from comp
@@ -96,9 +97,9 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
     base_not_matched = list(base_not_matched)
     base_not_matched.sort()
     
-    print(f"\nUnmatched files in base dir (total {nunbase}):")
+    logger.info(f"\nUnmatched files in base dir (total {nunbase}):")
     for item in base_not_matched:
-        print(item)
+        logger.info(item)
         if apply_change:
             # this would be apply_change, which mirrors the 
             # compare dir. This can be helpful, but approach with caution
@@ -109,9 +110,9 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
     nuncomp = len(comp_files)
     comp_files = list(comp_files)
     comp_files.sort()
-    print(f"\nUnmatched files in comp dir (total {nuncomp})")
+    logger.info(f"\nUnmatched files in comp dir (total {nuncomp})")
     for item in comp_files:
-        print(item)
+        logger.info(item)
         if apply_change or apply_update:
             shutil.copy(os.path.join(comp, item), os.path.join(base,item))
 
@@ -142,13 +143,13 @@ def main():
     year2 = args.year2
     
     if apply_change: 
-        print("--apply_change selected")
+        logger.info("--apply_change selected")
     else:
-        print("--apply_change not selected")
+        logger.info("--apply_change not selected")
     if apply_update: 
-        print("--apply_update selected")
+        logger.info("--apply_update selected")
     else:
-        print("--apply_update not selected")
+        logger.info("--apply_update not selected")
     if apply_change and apply_update:
         raise("apply_change and apply_update are mutually exclusive")    
         
