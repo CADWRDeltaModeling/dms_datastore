@@ -68,7 +68,7 @@ def download_ncro_period_record(inventory,dbase,dest,variables=["flow","elev","e
             var = mappings[param]
             if var is None: continue
         else:
-            logger.info("Problem on row:",row)
+            logger.info(f"Problem on row: {row}")
             if type(param) == float:
                 if np.isnan(param): 
                     continue # todo: this is a fix for an NCRO-end bug. Really the ValueError is best
