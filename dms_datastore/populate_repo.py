@@ -71,7 +71,7 @@ def revise_filename_syears(pat,force=True,outfile="rename.txt"):
         ts = read_ts(fname,nrows=200,force_regular=False)
         if ts.first_valid_index() is None: 
             raise ValueError(f"Issue obtaining start time from file: {fname}")
-            logger.info("Bad: ",fname)
+            logger.info(f"Bad: {fname}")
         else: 
             newstart = str(ts.first_valid_index().year)
             newname = fname.replace(oldstart,newstart)
@@ -274,7 +274,7 @@ def populate_repo2(df,dest,start,overwrite=False,ignore_existing=None):
 
 def populate(dest,all_agencies=None,varlist=None):
     """ Driver script that populates agencies in all_agencies with destination dest """
-    logger.info("dest: ",dest,"agencies: ",all_agencies)
+    logger.info(f"dest: {dest} agencies: {all_agencies}")
     purge = False
     ignore_existing=None #[]
     current = pd.Timestamp.now()
@@ -411,7 +411,7 @@ def populate_main(dest,agencies=None,varlist=None):
     do_purge = False
     if not os.path.exists(dest):
         os.mkdir(dest)
-        logger.info("Directory ",dest," created")
+        logger.info(f"Directory {dest} created")
     else:
         if do_purge: purge(dest)
     
@@ -470,7 +470,7 @@ def main():
     if dest is None: 
         raise ValueError("Destination directory must be specified")
     agencies = args.agencies
-    logger.info(dest,agencies,varlist)
+    logger.info(f'dest: {dest}, agencies: {agencies}, varlist:{varlist}')
     populate_main(dest,agencies,varlist=varlist)
     
 
