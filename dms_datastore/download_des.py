@@ -12,6 +12,8 @@ import os
 import datetime as dt
 import time
 import re
+import ssl
+import urllib
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
 import pandas as pd
@@ -38,6 +40,13 @@ def is_unique(s):
     a = s.to_numpy() # s.values (pandas<0.24)
     return (a[0] == a).all()
 
+def open_url_no_ssl_cert_check(url):
+    """
+    returns a url open handle without SSL certification checks
+    """
+    scontext = ssl.SSLContext(ssl.PROTOCOL_TLS)
+    scontext.verify_mode = ssl.VerifyMode.CERT_NONE
+    return urllib.request.urlopen(url, context=scontext)
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
@@ -59,7 +68,7 @@ def query_station_data(program_id,result_id,start,end):
     url = f'https://dwrmsweb0263.ad.water.ca.gov/TelemetryDirect/api/Results/ResultData?program={program_id}' \
           f'&resultid={result_id}&start={start:%Y-%m-%d:%H:%M:%S}&end={end:%Y-%m-%d:%H:%M:%S}&version=1'
     logger.info('url=' + url)
-    data_df = pd.read_csv(url, parse_dates=['time'], index_col='time', sep='|', encoding="utf-8", dtype={"value":float})
+    data_df = pd.read_csv(open_url_no_ssl_cert_check(url), parse_dates=['time'], index_col='time', sep='|', encoding="utf-8", dtype={"value":float})
     data_df.sort_index(inplace=True)
     data_df['qaqc_flag_desc'] = data_df['qaqc_flag_id'].map(_flag_dict)
     data_df = data_df.filter(['value', 'qaqc_flag_id', 'qaqc_flag_desc'], axis=1)
@@ -119,7 +128,7 @@ def inventory(program_name, program_id):
     '''
     url = 'https://dwrmsweb0263.ad.water.ca.gov/TelemetryDirect/api/Results?program='+str(program_id)
 
-    results_df = pd.read_csv(url, sep='|',dtype={"interval_id":int,"aggregate_id":int,"station_active":str},
+    results_df = pd.read_csv(open_url_no_ssl_cert_check(url), sep='|',dtype={"interval_id":int,"aggregate_id":int,"station_active":str},
                              parse_dates=["start_date","end_date"])
     results_df = results_df.loc[results_df.interval_id != 4,:]  # Not "Visit"
     results_df = results_df.loc[results_df.aggregate_id <= 2,:]  # Not labeled "inst" or "Avg"
@@ -236,7 +245,7 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
             itry = 0
             while itry < max_retry:
                 try:
-                    dates = pd.read_csv(url, parse_dates=['first_date', 'last_date'], sep='|')
+                    dates = pd.read_csv(open_url_no_ssl_cert_check(url), parse_dates=['first_date', 'last_date'], sep='|')
                     itry = max_retry
                 except:
                     itry = itry + 1
