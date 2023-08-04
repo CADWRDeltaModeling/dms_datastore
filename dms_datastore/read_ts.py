@@ -443,7 +443,7 @@ def read_usgs1(fpath_pattern,start=None,end=None,selector=None,force_regular=Tru
     dtypes = {TZCOL : str}
 
     # See https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-and-daily-value-status-codes
-    status_codes = ['Fld','Eqp','Dis','Mnt','Ssn','Dry','Pr','Pmp','Rat','Ssn','Zfl','Tst']
+    status_codes = ['Fld','Eqp','Dis','Mnt','Ssn','Dry','Pr','Pmp','Rat','Ssn','Zfl','Tst','***']
 
     # Now tack on time zone at the end
     ts = csv_retrieve_ts(fpath_pattern, start, end, force_regular, 
