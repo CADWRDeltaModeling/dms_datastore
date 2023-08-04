@@ -15,7 +15,7 @@
    
    Need to add something for the daily stations and for O&M (Clifton Court, Banks)
 """  
-
+SAFEGUARD = True
 import glob
 import os
 import re
@@ -24,7 +24,8 @@ import argparse
 import concurrent.futures
 import pandas as pd
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations,read_station_subloc
-from schimpy.station import *
+
+if not SAFEGUARD: from schimpy.station import *
 from dms_datastore import dstore_config
 from dms_datastore.filename import interpret_fname,meta_to_filename
 from dms_datastore.read_ts import read_ts
@@ -34,7 +35,9 @@ from dms_datastore.download_cdec import cdec_download
 from dms_datastore.download_ncro import download_ncro_por,download_ncro_inventory,station_dbase
 from dms_datastore.download_des import des_download
 
-__all__ = ["revise_filename_syears","revise_filename_syear_eyear","populate_repo","populate_ncro_realtime"
+
+
+__all__ = ["revise_filename_syears","revise_filename_syear_eyear","populate_repo","populate_ncro_realtime",
            "populate_ncro_repo","rationalize_time_partitions"]
 
 # number of data to read in search of start date or multivariate
@@ -60,7 +63,7 @@ def revise_filename_syears(pat,force=True,outfile="rename.txt"):
         Name of file to log failures
 
     """
-
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
     filelist = glob.glob(pat)
 
     renames = []
@@ -108,6 +111,7 @@ def revise_filename_syear_eyear(pat,force=True,outfile="rename.txt"):
         Name of file to log failures
 
     """
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
 
 
     filelist = glob.glob(pat)
@@ -182,6 +186,7 @@ def populate_repo(agency,param,dest,start,end,overwrite=False,ignore_existing=No
     -------
 
    """
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
 
     # todo: This may limit usefulness for things like atmospheric    
     slookup = dstore_config.config_file("station_dbase")
@@ -228,6 +233,8 @@ def _write_renames(renames,outfile):
     
 
 def existing_stations(pat):
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
+
     allfiles = glob.glob(pat)
     existing = set()
     for f in allfiles:
@@ -238,6 +245,8 @@ def existing_stations(pat):
     return existing
 
 def list_ncro_stations(dest):
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
+
     allfiles = glob.glob(os.path.join(dest,'ncro_*.csv'))
     def station_param(x):
         parts = os.path.split(x)[1].split("_")
@@ -252,6 +261,8 @@ def list_ncro_stations(dest):
 
 
 def populate_repo2(df,dest,start,overwrite=False,ignore_existing=None):
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
+
     """ Currently used by ncro realtime """
     slookup = dstore_config.config_file("station_dbase")
     vlookup = dstore_config.config_file("variable_mappings") 
@@ -276,6 +287,8 @@ def populate_repo2(df,dest,start,overwrite=False,ignore_existing=None):
 def populate(dest,all_agencies=None,varlist=None):
     """ Driver script that populates agencies in all_agencies with destination dest """
     print("dest: ",dest,"agencies: ",all_agencies)
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
+    
     purge = False
     ignore_existing=None #[]
     current = pd.Timestamp.now()
@@ -313,6 +326,7 @@ def populate(dest,all_agencies=None,varlist=None):
                 ext = 'rdb' if agency == 'usgs' else '.csv'
                 revise_filename_syear_eyear(os.path.join(dest,f"{agency}*_{var}_*.{ext}"))
                 print(f"Done with agency {agency} variable: {var}")
+            
         else:
             for var in varlist:
                 populate_repo(agency,var,dest,pd.Timestamp(1980,1,1),pd.Timestamp(1999,12,31,23,59),ignore_existing=ignore_existing)
@@ -321,10 +335,15 @@ def populate(dest,all_agencies=None,varlist=None):
                 ext = 'rdb' if agency == 'usgs' else '.csv'
                 revise_filename_syear_eyear(os.path.join(dest,f"{agency}*_{var}_*.{ext}"))
                 print(f"Done with agency {agency} variable: {var}")
-
-
+        print("Done with agency {agency} for all variables")
+        doneagency.append(agency)
+    print("Completed population for these agencies: ")
+    for agent in doneagency: 
+        print(agent)
  
 def purge(dest):
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
+
     if purge:
         for pat in ['*.csv','*.rdb']:
             allfiles = glob.glob(os.path.join(dest,pat))
@@ -333,7 +352,8 @@ def purge(dest):
     
     
 def populate_ncro_realtime(dest,realtime_start=pd.Timestamp(2021,1,1)):
-    
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
+
     #NCRO QAQC
     #dest = "//cnrastore-bdo/Modeling_Data/continuous_station_repo/raw/incoming/dwr_ncro"
     #ncro_download_por(dest)    
@@ -348,6 +368,8 @@ def populate_ncro_realtime(dest,realtime_start=pd.Timestamp(2021,1,1)):
     
 
 def rationalize_time_partitions(pat):
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
+
     allpaths = glob.glob(pat)
     repodir = os.path.split(allpaths[0])[0]
     allfiles = [os.path.split(x)[1] for x in allpaths]
@@ -411,6 +433,8 @@ def ncro_only(dest):
 
 
 def populate_main(dest,agencies=None,varlist=None):
+    if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
+
     do_purge = False
     if not os.path.exists(dest):
         os.mkdir(dest)
@@ -466,6 +490,8 @@ def create_arg_parser():
 
 
 def main():
+    if SAFEGUARD: return    
+
     parser = create_arg_parser()
     args = parser.parse_args()
     dest = args.dest
