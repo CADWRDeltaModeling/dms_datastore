@@ -17,6 +17,7 @@
 """  
 SAFEGUARD = True
 import glob
+from .logging_config import logger
 import os
 import re
 import traceback
@@ -48,8 +49,6 @@ downloaders = {"dwr_des":des_download,"noaa":noaa_download,
                "cdec":cdec_download}
 
 
-
-
 def revise_filename_syears(pat,force=True,outfile="rename.txt"):
     """ Revise start year of files matching pat to the first year of valid data
     
@@ -75,13 +74,13 @@ def revise_filename_syears(pat,force=True,outfile="rename.txt"):
         ts = read_ts(fname,nrows=200,force_regular=False)
         if ts.first_valid_index() is None: 
             raise ValueError(f"Issue obtaining start time from file: {fname}")
-            print("Bad: ",fname)
+            logger.info(f"Bad: {fname}")
         else: 
             newstart = str(ts.first_valid_index().year)
             newname = fname.replace(oldstart,newstart)
             
             if fname != newname:
-                print(f"Renaming {fname} to {newname}")
+                logger.info(f"Renaming {fname} to {newname}")
                 renames.append((fname,newname))
                 try:                
                     if force:
@@ -89,9 +88,9 @@ def revise_filename_syears(pat,force=True,outfile="rename.txt"):
                     else:
                         os.rename(fname,newname)
                 except:
-                    print("Rename failed because of permission or overwriting issue.") 
-                    print("This can be harmless if the downloader handles clipping of the years in file names")
-                    print("Dumping list of renames so far to rename.txt")
+                    logger.info("Rename failed because of permission or overwriting issue.") 
+                    logger.info("This can be harmless if the downloader handles clipping of the years in file names")
+                    logger.info("Dumping list of renames so far to rename.txt")
                     _write_renames(fname,"rename.txt")
                     raise
     _write_renames(renames,outfile)
@@ -133,7 +132,7 @@ def revise_filename_syear_eyear(pat,force=True,outfile="rename.txt"):
                 bad.append(fname+" (not small)")
         if ts.first_valid_index() is None: 
             if ts.isnull().all(axis=None):
-                print("All values are bad. Deleting file")
+                logger.info("All values are bad. Deleting file")
                 bad.append(fname + " (all bad, deleting)")
                 os.remove(fname)
             else:
@@ -144,7 +143,7 @@ def revise_filename_syear_eyear(pat,force=True,outfile="rename.txt"):
             new_time_block = newstart + "_" + newend  
             old_time_block = oldstart + "_" + oldend            
             newname = fname.replace(old_time_block,new_time_block)
-            print(f"Renaming {fname} to {newname}")
+            logger.info(f"Renaming {fname} to {newname}")
             if fname != newname:
                 renames.append((fname,newname))
                 try:                
@@ -153,13 +152,13 @@ def revise_filename_syear_eyear(pat,force=True,outfile="rename.txt"):
                     else:
                         os.rename(fname,newname)
                 except:
-                    print("Rename failed because of permission or overwriting issue. The force argment may be set to False. Dumping list of renames so far to rename.txt")
+                    logger.info("Rename failed because of permission or overwriting issue. The force argment may be set to False. Dumping list of renames so far to rename.txt")
                     _write_renames(rename,"rename.txt")
                     raise
     _write_renames(renames,outfile)
     if len(bad) > 0:
-        print("Bad files:")
-        for b in bad: print(b)
+        logger.info("Bad files:")
+        for b in bad: logger.info(b)
 
 
 
@@ -253,7 +252,7 @@ def list_ncro_stations(dest):
         try:
             return (parts[1],parts[3],'cdec',parts[2]) 
         except:
-            print(x)
+            logger.info(x)
             raise ValueError(f"Unable to parse station and parameter from name {x}")
     stationlist=[station_param(x) for x in allfiles]
     df = pd.DataFrame(data=stationlist,columns=["id","param","agency","agency_id_from_file"])
@@ -276,8 +275,8 @@ def populate_repo2(df,dest,start,overwrite=False,ignore_existing=None):
     agency_id_col = "agency_id_from_file" 
     stationlist = process_station_list(df,param_lookup=vlookup,
                                        station_lookup=slookup,agency_id_col=agency_id_col,source=source)
-    #print("station list ************")                                   
-    #print(stationlist.columns)
+    #logger.info("station list ************")                                   
+    #logger.info(stationlist.columns)
     end = None
     downloaders['cdec'](stationlist,dest,start,end,overwrite)
 
@@ -286,7 +285,8 @@ def populate_repo2(df,dest,start,overwrite=False,ignore_existing=None):
 
 def populate(dest,all_agencies=None,varlist=None):
     """ Driver script that populates agencies in all_agencies with destination dest """
-    print("dest: ",dest,"agencies: ",all_agencies)
+    logger.info(f"dest: {dest} agencies: {all_agencies}")
+
     if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
     
     purge = False
@@ -325,8 +325,8 @@ def populate(dest,all_agencies=None,varlist=None):
                 populate_repo(agency,var,dest,pd.Timestamp(2020,1,1),None,overwrite=True)
                 ext = 'rdb' if agency == 'usgs' else '.csv'
                 revise_filename_syear_eyear(os.path.join(dest,f"{agency}*_{var}_*.{ext}"))
-                print(f"Done with agency {agency} variable: {var}")
-            
+                logger.info(f"Done with agency {agency} variable: {var}")
+
         else:
             for var in varlist:
                 populate_repo(agency,var,dest,pd.Timestamp(1980,1,1),pd.Timestamp(1999,12,31,23,59),ignore_existing=ignore_existing)
@@ -334,12 +334,13 @@ def populate(dest,all_agencies=None,varlist=None):
                 populate_repo(agency,var,dest,pd.Timestamp(2020,1,1),None,overwrite=True)
                 ext = 'rdb' if agency == 'usgs' else '.csv'
                 revise_filename_syear_eyear(os.path.join(dest,f"{agency}*_{var}_*.{ext}"))
-                print(f"Done with agency {agency} variable: {var}")
+                logger.info(f"Done with agency {agency} variable: {var}")
         print("Done with agency {agency} for all variables")
         doneagency.append(agency)
     print("Completed population for these agencies: ")
     for agent in doneagency: 
         print(agent)
+
  
 def purge(dest):
     if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
@@ -394,10 +395,10 @@ def rationalize_time_partitions(pat):
         already_checked.add(meta['filename'])
         if len(near_misses) > 0: 
             near_misses.append(meta)        
-            #print(f"Main series: {meta['filename']}")
+            #logger.info(f"Main series: {meta['filename']}")
             superseded = []
             for i,meta in enumerate(near_misses): 
-                #print(meta)
+                #logger.info(meta)
                 issuperseded = False
                 
                 superseding = []
@@ -409,17 +410,17 @@ def rationalize_time_partitions(pat):
                     if superseded_thisfile: superseding.append(meta2) # this file is a superset of the one being checked
                 if issuperseded: 
                     fnamesuper = meta['filename']
-                    print(f"superseded: {fnamesuper} superseded by:")
+                    logger.info(f"superseded: {fnamesuper} superseded by:")
                     for sf in superseding: 
-                        print("  ",sf)
+                        logger.info("  ",sf)
                     os.remove(os.path.join(repodir,fnamesuper))  
                     superseded.append(fnamesuper)
             
         else: 
-            print(f"Main series: {meta['filename']} had no similar file names")
-    print("Superseded files:")
+            logger.info(f"Main series: {meta['filename']} had no similar file names")
+    logger.info("Superseded files:")
     for sup in superseded: 
-        print(sup)
+        logger.info(sup)
     
 def populate_ncro_repo(dest):
     download_ncro_por(dest)     # period of record for NCRO QA QC'd
@@ -430,15 +431,13 @@ def ncro_only(dest):
     revise_filename_syear_eyear(os.path.join(dest,f"ncro_*.csv"))  
     revise_filename_syear_eyear(os.path.join(dest,f"cdec_*.csv"))  
 
-
-
 def populate_main(dest,agencies=None,varlist=None):
     if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
 
     do_purge = False
     if not os.path.exists(dest):
         os.mkdir(dest)
-        print("Directory ",dest," created")
+        logger.info(f"Directory {dest} created")
     else:
         if do_purge: purge(dest)
     
@@ -463,7 +462,7 @@ def populate_main(dest,agencies=None,varlist=None):
         except Exception as exc:
             failures.append(agency)
             trace=traceback.format_exc()
-            print(f'{agency} generated an exception: {exc} with trace:\n{trace}')
+            logger.info(f'{agency} generated an exception: {exc} with trace:\n{trace}')
 
     # A fixup mostly for DES, addresses overlapping years of  same variable
     if do_des:
@@ -472,7 +471,7 @@ def populate_main(dest,agencies=None,varlist=None):
     if do_ncro:
         revise_filename_syear_eyear(os.path.join(dest,f"ncro_*.csv"))  
     revise_filename_syear_eyear(os.path.join(dest,f"cdec_*.csv"))  
-    print("These agency queries failed")
+    logger.info("These agency queries failed")
 
 
 
@@ -499,7 +498,7 @@ def main():
     if dest is None: 
         raise ValueError("Destination directory must be specified")
     agencies = args.agencies
-    print(dest,agencies,varlist)
+    logger.info(f'dest: {dest}, agencies: {agencies}, varlist:{varlist}')
     populate_main(dest,agencies,varlist=varlist)
     
 
@@ -510,8 +509,3 @@ if __name__ == '__main__':
 
     
 # Additional: make sure we have woodbridge, yby, 
-
-   
-   
-    
-    

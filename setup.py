@@ -5,7 +5,7 @@ with open('README.rst') as readme_file:
     readme = readme_file.read()
 requirements = [ "vtools3",
                  "beautifulsoup4",
-                 "pandas",]
+                 "pandas>=2",]
 setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
@@ -23,15 +23,16 @@ setup(
     package_data = {'dms_datastore' : ['config_data/*.csv','config_data/*.yaml']},
     #setup_requires=setup_requirements,
     test_suite='tests',
-    #tests_require=test_requirements,    
+    #tests_require=test_requirements,
     author="Eli Ateljevich",
     author_email='Eli.Ateljevich@water.ca.gov',
     url='https://github.com/water-e/dms_datastore',
     keywords=['dms_datastore','data','repository','download'],
     classifiers=[
-        'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
-        'Programming Language :: Python :: 3.9'			
+        'Programming Language :: Python :: 3.9',
+        'Programming Language :: Python :: 3.10',
+        'Programming Language :: Python :: 3.11'
     ],
     entry_points = { 'console_scripts' : ['download_noaa=dms_datastore.download_noaa:main',
                                           'download_cdec=dms_datastore.download_cdec:main',

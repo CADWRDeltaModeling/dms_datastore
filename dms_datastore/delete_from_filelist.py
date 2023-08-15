@@ -4,7 +4,7 @@
 import os
 import argparse
 import dms_datastore.dstore_config as dbconfig
-
+from .logging_config import logger
 
 def delete_from_filelist(filelist, dpath=None):
     """ Delete all files in filelist in directory 
@@ -31,7 +31,7 @@ def delete_from_filelist(filelist, dpath=None):
     else:
         direct = dpath
 
-    print(
+    logger.info(
         f"Deleting files listed in file {filelist} relative to directory {direct}")
 
     with open(filelist) as infile:
@@ -42,10 +42,10 @@ def delete_from_filelist(filelist, dpath=None):
                 filename = line.split(":")[0]
                 path = os.path.join(direct, filename)
                 if os.path.exists(path):
-                    print(f"Removing {path}")
+                    logger.info(f"Removing {path}")
                     os.remove(path)
                 else:
-                    print(f"Path not found: {path}")
+                    logger.info(f"Path not found: {path}")
 
 
 def create_arg_parser():

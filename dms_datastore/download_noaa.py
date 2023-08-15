@@ -13,6 +13,7 @@ import re
 import os
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
+from .logging_config import logger
 
 __all__ = ["noaa_download"]
 
@@ -46,15 +47,15 @@ def retrieve_table(url):
                 soup = bs4.BeautifulSoup(urllib2.urlopen(url))
                 done = True
             except urllib2.URLError:
-                print("Failed to retrieve {}".format(url))
-                print("Try again...")
+                logger.info("Failed to retrieve {}".format(url))
+                logger.info("Try again...")
         else:
             try:
                 soup = bs4.BeautifulSoup(urllib.request.urlopen(url))
                 done = True
             except urllib2.error.URLError:
-                print("Failed to retrieve {}".format(url))
-                print("Try again...")
+                logger.info("Failed to retrieve {}".format(url))
+                logger.info("Try again...")
 
 
 
@@ -172,7 +173,7 @@ def noaa_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
         outfname = outfname.lower()
         path = os.path.join(dest_dir,outfname)
         if os.path.exists(path) and not overwrite:
-            print(f"\nSkipping existing station because file exists: {station} variable {param}")
+            logger.info(f"Skipping existing station because file exists: {station} variable {param}")
             skips.append(path)
             continue
 
@@ -198,31 +199,31 @@ def noaa_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                 url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric{datum_str}&format=csv"
 
 
-                #print(f"Retrieving {url}\n station {agency_id} from {date_start} to {date_end}".format(url,agency_id, date_start, date_end))
-                #print("URL: {}".format(url))
+                #logger.info(f"Retrieving {url}\n station {agency_id} from {date_start} to {date_end}".format(url,agency_id, date_start, date_end))
+                #logger.info("URL: {}".format(url))
                 
                 try:
                     raw_table = retrieve_csv(url).decode()
                     if faulty_output(raw_table):
-                        if verbose: print(f"No good data produced for {station},{paramname}")
+                        if verbose: logger.info(f"No good data produced for {station},{paramname}")
                         continue
                 except:
-                    if verbose: print(f"Error reported in retrieval for {station},{paramname}")
+                    if verbose: logger.info(f"Error reported in retrieval for {station},{paramname}")
                     raw_table = "\n" 
                     
                 if raw_table[0] == '\n':
                     datum = "STND"
                     datum_str = f"&datum={datum}" if param in ("water_level","predictions") else ""
                     url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric&{datum_str}&format=csv"
-                    #print("Retrieving Station {}, from {} to {}...".format(agency_id, date_start, date_end))
-                    #print("URL: {}".format(url))
+                    #logger.info("Retrieving Station {}, from {} to {}...".format(agency_id, date_start, date_end))
+                    #logger.info("URL: {}".format(url))
                     try:
                         raw_table = retrieve_csv(url).decode()
                         if faulty_output(raw_table):
-                            if verbose: print("No good data produced [2] for ")
+                            if verbose: logger.info("No good data produced [2] for ")
                             continue
                     except:
-                        if verbose: print("Error in second retrieval")
+                        if verbose: logger.info("Error in second retrieval")
                         continue
                 if first:
                     headers["datum"] = datum
@@ -263,9 +264,9 @@ def create_arg_parser():
 def list_stations():
     """ Show NOAA station ID's in our study area.
     """
-    print("Available stations:")
+    logger.info("Available stations:")
     for key in default_stationlist.keys():
-        print("{}: {}".format(key, default_stationlist[key]))
+        logger.info("{}: {}".format(key, default_stationlist[key]))
 
 
 def assure_datetime(dtime, isend = False):
@@ -293,7 +294,7 @@ def main():
     overwrite = args.overwrite
     param = args.param
     if args.list:
-        print("listing is deprecated. Try 'station_info noaa' to get a list of noaa stations")
+        logger.info("listing is deprecated. Try 'station_info noaa' to get a list of noaa stations")
         return
     else:
         stationfile=stationfile_or_stations(args.stationfile,args.stations)
@@ -340,7 +341,7 @@ def main():
             for line in args.stationfile:
                 if not line.startswith("#") and len(line) > 1:
                     sid = line.strip().split()[0]
-                    print("station id={}".format(sid))
+                    logger.info("station id={}".format(sid))
                     stage_stations.append(sid)
 
 

@@ -23,6 +23,7 @@ import datetime as dt
 import numpy as np
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
+from .logging_config import logger
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()
@@ -48,7 +49,7 @@ def nwis_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
     These dates are passed on to CDEC ... actual return dates can be
     slightly different
     """
-    print(stations)
+    logger.info(stations)
     if end is None: 
         end = dt.datetime.now()
         endfile = 9999
@@ -78,11 +79,11 @@ def nwis_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
         outfname = outfname.lower()
         path = os.path.join(dest_dir,outfname)
         if os.path.exists(path) and not overwrite:
-            print("\nSkipping existing station because file exists: %s" % station)
+            logger.info("Skipping existing station because file exists: %s" % station)
             skips.append(path)
             continue
         else:
-            print(f"\nAttempting to download station: {station} variable {param}")        
+            logger.info(f"Attempting to download station: {station} variable {param}")        
         stime=start.strftime("%Y-%m-%d")
         etime=end.strftime("%Y-%m-%d")
         found = False
@@ -99,7 +100,7 @@ def nwis_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                 station_query = station_query_base + f'&parameter_cd={int(param):05}'
             else:
                 station_query = station_query_base
-        print(station_query)
+        logger.info(station_query)
         try: 
             if sys.version_info[0] == 2:
                 raise ValueError("Python 2 no longer supported")
@@ -114,21 +115,21 @@ def nwis_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                 station_html = "" # Catches incomplete read error
             if len(station_html) > 30 and not "No sites found matching" in station_html:
                 found = True
-                print(f"Writing to path: {path}")
+                logger.info(f"Writing to path: {path}")
                 with open(path,"w") as f:
                     f.write(station_html)
                 successes.add((station,paramname))
             if not found: 
-                print(f"Station {station} query failed or produced no data")
+                logger.info(f"Station {station} query failed or produced no data")
                 if (station,paramname) not in failures: 
                     failures.append((station,paramname))
     
     if len(failures) == 0:
-        print("No failed stations")
+        logger.info("No failed stations")
     else:
-        print("Failed query stations: ")
+        logger.info("Failed query stations: ")
         for failure in failures:
-            print(failure)
+            logger.info(failure)
 
 def parse_start_year(txt):
     date_re = re.compile(r"(19|20)\d\d[- /.](0[1-9]|1[012])[- /.](0[1-9]|[12][0-9]|3[01])")

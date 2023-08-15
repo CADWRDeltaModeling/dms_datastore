@@ -7,6 +7,7 @@ import numpy as np
 from urllib.request import urlopen
 from zipfile import ZipFile
 from io import BytesIO
+from .logging_config import logger
 
 def fetch_data(sid):
     '''

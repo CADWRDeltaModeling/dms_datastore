@@ -217,6 +217,9 @@ def cdec1_date_parser(*args):
     if len(args) == 2:
         x = args[0] + args[1]
         return dtm.datetime.strptime(x, "%Y%m%d%H%M")
+    elif len(args) == 1 and " " in args[0]:
+        x = args[0].replace(" ","")
+        return dtm.datetime.strptime(x, "%Y%m%d%H%M")
     else:
         return dtm.datetime.strptime(args, "%Y%m%d%H%M")
 
@@ -440,7 +443,7 @@ def read_usgs1(fpath_pattern,start=None,end=None,selector=None,force_regular=Tru
     dtypes = {TZCOL : str}
 
     # See https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-and-daily-value-status-codes
-    status_codes = ['Fld','Eqp','Dis','Mnt','Ssn','Dry','Pr','Pmp','Rat','Ssn','Zfl','Tst']
+    status_codes = ['Fld','Eqp','Dis','Mnt','Ssn','Dry','Pr','Pmp','Rat','Ssn','Zfl','Tst','***']
 
     # Now tack on time zone at the end
     ts = csv_retrieve_ts(fpath_pattern, start, end, force_regular, 
@@ -970,7 +973,7 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
                            skiprows=skiprows_spec,sep=sep,
                            parse_dates=parsedates, na_values=extra_na,
                            keep_default_na=True, dtype=dtypes,
-                           infer_datetime_format=True,skipinitialspace=True,nrows=nrows,
+                           skipinitialspace=True,nrows=nrows,
                            **dargs)
 
             
@@ -993,7 +996,7 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
                            na_values=extra_na,
                            keep_default_na=True, dtype=dtypes,
                            names=column_names,
-                           infer_datetime_format=True,skipinitialspace=True,
+                           skipinitialspace=True,
                            **dargs)
 
         if dset.shape[0] == 0:

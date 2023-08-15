@@ -19,7 +19,7 @@ import argparse
 import pandas as pd
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
-
+from .logging_config import logger
 
 items = {"flow": "FLOW_15-MINUTE",
          "elev": "STAGE_15-MINUTE",
@@ -128,7 +128,7 @@ def wdl_download(station_list,years,dest_dir,syear,eyear,overwrite=False,expand_
     those variables and adds the data to txt files one per station-variable. 
     """
     #station_list = list(station_list)
-    print(station_list)
+    logger.info(station_list)
     
     global aliases
     # prior url
@@ -168,14 +168,14 @@ def wdl_download(station_list,years,dest_dir,syear,eyear,overwrite=False,expand_
                 if overwrite:
                     os.remove(path)           
                 else:
-                    print("\nSkipping existing station because file exists: %s" % outfname)
+                    logger.info("Skipping existing station because file exists: %s" % outfname)
                     skips.append(path)
                     continue
             else:
-                print(f"\nAttempting to download station: {station} {agency_id} variable {paramname}")  
+                logger.info(f"Attempting to download station: {station} {agency_id} variable {paramname}")  
             alias_sub = aliases.loc[aliases.FILE_NAME_BASE.str.startswith(items[paramname]) ,:]
             if alias_sub.shape[0] != 1: 
-                print(alias_sub)
+                logger.info(alias_sub)
                 raise ValueError(f"Lookup failure on WDL alias table (nonunique) for station {agency_id} and param {param}")
             file_created = False
             ndata = 0
@@ -188,12 +188,12 @@ def wdl_download(station_list,years,dest_dir,syear,eyear,overwrite=False,expand_
                 #if len(yrdf) == 0: continue
                 filename = alias_sub['TABLE_FILE_NAME'].iloc[0]
                 station_query="{}/{}/{}/{}".format(base_url,agency_id.upper(),year,filename)
-                print(station_query)
+                logger.info(station_query)
                 try:
                     response = urllib2.urlopen(station_query)
                 except Exception as e:
                     if 'blob does not exist' in e.reason: 
-                        print("No data found")
+                        logger.info("No data found")
                         continue
                     
                 fname = station+"_"+str(year)+"_"+filename
@@ -210,7 +210,7 @@ def wdl_download(station_list,years,dest_dir,syear,eyear,overwrite=False,expand_
                     destfile.write("\"Date\",\"Point\",\"Qual\",\n")
                     file_created = True                
                     
-                print("Working on {} {} {}".format(station,filename,year))
+                logger.info("Working on {} {} {}".format(station,filename,year))
                 for iline,line in enumerate(f.readlines()[3:]):
                     if line and len(line) > 5:
                         ndata=ndata+1
@@ -236,8 +236,8 @@ def wdl_download(station_list,years,dest_dir,syear,eyear,overwrite=False,expand_
                 os.remove(localname)
                 data_years.append(str(year))
             if not file_created: fails.append((station,paramname))
-    print("Fails:")
-    for fl in fails: print(fl)
+    logger.info("Fails:")
+    for fl in fails: logger.info(fl)
         
                     
 
