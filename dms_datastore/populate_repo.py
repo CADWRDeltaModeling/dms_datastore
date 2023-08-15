@@ -15,7 +15,7 @@
    
    Need to add something for the daily stations and for O&M (Clifton Court, Banks)
 """  
-SAFEGUARD = True
+SAFEGUARD = False
 import glob
 from .logging_config import logger
 import os

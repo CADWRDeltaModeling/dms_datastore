@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 from vtools.functions.interpolate import *
 from vtools.functions.filter import *
 from vtools.data.vtime import *
+import vtools.functions.unit_conversions as units
 import os.path as osp
 from dms_datastore.read_ts import *
 import datetime as dtm  
-import schimpy.unit_conversions as units
 from schimpy.unit_conversions import ec_psu_25c,CFS2CMS,CMS2CFS
 from scipy.ndimage.filters import gaussian_filter1d
 from vtools.functions.error_detect import *

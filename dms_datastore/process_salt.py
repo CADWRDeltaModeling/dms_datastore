@@ -6,13 +6,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 from vtools.functions.interpolate import *
 from vtools.functions.filter import *
+import vtools.functions.unit_conversions as units
 from vtools.data.vtime import *
 import os
 import os.path as osp
 from dms_datastore.read_ts import *
 import datetime as dtm  
-import schimpy.unit_conversions as units
-from schimpy.unit_conversions import ec_psu_25c
 from scipy.ndimage.filters import gaussian_filter1d
 from vtools.functions.error_detect import *
 import pandas as pd
@@ -210,7 +209,7 @@ salt = pd.concat([sjr,sac,yolo_toedrain,yolo],axis=1)[sdate:edate]
 
 salt.columns = columns
 ec = salt.copy()
-salt[:] = ec_psu_25c(salt[:])
+salt[:] = units.ec_psu_25c(salt[:])
 
 salt[columns].to_csv("salt_new.th",date_format="%Y-%m-%dT%H:%M",float_format="%4.2f",sep=" ")
 

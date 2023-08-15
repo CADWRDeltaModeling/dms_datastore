@@ -8,9 +8,9 @@ import os.path as osp
 from dms_datastore.read_ts import *
 from vtools.functions.merge import *
 from vtools.functions.error_detect import med_outliers
+import vtools.functions.unit_conversions as units
 import datetime as dtm
 import schimpy.unit_conversions as units
-from schimpy.unit_conversions import ec_psu_25c
 from scipy.ndimage.filters import gaussian_filter1d
 #from vtools.functions.error_detect import *
 import pandas as pd

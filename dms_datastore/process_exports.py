@@ -8,7 +8,7 @@ import pandas as pd
 import datetime as dtm
 import pandas as pd
 import sys
-from schimpy.unit_conversions import cfs_to_cms,CFS2CMS
+from vtools.functions.unit_conversions import cfs_to_cms,CFS2CMS
 from vtools.data.vtime import *
 import matplotlib.pyplot as plt
 from vtools.functions.filter import *

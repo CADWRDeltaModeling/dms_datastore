@@ -67,7 +67,9 @@ def repo_file_inventory(fpath,full=True,by="file_pattern"):
     # Dictionary with station_id,agency_id,variable,,start,end, etc
     allmeta = [interpret_fname(fname) for fname in allfiles] 
     metadf = pd.DataFrame(allmeta)
-    metadf['original_filename'] = metadf.filename  # preserves the entire filename so first file can be parsed
+    if metadf.empty: 
+        raise ValueError("Empty inventory")
+    metadf['original_filename'] = metadf['filename']  # preserves the entire filename so first file can be parsed
     metadf['filename'] = metadf.apply(lambda x: to_wildcard(x.filename),axis=1)
     grouped_meta = metadf.groupby(["filename"]).agg(
         {
@@ -174,8 +176,7 @@ def create_arg_parser():
 
 
 def main():
-    """ A main function to convert polygon files
-    """
+
     parser = create_arg_parser()
     args = parser.parse_args()
     out_files = args.out_files

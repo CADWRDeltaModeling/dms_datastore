@@ -2,7 +2,7 @@
 import datetime as dtm
 import os
 import numpy as np
-import schimpy.unit_conversions as units
+import vtools.functions.unit_conversions as units
 import matplotlib.pylab as plt
 from dms_datastore.read_ts import *
 from shutil import copyfile

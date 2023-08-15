@@ -8,7 +8,7 @@ from dms_datastore.read_ts import read_ts,read_yaml_header
 from dms_datastore import dstore_config
 import glob
 from vtools.functions.merge import ts_merge,ts_splice
-from schimpy.unit_conversions import *
+from vtools.functions.unit_conversions import *
 
 __all__ = ["read_ts_repo","ts_multifile_read"]
 
