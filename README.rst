@@ -28,10 +28,13 @@ The agency_id column is optional.
 Installation
 ===============================
 
-```
-git clone https://github.com/CADWRDeltaModeling/dms_datastore
-conda env create -f environment.yml # should create a dms_datastore and pip install the package
-# alternatively, pip install -e . after running the above command if you want to develop the package
-conda activate dms_datastore
-```
+.. code-block:: bash
+   git clone https://github.com/CADWRDeltaModeling/dms_datastore
+   conda env create -f environment.yml # should create a dms_datastore and pip install the package
+   # alternatively, pip install -e . after running the above command if you want to develop the package
+   conda activate dms_datastore
+
+===============================
+
+
 
