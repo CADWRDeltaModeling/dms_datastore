@@ -1,0 +1,26 @@
+name: dms_datastore
+channels:
+  - cadwr-dms
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python
+  - pip
+  - beautifulsoup4
+  - vtools3
+  - pandas>=2
+  - xarray
+  - schimpy # remove this!
+  - matplotlib
+  - scikit-learn
+  - contourpy
+  - joblib
+  - fonttools
+  - pyparsing
+  - kiwisolver
+  - pip:
+     - -e git+https://github.com/CADWRDeltaModeling/dms_datastore#egg=dms_datastore
+# alternatively if you want to develop ...
+# git clone this repo
+# conda env create -f environment.yml
+# pip install --no-deps -e . 
