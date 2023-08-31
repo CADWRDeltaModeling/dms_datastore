@@ -6,6 +6,11 @@ with open('README.rst') as readme_file:
 requirements = [ "vtools3",
                  "beautifulsoup4",
                  "pandas>=2",]
+                 "xarray",
+                 "cfgrib",
+                 "ecmwflibs",
+                 "boto3",
+                 "netCDF4"]
 setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
@@ -34,7 +39,8 @@ setup(
         'Programming Language :: Python :: 3.10',
         'Programming Language :: Python :: 3.11'
     ],
-    entry_points = { 'console_scripts' : ['download_noaa=dms_datastore.download_noaa:main',
+    entry_points = { 'console_scripts' : ['download_hrrr=dms_datastore.download_hrrr:main',
+                                          'download_noaa=dms_datastore.download_noaa:main',
                                           'download_cdec=dms_datastore.download_cdec:main',
                                           'download_wdl=dms_datastore.download_wdl:main',
                                           'download_nwis=dms_datastore.download_nwis:main',
