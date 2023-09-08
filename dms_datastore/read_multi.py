@@ -24,7 +24,9 @@ def infer_source_priority(station_id):
 
 def read_ts_repo(station_id,variable,
                  subloc=None,repo=None,
-                 src_priority=None,meta=False,force_regular=False):
+                 src_priority=None,
+                 meta=False,
+                 force_regular=False):
     """ Read time series data from a repository, prioritizing sources
   
     station_id : str
