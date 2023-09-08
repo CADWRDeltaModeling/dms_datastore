@@ -13,6 +13,8 @@ from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
 from dms_datastore.populate_repo import interpret_fname
 from dms_datastore.dstore_config import config_file, station_dbase
+from .logging_config import logger
+
 
 __all__ = ["reformat","reformat_main",
            "block_bounds","cdec_unit",
