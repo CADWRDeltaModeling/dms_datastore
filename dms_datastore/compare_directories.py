@@ -23,7 +23,7 @@ def almost_match(x,y):
 
 
 def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=None):
-    logger.info(f"Computing matches between base={base} and comp={comp}") 
+    print(f"Computing matches between base={base} and comp={comp}") 
     if not(os.path.exists(base)):
         raise ValueError("Base directory does not exist")
     if not(os.path.exists(comp)):
@@ -62,7 +62,7 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
     
     nmatch = len(base_matched)    
     
-    logger.info(f"\nExact base matches: {nmatch}")
+    print(f"\nExact base matches: {nmatch}")
     # files that have changed but name is present in both
     if apply_change or apply_update:
         for item in base_matched:   # move from comp to base
@@ -72,11 +72,11 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
         # files whose name is present in both except for the final year of 
         # a two part year suffix like _2007_2021 and _2007_2022
         nnear = len(almost)
-        logger.info(f"\nNear matches except for final year, written as base: comp (total {nnear})")
+        print(f"\nNear matches except for final year, written as base: comp (total {nnear})")
         keys = list(almost.keys())
         keys.sort()
         for item in almost.keys():
-            logger.info(f"{item}: {almost[item]}")
+            print(f"{item}: {almost[item]}")
             if apply_change or apply_update:
                 os.remove(os.path.join(base,item))  # get rid of the original in base
                 # copy in the almost matching one from comp
@@ -97,9 +97,9 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
     base_not_matched = list(base_not_matched)
     base_not_matched.sort()
     
-    logger.info(f"\nUnmatched files in base dir (total {nunbase}):")
+    print(f"\nUnmatched files in base dir (total {nunbase}):")
     for item in base_not_matched:
-        logger.info(item)
+        print(item)
         if apply_change:
             # this would be apply_change, which mirrors the 
             # compare dir. This can be helpful, but approach with caution
@@ -110,9 +110,9 @@ def compare_dir(base,comp,pat="*",apply_change=False,apply_update=False,year2=No
     nuncomp = len(comp_files)
     comp_files = list(comp_files)
     comp_files.sort()
-    logger.info(f"\nUnmatched files in comp dir (total {nuncomp})")
+    print(f"\nUnmatched files in comp dir (total {nuncomp})")
     for item in comp_files:
-        logger.info(item)
+        print(item)
         if apply_change or apply_update:
             shutil.copy(os.path.join(comp, item), os.path.join(base,item))
 
