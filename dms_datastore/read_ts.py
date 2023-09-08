@@ -77,7 +77,7 @@ def read_dms1(fpath_pattern,start=None,end=None,selector=None,force_regular=True
                          sep=',',
                          skiprows=0,
                          header=0,
-                         dateparser=None,
+                         dateformat=None,
                          comment="#",
                          nrows=nrows)
     return ts    
@@ -109,7 +109,7 @@ def read_ncro_std(fpath_pattern,start=None,end=None,selector=None,force_regular=
                          skiprows=0,
                          column_names=["datetime","value","qaqc_code","qaqc_description","status"],
                          header=0,
-                         dateparser=None,
+                         dateformat=None,
                          comment="#",
                          nrows=nrows)
     return ts
@@ -138,7 +138,7 @@ def read_des_std(fpath_pattern,start=None,end=None,selector=None,force_regular=T
                          indexcol="time",
                          sep=",",
                          header=0,
-                         dateparser=None,
+                         dateformat=None,
                          comment="#",
                          extra_na=[""],
                          prefer_age="new",
@@ -175,7 +175,7 @@ def read_des(fpath_pattern,start=None,end=None,selector=None,force_regular=True,
                          skiprows=4,
                          sep=",",
                          header=0,
-                         dateparser=None,
+                         dateformat=None,
                          comment=None,
                          extra_na=[""],
                          prefer_age="new",
@@ -183,8 +183,7 @@ def read_des(fpath_pattern,start=None,end=None,selector=None,force_regular=True,
     return ts
 
 ################################################33
-def cdec2_date_parser(arg):
-    return dtm.datetime.strptime(arg, "%Y%m%d %H%M")
+
 
 def is_cdec_csv2(fname):
     with open(fname,"r") as f:
@@ -195,6 +194,7 @@ def is_cdec_csv2(fname):
 def read_cdec2(fpath_pattern,start=None,end=None,selector=None,force_regular=True,nrows=None):
     if selector is not None:
         raise ValueError("selector argument is for API compatability. This is not a multivariate format, selector not allowed")
+    dateformat = "%Y%m%d %H%M"
     ts = csv_retrieve_ts(fpath_pattern, start, end, force_regular,
                          selector="VALUE",
                          format_compatible_fn=is_cdec_csv2,
@@ -204,24 +204,13 @@ def read_cdec2(fpath_pattern,start=None,end=None,selector=None,force_regular=Tru
                          indexcol="OBS DATE",
                          skiprows=0,
                          sep=",",
-                         dateparser=cdec2_date_parser,
+                         dateformat="%Y%m%d %H%M",
                          comment=None,
                          prefer_age="new",
                          nrows=nrows)
     return ts
 
 ##################################### 
-
-
-def cdec1_date_parser(*args):
-    if len(args) == 2:
-        x = args[0] + args[1]
-        return dtm.datetime.strptime(x, "%Y%m%d%H%M")
-    elif len(args) == 1 and " " in args[0]:
-        x = args[0].replace(" ","")
-        return dtm.datetime.strptime(x, "%Y%m%d%H%M")
-    else:
-        return dtm.datetime.strptime(args, "%Y%m%d%H%M")
 
 
 def is_cdec_csv1(fname):
@@ -241,6 +230,7 @@ def read_cdec1(fpath_pattern,start=None,end=None,selector=None, force_regular=Tr
         else:
             return dtm.datetime.strptime(args,"%Y%m%d%H%M")
     
+    dateformat = "%Y%m%d%H%M"
     
     ts = csv_retrieve_ts(fpath_pattern, start, end, force_regular,
                          selector="value",
@@ -252,7 +242,7 @@ def read_cdec1(fpath_pattern,start=None,end=None,selector=None, force_regular=Tr
                          skiprows=2,
                          header=None,
                          sep=",",
-                         dateparser=cdec1_date_parser,
+                         dateformat="%Y%m%d%H%M",
                          comment=None,
                          prefer_age="new",
                          nrows=nrows)
@@ -287,7 +277,7 @@ def read_wdl(fpath_pattern,start=None,end=None,selector=None,force_regular=True,
                          skiprows=0,
                          column_names=["datetime","value","qaqc_flag","comment"],
                          header=None,
-                         dateparser=None,
+                         dateformat=None,
                          comment=None,
                          nrows=nrows)    
     return ts
@@ -316,7 +306,7 @@ def read_wdl2(fpath_pattern,start=None,end=None,selector=None,force_regular=True
                          column_names=["datetime","value","qaqc_flag","comment"],
                          dtypes={"comment" : str},
                          header=0,
-                         dateparser=None,
+                         dateformat=None,
                          comment=None,
                          nrows=nrows)    
     return ts
@@ -346,7 +336,7 @@ def read_wdl3(fpath_pattern,start=None,end=None,selector=None,force_regular=True
                          column_names=["datetime","value","qaqc_flag","comment"],
                          dtypes={"comment" : str},
                          header=0,
-                         dateparser=None,
+                         dateformat=None,
                          comment=None,
                          nrows=nrows)    
     except pd.errors.ParserError as e:
@@ -363,7 +353,7 @@ def read_wdl3(fpath_pattern,start=None,end=None,selector=None,force_regular=True
                          column_names=["datetime","value","qaqc_flag"],
                          dtypes={"comment" : str},
                          header=0,
-                         dateparser=None,
+                         dateformat=None,
                          comment=None,
                          nrows=nrows)            
     
@@ -458,7 +448,7 @@ def read_usgs1(fpath_pattern,start=None,end=None,selector=None,force_regular=Tru
                          header=0,
                          sep="\t",
                          skiprows="count",
-                         dateparser=None,
+                         dateformat=None,
                          comment="#",
                          dtypes=dtypes,
                          nrows=nrows)    
@@ -529,7 +519,7 @@ def read_usgs1_daily(fpath_pattern,start=None,end=None,selector=None,force_regul
                          header=0,
                          sep="\t",
                          skiprows="count",
-                         dateparser=None,
+                         dateformat=None,
                          comment="#",
                          nrows=nrows)    
 
@@ -875,7 +865,7 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
                     indexcol=0,
                     skiprows=0,
                     header=0,
-                    dateparser=None,
+                    dateformat=None,
                     comment=None,
                     sep="/s+",
                     extra_na=["m", "---", "", " ","Eqp","Ssn","Dis","Mnt","***","ART","BRT","ZFL"],
@@ -884,7 +874,7 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
                     column_names=None,
                     replace_names=None,
                     dtypes = None,
-                    freq='infer',
+                    freq='15T',
                     nrows=None,
                     **kwargs):
     import os
@@ -956,8 +946,6 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
             "No matches to file pattern {} in directory {}".format(fpat, fdir))
     for m in matches:
         dargs = kwargs.copy()
-        if dateparser is not None:
-            dargs["date_parser"] = dateparser
         if comment is not None:
             dargs["comment"] = comment
         # if not na_values is None: dargs["na_values"] = na_values
@@ -970,8 +958,8 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
 
         if column_names is None:
             dset = pd.read_csv(m, index_col=indexcol, header=header,
-                           skiprows=skiprows_spec,sep=sep,
-                           parse_dates=parsedates, na_values=extra_na,
+                           skiprows=skiprows_spec,sep=sep,parse_dates=parsedates,
+                           date_format=dateformat, na_values=extra_na,
                            keep_default_na=True, dtype=dtypes,
                            skipinitialspace=True,nrows=nrows,
                            **dargs)
@@ -991,8 +979,8 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
 
         else:
             dset = pd.read_csv(m, index_col=indexcol, header=header,
-                           skiprows=skiprows_spec,sep=sep,
-                           parse_dates=parsedates, 
+                           skiprows=skiprows_spec,sep=sep,parse_dates=parsedates,
+                           date_format=dateformat, 
                            na_values=extra_na,
                            keep_default_na=True, dtype=dtypes,
                            names=column_names,
