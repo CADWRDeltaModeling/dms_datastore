@@ -103,7 +103,7 @@ def write_ts_csv(ts,fpath,metadata=None,chunk_years=False,format_version="dwr-dm
         meta_header = f"# format: {format_version}\n# date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}\n"
     else:
         meta_header = prep_header(metadata,format_version)
-    
+    print(fpath)
     
     if chunk_years:
         bounds = chunk_bounds(ts,block_size=block_size)
@@ -115,14 +115,18 @@ def write_ts_csv(ts,fpath,metadata=None,chunk_years=False,format_version="dwr-dm
             if (tssub.count() < 16).all():  # require 15 values per column. all() is for multiple columns 
                 continue
             new_date_range_str = f"{bnd[0]}_{bnd[1]}"
+
             if single_year_label:
                 if bnd[0] != bnd[1]: 
                     raise ValueError("Blocks not compatible with single_year")
                 else: 
                     new_date_range_str = f"{bnd[0]}"
             newfname = fpath
-            if not new_date_range_str in newfname:
+            if not f"_{new_date_range_str}" in newfname:
                 newfname = fpath.replace(".csv","_"+new_date_range_str + ".csv")  # coerces to csv
+            else:
+                pass
+                #print(f"Year already in file name for file {newfname}")
             with open(newfname,'w',newline="\n") as outfile:
                 outfile.write(meta_header)
                 tssub.to_csv(outfile,header=True,sep=",",date_format="%Y-%m-%dT%H:%M:%S",**kwargs)
