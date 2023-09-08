@@ -111,7 +111,7 @@ def revise_filename_syear_eyear(pat,force=True,outfile="rename.txt"):
 
     """
     if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
-
+    logger.info(f"Beginning revise_filename_syear_eyear for pattern: {pat}")
 
     filelist = glob.glob(pat)
     bad = []
@@ -154,11 +154,14 @@ def revise_filename_syear_eyear(pat,force=True,outfile="rename.txt"):
                 except:
                     logger.info("Rename failed because of permission or overwriting issue. The force argment may be set to False. Dumping list of renames so far to rename.txt")
                     _write_renames(rename,"rename.txt")
+                    logger.info("Bad file info below:")
+                    logger.info(str(bad))
                     raise
     _write_renames(renames,outfile)
     if len(bad) > 0:
         logger.info("Bad files:")
         for b in bad: logger.info(b)
+    logger.info(f"Renaming complete for pattern: {pat}")
 
 
 
@@ -473,7 +476,26 @@ def populate_main(dest,agencies=None,varlist=None):
     revise_filename_syear_eyear(os.path.join(dest,f"cdec_*.csv"))  
     logger.info("These agency queries failed")
 
+def populate_debug_ncro_rename(dest,agencies=None,varlist=None):
 
+    do_purge = False
+    if not os.path.exists(dest):
+        os.mkdir(dest)
+        logger.info(f"Directory {dest} created")
+    else:
+        if do_purge: purge(dest)
+    
+    failures = []
+    if agencies is None or len(agencies)==0:
+        all_agencies = ["usgs","dwr_des","usbr","noaa","dwr_ncro","dwr"]
+    else:
+        all_agencies = agencies
+    do_ncro = ("ncro" in all_agencies) or ("dwr_ncro" in all_agencies)
+    do_des = ("des" in all_agencies) or ("dwr_des" in all_agencies)        
+    if do_ncro:
+        revise_filename_syear_eyear(os.path.join(dest,f"ncro_*.csv"))  
+    revise_filename_syear_eyear(os.path.join(dest,f"cdec_*.csv"))  
+    logger.info("These agency queries failed")
 
 
 def create_arg_parser():
@@ -500,8 +522,6 @@ def main():
     agencies = args.agencies
     logger.info(f'dest: {dest}, agencies: {agencies}, varlist:{varlist}')
     populate_main(dest,agencies,varlist=varlist)
-    
-
 
 
 if __name__ == '__main__':
