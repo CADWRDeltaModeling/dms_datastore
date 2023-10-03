@@ -286,5 +286,7 @@ mhcm,B9536900,Mountain House Creek,37.796918,-121.525642,629804,4184307,,B953690
 tppa,B9542400,Tom Paine Slough at Paradise Ave,37.774225,-121.382297,642469.,4181997.,,B9542400,,dwr_ncro,,,x,
 oaad,B9537500,Old River Anchored at ADCP Downstream,37.782395,-121.498374,632231.1776,4182733.49,,B9537500,,dwr_des,,,x,(MSS) 6/15/2022 - Current
 orfu,B9537600,Old River Flux Station Upstream,37.785827,-121.480866,633766.8116,4183139.204,,B9537600,,dwr_des,,,x,(MSS) 6/15/2022 - Current
-#glw,**,Grant Line Canal West,37.82029,-121.521,630172.109,4186906.468,,**,,dwr_des,,,x,(MSS) 2/7/2023 - Current
+pcsb,B9541060,Paradise Cut Upstream at South Bridge,37.79993,-121.369014,643589.24135941,4184870.01081908,,B9541060,,dwr_des,,,x,(MSS) 3/15/2023 - Current
+pcnb,B9551070,Paradise Cut Upstream at North Bridge,37.80111,-121.367467,643723.15866566,4185003.32130925,,B9551070,,dwr_des,,,x,(MSS) 3/15/2023 - Current
+glw,B9529700,Grant Line Canal West,37.82029,-121.521,630172.109,4186906.468,,B9529700,,dwr_des,,,x,(MSS) 2/7/2023 - Current
 ##id,agency_id,name,lat,lon,x,y,d1641_id,wdl_id,cdec_id,agency,stage,flow,quality,notes
