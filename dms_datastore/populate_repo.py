@@ -289,7 +289,7 @@ def populate_repo2(df,dest,start,overwrite=False,ignore_existing=None):
 def populate(dest,all_agencies=None,varlist=None):
     """ Driver script that populates agencies in all_agencies with destination dest """
     logger.info(f"dest: {dest} agencies: {all_agencies}")
-
+    doneagency = []
     if SAFEGUARD: raise NotImplementedError("populate repo functions not ready to use")
     
     purge = False
