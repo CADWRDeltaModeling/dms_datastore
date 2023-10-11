@@ -8,7 +8,6 @@ requirements = [ "vtools3",
                  "pandas>=2",
                  "xarray",
                  "cfgrib",
-                 "ecmwflibs",
                  "boto3",
                  "netCDF4"]
 setup_requirements = ['pytest-runner', ]
