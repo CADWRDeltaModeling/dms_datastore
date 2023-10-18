@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 import argparse
+import ssl
 import urllib.request
+import requests
 import pandas as pd
 import re
 import zipfile
 import os
+import io
 import string
 import datetime as dt
 import numpy as np
@@ -16,6 +19,8 @@ __all__=["download_ncro_por"]
 
 ncro_inventory_file = "ncro_por_inventory.txt"
 
+
+
 def station_dbase():
     dbase_fname=dstore_config.config_file("station_dbase")
     dbase_df = pd.read_csv(dbase_fname,header=0,comment="#",index_col="id")
@@ -25,8 +30,12 @@ def station_dbase():
 
 
 def download_ncro_inventory(dest,cache=True):
+    ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    ctx.options |= 0x4
     url = "https://data.cnra.ca.gov/dataset/fcba3a88-a359-4a71-a58c-6b0ff8fdc53f/resource/cdb5dd35-c344-4969-8ab2-d0e2d6c00821/download/station-trace-download-links.csv"
-    idf = pd.read_csv(url,header=0,parse_dates=["first_measurement_date","last_measurement_date"])
+
+    response = urllib.request.urlopen(url, context=ctx).read()
+    idf=pd.read_csv(io.BytesIO(response), header=0,parse_dates=["first_measurement_date","last_measurement_date"])
     logger.info(idf)
     idf = idf.loc[(idf.station_type != "Groundwater") & (idf.output_interval == "Raw"),:]
     idf.to_csv(os.path.join(dest,ncro_inventory_file),sep=",",index=False,date_format="%Y-%d%-mT%H:%M")    
@@ -59,6 +68,8 @@ mappings = {
 def download_ncro_period_record(inventory,dbase,dest,variables=["flow","elev","ec","temp","do","ph","turbidity","cla"]):
     global mappings    
     #mappings = ncro_variable_map()
+    ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    ctx.options |= 0x4
     logger.info(mappings)
     failures = []
     for ndx,row in inventory.iterrows():
@@ -98,11 +109,14 @@ def download_ncro_period_record(inventory,dbase,dest,variables=["flow","elev","e
         logger.info(link_url)
 
         try:
-            response = urllib.request.urlopen(link_url)
-        except:
+            response = urllib.request.urlopen(link_url,context=ctx)
+            station_html = response.read().decode().replace("\r","")
+        except Exception as e:
+            logger.warning("Failure in URL request or reading the response")
+            logger.exception(e)
             failures.append((station_id,agency_id,var,param))
         else:    
-            station_html = response.read().decode().replace("\r","")
+            
             if len(station_html) > 30 and not "No sites found matching" in station_html:
                 found = True
                 with open(fpath,"w") as f:
