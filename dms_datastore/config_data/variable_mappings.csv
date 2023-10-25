@@ -78,6 +78,7 @@ EL COND,cdec,100,ec,
 EL CONDB,cdec,102,ec,
 PH VAL,cdec,62,ph,
 CHLORPH,cdec,28,chl,Is this code chl correct?
+RIVST88,cdec,141,elev,
 RIV STG,cdec,1,elev,
 WIND SP,cdec,9,wind_speed,
 WIND DIR,cdec,10,wind_dir,
