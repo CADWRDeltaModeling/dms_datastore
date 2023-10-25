@@ -53,7 +53,10 @@ def read_yaml_header(fpath):
     
     header = original_header(fpath)
     header = "\n".join([x.replace("#","") for x in header.split("\n")])
-    yamlhead = yaml.safe_load(header)
+    try:
+        yamlhead = yaml.safe_load(header)
+    except:
+        raise ValueError(f"Failure reading header in file {fpath}")
     return yamlhead
 
 def is_dms1(fname):
