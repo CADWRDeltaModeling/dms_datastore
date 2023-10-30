@@ -114,8 +114,19 @@ def cdec_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                 if sys.version_info[0] == 2:
                     response = urllib2.urlopen(station_query)
                 else:
-                    response = urllib.request.urlopen(station_query)
-                station_html = response.read().decode().replace("\r", "")
+                    maxattempt=5
+                    response = None
+                    for iattempt in range(maxattempt):
+                        try:
+                            response = urllib.request.urlopen(station_query)
+                            station_html = response.read().decode().replace("\r", "")
+                            break
+                        except:
+                            sleep(1)
+                            station_html = "" 
+                            found = False                            
+                         
+                
                 if (station_html.startswith("Title") and len(station_html) > 16) or\
                    (station_html.startswith("STATION_ID") and len(station_html) > 90):
                     found = True
