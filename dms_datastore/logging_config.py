@@ -1,6 +1,11 @@
 import logging
+import os
 
-def setup_logger(console_log_level=logging.INFO, file_log_level=logging.DEBUG, file_log_name="populate_repo.log", log_format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"):
+def setup_logger(console_log_level=logging.INFO, file_log_level=logging.DEBUG, 
+                  log_format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"):
+    
+    file_log_name= "logger_datastore.log"
+    
     # Create a logger instance
     logger = logging.getLogger(__name__)
 
