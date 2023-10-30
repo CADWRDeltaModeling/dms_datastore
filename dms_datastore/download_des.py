@@ -13,7 +13,7 @@ import datetime as dt
 import time
 import re
 import ssl
-import urllib
+import urllib.request
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
 import pandas as pd
