@@ -50,7 +50,7 @@ setup(
                                           'station_info=dms_datastore.station_info:main',
                                           'reformat=dms_datastore.reformat:main',
                                           'inventory=dms_datastore.inventory:main',
-                                          'process_usgs_multi=dms_datastore.process_usgs_multi:main',
+                                          'usgs_multi=dms_datastore.usgs_multi:main',
                                           'delete_from_filelist=dms_datastore.delete_from_filelist:main']
 										   }
 )
