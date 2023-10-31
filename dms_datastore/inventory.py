@@ -186,7 +186,7 @@ def main():
     
     nowstr = pd.Timestamp.now().strftime("%Y%m%d")
     # inventory based on describing every file
-    if out_files is None: out_files = f"./inventory_files_{nowstr}.csv"
+    if out_files is None: out_files = f"./inventory_files_{repo}_{nowstr}.csv"
     inv=repo_file_inventory(repo)
     inv.to_csv(out_files)
     # inventory based on describing unique datasets 
@@ -194,7 +194,7 @@ def main():
     #     multivariate data in files that are/aren't split into multiple streams
     #     data from the same instrument gathered from multiple sources, 
     #        such as period of record and real time multivariate data in files
-    if out_data is None: out_data = f"./inventory_datasets_{nowstr}.csv"
+    if out_data is None: out_data = f"./inventory_datasets_{repo}_{nowstr}.csv"
     inv2=repo_data_inventory(repo)
     inv2.to_csv(out_data)        
     db_obs = inv2.copy()
@@ -207,7 +207,7 @@ def main():
     # param is the variable in the file, variable is the model variable being associated with the data
     db_obs.loc[db_obs.param == 'ec','variable'] = 'salt'
     db_obs['subloc'] = db_obs.subloc.fillna('default')
-    if out_obslinks is None: out_obslinks = f"./obs_links_{nowstr}.csv"
+    if out_obslinks is None: out_obslinks = f"./obs_links_{repo}_{nowstr}.csv"
     db_obs.to_csv(out_obslinks,sep=",",index=False)
     
 if __name__ == "__main__":

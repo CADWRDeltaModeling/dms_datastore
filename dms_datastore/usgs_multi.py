@@ -97,7 +97,7 @@ def usgs_multivariate(pat,outfile):
                 continue
             if ts.shape[1] != 1:
                 message = f"usgs_meta: file {fname} Columns {ts.columns}"
-                print(message)
+                logger.debug(message)
                 series = usgs_scan_series(fname)  # Extract list of series in file
                 for s in series:
                     (ats_id,aparam,adescr) = s
