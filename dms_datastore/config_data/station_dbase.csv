@@ -249,7 +249,7 @@ hun,54,Hunter Cut at Montezuma Slough,38.156,-122.0527,582994.8199,4223547.67,S5
 msl,71,Montezuma Slough at Roaring River,38.0934,-121.8872,597578.3032,4216762.676,S71,,MSL,dwr_des,,,x,
 gzb,368,Grizzly Bay Buoy,38.1231408,-122.0075808,586986.9,4219943,,,GZB,dwr_des,,,x,
 alam,11180700,Alameda Creek Flood Channel at Union City,37.585833,-122.047,584140.23,4160290.79,,,,usgs,,x,,
-tea,28,Teal Club at Frank Horan Slough,38.17667,-122.08611,580045,4225811,S28,,,dwr_des,,,,x
+tea,28,Teal Club at Frank Horan Slough,38.17667,-122.08611,580045,4225811,S28,,,dwr_des,,,x,Down as of 2021 and decommissioned under new SMPC
 hsl,4,Hill Slough,38.22639,-122.02111,585680,4231386,S4,,,dwr_des,,,,x
 hst,A07140,American River at H Street Bridge,38.568611,-121.423889,637297.2836,4270084,,,HST,dwr,,,,
 sstw,'382010121402301,Liberty Island at Upper Stair Step,38.3361667,-121.672925,617982,4243947,,,,usgs,x,,,
