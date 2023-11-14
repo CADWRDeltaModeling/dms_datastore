@@ -877,7 +877,7 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
                     column_names=None,
                     replace_names=None,
                     dtypes = None,
-                    freq='15T',
+                    freq='infer',
                     nrows=None,
                     **kwargs):
     import os
