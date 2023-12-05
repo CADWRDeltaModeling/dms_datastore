@@ -6,6 +6,7 @@ import datetime as dtm
 import glob
 import yaml
 import re
+from collections import defaultdict
 from vtools.functions.merge import *
 from vtools.data.vtime import minutes
 
@@ -59,6 +60,39 @@ def read_yaml_header(fpath):
         raise ValueError(f"Failure reading header in file {fpath}")
     return yamlhead
 
+def is_dms1_screen(fname):
+    if not fname.endswith(".csv"): return False
+    pattern = re.compile("#\s?format\s?:\s?dwr-dms-1.0")
+    with open(fname,"r") as f:
+        line = f.readline()
+        if pattern.match(line) is None: 
+            return False
+        for i in range(150):
+            otherline = f.readline()
+            
+            if "screen:" in otherline:
+                return True
+    return False
+    
+def read_dms1_screen(fpath_pattern,start=None,end=None,selector=None,force_regular=True,nrows=None):
+    if selector is None: selector = "value"
+    ts = csv_retrieve_ts(fpath_pattern, 
+                         start, end, force_regular,
+                         format_compatible_fn=is_dms1_screen,
+                         selector=selector,
+                         qaqc_selector="user_flag",
+                         qaqc_accept=["0"],
+                         blank_qaqc_good=True,  
+                         parsedates=["datetime"],
+                         indexcol="datetime",
+                         sep=',',
+                         skiprows=0,
+                         header=0,
+                         dateformat=None,
+                         comment="#",
+                         nrows=nrows)
+    return ts    
+
 def is_dms1(fname):
     if not fname.endswith(".csv"): return False
     pattern = re.compile("#\s?format\s?:\s?dwr-dms-1.0")
@@ -83,9 +117,7 @@ def read_dms1(fpath_pattern,start=None,end=None,selector=None,force_regular=True
                          dateformat=None,
                          comment="#",
                          nrows=nrows)
-    return ts    
-
-
+    return ts  
 
 def is_ncro_std(fname):
 
@@ -748,7 +780,7 @@ def read_ts(fpath, start=None, end=None, force_regular=True,nrows=None, selector
         
     """
     from os.path import split as op_split
-    readers = [read_dms1,
+    readers = [read_dms1_screen,read_dms1,
                read_usgs1,read_usgs2,read_usgs_csv1,read_usgs1_daily,
                read_noaa,read_des,read_des_std,
                read_cdec1,read_cdec2,
@@ -893,7 +925,6 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
     matches = glob.glob(fpath_pattern)      
     matches.sort()
 
-    
     if len(matches)==0:
         raise IOError("No matches found for pattern: {}".format(fpat))
 
@@ -922,24 +953,12 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
     # This essentially forces the client code to define dtypes for all
     # complex cases. It correctly handles the situation where all the
     # items in selector are floats, all the items in qaqc_selector are alphanumeric
-    if dtypes == None: 
-        dtypes = {}
+    coltypes = None if dtypes is None else dtypes.copy()
 
-    # By default, all data selections are float, all flags are str
-    if selector is None:
-        dtypes = float # We don't know what is coming
-    else:
-        if qaqc_selector is None:        
-            for s in selector:
-                if not s in dtypes:
-                    dtypes[s] = float
-        else:
-            # This behaves OK if there are extras in selector as with USGS and tz_cd
-            for s,qs in zip(selector,qaqc_selector):
-                if not s in dtypes:
-                    dtypes[s] = float
-                if not qs in dtypes:
-                    dtypes[qs] = str
+    if coltypes is None and qaqc_selector is not None:
+        strtypes = { colname : str for colname in qaqc_selector }
+        coltypes = defaultdict(np.float64,strtypes)
+    else: coltypes = float
 
     # The matches are in lexicographical order. Reversing them puts the newer ones
     # higher priority than the older ones for merging
@@ -963,7 +982,7 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
             dset = pd.read_csv(m, index_col=indexcol, header=header,
                            skiprows=skiprows_spec,sep=sep,parse_dates=parsedates,
                            date_format=dateformat, na_values=extra_na,
-                           keep_default_na=True, dtype=dtypes,
+                           keep_default_na=True, dtype=coltypes,
                            skipinitialspace=True,nrows=nrows,
                            **dargs)
 
@@ -985,21 +1004,19 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
                            skiprows=skiprows_spec,sep=sep,parse_dates=parsedates,
                            date_format=dateformat, 
                            na_values=extra_na,
-                           keep_default_na=True, dtype=dtypes,
+                           keep_default_na=True, dtype=coltypes,
                            names=column_names,
                            skipinitialspace=True,
                            **dargs)
 
-        if dset.shape[0] == 0:
-            # empty file
-            continue
-
         if qaqc_selector is not None:
             # It is costly to try to handle blanks differently for both data  
             # (for which we usually want blanks to be NaN and alphanumeric flags.
-            if blank_qaqc_good: qaqc_accept += [np.NaN]
+            if blank_qaqc_good: 
+                if np.NaN not in qaqc_accept:
+                    qaqc_accept.append(np.NaN)
             try:
-                dset.loc[~dset[:,qaqc_selector].isin(qaqc_accept), selector] = np.nan
+                dset.loc[~dset.loc[:,qaqc_selector[0]].isin(qaqc_accept), selector] = np.nan
             except:
                 for v,f in zip(selector,qaqc_selector):
                     dset.loc[~dset[f].isin(qaqc_accept), v] = np.nan
