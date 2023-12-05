@@ -322,6 +322,7 @@ def populate(dest,all_agencies=None,varlist=None):
         # instrument lifetimes ... so 1980-2019 will come out as 1984-2007 or something like that.        
         if agency == "dwr_des":
             for var in varlist:
+                logger.info(f"Calling populate_repo with agency {agency} variable: {var}")
                 populate_repo(agency,var,dest,
                               pd.Timestamp(1980,1,1),
                               pd.Timestamp(2019,12,31,23,59),ignore_existing=ignore_existing)
@@ -332,8 +333,11 @@ def populate(dest,all_agencies=None,varlist=None):
 
         else:
             for var in varlist:
+                logger.info(f"Calling populate_repo (1) with agency {agency} variable: {var}")
                 populate_repo(agency,var,dest,pd.Timestamp(1980,1,1),pd.Timestamp(1999,12,31,23,59),ignore_existing=ignore_existing)
+                logger.info(f"Calling populate_repo (2) with agency {agency} variable: {var}")                
                 populate_repo(agency,var,dest,pd.Timestamp(2000,1,1),pd.Timestamp(2019,12,31,23,59),ignore_existing=ignore_existing)
+                logger.info(f"Calling populate_repo (3) with agency {agency} variable: {var}")
                 populate_repo(agency,var,dest,pd.Timestamp(2020,1,1),None,overwrite=True)
                 ext = 'rdb' if agency == 'usgs' else '.csv'
                 revise_filename_syear_eyear(os.path.join(dest,f"{agency}*_{var}_*.{ext}"))
