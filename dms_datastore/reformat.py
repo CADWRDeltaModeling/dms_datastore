@@ -305,7 +305,7 @@ def sufficient(ts,min_valid=8):
     first = ts.first_valid_index()
     if first is None:
         return None
-    ts2 = ts[first:ts.last_valid_index()]
+    ts2 = ts.loc[first:ts.last_valid_index()]
     ngood = ts2.notnull().sum(axis=None)[0]  # todo: coordinate with write_ts
     return None if ngood < min_valid else ts
        
