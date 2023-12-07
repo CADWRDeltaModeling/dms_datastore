@@ -218,8 +218,11 @@ def infer_internal_meta_for_file(fpath):
         meta_out["unit"] = uunit
     elif source == "des":
         yml = read_yaml_header(fpath)
-        meta_out["agency_unit"] = yml["agency_unit_name"]
-        meta_out["unit"] = yml["unit"]
+        try:
+            meta_out["agency_unit"] = yml["agency_unit_name"]
+            meta_out["unit"] = yml["unit"]
+        except:
+            raise ValueError(f"yaml could not be read for agency_unit and unit:\n{yml}\nFile:{fpath}")
     elif source == "noaa":
         meta_out['unit'] = read_yaml_header(fpath)['unit']
 
@@ -396,7 +399,6 @@ def reformat(inpath, outpath, pattern):
                     content = content + f"{item}: {hdr_meta[item]}\n"
             write_ts_csv(df, newfname, content, chunk_years=True)
         except:
-            raise
             print(f"Failed on file/pattern: {fpath}")
             failures.append(fpath)
             continue

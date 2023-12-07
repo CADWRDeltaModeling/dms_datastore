@@ -6,6 +6,7 @@ import datetime as dtm
 import glob
 import yaml
 import re
+import warnings # temporary?
 from collections import defaultdict
 from vtools.functions.merge import *
 from vtools.data.vtime import minutes
@@ -225,7 +226,7 @@ def is_cdec_csv2(fname):
         title_line = f.readline()
         return title_line.lower().startswith("station_id,duration,sensor_number")
 
-
+#STATION_ID,DURATION,SENSOR_NUMBER,SENSOR_TYPE,DATE TIME,OBS DATE,VALUE,DATA_FLAG,UNITS
 def read_cdec2(fpath_pattern,start=None,end=None,selector=None,force_regular=True,nrows=None):
     if selector is not None:
         raise ValueError("selector argument is for API compatability. This is not a multivariate format, selector not allowed")
@@ -239,6 +240,7 @@ def read_cdec2(fpath_pattern,start=None,end=None,selector=None,force_regular=Tru
                          indexcol="OBS DATE",
                          skiprows=0,
                          sep=",",
+                         dtypes={"STATION_ID" : str,"DATA_FLAG":str,"UNITS":str,"VALUE":float},
                          dateformat="%Y%m%d %H%M",
                          comment=None,
                          prefer_age="new",
@@ -386,7 +388,7 @@ def read_wdl3(fpath_pattern,start=None,end=None,selector=None,force_regular=True
                          sep=',',
                          skiprows=2,
                          column_names=["datetime","value","qaqc_flag"],
-                         dtypes={"comment" : str},
+                         dtypes={"value": float},
                          header=0,
                          dateformat=None,
                          comment=None,
@@ -705,7 +707,9 @@ def noaa_qaqc_selector(selector,fname):
                 raise ValueError("Could not determine qaqc columns within MAX_SCAN lines")
             if not line.startswith("#"):
                 if line.startswith("Date"):
+                    if "Prediction" in line: return None
                     parts = [p.strip() for p in line.split(",")]
+                    if len(parts) < 2: continue
                     if parts[2]=="X": return "X"
                     if parts[-1]=="Quality": return "Quality"
                 else:
@@ -718,8 +722,8 @@ def read_noaa(fpath_pattern,start=None,end=None,selector=None,force_regular=True
                          start, end, force_regular, 
                          selector=noaa_data_column, 
                          format_compatible_fn=is_noaa_file,
-                         qaqc_selector=None,
-                         qaqc_accept=['',' ','0'],
+                         qaqc_selector=noaa_qaqc_selector,
+                         qaqc_accept=['',' ','0','p','v'],
                          parsedates=["Date Time"],
                          indexcol="Date Time",
                          header=0,
@@ -946,6 +950,7 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
     if callable(qaqc_selector):
         # todo: this is not efficient for noaa because it keep opening files
         qaqc_selector = [qaqc_selector(x,matches[0]) for x in selector]
+        if not any(qaqc_selector): qaqc_selector = None
     elif qaqc_selector is not None:
         qaqc_selector = listify(qaqc_selector)
     if extra_cols is not None:  selector.append(extra_cols)
@@ -953,12 +958,27 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
     # This essentially forces the client code to define dtypes for all
     # complex cases. It correctly handles the situation where all the
     # items in selector are floats, all the items in qaqc_selector are alphanumeric
-    coltypes = None if dtypes is None else dtypes.copy()
+    coltypes = {} if dtypes is None else dtypes.copy()
 
-    if coltypes is None and qaqc_selector is not None:
-        strtypes = { colname : str for colname in qaqc_selector }
-        coltypes = defaultdict(np.float64,strtypes)
-    else: coltypes = float
+    if len(coltypes)==0:  
+        if selector is None:
+            # None provided. Seems like this might fail for non-data columns if included
+            coltypes = float
+        else:
+            if qaqc_selector is None:        
+                for s in selector:
+                    if not s in coltypes:
+                        coltypes[s] = float
+            else:
+                # Both selector and qaqc_selector provided
+                # This behaves OK if these are paired selectors and the pairs come first 
+                # before any extras in selector as with USGS and tz_cd
+                for s,qs in zip(selector,qaqc_selector):
+                    if not s in coltypes:
+                        coltypes[s] = float
+                    if not qs in coltypes:
+                        coltypes[qs] = str
+
 
     # The matches are in lexicographical order. Reversing them puts the newer ones
     # higher priority than the older ones for merging
@@ -977,15 +997,19 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
             skiprows_spec = list(range(ncomment)) + [ncomment+1]
         else:
             skiprows_spec = skiprows
-
         if column_names is None:
+            #with warnings.catch_warnings():
+            #    warnings.filterwarnings('error')
+            #    try:
             dset = pd.read_csv(m, index_col=indexcol, header=header,
                            skiprows=skiprows_spec,sep=sep,parse_dates=parsedates,
                            date_format=dateformat, na_values=extra_na,
                            keep_default_na=True, dtype=coltypes,
                            skipinitialspace=True,nrows=nrows,
                            **dargs)
-
+            #    except Warning:
+            #        print(f"Warning for: {m}")
+            #        
             
             if header is None:
                 # This is essentially a fixup for vtide, which I'm not
