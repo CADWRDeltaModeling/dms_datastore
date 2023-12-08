@@ -132,7 +132,7 @@ def revise_filename_syear_eyear(pat,force=True,outfile="rename.txt"):
                 bad.append(fname+" (not small)")
         if ts.first_valid_index() is None: 
             if ts.isnull().all(axis=None):
-                logger.info("All values are bad. Deleting file")
+                logger.info(f"All values are bad. Deleting file {fname}")
                 bad.append(fname + " (all bad, deleting)")
                 os.remove(fname)
             else:

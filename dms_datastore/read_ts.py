@@ -127,10 +127,11 @@ def is_ncro_std(fname):
         for i,line in enumerate(f):
             if i > 6: return False
             if pattern.match(line.lower()):
+                print("Returning true")
                 return True 
 
 def read_ncro_std(fpath_pattern,start=None,end=None,selector=None,force_regular=True,nrows=None):
-
+    """ Based on Hydstra nightly dump. WDL is a separate reader """
     if selector is not None:
         raise ValueError("selector argument is for API compatability. This is not a multivariate format, selector not allowed")
     ts = csv_retrieve_ts(fpath_pattern, 
@@ -143,7 +144,9 @@ def read_ncro_std(fpath_pattern,start=None,end=None,selector=None,force_regular=
                          indexcol="datetime",
                          sep=',',
                          skiprows=0,
-                         column_names=["datetime","value","qaqc_code","qaqc_description","status"],
+                         #column_names=["datetime","value","qaqc_code","qaqc_description","status"],
+                         column_names=["datetime","value","qaqc_code"],
+                         use_cols=[0,1,2,3],
                          header=0,
                          dateformat=None,
                          comment="#",
@@ -358,20 +361,22 @@ def is_wdl3(fname):
         return ret
 
 def read_wdl3(fpath_pattern,start=None,end=None,selector=None,force_regular=True,nrows=None):
+    """ Handles NCRO nightly dump """
     if selector is not None:
         raise ValueError("selector argument is for API compatability. This is not a multivariate format, selector not allowed")
     try:
         ts = csv_retrieve_ts(fpath_pattern, start, end, force_regular,
                          selector="value",
                          format_compatible_fn=is_wdl3,
+                         dtypes={"value": float, "qaqc_flag": str},
                          qaqc_selector="qaqc_flag",
                          qaqc_accept=['', ' ', ' ', 'e',"1"],
                          parsedates=["datetime"],
                          indexcol="datetime",
                          sep=',',
                          skiprows=2,
-                         column_names=["datetime","value","qaqc_flag","comment"],
-                         dtypes={"comment" : str},
+                         column_names=["datetime","value","qaqc_flag"],
+                         usecols=[0,1,2],
                          header=0,
                          dateformat=None,
                          comment=None,
