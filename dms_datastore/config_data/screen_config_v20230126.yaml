@@ -1,0 +1,1287 @@
+
+# The defaults section contains:
+#   global default test steps and parameters (which are general and wide) 
+#   parameter defaults in param which are more focused
+# The regional section takes precedence over the two defaults 
+# The station section takes precedence over regional
+# The flag inherits_global is a flag indicating that the general structure laid out in the global default is inherited
+# There is no more hierarchical inheritence at this point (ie inheriting the param defaults in regional etc) 
+#   if inherits_global True, the sections adds_steps adds tests, omit_steps deletes them, modify_steps replaces parameters 
+#   if False, a steps section is required giving a full test specification
+
+
+defaults:
+  global:
+    steps:
+      - method : bounds_test
+        args: 
+          bounds: [-1000000.,1000000]
+        apply_immediately: True
+      - method: short_run_test
+        args:
+          small_gap_len: 4
+          min_run_len: 2
+      - method: repeat_test
+        args:
+          max_repeat: 100
+      - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+        args:
+          level : 5
+          filt_len : 7
+          quantiles: [0.03,0.97]
+      - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+        label: median_oneside_forward
+        args:
+          level : 5
+          filt_len : 5
+          quantiles: [0.03,0.97]
+          reverse: False
+      - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+        label: median_oneside_rev
+        args:
+          level : 5
+          filt_len : 5
+          quantiles: [0.03,0.97]
+          reverse: True
+  params:
+    elev:
+      inherits_global: True
+      #omit_steps: None    
+      modify_steps:
+        - method : bounds_test
+          args:
+            bounds: [-10.,200]   
+          apply_immediately: True            
+        - method: repeat_test
+          args:
+            max_repeat: 4
+    flow:
+      inherits_global: True
+      #omit_steps: None
+      modify_steps:
+        - method: repeat_test
+          args:
+            max_repeat: 100     
+    ph:
+      inherits_global: True
+      #omit_steps: None
+      modify_steps:
+        - method : bounds_test
+          apply_immediately: True
+          args:
+            bounds: [5.5,11]             
+          
+    velocity:
+      inherits_global: True
+      #omit_steps: None
+      modify_steps:
+        - method : bounds_test
+          apply_immediately: True
+          args:
+            bounds: [-15.,15]             
+    ec:
+      inherits_global: True
+      #omit_steps: None
+      modify_steps:
+        - method: bounds_test
+          apply_immediately: True
+          args:
+            bounds: [40.,55000.]
+        - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          args:
+            level : 5
+            filt_len : 7
+            quantiles: [0.005,0.995]            
+        - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          label: median_oneside_forward
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.005,0.995]
+            reverse: False
+        - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          label: median_oneside_rev
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.005,0.995]
+            reverse: True                            
+    temp:
+      inherits_global: True
+      #omit_steps: None
+      modify_steps:
+        - method: bounds_test
+          apply_immediately: True
+          args:
+            bounds: [2.,33.]
+        - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          args:
+            level : 5
+            filt_len : 7
+            quantiles: [0.01,0.99]               
+        - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          label: median_oneside_forward
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.01,0.99]
+            reverse: False
+        - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          label: median_oneside_rev
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.01,0.99]
+            reverse: True                  
+    do:
+      inherits_global: True
+      #omit_steps: None
+      modify_steps:
+        - method: bounds_test
+          apply_immediately: True
+          args:
+            bounds: [0.01,24.]
+        - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          args:
+            level : 5
+            filt_len : 7
+            quantiles: [0.01,0.99]               
+        - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          label: median_oneside_forward
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.01,0.99]
+            reverse: False
+        - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          label: median_oneside_rev
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.01,0.99]
+            reverse: True            
+
+    turbidity:
+      inherits_global: True
+      #omit_steps: None
+      modify_steps:
+        - method: bounds_test
+          apply_immediately: True
+          args:
+            bounds: [0.01, 1400.]
+        - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          args:
+            level : 5
+            filt_len : 7
+            quantiles: [0.001,0.999]               
+        - method: median_test_oneside
+          label: median_oneside_forward
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.001,0.999]
+            reverse: False
+        - method: median_test_oneside
+          label: median_oneside_rev
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.001,0.999]
+            reverse: True                 
+    ssc:
+      inherits_global: True
+      #omit_steps: None
+      modify_steps:
+        - method: bounds_test
+          apply_immediately: True
+          args:
+            bounds: [0.01, 4000.]
+        - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          args:
+            level : 5
+            filt_len : 7
+            quantiles: [0.005,0.995]               
+        - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          label: median_oneside_forward
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.005,0.995]
+            reverse: False
+        - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+          label: median_oneside_rev
+          args:
+            level : 5
+            filt_len : 5
+            quantiles: [0.005,0.995]
+            reverse: True    
+
+            
+regions:
+  region_file: screen_regions_v20230126.shp
+  ocean:
+    params:
+      elev:
+        inherits_global: True
+        #omit_steps: None    
+        modify_steps:
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [-10.,10]          
+          - method: repeat_test
+            args:
+              max_repeat: 4
+      flow:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps: None
+ 
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps: 
+          - method: bounds_test
+            apply_immediately: True
+            args:
+              bounds: [1000, 54000.]        
+                              
+      temp:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps: 
+          - method: bounds_test
+            apply_immediately: True
+            args:
+              bounds: [0.0, 28.]            
+
+      do:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps: None
+
+      turbidity:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps: None
+  bay:
+    params:
+      elev:
+        inherits_global: True
+        #omit_steps: None    
+        modify_steps:
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [-10.,10]          
+          - method: repeat_test
+            args:
+              max_repeat: 4    
+  
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [40, 54000.] 
+
+  suisun:
+    params:
+      elev:
+        inherits_global: True
+        #omit_steps: None    
+        modify_steps:
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [-10.,10]          
+          - method: repeat_test
+            args:
+              max_repeat: 4    
+  
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [50, 45000.] 
+  confluence:
+    params:
+      elev:
+        inherits_global: True
+        #omit_steps: None    
+        modify_steps:
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [-10.,10]          
+          - method: repeat_test
+            args:
+              max_repeat: 4    
+  
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [40.,18000]
+  south_delta:
+    params:
+      flow:
+        inherits_global: True
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [-30000.,30000.]    
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [40.,8000]    
+      temp:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [5.,35.]       
+      turbidity:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [0.01,600.]  
+  north_delta:
+    params:
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [50.,8000]         
+      temp:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [5.,35.]          
+      turbidity:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [0.01,600.]  
+  upstream_north:
+    params:
+      elev:
+        inherits_global: True
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 100           
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [0.,80.]         
+          - method: median_test_twoside
+            args:
+              level : 8
+              filt_len : 7
+              quantiles: [0.005,0.995]
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              level : 8
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: False
+          - method: median_test_oneside
+            label: median_oneside_rev
+            args:
+              level : 8
+              filt_len : 5
+              quantiles: [0.005,0.995]
+            reverse: True              
+      ec:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        inherits_global: True
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [10.,2000.]    
+      temp:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [1.,33.]    
+      flow: 
+        inherits_global: True
+        omit_steps:
+          - median_oneside_forward
+          - median_oneside_rev
+        modify_steps:
+          - method: median_test_twoside
+            args:
+              level : 1
+              filt_len : 7
+              scale: 10000. # 1/40 of peak flow
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              level : 1
+              filt_len : 5
+              scale: 10000.
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len : 5
+              scale: 10000
+              level : 1
+              reverse: True     
+  upstream_south_bay:
+    params:
+      elev:
+        inherits_global: True
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 100           
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [0.,50.]         
+          - method: median_test_twoside
+            args:
+              level : 8
+              filt_len : 7
+              quantiles: [0.005,0.995]
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              level : 8
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: False
+          - method: median_test_oneside
+            label: median_oneside_rev
+            args:
+              level : 8
+              filt_len : 5
+              quantiles: [0.005,0.995]
+            reverse: True              
+      ec:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        inherits_global: True
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [10.,4000.]    
+      temp:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        inherits_global: True
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [1.,33.]    
+      flow: 
+        inherits_global: True
+        omit_steps:
+          - median_oneside_forward
+          - median_oneside_rev
+        modify_steps:
+          - method: median_test_twoside
+            args:
+              level : 1
+              filt_len : 7
+              scale: 10000. # 1/40 of peak flow
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              level : 1
+              filt_len : 5
+              scale: 10000.
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len : 5
+              scale: 10000
+              level : 1
+              reverse: True     
+    params:
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [20.,2000]         
+      temp:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [5.,32.]          
+      turbidity:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [0.01,600.]                
+
+stations:
+  afo: 
+    params:
+      flow: 
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        modify_steps:
+          - method: median_test_twoside
+            args:
+              filt_len : 7
+              level: 1
+              scale: 8000.
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level: 1
+              scale: 8000.
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len : 5
+              level: 1
+              scale: 8000.
+              reverse: True                
+  alam: 
+    params:  
+      elev:
+        inherits_global: True
+        omit_steps:
+          - repeat_test
+        modify_steps:          
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [0.,30]     
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              filt_len : 7
+              level: 5
+              quantiles: [0.001,0.999]
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: True  
+
+      flow: 
+        inherits_global: True
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 100
+              lower_limit: 15.              
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              filt_len : 7
+              level: 1
+              scale: 4000. # Peak flood 20000
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level : 1
+              scale: 4000.  
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 1
+              scale: 4000.
+              reverse: True        
+
+  bac: 
+    params:
+      ec:
+        inherits_global: True
+        modify_steps:
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [40.,1900]
+          - method: repeat_test
+            args:
+              max_repeat: 14
+              upper_limit: 7.5
+
+  bdt: 
+    params:
+      elev:
+        inherits_global: True
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 14
+              upper_limit: 7.5
+
+              
+  ccy: 
+    params:  
+      elev:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+      flow: 
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        modify_steps:
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              filt_len : 7
+              scale: 3000.0  # peak real flow / 10, approximately
+              level: 1
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              scale: 3000.0
+              level: 1
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len : 5
+              scale: 3000.0
+              level: 1
+              reverse: True                
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [50.,8000]   
+      temp:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test      
+  
+  coycr: 
+    params:  
+      elev:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+      flow: 
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        modify_steps:
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [-500.,10000]         
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              filt_len : 7
+              scale: 500.0   # peak real flow / 10
+              level: 1
+              #quantiles : [0.005,0.995]
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              scale: 500.0
+              level: 1
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len : 5
+              scale: 500.0
+              level: 1
+              reverse: True  
+  dgl: 
+    params:
+      elev:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 14  
+
+  fct: 
+    params:  
+      ec: 
+        inherits_global: True
+        modify_steps:
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              level : 5
+              filt_len : 7
+              quantiles: [0.005,0.995]
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: True  
+          
+  flt: 
+    params:  
+      ec: 
+        inherits_global: True
+        modify_steps:
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              level : 5
+              filt_len : 7
+              quantiles: [0.005,0.995]
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: True                
+      temp:
+        inherits_global: True
+        modify_steps:
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              level : 5
+              filt_len : 7
+              quantiles: [0.005,0.995]
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: True            
+   
+  frk: 
+    params:  
+      turbidity: 
+        inherits_global: True
+        modify_steps:
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              level : 5
+              filt_len : 7
+              quantiles: [0.005,0.995]
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: True             
+              
+  guad:
+    params:
+      elev:
+        inherits_global: True
+        omit_steps:
+          - repeat_test
+        modify_steps:          
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [0.,30]     
+          - method: median_test_twoside
+            args:
+              filt_len : 7
+              level: 5
+              quantiles: [0.001,0.999]
+          - method: median_test_oneside  
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: False
+          - method: median_test_oneside  
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: True  
+
+      flow: 
+        inherits_global: True
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 100
+              lower_limit: 15.              
+          - method: median_test_twoside  
+            args:
+              filt_len : 7
+              level: 1
+              scale: 3000. # Peak flood 20000
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level : 1
+              scale: 3000.  
+              reverse: False
+          - method: median_test_oneside
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 1
+              scale: 3000.
+              reverse: True        
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [40.,8000]   
+      temp:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test      
+    
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [50.,8000]    
+      temp:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test  
+  mhb:
+    params:
+      elev:
+        inherits_global: True
+        omit_steps:
+          - repeat_test
+        modify_steps:          
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [0.,30]     
+          - method: median_test_twoside
+            args:
+              filt_len : 7
+              level: 5
+              quantiles: [0.001,0.999]
+          - method: median_test_oneside  
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: False
+          - method: median_test_oneside  
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: True  
+
+      flow: 
+        inherits_global: True
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 100
+              lower_limit: 15.              
+          - method: median_test_twoside  
+            args:
+              filt_len : 7
+              level: 1
+              scale: 3000. # Peak flood 20000
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level : 1
+              scale: 3000.  
+              reverse: False
+          - method: median_test_oneside
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 1
+              scale: 3000.
+              reverse: True        
+  napr: 
+    params:  
+      elev:
+        inherits_global: True
+        omit_steps:
+          - repeat_test
+        modify_steps:          
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [-5.,30]     
+          - method: median_test_twoside
+            args:
+              filt_len : 7
+              level: 5
+              quantiles: [0.001,0.999]
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: False
+          - method: median_test_oneside
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: True  
+
+      flow: 
+        inherits_global: True
+        omit_steps:
+          - short_run_test
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 100
+              lower_limit: 100.              
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              filt_len : 7
+              level: 1
+              scale: 3000. # Peak flood 20000
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level : 1
+              scale: 3000.  
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 1
+              scale: 3000.
+              reverse: True        
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [40.,8000]   
+      temp:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test  
+
+  petr: 
+    params:  
+      elev:
+        inherits_global: True
+        omit_steps:
+          - repeat_test
+        modify_steps:          
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [-5.,30]     
+          - method: median_test_twoside
+            args:
+              filt_len : 7
+              level: 5
+              quantiles: [0.001,0.999]
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 5
+              quantiles: [0.001,0.999]
+              reverse: True  
+
+      flow: 
+        inherits_global: True
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 100
+              lower_limit: 15.              
+          - method: median_test_twoside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              filt_len : 7
+              level: 1
+              scale: 3000. # Peak flood 20000
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              filt_len : 5
+              level : 1
+              scale: 3000.  
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len: 5
+              level: 1
+              scale: 3000.
+              reverse: True        
+      ec:
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [40.,8000]   
+      temp:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+
+  riv: 
+    params:  
+      ec: 
+        inherits_global: True
+        modify_steps:
+          - method: bounds_test
+            apply_immediately: True
+            args:
+              bounds: [30.,8000.]
+ 
+          
+  wlk: 
+    params:
+      elev:
+        inherits_global: True
+        modify_steps:
+          - method: repeat_test
+            args:
+              max_repeat: 100          
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [1.,80.]         
+          - method: median_test_twoside      #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            args:
+              level : 5
+              filt_len : 7
+              quantiles: [0.005,0.995]
+          - method: median_test_oneside
+            #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_forward
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+              reverse: False
+          - method: median_test_oneside
+            #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              level : 5
+              filt_len : 5
+              quantiles: [0.005,0.995]
+            reverse: True              
+      ec:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        inherits_global: True
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [10.,2000.]    
+      temp:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [1.,33.]    
+      flow: 
+        inherits_global: True
+        omit_steps:
+          - median_oneside_forward
+          - median_oneside_rev
+        modify_steps:
+          - method: median_test_twoside
+            args:
+              level : 1
+              filt_len : 7
+              scale: 10000. # 1/40 of peak flow
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              level : 1
+              filt_len : 5
+              scale: 10000.
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len : 5
+              scale: 10000
+              level : 1
+              reverse: True          
+          
+  yby: 
+    params:
+      ec:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        inherits_global: True
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [10.,2000.]    
+      temp:
+        inherits_global: True
+        omit_steps: 
+          - repeat_test
+        inherits_global: True
+        #omit_steps: None
+        modify_steps:        
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [1.,33.]    
+      flow: 
+        inherits_global: True
+        omit_steps:
+          - median_oneside_forward
+          - median_oneside_rev
+        modify_steps:
+          - method: median_test_twoside
+            args:
+              level : 1
+              filt_len : 7
+              scale: 10000. # 1/40 of peak flow
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              level : 1
+              filt_len : 5
+              scale: 10000.
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len : 5
+              scale: 10000
+              level : 1
+              reverse: True    
+          

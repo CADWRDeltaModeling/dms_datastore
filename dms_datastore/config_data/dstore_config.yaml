@@ -21,4 +21,6 @@ source_priority:
   dwr_om: ['cdec']
   dwr: ['cdec']
   ebmud: ['usgs','ebmud','cdec']
+  
+screen_config_v20230126: screen_config_v20230126.yaml
 

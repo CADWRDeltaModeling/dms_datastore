@@ -49,6 +49,7 @@ setup(
                                           'populate_repo=dms_datastore.populate_repo:main',
                                           'station_info=dms_datastore.station_info:main',
                                           'reformat=dms_datastore.reformat:main',
+                                          'auto_screen=dms_datastore.auto_screen:main',
                                           'inventory=dms_datastore.inventory:main',
                                           'usgs_multi=dms_datastore.usgs_multi:main',
                                           'delete_from_filelist=dms_datastore.delete_from_filelist:main']
