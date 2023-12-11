@@ -10,8 +10,79 @@ import warnings # temporary?
 from collections import defaultdict
 from vtools.functions.merge import *
 from vtools.data.vtime import minutes
+from dms_datastore.filename import extract_year_fname
 
 __all__ = ["original_header","read_yaml_header","read_ts"]
+
+
+def read_flagged(fpath_pattern,start=None,end=None,apply_flags=True,return_flags=False,return_meta=False):
+    """ This is an independent reader routine for univariate data in dms_datastore format 
+    Parameters
+    ----------
+    
+    fpath_pattern : str
+        File path to read, wildcards included
+        
+    start : str or Timestamp
+        Start of read, saves time if years can be avoided
+        
+    end : str or Timestamp
+        End of read, saves time if years can be avoided
+        
+    apply_flags: bool
+        Apply user_flag as a mask, converting data to nan
+        
+    return_flags: bool
+        If True, the user_flag column is returned
+        
+    return_meta: bool
+        If True, the yaml header is parsed and returned, such that the return value is a tuple (meta,ts)
+        
+    Returns
+    -------
+        DataFrame if return_meta is false, otherwise tuple(yaml structure, DataFrame)
+    
+    """
+    fdir,fpat = path_pattern(fpath_pattern)
+    
+    if not fdir: fdir = "."    
+    matches = []
+    #for root, dirnames, filenames in os.walk(fdir):
+    #    for filename in fnmatch.filter(filenames, fpat):
+    #        matches.append(os.path.join(root, filename))
+    matches = glob.glob(fpath_pattern)      
+    matches.sort()
+
+    if len(matches)==0:
+        raise IOError("No matches found for pattern: {}".format(fpat))
+    if start is None:
+        startyr = -9999
+    else:
+        start = pd.to_datetime(start)
+        startyr = start.year
+    if end is None:
+        endyr = 9999
+    else:
+        end = pd.to_datetime(end)
+        endyr = end.year
+
+    matches = [m for m in matches if extract_year_fname(m) >= startyr and extract_year_fname(m) <= endyr]
+    dfs = []
+    for m in matches:
+        dfs.append(pd.read_csv(m, sep=",", comment="#", index_col=0,
+                               parse_dates=[0],dtype={"user_flag":str}))
+    df = pd.concat(dfs,axis=0)
+    if (apply_flags):
+        df.mask(df.user_flag>0,inplace=True)
+    if not return_flags:
+        df.drop("user_flag",axis=1,inplace=True)
+    if return_meta:
+        meta=read_yaml_header(matches[0])
+        return meta,df.loc[start:end]
+    else:
+        return  df.loc[start:end]
+
+
 
 def original_header(fpath,comment="#"):
     """Scrapes the header from a file assuming all the lines at the top are the header 

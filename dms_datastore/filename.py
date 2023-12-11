@@ -4,6 +4,12 @@
 import os
 import re
 
+def extract_year_fname(fname):
+    re1 = re.compile(r".*_(\d{4})(?:\..{3})")
+    yr = int(re1.match(fname).group(1))
+    return yr
+
+
 def interpret_fname(fname):
     """ Convert filename to metadata dictionary 
     The filename follows convention [agency/source]_[station_id]_[agency_id]@[subloc]_[param]_[syear]_[eyear].csv
