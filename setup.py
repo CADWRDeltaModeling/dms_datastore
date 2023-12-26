@@ -24,7 +24,7 @@ setup(
     #extras_require=extras,
     include_package_data=True,
     packages=find_packages(),
-    package_data = {'dms_datastore' : ['config_data/*.csv','config_data/*.yaml']},
+    package_data = {'dms_datastore' : ['config_data/*.csv','config_data/*.yaml','usgs_parameter_cd_query.txt']},
     #setup_requires=setup_requirements,
     test_suite='tests',
     #tests_require=test_requirements,
