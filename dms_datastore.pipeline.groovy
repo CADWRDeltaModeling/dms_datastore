@@ -1,5 +1,8 @@
 pipeline {
     agent any
+    parameters{
+        booleanParam(name: 'Full Refresh', defaultValue: true, description: 'Full refresh or partial refresh?')
+    }
     environment {
         //Location of the repository
         REPO='y:\\repo\\continuous'
@@ -28,7 +31,8 @@ pipeline {
                 }
             }
         }
-        stage('Check and Delete Directory') {
+
+        stage('Ensure Raw Directory') {
             steps {
                 dir("${env.REPO_STAGING}"){
                     script {
@@ -36,12 +40,29 @@ pipeline {
                         if(fileExists('raw')) {
                             // Change directory to 'raw'
                             dir('raw') {
-                                // Delete the 'raw' directory
-                                deleteDir()
+                                if (params['Full Refresh']) {
+                                    // Delete all files and directories in 'raw'
+                                    deleteDir()
+                                    echo 'Directory "raw" has been deleted.'
+                                } else {
+                                    echo 'Partial refresh - not deleting raw directory.'
+                                }
                             }
-                            echo 'Directory "raw" has been deleted.'
                         } else {
-                            echo 'Directory "raw" does not exist.'
+                            echo 'Directory "raw" does not exist!'
+                            if (!params['Full Refresh']) { // assumes raw directory exists... else fail!
+                                error('Partial refresh requested but "raw" directory does not exist!')
+                            } else {
+                                echo 'Full refresh requested - creating "raw" directory.'
+                                dir('raw') {
+                                    // write file with date created
+                                    script {
+                                        def now = new Date()
+                                        CREATE_TIME=now.format("yyMMdd.HHmm", TimeZone.getTimeZone('UTC'))
+                                    }
+                                    writeFile file:'created.txt', text:CREATE_TIME
+                                }
+                            }
                         }
                     }
                 }
@@ -71,13 +92,10 @@ pipeline {
                                 varlist.each { variable ->
                                     def taskName = "${agency}_${variable}"
                                     parallelTasks[taskName] = {
-                                        // Activate the conda environment and run the populate_repo script
-                                        echo "Processing ${agency} with variable ${variable}"
-                                        bat "call conda activate dms_datastore & mkdir raw-${agency}-${variable} & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw-${agency}-${variable}"
+                                            bat "call conda activate dms_datastore & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw"
+                                        }
                                     }
                                 }
-                            }
-
                             // Run tasks in parallel
                             parallel parallelTasks
                         }
@@ -85,6 +103,7 @@ pipeline {
                 }
             }
         }
+        /*
         stage('Consolidate Raw') {
             steps {
                 dir("${env.REPO_STAGING}"){
@@ -101,6 +120,7 @@ pipeline {
                 }
             }
         }
+        */
         /**
         stage('compare raw') {
             steps {
@@ -123,50 +143,61 @@ pipeline {
             }
         }
         stage('reformat') {
-            steps {
-                script {
-                    parallel(
-                        usgs: {
-                            dir("${env.REPO_STAGING}") {
-                                bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=usgs'
-                                bat '''call conda activate dms_datastore & call usgs_multi --fpath formatted'''
-                            }
-                        },
-                        des: {
-                            dir("${env.REPO_STAGING}") {
-                                bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=des'
-                            }
-                        },
-                        cdec: {
-                            dir("${env.REPO_STAGING}") {
-                                bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=cdec'
-                            }
-                        },
-                        noaa: {
-                            dir("${env.REPO_STAGING}") {
-                                bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=noaa'
-                            }
-                        },
-                        ncro: {
-                            dir("${env.REPO_STAGING}") {
-                                bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=ncro'
-                            }
+            parallel{
+                stage('Reformat USGS'){
+                    agent any
+                    steps{
+                        dir("${env.REPO_STAGING}") {
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=usgs'
+                            bat 'call conda activate dms_datastore & call usgs_multi --fpath formatted'
                         }
-                    )
+                    }
+                }
+                stage('Reformat DES'){
+                    agent any
+                    steps{
+                        dir("${env.REPO_STAGING}") {
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=des'
+                        }
+                    }
+                }
+                stage('Reformat CDEC'){
+                    agent any
+                    steps{
+                        dir("${env.REPO_STAGING}") {
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=cdec'
+                        }
+                    }
+                }
+                stage('Reformat NOAA'){
+                    agent any
+                    steps{
+                        dir("${env.REPO_STAGING}") {
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=noaa'
+                        }
+                    }
+                }
+                stage('Reformat NCRO'){
+                    agent any
+                    steps{
+                        dir("${env.REPO_STAGING}") {
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=ncro'
+                        }
+                    }
                 }
             }
         }
         stage('build inventory') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat '''call conda activate dms_datastore & call inventory --repo formatted'''
+                    bat 'call conda activate dms_datastore & call inventory --repo formatted'
                 }
             }
         }
         stage('compare formatted') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat '''call conda activate dms_datastore & call compare_directories --base %REPO%/formatted --compare formatted'''
+                    bat 'call conda activate dms_datastore & call compare_directories --base %REPO%/formatted --compare formatted > compare_formatted.txt'
                 }
             }
         }
