@@ -84,6 +84,8 @@ pipeline {
                                 def varlist = []
                                 if (agency == "noaa") {
                                     varlist = ["elev", "predictions"]
+                                } else if (agency == "dwr_ncro"){
+                                    varlist = ["flow"] // bug in ncro so just get all variables for now. issue #30
                                 } else {
                                     varlist = ["flow", "elev", "ec", "temp", "do", "turbidity", "velocity", "ph", "ssc"]
                                 }
@@ -92,10 +94,14 @@ pipeline {
                                 varlist.each { variable ->
                                     def taskName = "${agency}_${variable}"
                                     parallelTasks[taskName] = {
+                                        if (!params['Full Refresh']) { // assumes raw directory exists... else fail!
+                                            bat "call conda activate dms_datastore & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw --partial"
+                                        } else {
                                             bat "call conda activate dms_datastore & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw"
                                         }
                                     }
                                 }
+                            }
                             // Run tasks in parallel
                             parallel parallelTasks
                         }

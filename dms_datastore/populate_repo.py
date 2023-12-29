@@ -399,10 +399,10 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
 
         else:
             for var in varlist:
-                logger.info(
-                    f"Calling populate_repo (1) with agency {agency} variable: {var}"
-                )
                 if not partial_update:
+                    logger.info(
+                        f"Calling populate_repo (1) with agency {agency} variable: {var}"
+                    )
                     populate_repo(
                         agency,
                         var,
@@ -433,7 +433,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                     os.path.join(dest, f"{agency}*_{var}_*.{ext}")
                 )
                 logger.info(f"Done with agency {agency} variable: {var}")
-        print("Done with agency {agency} for all variables")
+        print(f"Done with agency {agency} for all variables")
         doneagency.append(agency)
     print("Completed population for these agencies: ")
     for agent in doneagency:
@@ -635,7 +635,13 @@ def create_arg_parser():
         default=None,
         help="Variables to download. If none, a default list is used",
     )
-    parser.add_argument("--partial", dest="partial", default=False, action="store_true")
+    parser.add_argument(
+        "--partial",
+        dest="partial",
+        default=False,
+        action="store_true",
+        help="Partial update assuming existing files and only updating from 2020 onwards",
+    )
     return parser
 
 
