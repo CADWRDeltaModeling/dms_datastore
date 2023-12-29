@@ -72,7 +72,7 @@ pipeline {
         stage('Parallel Tasks for Agencies and Variables') {
             steps {
                 catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                    dir("${env.REPO_STAGING}"){
+                    dir("${env.REPO_STAGING}/rawx"){
                         script {
                             def allAgencies = ["usgs", "dwr_des", "usbr", "noaa", "dwr_ncro", "dwr"]
 
@@ -95,9 +95,9 @@ pipeline {
                                     def taskName = "${agency}_${variable}"
                                     parallelTasks[taskName] = {
                                         if (!params['Full Refresh']) { // assumes raw directory exists... else fail!
-                                            bat "call conda activate dms_datastore & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw --partial"
+                                            bat "call conda activate dms_datastore & mkdir raw-${agency}-${variable} & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw-${agency}-${variable} --partial"
                                         } else {
-                                            bat "call conda activate dms_datastore & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw"
+                                            bat "call conda activate dms_datastore & mkdir raw-${agency}-${variable} & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw-${agency}-${variable}"
                                         }
                                     }
                                 }
@@ -109,7 +109,6 @@ pipeline {
                 }
             }
         }
-        /*
         stage('Consolidate Raw') {
             steps {
                 dir("${env.REPO_STAGING}"){
@@ -118,7 +117,7 @@ pipeline {
                         if not exist raw mkdir raw
 
                         REM Move contents from raw-* to raw and delete raw-* directories
-                        for /d %%d in (raw-*) do (
+                        for /d %%d in (rawx\\raw-*) do (
                             move "%%d\\*" raw\\
                             rmdir /s /q "%%d"
                         )
@@ -126,7 +125,6 @@ pipeline {
                 }
             }
         }
-        */
         /**
         stage('compare raw') {
             steps {
@@ -159,6 +157,14 @@ pipeline {
                         }
                     }
                 }
+                stage('Reformat NOAA'){
+                    agent any
+                    steps{
+                        dir("${env.REPO_STAGING}") {
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=noaa'
+                        }
+                    }
+                }
                 stage('Reformat DES'){
                     agent any
                     steps{
@@ -172,14 +178,6 @@ pipeline {
                     steps{
                         dir("${env.REPO_STAGING}") {
                             bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=cdec'
-                        }
-                    }
-                }
-                stage('Reformat NOAA'){
-                    agent any
-                    steps{
-                        dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=noaa'
                         }
                     }
                 }
