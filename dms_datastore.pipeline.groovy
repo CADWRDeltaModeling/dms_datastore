@@ -152,6 +152,14 @@ for /d %%d in (rawx\raw-*) do (
         }
         stage('reformat') {
             parallel{
+                stage('Reformat NCRO'){
+                    agent any
+                    steps{
+                        dir("${env.REPO_STAGING}") {
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=ncro'
+                        }
+                    }
+                }
                 stage('Reformat USGS'){
                     agent any
                     steps{
@@ -182,14 +190,6 @@ for /d %%d in (rawx\raw-*) do (
                     steps{
                         dir("${env.REPO_STAGING}") {
                             bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=cdec'
-                        }
-                    }
-                }
-                stage('Reformat NCRO'){
-                    agent any
-                    steps{
-                        dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=ncro'
                         }
                     }
                 }
