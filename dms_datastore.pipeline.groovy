@@ -116,10 +116,10 @@ pipeline {
 if not exist raw mkdir raw
 
 REM Check each raw-* directory before moving and deleting
-for /d %%d in (rawx\raw-*) do (
-    if exist "%%d\*" (
+for /d %%d in (rawx\\raw-*) do (
+    if exist "%%d\\*" (
         REM Move contents from raw-* to raw
-        move "%%d\*" raw\
+        move "%%d\\*" raw\\
     )
     if exist "%%d" (
         REM Delete raw-* directory
