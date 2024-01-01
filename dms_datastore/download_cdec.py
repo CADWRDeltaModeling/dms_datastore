@@ -85,9 +85,8 @@ def create_arg_parser():
     return parser
 
 
-def download_station_data(
-    row, dest_dir, start, end, endfile, param, overwrite, freq, failures, skips
-):
+def download_station_data(row, dest_dir, start, end, endfile, 
+                          param, overwrite, freq, failures, skips):
     # Extract station information
     station = row.station_id
     try:
@@ -191,32 +190,32 @@ def cdec_download(
         download_station_data(
             row, dest_dir, start, end, endfile, param, overwrite, freq, failures, skips
         )
-    # Use ThreadPoolExecutor
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-        # Schedule the download tasks and handle them asynchronously
-        futures = []
-        for index, row in stations.iterrows():
-            future = executor.submit(
-                download_station_data,
-                row,
-                dest_dir,
-                start,
-                end,
-                endfile,
-                param,
-                overwrite,
-                freq,
-                failures,
-                skips,
-            )
-            futures.append(future)
+    # # Use ThreadPoolExecutor
+    # with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        # # Schedule the download tasks and handle them asynchronously
+        # futures = []
+        # for index, row in stations.iterrows():
+            # future = executor.submit(
+                # download_station_data,
+                # row,
+                # dest_dir,
+                # start,
+                # end,
+                # endfile,
+                # param,
+                # overwrite,
+                # freq,
+                # failures,
+                # skips,
+            # )
+            # futures.append(future)
 
-        # Optionally, handle the results of the tasks
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                future.result()  # This line can be used to handle results or exceptions from the tasks
-            except Exception as e:
-                logger.error(f"Exception occurred during download: {e}")
+        # # Optionally, handle the results of the tasks
+        # for future in concurrent.futures.as_completed(futures):
+            # try:
+                # future.result()  # This line can be used to handle results or exceptions from the tasks
+            # except Exception as e:
+                # logger.error(f"Exception occurred during download: {e}")
 
     if len(failures) == 0:
         logger.info("No failed stations")
