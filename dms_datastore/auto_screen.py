@@ -413,9 +413,6 @@ class RegionChecker(object):
         return point_in_polys
 
 
-def bounds_test(ts, bounds):
-    return threshold(ts, bounds)
-
 
 def dip_test(ts, low, dip):
     is_miss = ts.isnull()
