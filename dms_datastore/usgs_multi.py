@@ -51,8 +51,9 @@ def usgs_scan_series(fname):
         descrline = None
         for line in g:
             if "Parameter" in line: 
-                print(fname)
-                print(line)
+                pass
+                #print(fname)
+                #print(line)
             if "original_header" in line:
                 formatted = True  # there may be two comments
             if descript_re.match(line):

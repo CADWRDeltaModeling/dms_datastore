@@ -464,7 +464,7 @@ def read_wdl3(fpath_pattern,start=None,end=None,selector=None,force_regular=True
                          sep=',',
                          skiprows=2,
                          column_names=["datetime","value","qaqc_flag"],
-                         dtypes={"value": float},
+                         dtypes={"value": float,qaqc_flag: str},
                          header=0,
                          dateformat=None,
                          comment=None,
@@ -1035,25 +1035,24 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
     # complex cases. It correctly handles the situation where all the
     # items in selector are floats, all the items in qaqc_selector are alphanumeric
     coltypes = {} if dtypes is None else dtypes.copy()
-
-    if len(coltypes)==0:  
-        if selector is None:
-            # None provided. Seems like this might fail for non-data columns if included
-            coltypes = float
+    if len(coltypes.keys())==0 and selector is None:
+        # None provided. Seems like this might fail for non-data columns if included
+        coltypes = float
+    else:
+        if qaqc_selector is None:        
+            for s in selector:
+                if not s in coltypes:
+                    coltypes[s] = float
         else:
-            if qaqc_selector is None:        
-                for s in selector:
-                    if not s in coltypes:
-                        coltypes[s] = float
-            else:
-                # Both selector and qaqc_selector provided
-                # This behaves OK if these are paired selectors and the pairs come first 
-                # before any extras in selector as with USGS and tz_cd
-                for s,qs in zip(selector,qaqc_selector):
-                    if not s in coltypes:
-                        coltypes[s] = float
-                    if not qs in coltypes:
-                        coltypes[qs] = str
+            # Both selector and qaqc_selector provided
+            # This behaves OK if these are paired selectors and the pairs come first 
+            # before any extras in selector as with USGS and tz_cd
+            for s,qs in zip(selector,qaqc_selector):
+                
+                if not s in coltypes:
+                    coltypes[s] = float
+                if not qs in coltypes:
+                    coltypes[qs] = str
 
 
     # The matches are in lexicographical order. Reversing them puts the newer ones
@@ -1074,18 +1073,19 @@ def csv_retrieve_ts(fpath_pattern,start, end, force_regular=True,selector=None,
         else:
             skiprows_spec = skiprows
         if column_names is None:
-            #with warnings.catch_warnings():
-            #    warnings.filterwarnings('error')
-            #    try:
+
+            #warnings.filterwarnings('error')
+            #try:
             dset = pd.read_csv(m, index_col=indexcol, header=header,
                            skiprows=skiprows_spec,sep=sep,parse_dates=parsedates,
                            date_format=dateformat, na_values=extra_na,
                            keep_default_na=True, dtype=coltypes,
                            skipinitialspace=True,nrows=nrows,
                            **dargs)
-            #    except Warning:
-            #        print(f"Warning for: {m}")
-            #        
+            #print(dset.tail())
+            #except:    
+            #    print(f"Warning for: {m}")
+            #    # reformat --inpath raw --outpath formatted
             
             if header is None:
                 # This is essentially a fixup for vtide, which I'm not

@@ -503,7 +503,7 @@ def custom_fetcher(agency):
         return general_fetcher
 
 
-def test_single(fname): # not maintained
+def test_single(fname):  # not maintained
     ts = read_ts(fname)
     fpart = os.path.split(fname)[1]
     parts = fpart.split("_")
@@ -516,8 +516,6 @@ def test_single(fname): # not maintained
         raise ValueError("Series is None")
     proto = context_config(station_id, subloc, param)
     screener(ts, station_id, subloc, param, proto)
-
-
 
 
 def create_argparse():
@@ -555,8 +553,8 @@ def main():
     plot_dest = args.plot_dest
     start_station = args.start_station
     config = args.config
-    if config is None: 
-        config = config_file('screen_config')
+    if config is None:
+        config = config_file("screen_config")
     elif not os.path.exists(config):
         config = config_file(config)
 

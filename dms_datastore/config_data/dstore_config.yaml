@@ -8,10 +8,10 @@ sublocations: station_subloc.csv
 
 file_deletion_list: non_15_min_files_checked.txt
 
-repo: "//cnrastore-bdo/Modeling_Data/continuous_station_repo_beta/formatted_1yr"
+repo: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
 
 source_priority:
-  ncro: ['ncro']
+  ncro: ['ncro','cdec']
   dwr_ncro: ['ncro']
   des: ['des']
   dwr_des: ['des']
@@ -23,4 +23,4 @@ source_priority:
   ebmud: ['usgs','ebmud','cdec']
   
 screen_config_v20230126: screen_config_v20230126.yaml
-
+screen_config: screen_config.yaml
