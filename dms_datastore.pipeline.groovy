@@ -14,6 +14,7 @@ pipeline {
     environment {
         //Location of the repository
         REPO='y:\\repo\\continuous'
+        REPO_STAGING_REF='y:\\repo_staging\\continuous'
         REPO_STAGING='y:\\jenkins_repo_staging\\continuous'
     }
     stages {
@@ -174,28 +175,34 @@ pipeline {
         }
         stage('Consolidate Raw') {
             steps {
-                dir("${env.REPO_STAGING}"){
-                    bat '''REM Create the raw directory if it doesn't exist
-if not exist raw mkdir raw
+                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                    dir("${env.REPO_STAGING}"){
+                        bat '''REM Create the raw directory if it doesn't exist
+    if not exist raw mkdir raw
 
-REM Check each raw-* directory before moving and deleting
-for /d %%d in (rawx\\raw-*) do (
-    if exist "%%d\\*" (
-        REM Move contents from raw-* to raw
-        move "%%d\\*" raw\\ || echo Failed to move files from %%d to raw. Maybe empty directory?
-    )
-    if exist "%%d" (
-        REM Delete raw-* directory
-        rmdir /s /q "%%d"
-    )
-)'''
+    REM Check each raw-* directory before moving and deleting
+    for /d %%d in (rawx\\raw-*) do (
+        if exist "%%d\\*" (
+            REM Move contents from raw-* to raw
+            move "%%d\\*" raw\\ || echo Failed to move files from %%d to raw. Maybe empty directory?
+        ) else (
+            echo %%d is empty. No files to move.
+        )
+        if exist "%%d" (
+            REM Delete raw-* directory
+            rmdir /s /q "%%d" || echo Failed to delete %%d. Maybe non-empty directory?
+        ) else (
+            echo %%d does not exist. Nothing to delete.
+        )
+    )'''
+                    }
                 }
             }
         }
         stage('compare raw') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat '''call conda activate dms_datastore & call compare_directories --base %REPO%/raw --compare raw > compare_raw.txt'''
+                    bat '''call conda activate dms_datastore & call compare_directories --base %REPO_STAGING_REF%/raw --compare raw > compare_raw.txt'''
                 }
             }
         }
