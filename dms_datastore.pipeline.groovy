@@ -2,6 +2,14 @@ pipeline {
     agent any
     parameters{
         booleanParam(name: 'Full Refresh', defaultValue: true, description: 'Full refresh or partial refresh?')
+        booleanParam(name: 'DWR NCRO', defaultValue: true, description: 'Process DWR NCRO?')
+        booleanParam(name: 'DWR', defaultValue: true, description: 'Process DWR?')
+        booleanParam(name: 'USGS', defaultValue: true, description: 'Process USGS?')
+        booleanParam(name: 'NOAA', defaultValue: true, description: 'Process NOAA?')
+        booleanParam(name: 'DWR DES', defaultValue: true, description: 'Process DWR DES?')
+        booleanParam(name: 'USBR', defaultValue: true, description: 'Process USBR?')
+        booleanParam(name: 'CDEC', defaultValue: true, description: 'Process CDEC?')
+
     }
     environment {
         //Location of the repository
@@ -16,11 +24,23 @@ pipeline {
                     def networkPath = '\\\\cnrastore-bdo\\modeling_data'
                     def driveLetter = 'Y:'
 
-                    // Check if the drive is already mounted
-                    def isMounted = bat(script: "if exist ${driveLetter} (echo true) else (echo false)", returnStdout: true).trim()
+                    // Execute the command and capture the output
+                    def script = '''
+                    @echo off
+                    if exist Y: (
+                        echo true
+                    ) else (
+                        echo false
+                    )
+                    '''
+                    def cmdOutput = bat(script: script, returnStdout: true).trim()
+                    echo "Command Output: '${cmdOutput}'"
 
-                    // Mount the network drive if it's not already mounted
-                    if (isMounted == 'false') {
+                    // Determine if the drive is mounted
+                    def isMounted = cmdOutput == 'true'
+
+                    if (!isMounted) {
+                        echo "Mounting ${driveLetter} to ${networkPath}"
                         bat "net use ${driveLetter} ${networkPath} /persistent:no"
                         echo "Mounted ${networkPath} as ${driveLetter}"
                     } else {
@@ -31,7 +51,6 @@ pipeline {
                 }
             }
         }
-
         stage('Ensure Raw Directory') {
             steps {
                 dir("${env.REPO_STAGING}"){
@@ -40,7 +59,9 @@ pipeline {
                         if(fileExists('raw')) {
                             // Change directory to 'raw'
                             dir('raw') {
-                                if (params['Full Refresh']) {
+                                // if full refresh, delete all files and directories in 'raw'
+                                // if any agency is not being processed, do not delete 'raw'
+                                if (params['Full Refresh'] && params['DWR NCRO'] && params['DWR'] && params['USGS'] && params['NOAA'] && params['DWR DES'] && params['USBR']) {
                                     // Delete all files and directories in 'raw'
                                     deleteDir()
                                     echo 'Directory "raw" has been deleted.'
@@ -70,40 +91,82 @@ pipeline {
         }
 
         stage('Parallel Tasks for Agencies and Variables') {
-            steps {
-                catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
-                    dir("${env.REPO_STAGING}/rawx"){
-                        script {
-                            def allAgencies = ["usgs", "dwr_des", "usbr", "noaa", "dwr_ncro", "dwr"]
-
-                            // Prepare a map for parallel execution
-                            def parallelTasks = [:]
-
-                            // Loop over each agency
-                            allAgencies.each { agency ->
-                                def varlist = []
-                                if (agency == "noaa") {
-                                    varlist = ["elev", "predictions"]
-                                } else if (agency == "dwr_ncro"){
-                                    varlist = ["flow"] // bug in ncro so just get all variables for now. issue #30
-                                } else {
-                                    varlist = ["flow", "elev", "ec", "temp", "do", "turbidity", "velocity", "ph", "ssc"]
-                                }
-
-                                // Loop over each variable for the agency
-                                varlist.each { variable ->
-                                    def taskName = "${agency}_${variable}"
-                                    parallelTasks[taskName] = {
-                                        if (!params['Full Refresh']) { // assumes raw directory exists... else fail!
-                                            bat "call conda activate dms_datastore & mkdir raw-${agency}-${variable} & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw-${agency}-${variable} --partial"
-                                        } else {
-                                            bat "call conda activate dms_datastore & mkdir raw-${agency}-${variable} & call populate_repo --agencies=${agency} --variables=${variable} --dest=raw-${agency}-${variable}"
-                                        }
-                                    }
-                                }
+            parallel {
+                stage('DWR NCRO') {
+                    when {
+                        expression { params['DWR NCRO'] }
+                    }
+                    agent any
+                    steps {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                            dir("${env.REPO_STAGING}/rawx"){
+                                bat "call conda activate dms_datastore & call populate_repo --agencies=dwr_ncro --dest=raw-dwr_ncro"
                             }
-                            // Run tasks in parallel
-                            parallel parallelTasks
+                        }
+                    }
+                }
+                stage('DWR') {
+                    when {
+                        expression { params['DWR'] }
+                    }
+                    agent any
+                    steps {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                            dir("${env.REPO_STAGING}/rawx"){
+                                bat "call conda activate dms_datastore & call populate_repo --agencies=dwr --dest=raw-dwr"
+                            }
+                        }
+                    }
+                }
+                stage('USGS') {
+                    when {
+                        expression { params['USGS'] }
+                    }
+                    agent any
+                    steps {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                            dir("${env.REPO_STAGING}/rawx"){
+                                bat "call conda activate dms_datastore & call populate_repo --agencies=usgs --dest=raw-usgs"
+                            }
+                        }
+                    }
+                }
+                stage('NOAA') {
+                    when {
+                        expression { params['NOAA'] }
+                    }
+                    agent any
+                    steps {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                            dir("${env.REPO_STAGING}/rawx"){
+                                bat "call conda activate dms_datastore & call populate_repo --agencies=noaa --dest=raw-noaa"
+                            }
+                        }
+                    }
+                }
+                stage('DWR DES') {
+                    when {
+                        expression { params['DWR DES'] }
+                    }
+                    agent any
+                    steps {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                            dir("${env.REPO_STAGING}/rawx"){
+                                bat "call conda activate dms_datastore & call populate_repo --agencies=dwr_des --dest=raw-dwr_des"
+                            }
+                        }
+                    }
+                }
+                stage('USBR') {
+                    when {
+                        expression { params['USBR'] }
+                    }
+                    agent any
+                    steps {
+                        catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                            dir("${env.REPO_STAGING}/rawx"){
+                                bat "call conda activate dms_datastore & call populate_repo --agencies=usbr --dest=raw-usbr"
+                            }
                         }
                     }
                 }
@@ -119,7 +182,7 @@ REM Check each raw-* directory before moving and deleting
 for /d %%d in (rawx\\raw-*) do (
     if exist "%%d\\*" (
         REM Move contents from raw-* to raw
-        move "%%d\\*" raw\\
+        move "%%d\\*" raw\\ || echo Failed to move files from %%d to raw. Maybe empty directory?
     )
     if exist "%%d" (
         REM Delete raw-* directory
@@ -129,7 +192,6 @@ for /d %%d in (rawx\\raw-*) do (
                 }
             }
         }
-        /**
         stage('compare raw') {
             steps {
                 dir("${env.REPO_STAGING}"){
@@ -137,7 +199,6 @@ for /d %%d in (rawx\\raw-*) do (
                 }
             }
         }
-        **/
         stage('ensure formatted dir') {
             steps {
                 dir("${env.REPO_STAGING}/formatted"){
@@ -152,15 +213,32 @@ for /d %%d in (rawx\\raw-*) do (
         }
         stage('reformat') {
             parallel{
-                stage('Reformat NCRO'){
+                stage('Reformat DWR NCRO'){
+                    when {
+                        expression { params['DWR NCRO'] }
+                    }
                     agent any
                     steps{
                         dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=ncro'
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=dwr_ncro'
+                        }
+                    }
+                }
+                stage('Reformat DWR'){
+                    when {
+                        expression { params['DWR'] || params['USBR'] || params['CDEC'] }
+                    }
+                    agent any
+                    steps{
+                        dir("${env.REPO_STAGING}") {
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=cdec'
                         }
                     }
                 }
                 stage('Reformat USGS'){
+                    when {
+                        expression { params['USGS'] }
+                    }
                     agent any
                     steps{
                         dir("${env.REPO_STAGING}") {
@@ -170,6 +248,9 @@ for /d %%d in (rawx\\raw-*) do (
                     }
                 }
                 stage('Reformat NOAA'){
+                    when {
+                        expression { params['NOAA'] }
+                    }
                     agent any
                     steps{
                         dir("${env.REPO_STAGING}") {
@@ -177,19 +258,14 @@ for /d %%d in (rawx\\raw-*) do (
                         }
                     }
                 }
-                stage('Reformat DES'){
-                    agent any
-                    steps{
-                        dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=des'
-                        }
+                stage('Reformat DWR DES'){
+                    when {
+                        expression { params['DWR DES'] }
                     }
-                }
-                stage('Reformat CDEC'){
                     agent any
                     steps{
                         dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=cdec'
+                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=dwr_des'
                         }
                     }
                 }
