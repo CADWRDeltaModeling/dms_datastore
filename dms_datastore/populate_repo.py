@@ -325,8 +325,8 @@ def populate_repo2(df, dest, start, overwrite=False, ignore_existing=None):
         agency_id_col=agency_id_col,
         source=source,
     )
-    # logger.info("station list ************")
-    # logger.info(stationlist.columns)
+    logger.info("station list ************")
+    logger.info(df.head)
     end = None
     downloaders["cdec"](stationlist, dest, start, end, overwrite)
 
@@ -350,7 +350,9 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
     for agency in all_agencies:
         if agency == "noaa":
             if varlist is None or len(varlist) == 0:
-                varlist = ["elev", "predictions"]  # handled in next section
+                # "predictions" was removed because it can be done very 
+                # occasionally, when tidal epochs/fits are revised
+                varlist = ["elev"]  # handled in next section
         else:
             if varlist is None or len(varlist) == 0:
                 varlist = [
@@ -425,8 +427,9 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                 logger.info(
                     f"Calling populate_repo (3) with agency {agency} variable: {var}"
                 )
+                end_download = pd.Timestamp(2039,12,31,23,59) if ((agency == "noaa") and (var == "predictions")) else None
                 populate_repo(
-                    agency, var, dest, pd.Timestamp(2020, 1, 1), None, overwrite=True
+                    agency, var, dest, pd.Timestamp(2020, 1, 1), end_download, overwrite=True
                 )
                 ext = "rdb" if agency == "usgs" else ".csv"
                 revise_filename_syear_eyear(
@@ -533,13 +536,13 @@ def rationalize_time_partitions(pat):
         logger.info(sup)
 
 
-def populate_ncro_repo(dest):
-    download_ncro_por(dest)  # period of record for NCRO QA QC'd
+def populate_ncro_repo(dest, variables):
+    download_ncro_por(dest, variables)  # period of record for NCRO QA QC'd
     populate_ncro_realtime(dest)  # Recent NCRO
 
 
 def ncro_only(dest):
-    populate_ncro_repo(dest)
+    populate_ncro_repo(dest, variables)
     revise_filename_syear_eyear(os.path.join(dest, f"ncro_*.csv"))
     revise_filename_syear_eyear(os.path.join(dest, f"cdec_*.csv"))
 
@@ -571,7 +574,7 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
             if (agency not in ["dwr_ncro", "ncro"])
         }
         if do_ncro:
-            future_to_agency[executor.submit(populate_ncro_repo, dest)] = "ncro"
+            future_to_agency[executor.submit(populate_ncro_repo, dest,varlist)] = "ncro"
 
     for future in concurrent.futures.as_completed(future_to_agency):
         agency = future_to_agency[future]

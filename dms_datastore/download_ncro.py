@@ -12,6 +12,7 @@ import string
 import datetime as dt
 import numpy as np
 import concurrent
+import concurrent.futures
 from dms_datastore.process_station_variable import (
     process_station_list,
     stationfile_or_stations,
@@ -83,12 +84,15 @@ mappings = {
 
 
 def download_station_period_record(row, dbase, dest, variables, failures, ctx):
+    """Downloads station/param combo period of record """
     agency_id = row.station_number
     param = row.parameter
     if param in mappings.keys():
         var = mappings[param]
         if var is None:
             return
+        if var not in variables:
+            return            
     else:
         logger.info(f"Problem on row: {row}")
         if type(param) == float:
@@ -144,8 +148,10 @@ def download_ncro_period_record(
     inventory,
     dbase,
     dest,
-    variables=["flow", "elev", "ec", "temp", "do", "ph", "turbidity", "cla"],
-):
+    variables=None):
+    
+    if variables is None: 
+        variables = ["flow", "elev", "ec", "temp", "do", "ph", "turbidity", "cla"]
     global mappings
     # mappings = ncro_variable_map()
     ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
@@ -179,7 +185,7 @@ def download_ncro_period_record(
         logger.info(f)
 
 
-def download_ncro_por(dest):
+def download_ncro_por(dest, variables=None):
     idf = download_ncro_inventory(dest)
     dbase = station_dbase()
     upper_station = idf.station_number.str.upper()
@@ -188,12 +194,13 @@ def download_ncro_por(dest):
         | upper_station.isin(dbase.agency_id + "00")
         | upper_station.isin(dbase.agency_id + "Q")
     )
-
+    if variables is None:
+        variables = ["flow", "elev", "ec", "temp", "do", "ph", "turbidity", "cla"]
     download_ncro_period_record(
         idf.loc[is_in_dbase, :],
         dbase,
         dest,
-        variables=["flow", "elev", "ec", "temp", "do", "ph", "turbidity", "cla"],
+        variables
     )
 
 
@@ -211,6 +218,14 @@ def create_arg_parser():
         default=".",
         help="Destination directory for downloaded files.",
     )
+    parser.add_argument(
+        "--param",
+        dest="param",
+        nargs="+",
+        default=None,
+        help="Parameters to download.",
+    )    
+    return parser
 
 
 def main():
@@ -218,8 +233,9 @@ def main():
     args = parser.parse_args()
     destdir = args.dest_dir
     por = args.por
+    variables = args.param
     dest = "."
-    download_ncro_por(dest)
+    download_ncro_por(dest,variables)
 
 
 if __name__ == "__main__":
