@@ -230,50 +230,6 @@ def infer_internal_meta_for_file(fpath):
     return meta_out
 
 
-def reformat_prev():
-    allfiles = glob.glob("raw/*.csv") + glob.glob("raw/*.rdb")
-    #allfiles = glob.glob("raw/des_bdl_49_temp_2009_2018.csv")
-    allfiles.sort()
-    block_size = 1
-    startupstr = "ncro_blp"  # file name fragment for resuming or None if start from beginning
-    # below doesn't have to be the case, but hard wire
-    single_year_label = (block_size == 1)
-
-    if startupstr is None:
-        at_start = True
-        startupstr = ''
-    else:
-        at_start = False
-    for fpath in allfiles:
-        if startupstr in fpath:
-            at_start = True
-        if not at_start:
-            continue
-        hdr_meta = infer_internal_meta_for_file(fpath)
-
-        df = read_ts(fpath, force_regular=False)
-        df.index.name = "datetime"
-        df.sort_index(inplace=True)  # possibly non-monotonic
-        #nonmonotone = df.loc[df.index.to_series().diff() < pd.to_timedelta('0 seconds')]
-
-        # This names things uniformally
-        if not ("usgs_" in fpath and df.shape[1] > 1):
-            df.columns = ["value"]
-
-        newfname = os.path.join(f"formatted", os.path.split(fpath)[1])
-        newfname = newfname[:-14] + ".csv"
-        content = ""
-        for item in hdr_meta:
-            if item == "original_header":
-                if (hdr_meta[item] is None) or (len(hdr_meta[item]) <= 1):
-                    content = content + "original_header: None"
-                else:
-                    content = content + "original_header: |\n"
-                    content = content + ensure_indent(hdr_meta[item])
-            else:
-                content = content + (item + ": " + hdr_meta[item] + "\n")
-        write_ts_csv(df, newfname, content, chunk_years=True)
-
 def ensure_indent(txt):
     lines = txt.split("\n")
     if txt.startswith(" "): 
