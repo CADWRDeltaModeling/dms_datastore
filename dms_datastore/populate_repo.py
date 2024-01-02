@@ -167,8 +167,11 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
             new_time_block = newstart + "_" + newend
             old_time_block = oldstart + "_" + oldend
             newname = fname.replace(old_time_block, new_time_block)
-            logger.info(f"Renaming {fname} to {newname}")
-            if fname != newname:
+            
+            if fname == newname:
+                logger.debug(f"Not renaming {fname}")                   
+            else:
+                logger.info(f"Renaming {fname} to {newname}")                
                 renames.append((fname, newname))
                 try:
                     if force:
@@ -183,6 +186,8 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
                     logger.info("Bad file info below:")
                     logger.info(str(bad))
                     raise
+
+                
     _write_renames(renames, outfile)
     if len(bad) > 0:
         logger.info("Bad files:")
