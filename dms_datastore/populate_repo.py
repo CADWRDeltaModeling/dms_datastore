@@ -28,10 +28,11 @@ from dms_datastore.process_station_variable import (
     process_station_list,
     stationfile_or_stations,
     read_station_subloc,
+    merge_station_subloc,
 )
 
-if not SAFEGUARD:
-    from schimpy.station import *
+#if not SAFEGUARD:
+#    from schimpy.station import *
 from dms_datastore import dstore_config
 from dms_datastore.filename import interpret_fname, meta_to_filename
 from dms_datastore.read_ts import read_ts
@@ -330,8 +331,6 @@ def populate_repo2(df, dest, start, overwrite=False, ignore_existing=None):
         agency_id_col=agency_id_col,
         source=source,
     )
-    logger.info("station list ************")
-    logger.info(df.head)
     end = None
     downloaders["cdec"](stationlist, dest, start, end, overwrite)
 

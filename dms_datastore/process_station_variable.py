@@ -146,7 +146,31 @@ def read_station_subloc(fpath):
     df["z"] = df.z
     return df[["z"]]
 
+def merge_station_subloc(station_dbase,station_subloc,default_z):
+    """Merge BayDeltaSCHISM station database with subloc file, producing the union of all stations and sublocs including a default entry for stations with no subloc entry
 
+     Parameters
+     ----------
+     station_dbase : DataFrame
+        This should be the input that has only the station id as an index and includes other metadata like x,y,
+
+     station_subloc : DataFrame
+        This should have (id,subloc) as an index
+
+     Returns
+     -------
+     Result : DataFrame
+         DataFrame that links the information.
+
+    """
+
+    merged =  station_dbase.reset_index().merge(station_subloc.reset_index(),
+                left_on="id",right_on="id",
+                how='left')
+    merged.fillna({"subloc":"default","z": default_z},inplace=True)
+    merged.set_index(["id","subloc"],inplace=True)
+
+    return merged
 
 
         
