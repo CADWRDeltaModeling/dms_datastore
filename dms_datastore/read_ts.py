@@ -198,7 +198,6 @@ def is_ncro_std(fname):
         for i,line in enumerate(f):
             if i > 6: return False
             if pattern.match(line.lower()):
-                print("Returning true")
                 return True 
 
 def read_ncro_std(fpath_pattern,start=None,end=None,selector=None,force_regular=True,nrows=None):
@@ -961,9 +960,7 @@ def infer_freq_robust(index,preferred=['H','15T','6T','10T','H','D']):
                 freq = pd.tseries.frequencies.to_offset(p)
                 tester = index.round(p)
                 diff = (index - tester) < freq/6
-                print(diff.sum()/len(diff))
                 if diff.all(): 
-                    print("15T")
                     return p
         if f is None:
             raise ValueError("read_ts set to infer frequency, but multiple attempts failed. Set to string to manually ")
