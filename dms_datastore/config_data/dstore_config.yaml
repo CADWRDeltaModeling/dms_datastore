@@ -7,6 +7,7 @@ variable_definitions: variables.csv
 sublocations: station_subloc.csv
 
 file_deletion_list: non_15_min_files_checked.txt
+compare_excepts_formatted: compare_excepts_formatted.txt
 
 repo: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
 

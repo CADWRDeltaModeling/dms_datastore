@@ -41,8 +41,8 @@ def get_config(label):
 
 def config_file(label):
     fname = config[label]
-    
-    # is path in local directory?
+        
+    # in director local to this file?
     localpath = os.path.join(localdir,fname)
     if os.path.exists(localpath):  
         return localpath
