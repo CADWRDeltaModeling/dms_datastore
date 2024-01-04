@@ -293,7 +293,8 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                     else:
                         download_success = True
                 except:
-                    logger.info("Download failed",station,subloc,paramname)
+                    fmessage = f"Download failed for station {station}, sublocation {subloc}, paramname {paramname}"
+                    logger.info(fmessage)
                     failures.append((station,paramname))
                     download_success = False
                 if download_success:
