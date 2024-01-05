@@ -168,7 +168,7 @@ pipeline {
                     def now = new Date()
                     BUILD_TIME=now.format("yyMMdd.HHmm", TimeZone.getTimeZone('UTC'))
                 }
-                bat "All done - ${BUILD_TIME}"
+                bat "echo All done - ${BUILD_TIME}"
             }
         }
     }
