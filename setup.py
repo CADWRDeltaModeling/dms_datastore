@@ -9,7 +9,8 @@ requirements = [ "vtools3",
                  "xarray",
                  "cfgrib",
                  "boto3",
-                 "netCDF4"]
+                 "netCDF4",
+                 "scikit-learn"]
 setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
