@@ -24,4 +24,4 @@ source_priority:
   ebmud: ['usgs','ebmud','cdec']
   
 screen_config_v20230126: screen_config_v20230126.yaml
-screen_config: screen_config.yaml
+screen_config: screen_config_v20230126.yaml
