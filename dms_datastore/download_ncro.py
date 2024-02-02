@@ -195,7 +195,7 @@ def download_ncro_por(dest, variables=None):
         | upper_station.isin(dbase.agency_id + "Q")
     )
     if variables is None:
-        variables = ["flow", "elev", "ec", "temp", "do", "ph", "turbidity", "cla"]
+        variables = ["flow","velocity","elev", "ec", "temp", "do", "ph", "turbidity", "cla"]
     download_ncro_period_record(
         idf.loc[is_in_dbase, :],
         dbase,
