@@ -20,7 +20,7 @@ import datetime as dt
 import time
 import numpy as np
 import pandas as pd
-import concurrent
+import concurrent.futures
 from dms_datastore.process_station_variable import (
     process_station_list,
     stationfile_or_stations,
