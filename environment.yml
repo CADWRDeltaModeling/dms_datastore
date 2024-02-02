@@ -18,8 +18,12 @@ dependencies:
   - fonttools
   - pyparsing
   - kiwisolver
-  - pip:
-     - -e git+https://github.com/CADWRDeltaModeling/dms_datastore#egg=dms_datastore
+  - eccodes
+  - pycparser
+  - cfgrib
+  - cffi
+  #- pip:
+  #   - -e git+https://github.com/CADWRDeltaModeling/dms_datastore#egg=dms_datastore
 # alternatively if you want to develop ...
 # git clone this repo
 # conda env create -f environment.yml
