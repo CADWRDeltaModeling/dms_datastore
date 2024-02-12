@@ -290,4 +290,7 @@ pcsb,B9541060,Paradise Cut Upstream at South Bridge,37.79993,-121.369014,643589.
 pcnb,B9551070,Paradise Cut Upstream at North Bridge,37.80111,-121.367467,643723.15866566,4185003.32130925,,B9551070,,dwr_ncro,,,x,(MSS) 3/15/2023 - Current
 glw,B9529700,Grant Line Canal West,37.82029,-121.521,630172.109,4186906.468,,B9529700,,dwr_ncro,,,x,(MSS) 2/7/2023 - Current
 dar,B95423,Drainage at Arbor Road,37.768960,-121.419410,639210.27266915, 4181357.38427916,,B95423,,dwr_ncro,x,x,x,
+wwc,wwc,Woodward Cut,37.914053,-121.555311,626991.4838,4197231.37,,,,dwr_ncro,,x,,Special Flow Study for 2021 False River Barrier Installation
+rrc_n,rrc_n,Railroad Cut North,37.9406278,-121.5556612,626914.514,4200211.088,,,,dwr_ncro,,x,,Special Flow Study for 2021 False River Barrier Installation
+rrc_s,rrc_s,Railroad Cut South,37.9395028,-121.5564612,626846.1491,4200085.169,,,,dwr_ncro,,x,,Special Flow Study for 2021 False River Barrier Installation
 ##id,agency_id,name,lat,lon,x,y,d1641_id,wdl_id,cdec_id,agency,stage,flow,quality,notes
