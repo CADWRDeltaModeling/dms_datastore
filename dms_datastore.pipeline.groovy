@@ -16,6 +16,7 @@ pipeline {
         REPO='y:\\repo\\continuous'
         REPO_STAGING_REF='y:\\repo_staging\\continuous'
         REPO_STAGING='y:\\jenkins_repo_staging\\continuous'
+        CONDA_BIN='d:\\ProgramData\\miniconda3\\condabin'
     }
     stages {
         stage('Mount Network Drive') {
@@ -101,7 +102,7 @@ pipeline {
                     steps {
                         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                             dir("${env.REPO_STAGING}/rawx"){
-                                bat "call conda activate dms_datastore & call populate_repo --agencies=dwr_ncro --dest=raw-dwr_ncro"
+                                bat "call %CONDA_BIN%\\conda activate dms_datastore & call populate_repo --agencies=dwr_ncro --dest=raw-dwr_ncro"
                             }
                         }
                     }
@@ -114,7 +115,7 @@ pipeline {
                     steps {
                         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                             dir("${env.REPO_STAGING}/rawx"){
-                                bat "call conda activate dms_datastore & call populate_repo --agencies=dwr --dest=raw-dwr"
+                                bat "call %CONDA_BIN%\\conda activate dms_datastore & call populate_repo --agencies=dwr --dest=raw-dwr"
                             }
                         }
                     }
@@ -127,7 +128,7 @@ pipeline {
                     steps {
                         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                             dir("${env.REPO_STAGING}/rawx"){
-                                bat "call conda activate dms_datastore & call populate_repo --agencies=usgs --dest=raw-usgs"
+                                bat "call %CONDA_BIN%\\conda activate dms_datastore & call populate_repo --agencies=usgs --dest=raw-usgs"
                             }
                         }
                     }
@@ -140,7 +141,7 @@ pipeline {
                     steps {
                         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                             dir("${env.REPO_STAGING}/rawx"){
-                                bat "call conda activate dms_datastore & call populate_repo --agencies=noaa --dest=raw-noaa"
+                                bat "call %CONDA_BIN%\\conda activate dms_datastore & call populate_repo --agencies=noaa --dest=raw-noaa"
                             }
                         }
                     }
@@ -153,7 +154,7 @@ pipeline {
                     steps {
                         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                             dir("${env.REPO_STAGING}/rawx"){
-                                bat "call conda activate dms_datastore & call populate_repo --agencies=dwr_des --dest=raw-dwr_des"
+                                bat "call %CONDA_BIN%\\conda activate dms_datastore & call populate_repo --agencies=dwr_des --dest=raw-dwr_des"
                             }
                         }
                     }
@@ -166,7 +167,7 @@ pipeline {
                     steps {
                         catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
                             dir("${env.REPO_STAGING}/rawx"){
-                                bat "call conda activate dms_datastore & call populate_repo --agencies=usbr --dest=raw-usbr"
+                                bat "call %CONDA_BIN%\\conda activate dms_datastore & call populate_repo --agencies=usbr --dest=raw-usbr"
                             }
                         }
                     }
@@ -202,7 +203,7 @@ pipeline {
         stage('compare raw') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat '''call conda activate dms_datastore & call compare_directories --base %REPO_STAGING_REF%/raw --compare raw > compare_raw.txt'''
+                    bat '''call %CONDA_BIN%\\conda activate dms_datastore & call compare_directories --base %REPO_STAGING_REF%/raw --compare raw > compare_raw.txt'''
                 }
             }
         }
@@ -227,7 +228,7 @@ pipeline {
                     agent any
                     steps{
                         dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=dwr_ncro'
+                            bat 'call %CONDA_BIN%\\conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=dwr_ncro'
                         }
                     }
                 }
@@ -238,7 +239,7 @@ pipeline {
                     agent any
                     steps{
                         dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=cdec'
+                            bat 'call %CONDA_BIN%\\conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=cdec'
                         }
                     }
                 }
@@ -249,8 +250,8 @@ pipeline {
                     agent any
                     steps{
                         dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=usgs'
-                            bat 'call conda activate dms_datastore & call usgs_multi --fpath formatted'
+                            bat 'call %CONDA_BIN%\\conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=usgs'
+                            bat 'call %CONDA_BIN%\\conda activate dms_datastore & call usgs_multi --fpath formatted'
                         }
                     }
                 }
@@ -261,7 +262,7 @@ pipeline {
                     agent any
                     steps{
                         dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=noaa'
+                            bat 'call %CONDA_BIN%\\conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=noaa'
                         }
                     }
                 }
@@ -272,7 +273,7 @@ pipeline {
                     agent any
                     steps{
                         dir("${env.REPO_STAGING}") {
-                            bat 'call conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=dwr_des'
+                            bat 'call %CONDA_BIN%\\conda activate dms_datastore & call reformat --inpath raw --outpath formatted --agencies=dwr_des'
                         }
                     }
                 }
@@ -281,14 +282,14 @@ pipeline {
         stage('build inventory') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat 'call conda activate dms_datastore & call inventory --repo formatted'
+                    bat 'call %CONDA_BIN%\\conda activate dms_datastore & call inventory --repo formatted'
                 }
             }
         }
         stage('compare formatted') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat 'call conda activate dms_datastore & call compare_directories --base %REPO%/formatted --compare formatted > compare_formatted.txt'
+                    bat 'call %CONDA_BIN%\\conda activate dms_datastore & call compare_directories --base %REPO%/formatted --compare formatted > compare_formatted.txt'
                 }
             }
         }

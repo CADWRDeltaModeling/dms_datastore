@@ -7,6 +7,7 @@ pipeline {
         // Declaring screening variables
         SCREEN_CONFIG = 'screen_config_v20230126'
         SRCDIR = 'formatted'
+        CONDA_BIN='d:\\ProgramData\\miniconda3\\condabin'
     }
     stages {
         stage('Mount Network Drive') {
@@ -69,7 +70,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params elev"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params elev"
                         }
                     }
                 }
@@ -77,7 +78,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params flow"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params flow"
                         }
                     }
                 }
@@ -85,7 +86,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params ec"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params ec"
                         }
                     }
                 }
@@ -93,7 +94,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params temp"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params temp"
                         }
                     }
                 }
@@ -101,7 +102,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params turbidity"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params turbidity"
                         }
                     }
                 }
@@ -109,7 +110,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params ssc"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params ssc"
                         }
                     }
                 }
@@ -117,7 +118,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params ph"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params ph"
                         }
                     }
                 }
@@ -125,7 +126,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params do"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params do"
                         }
                     }
                 }
@@ -133,7 +134,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params predictions"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params predictions"
                         }
                     }
                 }
@@ -141,7 +142,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params cla"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params cla"
                         }
                     }
                 }
@@ -149,7 +150,7 @@ pipeline {
                     agent any
                     steps {
                         dir("${env.REPO_STAGING}"){
-                            bat "call conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params velocity"
+                            bat "call %CONDA_BIN%\\conda activate dms_datastore & auto_screen --config %SCREEN_CONFIG% --fpath %SRCDIR% --dest screened --plot_dest plots --params velocity"
                         }
                     }
                 }
@@ -158,7 +159,7 @@ pipeline {
         stage('compare screened') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat '''call conda activate dms_datastore & call compare_directories --base %REPO%/screened --compare screened'''
+                    bat '''call %CONDA_BIN%\\conda activate dms_datastore & call compare_directories --base %REPO%/screened --compare screened'''
                 }
             }
         }
