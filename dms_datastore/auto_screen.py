@@ -37,7 +37,7 @@ def screener(
     do_plot=False,
     plot_label=None,
     return_anomaly=False,
-    plot_dest="interactive",
+    plot_dest=None, # directory or 'interactive' or None for no plots
 ):
     """Performs yaml-specified screening protocol on time series"""
     print("screener", station_id, subloc, param)
@@ -84,11 +84,14 @@ def screener(
             full.columns = [label]
         else:
             full[label] = anomaly
+        print("step complete")
 
     if do_plot:
+        print("plotting")
         plot_anomalies(
             ts_process, full, plot_label, gap_fill_final=3, plot_dest=plot_dest
         )
+        print("plotting complete")
     # This uses nullable integer so we can leave blank
     ts["user_flag"] = full.any(axis=1).astype(pd.Int64Dtype())  # This is nullable
     ts["user_flag"] = ts["user_flag"].mask(ts["user_flag"] == 0, other=pd.NA)
@@ -96,14 +99,17 @@ def screener(
         return ts, full
     else:
         return ts
+    print("time series screen complete")
 
-
-def plot_anomalies(
-    ts, anomaly_df, plot_label, gap_fill_final=0, plot_dest="interactive"
-):
+def plot_anomalies(ts, 
+                   anomaly_df, 
+                   plot_label, 
+                   gap_fill_final=0, 
+                   plot_dest="interactive"):
     mask = anomaly_df.any(axis=1)
     fig, (ax0, ax1) = plt.subplots(2, sharex=True, sharey=True)
-    ts.plot(label="series", color="0.7", ax=ax0)
+    ax0.plot(ts.index,ts.value, color = "0.7",label="series")
+    #ts.plot(label="series", color="0.7", ax=ax0)
     nstep = len(anomaly_df.columns)
     for i, col in enumerate(anomaly_df.columns):
         subts = ts.loc[anomaly_df[col]]  # anomaly_df is binary, so acts on index
@@ -129,7 +135,7 @@ def plot_anomalies(
         plot_label = f"Station: {station_id} Subloc: {subloc} Param {param}"
     ax0.set_title(plot_label)
     ts_masked = ts.mask(mask).interpolate(limit=gap_fill_final)
-    ts_masked.plot(ax=ax1)
+    ax1.plot(ts_masked.index,ts_masked.value)
     ff = "_".join(plot_label.split("_")[1:])
     if plot_dest == "interactive":
         plt.show()
@@ -149,11 +155,10 @@ def filter_inventory_(inventory, stations, params):
     if params is not None:
         if isinstance(params, str):
             params = [params]
-            print(params)
+            print(f"params: {params}")
         inventory = inventory.loc[
             inventory.index.get_level_values("param").isin(params), :
         ]
-    print(inventory)
     return inventory
 
 
@@ -163,7 +168,7 @@ def auto_screen(
     dest="screened",
     stations=None,
     params=None,
-    plot_dest="plots",
+    plot_dest=None,
     start_station=None,
 ):
     """Auto screen all data in directory
@@ -253,7 +258,7 @@ def auto_screen(
             else "default"
         )
         proto = context_config(screen_config, station_id, subloc, param)
-        do_plot = True
+        do_plot = (plot_dest is None)
         subloc_label = "" if subloc == "default" else subloc
         plot_label = f"{station_info['name']}_{station_id}@{subloc_label}_{param}"
         screened = screener(
@@ -276,8 +281,9 @@ def auto_screen(
         else:
             output_fname = f"{agency}_{station_id}_{row.agency_id}_{param}.csv"
         output_fpath = os.path.join(dest, output_fname)
+        print("start write")
         write_ts_csv(screened, output_fpath, meta, chunk_years=True)
-
+        print("end write")
 
 def update_steps(proto, x):
     """Modifies the steps in proto with changes in x.
@@ -345,10 +351,9 @@ def context_config(screen_config, station_id, subloc, param):
     """
 
     station_info = station_dbase()
-    print("config")
-    print(screen_config)
+
     region_file = screen_config["regions"]["region_file"]
-    print("REgion file: ", region_file)
+    print("Region file: ", region_file)
 
     if not (os.path.exists(region_file)):
         region_file = os.path.join(screen_config["config_dir"], region_file)
@@ -470,9 +475,6 @@ def spatial_config(configfile, x, y):
     return checker.region_info(x, y)
 
 
-# datum_adj = pd.read_csv("datum_adjusts.csv",sep=",",index_col="station_id")
-# usgs_subloc = pd.read_csv("usgs_meta3.csv",sep=",",dtype={"station_id":str,"param":str,"ts_id":str,"var_id":str})
-
 
 def ncro_fetcher(repo_path, station_id, param, subloc):
     """Reads NCRO data, correctly folding together NCRO and CDEC by priority.
@@ -530,7 +532,11 @@ def create_argparse():
     )
     parser.add_argument("--stations", nargs="+", type=str)
     parser.add_argument("--params", nargs="+", type=str)
-    parser.add_argument("--plot_dest", default="interactive", type=str)
+    parser.add_argument("--plot_dest", 
+                        default=None, 
+                        type=str,
+                        help="directory or the word 'interactive' for screen or None for no plots"
+                        )
     parser.add_argument(
         "--start_station",
         type=str,
