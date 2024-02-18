@@ -111,9 +111,9 @@ def compare_dir(base,
             
     outline(f"Computing matches between base={base} and comp={comp}") 
     if not(os.path.exists(base)):
-        raise ValueError("Base directory does not exist")
+        raise ValueError(f"Base directory {base} does not exist")
     if not(os.path.exists(comp)):
-        raise ValueError("Comparison directory does not exist")       
+        raise ValueError(f"Comparison directory {comp} does not exist")       
     
     
     base_files = glob.glob(os.path.join(base,pat))
