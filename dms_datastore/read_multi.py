@@ -21,6 +21,11 @@ def infer_source_priority(station_id):
     agency = db.loc[station_id,'agency']
     return priorities[agency] if agency in priorities else None
 
+def fahren2cel(ts):
+    tsout = fahrenheit_to_celsius(ts)
+    tsout = tsout.round(2)
+    return tsout
+
 
 def read_ts_repo(station_id,variable,
                  subloc=None,repo=None,
@@ -84,7 +89,7 @@ def detect_dms_unit(fname):
     elif unit == "cfs":
         return "ft^3/s",None
     elif unit == "deg_f":
-        return "deg_c",fahrenheit_to_celsius
+        return "deg_c",fahren2cel
     else:
         return unit, None
 
@@ -107,7 +112,9 @@ def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=T
         # assume consistency within each pattern
         unit,transform = detect_dms_unit(tsfiles[0])
         units.append((unit,transform))
-        metas.append(read_yaml_header(tsfiles[0]))
+        example_header = read_yaml_header(tsfiles[0])
+        example_header["unit"] = unit
+        metas.append(example_header)
         some_files = True
     pats = pats_revised 
     if not some_files:
