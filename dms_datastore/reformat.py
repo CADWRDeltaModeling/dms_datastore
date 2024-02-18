@@ -183,12 +183,13 @@ def infer_internal_meta_for_file(fpath):
     slookup = station_dbase()
     fname = os.path.split(fpath)[1]
     meta = interpret_fname(fname)
+    station_id = meta["station_id"]
     meta_out = {}
     meta_out["param"] = meta["param"]
     source = meta["agency"]
+    meta_out["agency"] = slookup.loc[station_id,"agency"]
     meta_out["source"] = source
-    station_id = meta["station_id"]
-    meta_out["station_id"] = meta["station_id"]
+    meta_out["station_id"] = station_id
     station_name = slookup.loc[station_id, 'name']
     meta_out["station_name"] = station_name
     meta_out["sublocation"] = meta["subloc"] if meta["subloc"] is not None else "default"
@@ -357,8 +358,9 @@ def reformat(inpath, outpath, pattern):
                 else:
                     content = content + f"{item}: {hdr_meta[item]}\n"
             write_ts_csv(df, newfname, content, chunk_years=True)
-        except:
+        except Exception as exc:
             print(f"Failed on file/pattern: {fpath}")
+            print(f"Exception args: \n {exc.args}")
             failures.append(fpath)
             continue
 
@@ -378,7 +380,7 @@ def reformat_main(inpath="raw", outpath="formatted", agencies=["usgs", "des", "c
         pattern[agency] = [f"{agency}*{ext}" for ext in exts]
 
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
+    with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
         future_to_agency = {executor.submit(reformat, inpath, outpath, pattern[agency]):
                             agency for agency in all_agencies}
                             
