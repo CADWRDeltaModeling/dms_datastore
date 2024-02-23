@@ -82,7 +82,7 @@ pipeline {
         stage('build inventory') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat 'call %CONDA_BIN%\\conda activate dms_datastore & call inventory --repo formatted --excepts exceptions.csv --outfile compare_formatted.txt'
+                    bat 'call %CONDA_BIN%\\conda activate dms_datastore & call inventory --repo formatted'
                 }
             }
         }
