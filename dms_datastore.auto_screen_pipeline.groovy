@@ -173,4 +173,23 @@ pipeline {
             }
         }
     }
+    post {
+        success {
+            // Actions to perform on success
+            mail to: "${env.DATASTORE_ADMIN_EMAILS}", // make sure to define this in the global properties of Jenkins
+                    subject: "Passed Pipeline: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: "All good with: ${env.BUILD_URL}"
+            echo 'Pipeline completed successfully.'
+        }
+        failure {
+            // Actions to perform on failure
+            mail to: "${env.DATASTORE_ADMIN_EMAILS}",
+                    subject: "Failed Pipeline: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: "Something is wrong with this build: ${env.BUILD_URL}"
+        }
+        always {
+            // Actions to perform after every run regardless of the result
+            echo 'Pipeline finished.'
+        }
+    }
 }

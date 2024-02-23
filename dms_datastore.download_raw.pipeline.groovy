@@ -203,7 +203,7 @@ pipeline {
         stage('compare raw') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat '''call %CONDA_BIN%\\conda activate dms_datastore & call compare_directories --base %REPO_STAGING_REF%/raw --compare raw --excepts exceptions.csv --outfile compare_raw.txt'''
+                    bat '''call %CONDA_BIN%\\conda activate dms_datastore & call compare_directories --base %REPO_STAGING_REF%/raw --compare raw > compare_raw.txt'''
                 }
             }
         }
@@ -215,6 +215,25 @@ pipeline {
                 }
                 bat "echo All done - ${BUILD_TIME}"
             }
+        }
+    }
+    post {
+        success {
+            // Actions to perform on success
+            mail to: "${env.DATASTORE_ADMIN_EMAILS}", // make sure to define this in the global properties of Jenkins
+                 subject: "Passed Pipeline: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "All good with: ${env.BUILD_URL}"
+            echo 'Pipeline completed successfully.'
+        }
+        failure {
+            // Actions to perform on failure
+            mail to: "${env.DATASTORE_ADMIN_EMAILS}",
+                 subject: "Failed Pipeline: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                 body: "Something is wrong with this build: ${env.BUILD_URL}"
+        }
+        always {
+            // Actions to perform after every run regardless of the result
+            echo 'Pipeline finished.'
         }
     }
 }

@@ -1,16 +1,5 @@
 pipeline {
     agent any
-    parameters{
-        booleanParam(name: 'Full Refresh', defaultValue: true, description: 'Full refresh or partial refresh?')
-        booleanParam(name: 'DWR NCRO', defaultValue: true, description: 'Process DWR NCRO?')
-        booleanParam(name: 'DWR', defaultValue: true, description: 'Process DWR?')
-        booleanParam(name: 'USGS', defaultValue: true, description: 'Process USGS?')
-        booleanParam(name: 'NOAA', defaultValue: true, description: 'Process NOAA?')
-        booleanParam(name: 'DWR DES', defaultValue: true, description: 'Process DWR DES?')
-        booleanParam(name: 'USBR', defaultValue: true, description: 'Process USBR?')
-        booleanParam(name: 'CDEC', defaultValue: true, description: 'Process CDEC?')
-
-    }
     environment {
         //Location of the repository
         REPO='y:\\repo\\continuous'
@@ -101,6 +90,25 @@ pipeline {
                 }
                 bat "echo All done - ${BUILD_TIME}"
             }
+        }
+    }
+    post {
+        success {
+            // Actions to perform on success
+            mail to: "${env.DATASTORE_ADMIN_EMAILS}", // make sure to define this in the global properties of Jenkins
+                    subject: "Passed Pipeline: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: "All good with: ${env.BUILD_URL}"
+            echo 'Pipeline completed successfully.'
+        }
+        failure {
+            // Actions to perform on failure
+            mail to: "${env.DATASTORE_ADMIN_EMAILS}",
+                    subject: "Failed Pipeline: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    body: "Something is wrong with this build: ${env.BUILD_URL}"
+        }
+        always {
+            // Actions to perform after every run regardless of the result
+            echo 'Pipeline finished.'
         }
     }
 }
