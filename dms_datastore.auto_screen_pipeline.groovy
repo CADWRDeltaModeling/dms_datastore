@@ -159,7 +159,7 @@ pipeline {
         stage('compare screened') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat '''call %CONDA_BIN%\\conda activate dms_datastore & call compare_directories --base %REPO%/screened --compare screened --excepts exceptions.csv --outfile compare_raw.txt'''
+                    bat '''call %CONDA_BIN%\\conda activate dms_datastore & call compare_directories --base %REPO%/screened --compare screened > compare_raw.txt'''
                 }
             }
         }
