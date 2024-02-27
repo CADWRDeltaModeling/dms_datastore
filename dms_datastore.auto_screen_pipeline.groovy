@@ -156,10 +156,25 @@ pipeline {
                 }
             }
         }
+        // copy files from REPO screened directory that are of the form noaa*predictions*.csv
+        stage('copy noaa predictions') {
+            steps {
+                dir("${env.REPO_STAGING}"){
+                    bat 'xcopy /s /i /y /q %REPO%\\screened\\noaa*predictions*.csv screened'
+                }
+            }
+        }
+        stage('build inventory') {
+            steps {
+                dir("${env.REPO_STAGING}"){
+                    bat 'call %CONDA_BIN%\\conda activate dms_datastore & call inventory --repo screened'
+                }
+            }
+        }
         stage('compare screened') {
             steps {
                 dir("${env.REPO_STAGING}"){
-                    bat '''call %CONDA_BIN%\\conda activate dms_datastore & call compare_directories --base %REPO%/screened --compare screened > compare_raw.txt'''
+                    bat '''call %CONDA_BIN%\\conda activate dms_datastore & call compare_directories --base %REPO%/screened --compare screened > compare_screened.txt'''
                 }
             }
         }
