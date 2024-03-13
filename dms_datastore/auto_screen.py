@@ -237,9 +237,11 @@ def auto_screen(
         fetcher = custom_fetcher(agency)
         # these may be lists
         try:
+            #print(f"fetching {fpath},{station_id},{param}")
             meta_ts = fetcher(fpath, station_id, param, subloc=subloc)
         except:
             print("Read failed for ", station_id, param, subloc)
+            meta_ts = None
 
         if meta_ts is None:
             print(f"No data found for {station_id} {subloc} {param}")
