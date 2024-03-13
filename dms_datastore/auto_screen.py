@@ -260,7 +260,7 @@ def auto_screen(
             else "default"
         )
         proto = context_config(screen_config, station_id, subloc, param)
-        do_plot = (plot_dest is None)
+        do_plot = (plot_dest is not None)
         subloc_label = "" if subloc == "default" else subloc
         plot_label = f"{station_info['name']}_{station_id}@{subloc_label}_{param}"
         screened = screener(

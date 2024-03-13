@@ -1210,7 +1210,7 @@ def path_pattern(path_pattern):
     return fdir, fpat
 
 
-def infer_freq_robust(index, preferred=["H", "15T", "6T", "10T", "H", "D"]):
+def infer_freq_robust(index, preferred=["h", "15min", "6min", "10min", "h", "d"]):
     index = index.round("1min")
 
     if len(index) < 8:
@@ -1233,10 +1233,9 @@ def infer_freq_robust(index, preferred=["H", "15T", "6T", "10T", "H", "D"]):
             for p in preferred:
                 freq = pd.tseries.frequencies.to_offset(p)
                 tester = index.round(p)
-                diff = (index - tester) < freq / 6
-                print(diff.sum() / len(diff))
-                if diff.all():
-                    print("15T")
+                diff = (index - tester) < (freq / 6)
+                frac = diff.mean()
+                if frac > 0.995:
                     return p
         if f is None:
             raise ValueError(
