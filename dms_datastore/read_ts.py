@@ -1233,9 +1233,9 @@ def infer_freq_robust(index, preferred=["h", "15min", "6min", "10min", "h", "d"]
             for p in preferred:
                 freq = pd.tseries.frequencies.to_offset(p)
                 tester = index.round(p)
-                diff = (index - tester) < (freq / 6)
+                diff = (index - tester) < (freq / 5)
                 frac = diff.mean()
-                if frac > 0.995:
+                if frac > 0.98:
                     return p
         if f is None:
             raise ValueError(

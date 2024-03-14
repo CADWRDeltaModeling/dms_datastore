@@ -240,7 +240,7 @@ def auto_screen(
             #print(f"fetching {fpath},{station_id},{param}")
             meta_ts = fetcher(fpath, station_id, param, subloc=subloc)
         except:
-            print("Read failed for ", station_id, param, subloc)
+            print("Read failed for ", fpath,station_id, param, subloc)
             meta_ts = None
 
         if meta_ts is None:
