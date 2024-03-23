@@ -218,7 +218,7 @@ temp.columns = ["sjr","east","american","sac","yolo_toedrain"]
 # eliminate extremes    
 temp[temp>40] = np.nan
 temp[temp<1] = np.nan 
-temp = temp.resample('15T').asfreq()
+temp = temp.resample('15min').asfreq()
 
 # fillin approximations
 # this is a function to allow some flexibility in how it is done
