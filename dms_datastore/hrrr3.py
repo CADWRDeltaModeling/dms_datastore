@@ -253,7 +253,8 @@ class HRRR:
 
         bdate = date.strftime('%Y %m %d %H').split(' ')
         bdate = [int(q) for q in bdate[:4]] + [0]
-
+        today_str = datetime.now().strftime("%Y%m%d")
+        fout.attrs['time_of_preparation'] = today_str
         fout.time.attrs = {
             'long_name': 'Time',
             'standard_name': 'time',
