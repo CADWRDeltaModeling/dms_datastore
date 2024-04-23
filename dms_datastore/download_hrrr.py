@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Jan 20 09:07:50 2023
-Download NOAA High-Resolution Rapid Refresh (HRRR) Model using AWS bucket service
+Download NOAA High-Resolution Rapid Refresh (HRRR) Model using AWS bucket
+service
 """
 import argparse
 from dms_datastore.hrrr3 import *
