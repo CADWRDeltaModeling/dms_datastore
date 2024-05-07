@@ -1044,6 +1044,27 @@ def read_noaa(
     )
     return ts
 
+# This reader must be last
+def read_last_resort_csv(fpath_pattern, start=None, end=None, selector=None, force_regular=False,nrows=None):
+    ts = csv_retrieve_ts(
+        fpath_pattern,
+        start,
+        end,
+        force_regular,
+        selector=None,
+        format_compatible_fn=lambda x: True,
+        qaqc_selector=None,
+        parsedates=[0],
+        indexcol=0,
+        header=0,
+        sep=",",
+        comment="#",
+        nrows=nrows,
+    )
+    return ts        
+    
+
+
 
 def vtide_date_parser(*args):
     x = args[0] + "T" + args[1] if len(args) == 2 else args
@@ -1124,6 +1145,7 @@ def read_ts(
         read_wdl3,
         read_wdl2,
         read_wdl,
+        read_last_resort_csv,
     ]
     ts = None
     reader_count = 0
