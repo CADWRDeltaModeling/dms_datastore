@@ -110,7 +110,7 @@ def process_station_list(stationlist,id_col="id",agency_id_col="agency_id",
 
     station_df = station_df.rename(columns={"id" : "station_id"})
     # Any nans in the agency_id indicate a lookup failure. As a backup assume the agency_id was already provided in the id column
-    station_df["agency_id"].fillna(station_df.station_id,inplace=True)
+    station_df["agency_id"]=station_df["agency_id"].fillna(station_df.station_id)
     
     return station_df   #[["station_id","agency_id","subloc","param","src_var_id"]]
             
