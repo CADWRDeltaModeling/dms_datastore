@@ -1449,8 +1449,8 @@ def csv_retrieve_ts(
             # It is costly to try to handle blanks differently for both data
             # (for which we usually want blanks to be NaN and alphanumeric flags.
             if blank_qaqc_good:
-                if np.NaN not in qaqc_accept:
-                    qaqc_accept.append(np.NaN)
+                if np.nan not in qaqc_accept:
+                    qaqc_accept.append(np.nan)
             try:
                 dset.loc[
                     ~dset.loc[:, qaqc_selector[0]].isin(qaqc_accept), selector
