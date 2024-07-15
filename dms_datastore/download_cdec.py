@@ -145,7 +145,7 @@ def download_station_data(row, dest_dir, start, end, endfile,
                 found = True
                 with open(path, "w") as f:
                     f.write(station_html)
-                logger.info("Found, duration code: %s" % dur)
+                logger.debug("Found, duration code: %s" % dur)
                 break
         if found:
             break
@@ -218,9 +218,9 @@ def cdec_download(
                 # logger.error(f"Exception occurred during download: {e}")
 
     if len(failures) == 0:
-        logger.info("No failed stations")
+        logger.debug("No failed station variable combinations")
     else:
-        logger.info("Failed query stations: ")
+        logger.debug("Failed query stations: ")
         for failure in failures:
             logger.info(failure)
 

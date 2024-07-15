@@ -1,7 +1,7 @@
 import logging
 import os
 
-def setup_logger(console_log_level=logging.INFO, file_log_level=logging.DEBUG, 
+def setup_logger(console_log_level=logging.INFO, file_log_level=logging.INFO, 
                   log_format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"):
     
     file_log_name= "logger_datastore.log"

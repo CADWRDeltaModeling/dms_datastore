@@ -180,9 +180,9 @@ def download_ncro_period_record(
             except Exception as e:
                 logger.error(f"Exception occurred during download: {e}")
 
-    logger.info("Failures")
+    logger.debug("Failures in download_ncro")
     for f in failures:
-        logger.info(f)
+        logger.debug(f)
 
 
 def download_ncro_por(dest, variables=None):

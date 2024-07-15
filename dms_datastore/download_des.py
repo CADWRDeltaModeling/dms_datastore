@@ -233,7 +233,7 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
 
             
         if len(rids) == 0: 
-            logger.info(f"No Data for station {station} and param {paramname}, agency station id {agency_id}")
+            logger.debug(f"No Data for station {station} and param {paramname}, agency station id {agency_id}")
             failures.append((station,paramname))
             continue # next request
 

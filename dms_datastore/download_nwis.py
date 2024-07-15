@@ -126,12 +126,12 @@ def download_station(
             station_html = ""  # Catches incomplete read error
         if len(station_html) > 30 and not "No sites found matching" in station_html:
             found = True
-            logger.info(f"Writing to path: {path}")
+            logger.debug(f"Writing to path: {path}")
             with open(path, "w") as f:
                 f.write(station_html)
             successes.add((station, paramname))
         if not found:
-            logger.info(f"Station {station} query failed or produced no data")
+            logger.debug(f"Station {station} query failed or produced no data")
             if (station, paramname) not in failures:
                 failures.append((station, paramname))
 
