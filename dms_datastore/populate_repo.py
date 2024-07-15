@@ -19,6 +19,7 @@ SAFEGUARD = False
 import glob
 from .logging_config import logger
 import os
+import shutil
 import re
 import traceback
 import argparse
@@ -146,6 +147,7 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
         head, ext = os.path.splitext(pat)
         parts = head.split("_")
         oldstart, oldend = parts[-2:]
+        ts = None
         try:
             ts = read_ts(fname, force_regular=False)
         except:
@@ -153,15 +155,29 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
             if file_size < 25000:
                 os.remove(fname)
                 bad.append(fname + " (small,deleted)")
+                logger.info(f"Small file {fname} caused read exception. Deleted during rename")
             else:
-                bad.append(fname + " (not small)")
-        if ts.first_valid_index() is None:
+                if not os.path.exists("quarantine"):
+                    os.makedirs("quarantine")
+                shutil.copy(fname,"quarantine")
+                bad.append(fname + " (not small, not deleted)")
+                logger.info(f"non-small file {fname} caused read exception. Not deleted during rename")
+            continue
+        if ts is None:
+            logger.info(f"File {fname} produced None during read")
+            bad.append(fname + " returned None for time series")
+            os.remove(fname)
+        elif ts.first_valid_index() is None:
             if ts.isnull().all(axis=None):
                 logger.info(f"All values are bad. Deleting file {fname}")
                 bad.append(fname + " (all bad, deleting)")
                 os.remove(fname)
             else:
                 raise ValueError(f"Issue obtaining start time from file: {fname}")
+        elif not hasattr(ts.first_valid_index(),"year"):
+            logger.info(f"Index in file {fname} not a time stamp: {ts.first_valid_index()}")
+            bad.append(fname + " (first index not a time stamp)")
+            os.remove(fname)
         else:
             newstart = str(ts.first_valid_index().year)
             newend = oldend if oldend == "9999" else str(ts.last_valid_index().year)
@@ -529,7 +545,8 @@ def rationalize_time_partitions(pat):
                     fnamesuper = meta["filename"]
                     logger.info(f"superseded: {fnamesuper} superseded by:")
                     for sf in superseding:
-                        logger.info("  ", sf)
+                        info_fname = sf['filename']
+                        logger.info(f"  {info_fname}")
                     os.remove(os.path.join(repodir, fnamesuper))
                     superseded.append(fnamesuper)
 
