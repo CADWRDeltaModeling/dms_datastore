@@ -17,12 +17,12 @@ def to_wildcard(fname,remove_source=False):
     """ Convert filename to a wildcard for date. 
     If remove_source, the source slot will also be wildcard
     """
-    pat1 = r".*_(\d{4}_\d{4})\.csv"
+    pat1 = r".*_(\d{4}_\d{4})\.\S{3}"
     re1 = re.compile(pat1)
     if re1.match(fname): 
-        print("match1",fname)
+        out = fname[0:-13] + "*" +fname[-4:]
     else:
-        pat2 = r".*(_\d{4})\.csv"
+        pat2 = r".*(_\d{4})\.\S{3}"
         re2 = re.compile(pat2)
         if re2.match(fname):
             out = fname[0:-8]+"*"+fname[-4:]
@@ -62,7 +62,6 @@ def repo_file_inventory(fpath,full=True,by="file_pattern"):
     if by != 'file_pattern': 
         raise NotImplementedError("Only by=file_pattern is implemented")
     station_db = station_dbase()
-    print(station_db)
     allfiles = glob.glob(os.path.join(fpath,"*_*.rdb")) + glob.glob(os.path.join(fpath,"*_*.csv"))
     # Dictionary with station_id,agency_id,variable,,start,end, etc
     allmeta = [interpret_fname(fname) for fname in allfiles] 
@@ -71,17 +70,35 @@ def repo_file_inventory(fpath,full=True,by="file_pattern"):
         raise ValueError("Empty inventory")
     metadf['original_filename'] = metadf['filename']  # preserves the entire filename so first file can be parsed
     metadf['filename'] = metadf.apply(lambda x: to_wildcard(x.filename),axis=1)
-    grouped_meta = metadf.groupby(["filename"]).agg(
-        {
-         "station_id":'first',
-         "subloc":'first',
-         "param":'first',
-         "agency": "first",
-         "agency_id":['first'],
-         "year":['min','max'],
-         "original_filename":['first']   # the first file will be used to scrape metadata then dropped
-         }
-        )
+    double_year_format = "syear" in metadf.columns
+    if "syear" in metadf.columns:
+        # double year (other_data_2000_2024.csv) format
+        # this was a quick patch and not sure that the groupby is needed
+        grouped_meta = metadf.groupby(["filename"]).agg(
+            {
+            "station_id":'first',
+            "subloc":'first',
+            "param":'first',
+            "agency": "first",
+            "agency_id":['first'],
+            "syear":['min'],
+            "eyear":['max'],
+            "original_filename":['first']   # the first file will be used to scrape metadata then dropped
+            }
+            )
+    
+    else:
+        grouped_meta = metadf.groupby(["filename"]).agg(
+            {
+            "station_id":'first',
+            "subloc":'first',
+            "param":'first',
+            "agency": "first",
+            "agency_id":['first'],
+            "year":['min','max'],
+            "original_filename":['first']   # the first file will be used to scrape metadata then dropped
+            }
+            )
     grouped_meta.columns = ['station_id','subloc','param','source',
                             'agency_id','min_year','max_year','original_filename'] 
 
@@ -90,7 +107,10 @@ def repo_file_inventory(fpath,full=True,by="file_pattern"):
                             
     metastat.rename(mapper={"lat":"agency_lat","lon":"agency_lon"},axis='columns')
     print(metastat[['original_filename']])
-    metastat['unit'] = metastat.apply(
+    if double_year_format:
+        metastat['unit'] = None
+    else:
+        metastat['unit'] = metastat.apply(
                           lambda x: scrape_header_metadata(
                           os.path.join(fpath,x.original_filename)),axis=1)
     metastat.drop(labels=['notes','stage','flow','quality','wdl_id','cdec_id','d1641_id','original_filename'],
@@ -134,24 +154,43 @@ def repo_data_inventory(fpath,full=True,by="file_pattern"):
     metadf = pd.DataFrame(allmeta)
     metadf['original_filename'] = metadf.filename
     metadf['filename'] = metadf.apply(lambda x: to_wildcard(x.filename,remove_source=True),axis=1)
+    double_year_format = "syear" in metadf.columns
 
-    meta2 = metadf.groupby(["station_id","subloc","param"]).first()
-    grouped_meta = metadf.groupby(["station_id","subloc","param"],dropna=False).agg(
-        {
-         "agency": lambda ser: reduce(prioritize_source,ser),
-         "agency_id":['first'],
-         "year":['min','max'],
-         "filename": ['first'],
-         "original_filename":['first']   # this will be used to scrape metadata then dropped
-         }
-        )
+    #meta2 = metadf.groupby(["station_id","subloc","param"]).first()
+    if double_year_format:
+        # todo: is a groupby necessary for double year format? are there duplicates?
+        grouped_meta = metadf.groupby(["station_id","subloc","param"],dropna=False).agg(
+            {
+             "agency": lambda ser: reduce(prioritize_source,ser),
+             "agency_id":['first'],
+             "syear":['min'],
+             "eyear":['max'],
+             "filename": ['first'],
+             "original_filename":['first']   # this will be used to scrape metadata then dropped
+             }
+            )
+    else:        
+        grouped_meta = metadf.groupby(["station_id","subloc","param"],dropna=False).agg(
+            {
+             "agency": lambda ser: reduce(prioritize_source,ser),
+             "agency_id":['first'],
+             "year":['min','max'],
+             "filename": ['first'],
+             "original_filename":['first']   # this will be used to scrape metadata then dropped
+             }
+            )
+
+
     grouped_meta.columns = ['agency','agency_id','min_year','max_year',
                             'filename','original_filename'] 
     metastat = grouped_meta.join(station_db,on="station_id",
                             rsuffix="_dbase",how="left")
                             
     metastat.rename(mapper={"lat":"agency_lat","lon":"agency_lon"},axis='columns')
-    metastat['unit'] = metastat.apply(
+    if double_year_format:
+        metastat['unit'] = None
+    else:
+        metastat['unit'] = metastat.apply(
                           lambda x: scrape_header_metadata(
                           os.path.join(fpath,x.original_filename)),axis=1)
     metastat.drop(labels=['notes','stage','flow','quality','wdl_id','cdec_id','d1641_id','original_filename'],
