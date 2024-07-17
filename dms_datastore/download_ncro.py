@@ -13,6 +13,7 @@ import datetime as dt
 import numpy as np
 import concurrent
 import concurrent.futures
+import time
 from dms_datastore.process_station_variable import (
     process_station_list,
     stationfile_or_stations,
@@ -38,31 +39,40 @@ def download_ncro_inventory(dest, cache=True):
     ctx.options |= 0x4
     url = "https://data.cnra.ca.gov/dataset/fcba3a88-a359-4a71-a58c-6b0ff8fdc53f/resource/cdb5dd35-c344-4969-8ab2-d0e2d6c00821/download/station-trace-download-links.csv"
 
-    response = urllib.request.urlopen(url, context=ctx).read()
-    idf = pd.read_csv(
-        io.BytesIO(response),
-        header=0,
-        parse_dates=["first_measurement_date", "last_measurement_date"],
-    )
-    logger.info(idf)
-    idf = idf.loc[
-        (idf.station_type != "Groundwater") & (idf.output_interval == "Raw"), :
-    ]
-    idf.to_csv(
-        os.path.join(dest, ncro_inventory_file),
-        sep=",",
-        index=False,
-        date_format="%Y-%d%-mT%H:%M",
-    )
-    return idf
+    max_attempt = 10
+    for attempt in range(1,(max_attempt+1)):
+        logger.info(f"Downloading inventory for NCRO attempt #{attempt}")
+        try:
+            response = urllib.request.urlopen(url, context=ctx).read()
+            idf = pd.read_csv(
+                  io.BytesIO(response),
+                  header=0,
+                  parse_dates=["start_time", "end_time"],       
+            )
 
+            idf = idf.loc[
+                 (idf.station_type != "Groundwater") & (idf.output_interval =="RAW"), :
+            ]            
+            logger.info(idf)
+            
+            idf.to_csv(
+                os.path.join(dest, ncro_inventory_file),
+                sep=",",
+                index=False,
+                date_format="%Y-%d%-mT%H:%M",
+            )
+            return idf
+        except:
+            if attempt == max_attempt:
+                raise Exception("Could not open inventory.")
+            continue
 
 def ncro_variable_map():
     varmap = pd.read_csv("variable_mappings.csv", header=0, comment="#")
     return varmap.loc[varmap.src_name == "wdl", :]
 
 
-# station_number,station_type,first_measurement_date,last_measurement_date,parameter,output_interval,download_link
+# station_number,station_type,start_time,end_time,parameter,output_interval,download_link
 
 mappings = {
     "Water Temperature": "temp",
@@ -80,6 +90,14 @@ mappings = {
     "Turbidity": "turbidity",
     "Flow": "flow",
     "Salinity": "salinity",
+    "ECat25C":"ec",
+    "StreamFlow":"flow",
+    "WaterTemp": "temp",
+    "WaterTempADCP": "temp",
+    "DissolvedOxygen": "do",
+    "DissolvedOxygenPercentage": None,
+    "StreamLevel": "elev",
+    "fDOM": "fdom"
 }
 
 
@@ -103,8 +121,8 @@ def download_station_period_record(row, dbase, dest, variables, failures, ctx):
     # printed.add(param)
     var = mappings[param]
     link_url = row.download_link
-    sdate = row.first_measurement_date
-    edate = row.last_measurement_date
+    sdate = row.start_time
+    edate = row.end_time
     entry = None
     ndx = ""
     for suffix in ["", "00", "Q"]:
@@ -125,23 +143,38 @@ def download_station_period_record(row, dbase, dest, variables, failures, ctx):
     logger.info(f"Processing: {agency_id} {param} {sdate} {edate}")
     logger.info(link_url)
 
-    try:
-        response = urllib.request.urlopen(link_url, context=ctx)
-        station_html = response.read().decode().replace("\r", "")
-    except Exception as e:
-        logger.warning("Failure in URL request or reading the response")
-        logger.exception(e)
-        failures.append((station_id, agency_id, var, param))
+    attempt = 0
+    max_attempt = 20
+    station_html = ""
+    while attempt < max_attempt:
+        attempt = attempt + 1
+        try:
+            if attempt > 16: 
+                logger.info(f"{station_id} attempt {attempt}")
+                if attempt > 16:
+                    logger.info(fname)
+            response = urllib.request.urlopen(link_url, context=ctx)
+            station_html = response.read().decode().replace("\r", "")
+            break
+        except Exception as e:
+            if attempt == max_attempt:
+                logger.warning(f"Failure in URL request or reading the response after {attempt} tries for station {station_id} param {param}. Link=\n{link_url}\nException below:")
+                logger.exception(e)
+                failures.append((station_id, agency_id, var, param))
+                attampt = 0
+                return
+            else: 
+                time.sleep(attempt) # Wait one second more second each time to clear any short term bad stuff
+    if len(station_html) > 30 and not "No sites found matching" in station_html:
+        found = True
+        if attempt > 1: logger.info(f"{station_id} found on attempt {attempt}")
+        with open(fpath, "w") as f:
+            f.write(station_html)
     else:
-        if len(station_html) > 30 and not "No sites found matching" in station_html:
-            found = True
-            with open(fpath, "w") as f:
-                f.write(station_html)
-        if not found:
-            logger.info("Station %s query failed or produced no data" % station)
-            failures.append((station_id, agency_id, var, param))
-
-    logger.info(f"Writing {fname}")
+        logger.info(f"{station_id} not found after attempt {attempt}")
+        logger.info("Station %s produced no data" % station)
+        failures.append((station_id, agency_id, var, param))
+    return 
 
 
 def download_ncro_period_record(
@@ -156,7 +189,6 @@ def download_ncro_period_record(
     # mappings = ncro_variable_map()
     ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
     ctx.options |= 0x4
-    logger.info(mappings)
     failures = []
     # Use ThreadPoolExecutor
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
@@ -235,7 +267,7 @@ def main():
     por = args.por
     variables = args.param
     dest = "."
-    download_ncro_por(dest,variables)
+    download_ncro_por(destdir,variables)
 
 
 if __name__ == "__main__":
