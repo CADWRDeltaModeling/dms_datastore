@@ -1,8 +1,5 @@
 file_pattern,base,compare
 noaa.*predictions_.*.csv,True,False
 cdec_clc_clc_ph_19.*.csv,True,False
-#.*_{current_year}.csv,False,True
-#.*_200\d.csv,True,False
-#.*_201\d.csv,True,False
-#.*_19\d\d.csv,True,False
+
 
