@@ -416,7 +416,7 @@ class RegionChecker(object):
         df["coords"] = list(zip(df["x"], df["y"]))
         df["coords"] = df["coords"].apply(Point)
         points = gpd.GeoDataFrame(df, geometry="coords", crs=self.shp.crs)
-        point_in_polys = gpd.tools.sjoin(points, self.shp, op="within", how="left")
+        point_in_polys = gpd.tools.sjoin(points, self.shp, predicate="within", how="left")
         return point_in_polys
 
 
