@@ -44,10 +44,9 @@ jobs:
           source $CONDA/etc/profile.d/conda.sh
           conda activate dms_datastore
           cd docsrc/
-          sphinx-apidoc --force -o . ../dms_datastore
+          #sphinx-apidoc --force -o . ../dms_datastore
           make clean
           make html
-          ghp-import -h
           
       - name: Run ghp-import
         shell: bash
@@ -62,5 +61,5 @@ jobs:
           
           tree -L 3 -a
           
-          ghp-import -n -p -f ./docs/html
+          ghp-import -n -p -f ../docs/html
 
