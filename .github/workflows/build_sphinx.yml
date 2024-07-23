@@ -31,7 +31,7 @@ jobs:
       - name: Conda build env for docs
         shell: bash
         run: |
-          conda env create -f environment.yml
+          conda env create --name dms_datastore -f environment.yml
           source $CONDA/etc/profile.d/conda.sh
           conda activate dms_datastore
           python -m pip install --upgrade pip
@@ -54,6 +54,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          source $CONDA/etc/profile.d/conda.sh
+          conda activate dms_datastore        
           ghp-import -h
           git config http.postBuffer 157286400
           git pull
