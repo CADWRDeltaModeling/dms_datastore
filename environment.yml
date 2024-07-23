@@ -15,15 +15,8 @@ dependencies:
   #- schimpy # remove this!
   - matplotlib
   - scikit-learn
-  - contourpy
-  - joblib
-  - fonttools
-  - pyparsing
-  - kiwisolver
-  - eccodes
-  - pycparser
   - cfgrib
-  - cffi
+  - pandoc ## Installing this here because pip is only a wrapper
   
   #- pip:
   #   - -e git+https://github.com/CADWRDeltaModeling/dms_datastore#egg=dms_datastore
