@@ -44,7 +44,7 @@ jobs:
           cd docsrc/
           sphinx-apidoc --force -o . ../dms_datastore
           make clean
-          make htm
+          make html
           ghp-import -h
           
       - name: Run ghp-import
