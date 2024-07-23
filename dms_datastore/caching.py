@@ -275,7 +275,7 @@ def cache_to_csv():
 
 
 def main():
-    # Using the caching system
+    # Using the caching system example. No entry to here
     df1 = get_dataframe1(string_arg="example1", int_arg=10)
     df2 = get_dataframe2(string_arg="example2", float_arg=2.5)
 
