@@ -51,6 +51,6 @@ jobs:
           git config http.postBuffer 157286400
           git pull
 
-          tree -L 2 -a
+          tree -L 3 -a
 
           ghp-import -n -p -f ./docs/html
