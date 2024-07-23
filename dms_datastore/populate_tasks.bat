@@ -34,9 +34,9 @@ call inventory --repo formatted
 
 rem At this point format gets checked
 
-call compare_directories --base %repo%/raw --compare %repo_staging%/raw --excepts exceptions.csv --outfile compare_raw.txt
-call compare_directories --base %repo%/formatted --compare %repo_staging%/formatted --excepts exceptions.csv --outfile compare_formatted.txt
-call compare_directories --base %repo%/screened --compare %repo_staging%/screened --excepts exceptions.csv --outfile compare_screened.txt
+call compare_directories --base %repo%/raw --compare %repo_staging%/raw --outfile compare_raw.txt
+call compare_directories --base %repo%/formatted --compare %repo_staging%/formatted --outfile compare_formatted.txt
+call compare_directories --base %repo%/screened --compare %repo_staging%/screened --outfile compare_screened.txt
 
 
 echo done

@@ -6,6 +6,7 @@ sphinxcontrib-bibtex
 sphinx_rtd_theme
 ghp-import # for GitHub Pages import
 nbsphinx
+pandoc
 numpydoc
 docutils
 matplotlib # needed for matplotlib.sphinxext.mathmply

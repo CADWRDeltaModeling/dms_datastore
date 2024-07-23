@@ -11,7 +11,8 @@ dependencies:
   - pandas>=2
   - xarray
   - dask
-  - schimpy # remove this!
+  - scikit-learn
+  #- schimpy # remove this!
   - matplotlib
   - scikit-learn
   - contourpy
@@ -23,6 +24,7 @@ dependencies:
   - pycparser
   - cfgrib
   - cffi
+  
   #- pip:
   #   - -e git+https://github.com/CADWRDeltaModeling/dms_datastore#egg=dms_datastore
 # alternatively if you want to develop ...

@@ -27,12 +27,12 @@ author = 'Eli Ateljevich, CA DWR'
 release = '0.0.1'
 
 html_static_path = ['_static']
-html_css_files = ['theme_overrides.css']
-html_context = {
-    'css_files': [
-        '_static/theme_overrides.css',  # override wide tables in RTD theme
-        ],
-     }
+#html_css_files = ['theme_overrides.css']
+#html_context = {
+#    'css_files': [
+#        '_static/theme_overrides.css',  # override wide tables in RTD theme
+#        ],
+#     }
 
 
 
@@ -82,7 +82,7 @@ exclude_patterns = []
 #
 #html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
-html_theme_path = ["_themes", ]
+#html_theme_path = ["_themes", ]
 
 #html_theme_options = {
 #    'logo': 'dwrsmall.gif'}
