@@ -48,9 +48,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          source $CONDA/etc/profile.d/conda.sh
-          conda activate dms_datastore
           git config http.postBuffer 157286400
           git pull
+
           tree -L 2 -a
+
           ghp-import -n -p -f ./docs/html
