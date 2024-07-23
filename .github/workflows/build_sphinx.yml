@@ -42,7 +42,7 @@ jobs:
           source $CONDA/etc/profile.d/conda.sh
           conda activate dms_datastore
           cd docsrc/
-          #sphinx-apidoc --force -o . ../dms_datastore
+          sphinx-apidoc --force -o . ../dms_datastore
           make clean
           make html
       - name: Run ghp-import
@@ -50,9 +50,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          ghp-import -h
           git config http.postBuffer 157286400
           git pull
-
+          
           tree -L 3 -a
-
+          
           ghp-import -n -p -f ./docs/html
+
