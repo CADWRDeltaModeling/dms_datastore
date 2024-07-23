@@ -21,6 +21,7 @@ mostly focused on environmental data for the Bay-Delta.
    download_data
    read_data_meta
    repository
+   Local Caching <../notebooks/cache_example.ipynb>
 
 
 
