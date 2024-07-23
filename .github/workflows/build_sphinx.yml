@@ -1,0 +1,55 @@
+name: "Sphinx: Render docs"
+
+on: 
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.11
+      - name: Add conda to system path
+        run: |
+          echo $CONDA/bin >> $GITHUB_PATH
+      - name: Conda build env for docs
+        run: |
+          conda env create -f environment.yml
+          source $CONDA/etc/profile.d/conda.sh
+          conda activate dms_datastore
+          pip install -r docsrc/requirements.txt
+      - name: Build HTML
+        run: |
+          source $CONDA/etc/profile.d/conda.sh
+          conda activate dms_datastore
+          cd docsrc/
+          sphinx-apidoc --force -o . ../dms_datastore
+          make clean
+          make html
+      - name: Run ghp-import
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          source $CONDA/etc/profile.d/conda.sh
+          conda activate dms_datastore
+          git config http.postBuffer 157286400
+          git pull
+          tree -L 2 -a
+          ghp-import -n -p -f ./docs/html

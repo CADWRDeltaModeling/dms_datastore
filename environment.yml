@@ -7,6 +7,7 @@ dependencies:
   - python
   - pip
   - beautifulsoup4
+  - dms_datastore
   - vtools3
   - pandas>=2
   - xarray

@@ -10,6 +10,8 @@ requirements = [ "vtools3",
                  "cfgrib",
                  "boto3",
                  "netCDF4",
+                 "atexit",
+                 "diskcache",
                  "scikit-learn"]
 setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
