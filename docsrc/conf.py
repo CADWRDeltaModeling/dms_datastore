@@ -26,6 +26,9 @@ author = 'Eli Ateljevich, CA DWR'
 # The full version, including alpha/beta/rc tags
 release = '0.0.1'
 
+if not os.path.exists("docs"): 
+    os.makedirs("docs")
+
 html_static_path = ['_static']
 #html_css_files = ['theme_overrides.css']
 #html_context = {
