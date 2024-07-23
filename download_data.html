@@ -1,0 +1,453 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>Downloading Data &mdash; dms_datastore 0.0.1-alpha+8.g160fd20.dirty documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/theme_overrides.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Reading Time Series and Metadata" href="read_data_meta.html" />
+    <link rel="prev" title="Station Database and Queries" href="station_info.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> dms_datastore
+          
+
+          
+          </a>
+
+          
+            
+            
+              <div class="version">
+                0.0.1-alpha+8.g160fd20.dirty
+              </div>
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Downloading Data</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#station-lists">Station Lists</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#specific-command-line-interfaces">Specific Command Line Interfaces</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cdec">CDEC</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#usgs-nwis">USGS (NWIS)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#noaa">NOAA</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#dwr-ncro">DWR-NCRO</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dwr-des-dise">DWR-DES (DISE)</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#Positional Arguments">Positional Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#Named Arguments">Named Arguments</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">dms_datastore</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>Downloading Data</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/download_data.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="downloading-data">
+<h1>Downloading Data<a class="headerlink" href="#downloading-data" title="Permalink to this heading">¶</a></h1>
+<div class="section" id="station-lists">
+<h2>Station Lists<a class="headerlink" href="#station-lists" title="Permalink to this heading">¶</a></h2>
+</div>
+<div class="section" id="specific-command-line-interfaces">
+<h2>Specific Command Line Interfaces<a class="headerlink" href="#specific-command-line-interfaces" title="Permalink to this heading">¶</a></h2>
+<div class="section" id="cdec">
+<h3>CDEC<a class="headerlink" href="#cdec" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">download_cdec</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">dest</span> <span class="n">DEST_DIR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">id_col</span> <span class="n">ID_COL</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">param_col</span> <span class="n">PARAM_COL</span><span class="p">]</span> <span class="o">--</span><span class="n">start</span> <span class="n">START</span> <span class="p">[</span><span class="o">--</span><span class="n">end</span> <span class="n">END</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">param</span> <span class="n">PARAM</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">stations</span> <span class="p">[</span><span class="n">STATIONS</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">overwrite</span><span class="p">]</span>
+                     <span class="p">[</span><span class="o">--</span><span class="n">freq</span> <span class="n">FREQ</span><span class="p">]</span>
+                     <span class="p">[</span><span class="n">stationfile</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h4>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading">¶</a></h4>
+<dl class="option-list">
+<dt><kbd>stationfile</kbd></dt>
+<dd><p>CSV-format station file.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h4>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading">¶</a></h4>
+<dl class="option-list">
+<dt><kbd>--dest</kbd></dt>
+<dd><p>Destination directory for downloaded files.</p>
+<p>Default: “cdec_download”</p>
+</dd>
+<dt><kbd>--id_col</kbd></dt>
+<dd><p>Column in station file representing CDEC ID. IDs with &gt; 3 characters will be ignored.</p>
+<p>Default: “id”</p>
+</dd>
+<dt><kbd>--param_col</kbd></dt>
+<dd><p>Column in station file representing the parameter to download.</p>
+</dd>
+<dt><kbd>--start</kbd></dt>
+<dd><p>Start time, format 2009-03-31 14:00</p>
+</dd>
+<dt><kbd>--end</kbd></dt>
+<dd><p>Start time, format 2009-03-31 14:00</p>
+</dd>
+<dt><kbd>--param</kbd></dt>
+<dd><p>Variable to download</p>
+</dd>
+<dt><kbd>--stations</kbd></dt>
+<dd><p>Id or name of one or more stations.</p>
+</dd>
+<dt><kbd>--overwrite</kbd></dt>
+<dd><p>Overwrite existing files (if False they will be skipped, presumably for speed</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--freq</kbd></dt>
+<dd><p>specify the frequency. Otherwise proceeds from even to hour to day. must be H or D</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="usgs-nwis">
+<h3>USGS (NWIS)<a class="headerlink" href="#usgs-nwis" title="Permalink to this heading">¶</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">download_nwis</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">dest</span> <span class="n">DEST_DIR</span><span class="p">]</span> <span class="o">--</span><span class="n">start</span> <span class="n">START</span> <span class="p">[</span><span class="o">--</span><span class="n">end</span> <span class="n">END</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">param</span> <span class="n">PARAM</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">stations</span> <span class="p">[</span><span class="n">STATIONS</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">overwrite</span><span class="p">]</span> <span class="p">[</span><span class="n">stationfile</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h4>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading">¶</a></h4>
+<dl class="option-list">
+<dt><kbd>stationfile</kbd></dt>
+<dd><p>CSV-format station file.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h4>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading">¶</a></h4>
+<dl class="option-list">
+<dt><kbd>--dest</kbd></dt>
+<dd><p>Destination directory for downloaded files.</p>
+<p>Default: “nwis_download”</p>
+</dd>
+<dt><kbd>--start</kbd></dt>
+<dd><p>Start time, format 2009-03-31 14:00</p>
+</dd>
+<dt><kbd>--end</kbd></dt>
+<dd><p>End time, format 2009-03-31 14:00</p>
+</dd>
+<dt><kbd>--param</kbd></dt>
+<dd><p>Parameter(s) to be downloaded, e.g.     00065 = gage height (ft.), 00060 = streamflow (cu ft/sec) and 00010 = water temperature in degrees Celsius.     See “<a class="reference external" href="http://help.waterdata.usgs.gov/codes-and-parameters/parameters">http://help.waterdata.usgs.gov/codes-and-parameters/parameters</a>” for complete listing.     (if not specified, all the available parameters will be downloaded)</p>
+</dd>
+<dt><kbd>--stations</kbd></dt>
+<dd><p>Id or name of one or more stations.</p>
+</dd>
+<dt><kbd>--overwrite</kbd></dt>
+<dd><p>Overwrite existing files (if False they will be skipped, presumably for speed)</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="noaa">
+<h3>NOAA<a class="headerlink" href="#noaa" title="Permalink to this heading">¶</a></h3>
+<p><p>Script to download NOAA 6 minute water level data</p>
+</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">download_noaa</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">start</span> <span class="n">START</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">end</span> <span class="n">END</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">syear</span> <span class="n">SYEAR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">eyear</span> <span class="n">EYEAR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">param</span> <span class="n">PARAM</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">stations</span> <span class="p">[</span><span class="n">STATIONS</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">dest</span> <span class="n">DEST_DIR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="nb">list</span><span class="p">]</span>
+                     <span class="p">[</span><span class="o">--</span><span class="n">overwrite</span><span class="p">]</span>
+                     <span class="p">[</span><span class="n">stationfile</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h4>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading">¶</a></h4>
+<dl class="option-list">
+<dt><kbd>stationfile</kbd></dt>
+<dd><p>CSV-format station file.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h4>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading">¶</a></h4>
+<dl class="option-list">
+<dt><kbd>--start</kbd></dt>
+<dd><p>First date to download</p>
+</dd>
+<dt><kbd>--end</kbd></dt>
+<dd><p>Last date to download, inclusive</p>
+</dd>
+<dt><kbd>--syear</kbd></dt>
+<dd><p>First year to download</p>
+</dd>
+<dt><kbd>--eyear</kbd></dt>
+<dd><p>Last year to download, inclusive to end of the year.</p>
+</dd>
+<dt><kbd>--param</kbd></dt>
+<dd><p>Product to download: water_level, predictions, water_temperature, conductivity.</p>
+</dd>
+<dt><kbd>--stations</kbd></dt>
+<dd><p>Id or name of one or more stations.</p>
+</dd>
+<dt><kbd>--dest</kbd></dt>
+<dd><p>Destination directory for downloaded files.</p>
+<p>Default: “noaa_download”</p>
+</dd>
+<dt><kbd>--list</kbd></dt>
+<dd><p>List known station ids.</p>
+<p>Default: False</p>
+</dd>
+<dt><kbd>--overwrite</kbd></dt>
+<dd><p>Overwrite existing files (if False they will be skipped, presumably for speed</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+<div class="section" id="dwr-ncro">
+<h3>DWR-NCRO<a class="headerlink" href="#dwr-ncro" title="Permalink to this heading">¶</a></h3>
+<p>It has traditionally been difficult to write robots to scrape data from Water Data Library.
+The utility download_wdl is included but is not maintained and may fail to function or to retrieve
+recent files. There are newer web services (public) that we are testing, but NCRO has
+expressed some concern about overuse during peak hours when the services are used by staff to work on data.
+The current interface shown here is for downloading period of record files,
+so its interface is simpler, less flexible and different from the others.</p>
+<p>#.. argparse::
+#    :module: dms_datastore.download_ncro
+#    :func: create_arg_parser
+#    :prog: download_ncro.py</p>
+</div>
+<div class="section" id="dwr-des-dise">
+<h3>DWR-DES (DISE)<a class="headerlink" href="#dwr-des-dise" title="Permalink to this heading">¶</a></h3>
+<p>DWR Division of Environmental Services has been renamed but the name has not yet been updated here.
+These web services are internal to DWR. External users can get reformatted/screened data from our group or request data
+from DWR liasons who are identified on CDEC on a per-station basis.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">download_des</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">dest</span> <span class="n">DEST_DIR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">start</span> <span class="n">START</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">end</span> <span class="n">END</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">param</span> <span class="n">PARAM</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">stations</span> <span class="p">[</span><span class="n">STATIONS</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">overwrite</span><span class="p">]</span> <span class="p">[</span><span class="n">stationfile</span> <span class="o">...</span><span class="p">]</span>
+</pre></div>
+</div>
+<div class="section" id="Positional Arguments">
+<h4>Positional Arguments<a class="headerlink" href="#Positional Arguments" title="Permalink to this heading">¶</a></h4>
+<dl class="option-list">
+<dt><kbd>stationfile</kbd></dt>
+<dd><p>CSV-format station file.</p>
+</dd>
+</dl>
+</div>
+<div class="section" id="Named Arguments">
+<h4>Named Arguments<a class="headerlink" href="#Named Arguments" title="Permalink to this heading">¶</a></h4>
+<dl class="option-list">
+<dt><kbd>--dest</kbd></dt>
+<dd><p>Destination directory for downloaded files.</p>
+<p>Default: “des_download”</p>
+</dd>
+<dt><kbd>--start</kbd></dt>
+<dd><p>Start time, format 2009-03-31 14:00</p>
+</dd>
+<dt><kbd>--end</kbd></dt>
+<dd><p>End time, format 2009-03-31 14:00</p>
+</dd>
+<dt><kbd>--param</kbd></dt>
+<dd><p>Parameter(s) to be downloaded.</p>
+</dd>
+<dt><kbd>--stations</kbd></dt>
+<dd><p>Id or name of one or more stations.</p>
+</dd>
+<dt><kbd>--overwrite</kbd></dt>
+<dd><p>Overwrite existing files (if False they will be skipped, presumably for speed)</p>
+<p>Default: False</p>
+</dd>
+</dl>
+</div>
+</div>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="read_data_meta.html" class="btn btn-neutral float-right" title="Reading Time Series and Metadata" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="station_info.html" class="btn btn-neutral float-left" title="Station Database and Queries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2022, Eli Ateljevich, CA DWR.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
