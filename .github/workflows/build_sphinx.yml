@@ -29,6 +29,7 @@ jobs:
         run: |
           echo $CONDA/bin >> $GITHUB_PATH
       - name: Conda build env for docs
+        shell: bash
         run: |
           conda env create -f environment.yml
           source $CONDA/etc/profile.d/conda.sh
@@ -38,6 +39,7 @@ jobs:
           pip install --no-deps -e .
           ghp-import -h
       - name: Build HTML
+        shell: bash
         run: |
           source $CONDA/etc/profile.d/conda.sh
           conda activate dms_datastore
