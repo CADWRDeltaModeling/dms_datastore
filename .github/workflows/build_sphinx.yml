@@ -33,6 +33,7 @@ jobs:
           conda env create -f environment.yml
           source $CONDA/etc/profile.d/conda.sh
           conda activate dms_datastore
+          pip install --no-deps -e .
           pip install -r docsrc/requirements.txt
       - name: Build HTML
         run: |
