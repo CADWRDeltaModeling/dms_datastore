@@ -564,7 +564,7 @@ def read_wdl3(
             header=0,
             dateformat=None,
             comment=None,
-            nrows=nrows,
+            nrows=nrows
         )
     except pd.errors.ParserError as e:
         if "Too many columns" in str(e):
@@ -586,7 +586,7 @@ def read_wdl3(
                 header=0,
                 dateformat=None,
                 comment=None,
-                nrows=nrows,
+                nrows=nrows
             )
 
     return ts
@@ -1442,6 +1442,7 @@ def csv_retrieve_ts(
                 dtype=coltypes,
                 names=column_names,
                 skipinitialspace=True,
+                nrows=nrows,
                 **dargs,
             )
 
