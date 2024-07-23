@@ -61,5 +61,5 @@ jobs:
           
           tree -L 3 -a
           
-          ghp-import -n -p -f ../docs/html
+          ghp-import -n -p -f ./docs/html
 
