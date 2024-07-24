@@ -1,8 +1,11 @@
 import diskcache as dc
+import os
+import shutil
 import pandas as pd
 import functools
 import urllib.parse
 import atexit
+import argparse
 
 class LocalCache:
     _instance = None
@@ -12,7 +15,7 @@ class LocalCache:
         if cls._instance is None:
             cls._instance = dc.Cache('cache')
             atexit.register(cls.close)
-            print("Cache instance created")
+            print("Cache created or accessed")
         return cls._instance
 
     @classmethod
@@ -158,7 +161,7 @@ def retrieve_all_data(func_name):
             _, args = parse_cache_key(key)
             # Extend the index with function arguments for each row
             extended_index = pd.MultiIndex.from_arrays([df.index] + [[value] * len(df) for value in args.values()],
-                                                       names=['DatetimeIndex'] + list(args.keys()))
+                                                       names=['datetime'] + list(args.keys()))
             df.set_index(extended_index, inplace=True)
             dataframes.append(df)
     return pd.concat(dataframes) if dataframes else pd.DataFrame()
@@ -263,18 +266,8 @@ def cache_to_csv():
             else:
                 print(f"No data available to save for function: {func_name}")
 
-#@cache_dataframe(key_args=['string_arg','int_arg'])
-#def get_dataframe1(string_arg, int_arg):
-#    index = pd.date_range(start='1/1/2020', periods=5, freq='D', name='DatetimeIndex')
-#    df = pd.DataFrame({
-#        'A': range(5),
-#        'B': [string_arg] * 5,
-#        'C': [int_arg + i for i in range(5)]
-#    }, index=index)
-#    return df
 
-
-def main():
+def main_example():
     # Using the caching system example. No entry to here
     df1 = get_dataframe1(string_arg="example1", int_arg=10)
     df2 = get_dataframe2(string_arg="example2", float_arg=2.5)
@@ -304,3 +297,41 @@ def main():
     print(cache[generate_cache_key(get_dataframe1, string_arg="example1", int_arg=10)[0]])
     print(cache[generate_cache_key(get_dataframe1, string_arg="example1bb", int_arg=15)[0]])
     print(cache[generate_cache_key(get_dataframe2, string_arg="example2")[0]])
+
+def create_arg_parser():
+    """ Create an argument parser
+    """
+    parser = argparse.ArgumentParser(description="Create inventory files, including a file inventory, a data inventory and an obs-links file.")
+    parser.add_argument('--clear',  action='store_true', help = "clear local cache") 
+    parser.add_argument('--to_csv', action='store_true', help = "flush to csv")
+    parser.add_argument('--delete', action='store_true', help = "clear local cache") 
+    return parser
+
+
+def main():
+
+    parser = create_arg_parser()
+    args = parser.parse_args()
+    clear = args.clear
+    to_csv = args.to_csv
+    delete = args.delete
+    if (to_csv and delete) or (to_csv and clear):
+        raise ValueError("to_csv and delete/clear are incompatible. dump to csv, check the result then delete")
+    
+    if clear:
+        print("Clearing local cache.")
+        LocalCache.instance().clear()
+
+    if to_csv:
+        cache_to_csv()
+
+    if delete:
+        if os.path.exists('cache'):
+            shutil.rmtree("cache")            
+
+
+
+
+if __name__ == "__main__":
+    main()
+

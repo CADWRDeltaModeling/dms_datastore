@@ -54,6 +54,7 @@ setup(
                                           'auto_screen=dms_datastore.auto_screen:main',
                                           'inventory=dms_datastore.inventory:main',
                                           'usgs_multi=dms_datastore.usgs_multi:main',
-                                          'delete_from_filelist=dms_datastore.delete_from_filelist:main']
+                                          'delete_from_filelist=dms_datastore.delete_from_filelist:main',
+                                          'data_cache=dms_datastore.caching:main']
 										   }
 )
