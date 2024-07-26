@@ -13,7 +13,7 @@ class LocalCache:
     @classmethod
     def instance(cls):
         if cls._instance is None:
-            cls._instance = dc.Cache('cache')
+            cls._instance = dc.Cache('cache',size_limit=int(6e9))
             atexit.register(cls.close)
             print("Cache created or accessed")
         return cls._instance
@@ -253,6 +253,7 @@ def cache_to_csv():
         func_name = key.split('|')[0]
         if func_name not in seen:
             seen.add(func_name)
+            print(f"Exporting {func_name} to csv")
             all_data = retrieve_all_data(func_name)
             if not all_data.empty:
                 index_name = all_data.index.names[0] if all_data.index.names else 'index'
