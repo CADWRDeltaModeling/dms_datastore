@@ -15,7 +15,6 @@ class LocalCache:
         if cls._instance is None:
             cls._instance = dc.Cache('cache',size_limit=int(6e9))
             atexit.register(cls.close)
-            print("Cache created or accessed")
         return cls._instance
 
     @classmethod
@@ -23,7 +22,6 @@ class LocalCache:
         if cls._instance is not None:
             cls._instance.close()
             cls._instance = None
-            print("Cache instance closed")
 
 def parse_cache_key(key):
     func_name, args_str = key.split("|", 1)
