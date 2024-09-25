@@ -97,6 +97,7 @@ mappings = {
     "DissolvedOxygen": "do",
     "DissolvedOxygenPercentage": None,
     "StreamLevel": "elev",
+    "WaterSurfaceElevationNAVD88": "elev",
     "fDOM": "fdom"
 }
 
