@@ -83,10 +83,10 @@ def download_station(
     yearname = (
         f"{start.year}_{endfile}"  # if start.year != end.year else f"{start.year}"
     )
-    outfname = f"usgs_{station}_{agency_id}_{paramname}_{yearname}.rdb"
+    outfname = f"usgs_{station}_{agency_id}_{paramname}_{yearname}.json"
     # Water quality data; does not work in command line.
     if str(paramname).startswith("qual"):
-        outfname = f"usgs_{station}_{agency_id}_{paramname}_{param}_{yearname}.rdb"
+        outfname = f"usgs_{station}_{agency_id}_{paramname}_{param}_{yearname}.json"
     outfname = outfname.lower()
     path = os.path.join(dest_dir, outfname)
     if os.path.exists(path) and not overwrite:
@@ -98,7 +98,7 @@ def download_station(
     stime = start.strftime("%Y-%m-%d")
     etime = end.strftime("%Y-%m-%d")
     found = False
-    station_query_base = f"http://nwis.waterservices.usgs.gov/nwis/iv/?sites={agency_id}&startDT={stime}&endDT={etime}&format=rdb"
+    station_query_base = f"http://nwis.waterservices.usgs.gov/nwis/iv/?sites={agency_id}&startDT={stime}&endDT={etime}&format=json"
     if param:
         station_query = station_query_base + f"&variable={int(param):05}"
         # station_query = station_query_base % (station,stime,etime,param)
@@ -106,12 +106,12 @@ def download_station(
         station_query = station_query_base
     # Water quality data; does not work in command line.
     if str(paramname).startswith("qual"):
-        station_query_base = f"https://nwis.waterdata.usgs.gov/nwis/qwdata?site_no={agency_id}&begin_date={stime}&end_date={etime}&format=serial_rdb"
+        station_query_base = f"https://nwis.waterdata.usgs.gov/nwis/qwdata?site_no={agency_id}&begin_date={stime}&end_date={etime}&format=json"
         if param:
             station_query = station_query_base + f"&parameter_cd={int(param):05}"
         else:
             station_query = station_query_base
-    logger.info(station_query)
+    logger.info(f"USGS Query for ({station},{paramname}): {station_query}")
     try:
         if sys.version_info[0] == 2:
             raise ValueError("Python 2 no longer supported")
@@ -142,7 +142,6 @@ def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
     These dates are passed on to CDEC ... actual return dates can be
     slightly different
     """
-    logger.info(stations)
     if end is None:
         end = dt.datetime.now()
         endfile = 9999

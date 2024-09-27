@@ -69,6 +69,11 @@ downloaders = {
     "cdec": cdec_download,
 }
 
+def _quarantine_file(fname,quarantine_dir = "quarantine"):
+    if not os.path.exists(quarantine_dir):
+        os.makedirs("quarantine")
+    shutil.copy(fname,"quarantine")
+
 
 def revise_filename_syears(pat, force=True, outfile="rename.txt"):
     """Revise start year of files matching pat to the first year of valid data
@@ -135,6 +140,7 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
         Name of file to log failures
 
     """
+    return
     if SAFEGUARD:
         raise NotImplementedError("populate repo functions not ready to use")
     logger.info(f"Beginning revise_filename_syear_eyear for pattern: {pat}")
@@ -157,9 +163,7 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
                 bad.append(fname + " (small,deleted)")
                 logger.info(f"Small file {fname} caused read exception. Deleted during rename")
             else:
-                if not os.path.exists("quarantine"):
-                    os.makedirs("quarantine")
-                shutil.copy(fname,"quarantine")
+                quarantine_file(fname,"quarantine")
                 bad.append(fname + " (not small, not deleted)")
                 logger.info(f"non-small file {fname} caused read exception. Not deleted during rename")
             continue
@@ -397,16 +401,27 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
         # It looks like big files, and this is possible, but many will be truncated because of limited
         # instrument lifetimes ... so 1980-2019 will come out as 1984-2007 or something like that.
         if agency == "dwr_des":
+
             for var in varlist:
                 logger.info(
                     f"Calling populate_repo with agency {agency} variable: {var}"
                 )
                 if not partial_update:
+                    # Pulls in data in two 20 year blocks, which helps with query length limits
+                    # Pulls in data in two 20 year blocks, which helps with query length limits
                     populate_repo(
                         agency,
                         var,
                         dest,
                         pd.Timestamp(1980, 1, 1),
+                        pd.Timestamp(1999, 12, 31, 23, 59),
+                        ignore_existing=ignore_existing,
+                    )
+                    populate_repo(
+                        agency,
+                        var,
+                        dest,
+                        pd.Timestamp(2000, 1, 1),
                         pd.Timestamp(2019, 12, 31, 23, 59),
                         ignore_existing=ignore_existing,
                     )

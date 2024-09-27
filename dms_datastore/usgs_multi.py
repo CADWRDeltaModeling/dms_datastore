@@ -14,6 +14,12 @@ from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
 from dms_datastore.filename import interpret_fname,meta_to_filename
 
+def _quarantine_file(fname,quarantine_dir = "quarantine"):
+    if not os.path.exists(quarantine_dir):
+        os.makedirs("quarantine")
+    shutil.copy(fname,"quarantine")
+
+
 def usgs_scan_series(fname):
     """ Scans file and returns a list of time series, parameters and description for each series in the file 
     
@@ -99,7 +105,11 @@ def usgs_multivariate(pat,outfile):
             if ts.shape[1] != 1:
                 message = f"usgs_meta: file {fname} Columns {ts.columns}"
                 logger.debug(message)
-                series = usgs_scan_series(fname)  # Extract list of series in file
+                try:
+                    series = usgs_scan_series(fname)  # Extract list of series in file
+                except:
+                    _quarantine_file(fname)
+                    logger.debug(f"Could not scan USGS file for variables: {fname}")
                 for s in series:
                     (ats_id,aparam,adescr) = s
                     out.write(message+"\n")
