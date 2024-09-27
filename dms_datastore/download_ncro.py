@@ -44,8 +44,9 @@ def download_ncro_inventory(dest, cache=True):
         logger.info(f"Downloading inventory for NCRO attempt #{attempt}")
         try:
             response = urllib.request.urlopen(url, context=ctx).read()
+            fio=io.BytesIO(response)
             idf = pd.read_csv(
-                  io.BytesIO(response),
+                  fio,
                   header=0,
                   parse_dates=["start_time", "end_time"],       
             )

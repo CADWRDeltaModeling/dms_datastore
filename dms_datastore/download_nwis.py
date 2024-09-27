@@ -106,6 +106,7 @@ def download_station(
         station_query = station_query_base
     # Water quality data; does not work in command line.
     if str(paramname).startswith("qual"):
+        station_query_base = f"https://waterdata.usgs.gov/nwis/qwdata?site_no={agency_id}&begin_date={stime}&end_date={etime}&format=serial_rdb"
         station_query_base = f"https://nwis.waterdata.usgs.gov/nwis/qwdata?site_no={agency_id}&begin_date={stime}&end_date={etime}&format=json"
         if param:
             station_query = station_query_base + f"&parameter_cd={int(param):05}"

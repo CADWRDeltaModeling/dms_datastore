@@ -35,6 +35,9 @@ def to_wildcard(fname,remove_source=False):
 
 def scrape_header_metadata(fname):
     yml = read_yaml_header(fname)
+    if (yml is None): 
+        print(f"{fname} produced nan metadata")
+        return None
     return yml['unit'] if 'unit' in yml else None
 
 
