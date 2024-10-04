@@ -9,6 +9,7 @@ import tempfile
 import shutil
 import matplotlib.pyplot as plt
 import argparse
+import yaml
 from dms_datastore.logging_config import logger
 from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
@@ -20,8 +21,17 @@ def _quarantine_file(fname,quarantine_dir = "quarantine"):
     shutil.copy(fname,"quarantine")
 
 
+def usgs_scan_series_json(fname):
+    hdr = read_yaml_header(fname)
+    orig = yaml.safe_load(hdr['original_header'])
+    subs = orig['sublocations']
+    var =  orig['variable_code']
+    series = [(str(s['subloc']),var,s['method_description']) for s in subs]
+    return series
+
 def usgs_scan_series(fname):
-    """ Scans file and returns a list of time series, parameters and description for each series in the file 
+    """ Scans file and returns a list of time series id, parameter codes and 
+    description for each series in the file 
     
     Parameters
     ----------
@@ -35,45 +45,49 @@ def usgs_scan_series(fname):
         list of (ts_id,param,description)
     
     """
-    descript_re = re.compile(r"(\#\s+)?\#\s+TS_ID\s+Parameter\s+Description")
-    
-    def read_ts_data(line):
-        # This method of splitting "gives up" and leaves description intact
-        parts = line.strip().split(None,3)
-        if len(parts) < 2 or (len(parts) == 2 and parts[1] == "#"): 
-            describing=2
-            return describing,(None,None,None)
-        if parts[1] == "#":   # There are two comments, redo split to get description intact
-            parts = line.strip().split(None,4)
-        parts = [p for p in parts if p != "#"] 
-        ts_id,param,descr = parts[0:3] 
-        describing=1
-        return describing,(ts_id,param,descr)
-    
-    series = []
-    describing = 0  # state of the parser, =1 when entering descriptionsection and =2 when leaving
-    formatted = False
-    with open(fname,"r") as g:
-        descrline = None
-        for line in g:
-            if "Parameter" in line: 
-                pass
-                #print(fname)
-                #print(line)
-            if "original_header" in line:
-                formatted = True  # there may be two comments
-            if descript_re.match(line):
-                describing = 1
-                continue
-            elif describing == 1:
-                describing,(ts_id,param,descr) = read_ts_data(line)
-                if describing == 1: 
-                    series.append([ts_id,param,descr])
-            elif describing == 2:
-                break        
-        if describing < 2: 
-            raise ValueError(f"Time series description section not found in file {fname}")
-    return series
+    try:
+        scan = usgs_scan_series_json(fname)
+        return scan
+    except:
+        # This code is the old scanning code for rdb format
+        descript_re = re.compile(r"(\#\s+)?\#\s+TS_ID\s+Parameter\s+Description")        
+        def read_ts_data(line):
+            # This method of splitting "gives up" and leaves description intact
+            parts = line.strip().split(None,3)
+            if len(parts) < 2 or (len(parts) == 2 and parts[1] == "#"): 
+                describing=2
+                return describing,(None,None,None)
+            if parts[1] == "#":   # There are two comments, redo split to get description intact
+                parts = line.strip().split(None,4)
+            parts = [p for p in parts if p != "#"] 
+            ts_id,param,descr = parts[0:3] 
+            describing=1
+            return describing,(ts_id,param,descr)
+        
+        series = []
+        describing = 0  # state of the parser, =1 when entering descriptionsection and =2 when leaving
+        formatted = False
+        with open(fname,"r") as g:
+            descrline = None
+            for line in g:
+                if "Parameter" in line: 
+                    pass
+                    #print(fname)
+                    #print(line)
+                if "original_header" in line:
+                    formatted = True  # there may be two comments
+                if descript_re.match(line):
+                    describing = 1
+                    continue
+                elif describing == 1:
+                    describing,(ts_id,param,descr) = read_ts_data(line)
+                    if describing == 1: 
+                        series.append([ts_id,param,descr])
+                elif describing == 2:
+                    break        
+            if describing < 2: 
+                raise ValueError(f"Time series description section not found in file {fname} using either the json or rdb assumption")
+        return series
 
 
 
@@ -110,6 +124,7 @@ def usgs_multivariate(pat,outfile):
                 except:
                     _quarantine_file(fname)
                     logger.debug(f"Could not scan USGS file for variables: {fname}")
+                    continue
                 for s in series:
                     (ats_id,aparam,adescr) = s
                     out.write(message+"\n")
@@ -124,7 +139,7 @@ def usgs_multivariate(pat,outfile):
                     yr = int(meta["year"]) if "year" in meta else int(meta["syear"])
                     data.append( (meta["station_id"],meta["agency_id"],meta["param"],yr,asubloc,ats_id,aparam,adescr) )
                     sout = ",".join(list(s))+"\n"                       
-                    out.write(sout)
+                    out.write(sout)                  
             del(ts)
             
     df = pd.DataFrame(data=data,columns=["station_id","agency_id","param","syear",
@@ -151,7 +166,8 @@ def process_multivariate_usgs(fpath,pat=None,rescan=True):
    
     if pat is None: 
         pat = fpath+"/usgs*.csv"
-    pat = fpath + "/" + pat #"/usgs*.csv"
+    else:
+        pat = fpath + "/" + pat #"/usgs*.csv"
     
     # This recreates or reuses  list of multivariate files. Being multivariate is something that has 
     # to be assessed over the full period of record
@@ -192,7 +208,7 @@ def process_multivariate_usgs(fpath,pat=None,rescan=True):
             logger.info(f"Isolating sublocation {asubloc[:]}")
             if asubloc[:] in ["lower","upper","upward","vertical"]:
                 # write out each sublocation as individual file
-                selector = f"{row.ts_id}_{row.var_id}"
+                selector = f"{row.ts_id}_value"
                 try:
                     univariate=ts[selector]
                 except:
@@ -232,7 +248,7 @@ def process_multivariate_usgs(fpath,pat=None,rescan=True):
                 print(f"Several sublocations for columns, averaging {fn} and labeling as value")
                # Multivariate not collapsed, but we will add a 'value' column that aggregates and note this in metadata
                 ts['value']=ts.mean(axis=1)
-                original_header['subloc_comment'] = "value averages unpublished sublocations"
+                original_header['subloc_comment'] = "value averages sublocations"
                 original_header['agency_ts_id'] = subdf.ts_id.tolist()
             if ts.first_valid_index() is None: 
                 continue # No more good data. bail

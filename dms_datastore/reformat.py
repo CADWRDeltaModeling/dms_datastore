@@ -156,27 +156,36 @@ def ncro_unit(header_text, param):
 usgs_params = pd.read_csv(os.path.join(os.path.split(__file__)[0],"usgs_parameter_cd_query.txt"),
                           sep="\t",dtype={"parm_cd":str},comment="#",index_col="parm_cd")
 
+
+
 def usgs_unit(header_text):
-    
     
     unit_remap = {"ft":"feet","ft3/s":"ft^3/s",
                   "uS/cm @25C":"microS/cm","ft":"feet",
                   "ft/sec":"ft/s","m/sec":"m/s",
                   "ng/m3":"ng/m^3","deg C":"deg_c"}    
-    parsing=False
-    
+    parsing = False
+    is_json = False
+    first_cut = None
+    second_cut = None
     for line in header_text.split("\n"):
         line = line.strip()
+        if "parse-usgs-json" in line:
+            is_json = True
+        if is_json and 'variable_code' in line:
+            paramcode = line.split(":")[1].strip().strip("'")
+            first_cut = usgs_params.loc[paramcode,"parm_unit"]
+            break
         if "Parameter" in line and "Description" in line:
             parsing=True
         elif parsing:
             parts = line.split()
             paramcode = parts[2]
-            first_cut = usgs_params.loc[paramcode,"parm_unit"]
-            out = unit_remap[first_cut] if first_cut in unit_remap else first_cut
-            return out
-    raise ValueError("Unknown unit")
-    return "unknown"
+            first_cut = usgs_params.loc[paramcode,"parm_unit"] 
+    if first_cut is None:
+        out = second_cut if second_cut is not None else 'unknown'   
+    out = unit_remap[first_cut] if first_cut in unit_remap else first_cut
+    return out
 
 
 def infer_internal_meta_for_file(fpath):
@@ -210,8 +219,6 @@ def infer_internal_meta_for_file(fpath):
         try:
             unit = ncro_unit(original_hdr, meta["param"])
         except:
-            print(f"Unit not parsed in {fpath}, original header:")
-            print(str(original_hdr))
             unit = "Unknown"
         meta_out["unit"] = unit
     elif source == "usgs":
@@ -226,7 +233,6 @@ def infer_internal_meta_for_file(fpath):
             raise ValueError(f"yaml could not be read for agency_unit and unit:\n{yml}\nFile:{fpath}")
     elif source == "noaa":
         meta_out['unit'] = read_yaml_header(fpath)['unit']
-
     meta_out["original_header"] = original_hdr
     return meta_out
 
@@ -326,6 +332,7 @@ def reformat(inpath, outpath, pattern):
         if not at_start:
             continue
         
+        df = None
         try: 
             hdr_meta = infer_internal_meta_for_file(fpath)
             try:
@@ -333,6 +340,7 @@ def reformat(inpath, outpath, pattern):
             except:
                 print(f"Could not read file: {fpath}")
                 raise
+            
             df.index.name = "datetime"
             df.sort_index(inplace=True)  # possibly non-monotonic
             # test that there are enough good values and trim to good indices

@@ -592,6 +592,92 @@ def read_wdl3(
     return ts
 
 
+def is_usgs_json1(fname):
+    with open(fname, "r") as f:
+        line0 = f.readline()
+        line1 = f.readline()
+    
+    if 'parse-usgs-json' in line1:
+        return True 
+    return False
+
+def usgs_data_columns_json1(fname):
+    scan_data = pd.read_csv(fname,
+                            sep=",",
+                            comment="#",
+                            nrows=20,
+                            index_col=0)
+    cols = [col for col in scan_data.columns if "value" in col]
+    return(cols)
+
+def read_usgs_json1(fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None):
+    if selector is None:
+        selector = usgs_data_columns_json1
+        qaselect = lambda x, y: x.replace("_value","_qualifiers")
+
+    else:
+        selector = listify(selector)
+        qaselect = [x.replace("_value","_qualifiers") for x in selector]
+
+    
+    # See https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-and-daily-value-status-codes
+    status_codes = [
+        "Fld",
+        "Eqp",
+        "Dis",
+        "Mnt",
+        "Ssn",
+        "Dry",
+        "Pr",
+        "Pmp",
+        "Rat",
+        "Ssn",
+        "Zfl",
+        "Tst",
+        "***",
+    ]
+
+    # Now tack on time zone at the end
+    ts = csv_retrieve_ts(
+        fpath_pattern,
+        start,
+        end,
+        force_regular,
+        selector=selector,
+        format_compatible_fn=is_usgs_json1,
+        qaqc_selector=qaselect,
+        qaqc_accept=[
+            "",
+            " ",
+            " ",
+            "A",
+            "P",
+            "A:[99]","A,[99]",
+            "A:[91]","A,[91]",
+            "A:[92]","A,[92]",
+            "A:[93]","A,[93]",
+            "A:R","A,R",
+            "Approved",
+            "e",
+        ],
+        extra_na=status_codes,
+        parsedates=["datetime"],
+        indexcol="datetime",
+        header=0,
+        sep=",",
+        skiprows=0,
+        dateformat=None,
+        comment="#",
+        nrows=nrows,
+    )
+    # Get rid of redundant entries caused by the time zone
+    # f = ts.index.freq
+    ts = ts.loc[~ts.index.duplicated(keep="first")]
+
+    return ts
+
+
+
 ############################################################
 def is_usgs1(fname):
     MAX_SCAN_LINE = 220
@@ -1130,6 +1216,7 @@ def read_ts(
     from os.path import split as op_split
 
     readers = [
+        read_usgs_json1,  # must precede dms
         read_dms1_screen,
         read_dms1,
         read_usgs1,
@@ -1393,6 +1480,8 @@ def csv_retrieve_ts(
             skiprows_spec = list(range(ncomment)) + [ncomment + 1]
         else:
             skiprows_spec = skiprows
+
+        dset = None # to prevent holdover in memory
         if column_names is None:
             # warnings.filterwarnings('error')
             # try:
@@ -1445,20 +1534,16 @@ def csv_retrieve_ts(
                 nrows=nrows,
                 **dargs,
             )
-
+        print(m)
         if qaqc_selector is not None:
             # It is costly to try to handle blanks differently for both data
             # (for which we usually want blanks to be NaN and alphanumeric flags.
             if blank_qaqc_good:
                 if np.nan not in qaqc_accept:
                     qaqc_accept.append(np.nan)
-            try:
-                dset.loc[
-                    ~dset.loc[:, qaqc_selector[0]].isin(qaqc_accept), selector
-                ] = np.nan
-            except:
                 for v, f in zip(selector, qaqc_selector):
-                    dset.loc[~dset[f].isin(qaqc_accept), v] = np.nan
+
+                    dset.loc[~dset[f].astype(str).isin(qaqc_accept), v] = np.nan
         if selector is None:
             tsm.append(dset)
         else:
@@ -1477,7 +1562,14 @@ def csv_retrieve_ts(
         big_ts = big_ts.loc[~big_ts.index.duplicated(keep="first")]
         # Now everything is on an expected timestamp, so subsample leaving uncovered times NaN
         big_ts = big_ts.asfreq(f)
+
     # This try/except Ensures frame rather than Series
+    num_null_index = big_ts.index.isnull().sum()
+    if num_null_index > 1:
+           raise ValueError("Multiple nan values found in index")
+    else:
+        if num_null_index == 1: 
+            big_ts = big_ts.loc[big_ts.index.notnull(),:]   
     if start is None:
         start = big_ts.index[0]
     if end is None:
