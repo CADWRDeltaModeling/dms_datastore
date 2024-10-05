@@ -48,11 +48,13 @@ def prep_header(metadata,format_version):
                 metadata = [f"# format: {format_version}",f"# date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}"]+metadata  
             else:
                 metadata = [f"format: {format_version}",f"date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}"]+metadata
-            # Get rid of conflicting line
+            # Get rid of conflicting line concerning format version
             conflict = -1
             for i in range(1,len(metadata)):
-                if "format" in metadata[i]: conflict = i
+                if "format:" in metadata[i]:
+                    conflict = i
             if conflict > 0: 
+                print(metadata[i])
                 del(metadata[conflict])
         if not metadata[0].startswith("#"):
             metadata = ["# "+x for x in metadata]
@@ -96,14 +98,13 @@ def write_ts_csv(ts,fpath,metadata=None,chunk_years=False,format_version="dwr-dm
     """
     former_index=ts.index.name
     if former_index != "datetime" and not overwrite_conventions: 
-        warnings.warn("Index will be renamed datetime in file according to specification. Copy made")
+        #warnings.warn("Index will be renamed datetime in file according to specification. Copy made")
         ts = ts.copy()
         ts.index.name = "datetime"
     if metadata is None:
         meta_header = f"# format: {format_version}\n# date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}\n"
     else:
         meta_header = prep_header(metadata,format_version)
-    print(fpath)
     
     if chunk_years:
         bounds = chunk_bounds(ts,block_size=block_size)
@@ -128,6 +129,7 @@ def write_ts_csv(ts,fpath,metadata=None,chunk_years=False,format_version="dwr-dm
                 pass
                 #print(f"Year already in file name for file {newfname}")
             with open(newfname,'w',newline="\n") as outfile:
+                print(meta_header)
                 outfile.write(meta_header)
                 tssub.to_csv(outfile,header=True,sep=",",date_format="%Y-%m-%dT%H:%M:%S",**kwargs)
     else: # not chunk_years
