@@ -31,9 +31,14 @@ def test_reformat_usgs_json():
     pattern = ['usgs_dsj_11313433_flow*.csv']
     pattern = ['usgs_benbr_11455780_turbidity_2000_2019.csv']
     pattern = ["usgs_sjj_11337190_elev_2020_9999.csv"]
+    outpath = './data/out'
     reformat(inpath, outpath, pattern)
 
-
+def test_reformat_cdec():
+    inpath = 'w:/repo_staging/continuous/raw'
+    pattern = ["cdec_*"]
+    outpath = './data/out'
+    reformat(inpath, outpath, pattern)
 
 def test_parse_json():
     fpath = 'W:/repo_staging/continuous/quarantine/usgs_benbr_11455780_turbidity_2000_2019.csv'
@@ -48,4 +53,5 @@ if __name__=='__main__':
     #test_reformat_usgs_json()
     #test_parse_json()
     #test_nwis_download()
-    test_usgs_multi()
+    #test_usgs_multi()
+    test_reformat_cdec()

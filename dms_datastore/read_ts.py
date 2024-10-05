@@ -1534,16 +1534,22 @@ def csv_retrieve_ts(
                 nrows=nrows,
                 **dargs,
             )
-        print(m)
+        
         if qaqc_selector is not None:
             # It is costly to try to handle blanks differently for both data
             # (for which we usually want blanks to be NaN and alphanumeric flags.
             if blank_qaqc_good:
                 if np.nan not in qaqc_accept:
                     qaqc_accept.append(np.nan)
-                for v, f in zip(selector, qaqc_selector):
-
-                    dset.loc[~dset[f].astype(str).isin(qaqc_accept), v] = np.nan
+                if "" not in qaqc_accept:
+                    qaqc_accept.append("")
+                
+            for v, f in zip(selector, qaqc_selector):
+                accept = dset[f].astype(str).str.strip().isin(qaqc_accept)
+                if blank_qaqc_good:
+                    accept |=  dset[f].isnull()
+                    dset.loc[~accept, v] = np.nan
+                   
         if selector is None:
             tsm.append(dset)
         else:
