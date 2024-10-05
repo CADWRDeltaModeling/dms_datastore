@@ -155,8 +155,13 @@ def download_station_period_record(row, dbase, dest, variables, failures, ctx):
                 logger.info(f"{station_id} attempt {attempt}")
                 if attempt > 16:
                     logger.info(fname)
+            
+            ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+            ctx.options |= 0x4
             response = urllib.request.urlopen(link_url, context=ctx)
+            #response = urllib.request.get(url).content
             station_html = response.read().decode().replace("\r", "")
+            
             break
         except Exception as e:
             if attempt == max_attempt:
