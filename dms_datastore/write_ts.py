@@ -54,7 +54,6 @@ def prep_header(metadata,format_version):
                 if "format:" in metadata[i]:
                     conflict = i
             if conflict > 0: 
-                print(metadata[i])
                 del(metadata[conflict])
         if not metadata[0].startswith("#"):
             metadata = ["# "+x for x in metadata]
