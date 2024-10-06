@@ -24,6 +24,7 @@ def test_nwis_download():
     nwis_download(df, dest_dir, start, end=None, param=None, overwrite=False)
 
 def test_reformat_usgs_json():
+    return
     inpath = 'w:/repo_staging/continuous/raw'
     #W:\repo_staging\continuous\quarantine
     outpath = './data/out'
@@ -35,17 +36,20 @@ def test_reformat_usgs_json():
     reformat(inpath, outpath, pattern)
 
 def test_reformat_cdec():
+    return
     inpath = 'w:/repo_staging/continuous/raw'
     pattern = ["cdec_*"]
     outpath = './data/out'
     reformat(inpath, outpath, pattern)
 
 def test_parse_json():
+    return
     fpath = 'W:/repo_staging/continuous/quarantine/usgs_benbr_11455780_turbidity_2000_2019.csv'
     parse_usgs_json(fpath,"junk.csv")
 
 
 def test_usgs_multi():
+    return
     fpath = "W:/repo_staging/continuous/formatted_usgs"
     process_multivariate_usgs(fpath,pat=None,rescan=True)
 
@@ -54,4 +58,4 @@ if __name__=='__main__':
     #test_parse_json()
     #test_nwis_download()
     #test_usgs_multi()
-    test_reformat_cdec()
+    #test_reformat_cdec()

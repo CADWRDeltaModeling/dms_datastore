@@ -5,6 +5,7 @@ from dms_datastore.usgs_multi import *
 
 
 def test_ncro_read_after_download():
+    return
     fpath = "W:/repo_staging/continuous/raw/ncro_*.csv"
     files = glob.glob(fpath)
     for fname in files:

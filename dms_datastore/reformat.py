@@ -8,7 +8,6 @@ import sys
 import traceback
 import argparse
 import pandas as pd
-import matplotlib.pyplot as plt
 from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
 from dms_datastore.populate_repo import interpret_fname
