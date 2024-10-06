@@ -123,7 +123,13 @@ def usgs_multivariate(pat,outfile):
                     series = usgs_scan_series(fname)  # Extract list of series in file
                 except:
                     _quarantine_file(fname)
-                    logger.debug(f"Could not scan USGS file for variables: {fname}")
+                    logger.warning(f"Quarantined {fname} in usgs_multi. Could not scan USGS file for variables: {fname}")
+                    continue
+                try:
+                    _ = iter(series)   # Test that the variable is iterable
+                except TypeError as te:
+                    _quarantine_file(fname)
+                    logger.info(f"Quarantined {fname} in usgs_multi. Scan resulted in a non iterable object")
                     continue
                 for s in series:
                     (ats_id,aparam,adescr) = s
