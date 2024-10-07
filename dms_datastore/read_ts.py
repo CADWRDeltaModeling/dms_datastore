@@ -1,7 +1,6 @@
 # import csv
 import pandas as pd
 import numpy as np
-import matplotlib.pylab as plt
 import datetime as dtm
 import glob
 import yaml
