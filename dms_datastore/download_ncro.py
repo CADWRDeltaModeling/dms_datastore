@@ -40,22 +40,22 @@ def download_ncro_inventory(dest, cache=True):
     url = "https://data.cnra.ca.gov/dataset/fcba3a88-a359-4a71-a58c-6b0ff8fdc53f/resource/cdb5dd35-c344-4969-8ab2-d0e2d6c00821/download/station-trace-download-links.csv"
 
     max_attempt = 10
-    for attempt in range(1,(max_attempt+1)):
+    for attempt in range(1, (max_attempt + 1)):
         logger.info(f"Downloading inventory for NCRO attempt #{attempt}")
         try:
             response = urllib.request.urlopen(url, context=ctx).read()
-            fio=io.BytesIO(response)
+            fio = io.BytesIO(response)
             idf = pd.read_csv(
-                  fio,
-                  header=0,
-                  parse_dates=["start_time", "end_time"],       
+                fio,
+                header=0,
+                parse_dates=["start_time", "end_time"],
             )
 
             idf = idf.loc[
-                 (idf.station_type != "Groundwater") & (idf.output_interval =="RAW"), :
-            ]            
+                (idf.station_type != "Groundwater") & (idf.output_interval == "RAW"), :
+            ]
             logger.info(idf)
-            
+
             idf.to_csv(
                 os.path.join(dest, ncro_inventory_file),
                 sep=",",
@@ -67,6 +67,7 @@ def download_ncro_inventory(dest, cache=True):
             if attempt == max_attempt:
                 raise Exception("Could not open inventory.")
             continue
+
 
 def ncro_variable_map():
     varmap = pd.read_csv("variable_mappings.csv", header=0, comment="#")
@@ -91,20 +92,20 @@ mappings = {
     "Turbidity": "turbidity",
     "Flow": "flow",
     "Salinity": "salinity",
-    "ECat25C":"ec",
-    "StreamFlow":"flow",
+    "ECat25C": "ec",
+    "StreamFlow": "flow",
     "WaterTemp": "temp",
     "WaterTempADCP": "temp",
     "DissolvedOxygen": "do",
     "DissolvedOxygenPercentage": None,
     "StreamLevel": "elev",
     "WaterSurfaceElevationNAVD88": "elev",
-    "fDOM": "fdom"
+    "fDOM": "fdom",
 }
 
 
 def download_station_period_record(row, dbase, dest, variables, failures, ctx):
-    """Downloads station/param combo period of record """
+    """Downloads station/param combo period of record"""
     agency_id = row.station_number
     param = row.parameter
     if param in mappings.keys():
@@ -112,7 +113,7 @@ def download_station_period_record(row, dbase, dest, variables, failures, ctx):
         if var is None:
             return
         if var not in variables:
-            return            
+            return
     else:
         logger.info(f"Problem on row: {row}")
         if type(param) == float:
@@ -151,46 +152,47 @@ def download_station_period_record(row, dbase, dest, variables, failures, ctx):
     while attempt < max_attempt:
         attempt = attempt + 1
         try:
-            if attempt > 16: 
+            if attempt > 16:
                 logger.info(f"{station_id} attempt {attempt}")
                 if attempt > 16:
                     logger.info(fname)
-            
+
             ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
             ctx.options |= 0x4
             response = urllib.request.urlopen(link_url, context=ctx)
-            #response = urllib.request.get(url).content
+            # response = urllib.request.get(url).content
             station_html = response.read().decode().replace("\r", "")
-            
+
             break
         except Exception as e:
             if attempt == max_attempt:
-                logger.warning(f"Failure in URL request or reading the response after {attempt} tries for station {station_id} param {param}. Link=\n{link_url}\nException below:")
+                logger.warning(
+                    f"Failure in URL request or reading the response after {attempt} tries for station {station_id} param {param}. Link=\n{link_url}\nException below:"
+                )
                 logger.exception(e)
                 failures.append((station_id, agency_id, var, param))
                 attampt = 0
                 return
-            else: 
-                time.sleep(attempt) # Wait one second more second each time to clear any short term bad stuff
+            else:
+                time.sleep(
+                    attempt
+                )  # Wait one second more second each time to clear any short term bad stuff
     if len(station_html) > 30 and not "No sites found matching" in station_html:
         found = True
-        if attempt > 1: logger.info(f"{station_id} found on attempt {attempt}")
+        if attempt > 1:
+            logger.info(f"{station_id} found on attempt {attempt}")
         with open(fpath, "w") as f:
             f.write(station_html)
     else:
         logger.info(f"{station_id} not found after attempt {attempt}")
         logger.info("Station %s produced no data" % station)
         failures.append((station_id, agency_id, var, param))
-    return 
+    return
 
 
-def download_ncro_period_record(
-    inventory,
-    dbase,
-    dest,
-    variables=None):
-    
-    if variables is None: 
+def download_ncro_period_record(inventory, dbase, dest, variables=None):
+
+    if variables is None:
         variables = ["flow", "elev", "ec", "temp", "do", "ph", "turbidity", "cla"]
     global mappings
     # mappings = ncro_variable_map()
@@ -234,13 +236,18 @@ def download_ncro_por(dest, variables=None):
         | upper_station.isin(dbase.agency_id + "Q")
     )
     if variables is None:
-        variables = ["flow","velocity","elev", "ec", "temp", "do", "ph", "turbidity", "cla"]
-    download_ncro_period_record(
-        idf.loc[is_in_dbase, :],
-        dbase,
-        dest,
-        variables
-    )
+        variables = [
+            "flow",
+            "velocity",
+            "elev",
+            "ec",
+            "temp",
+            "do",
+            "ph",
+            "turbidity",
+            "cla",
+        ]
+    download_ncro_period_record(idf.loc[is_in_dbase, :], dbase, dest, variables)
 
 
 def create_arg_parser():
@@ -263,7 +270,7 @@ def create_arg_parser():
         nargs="+",
         default=None,
         help="Parameters to download.",
-    )    
+    )
     return parser
 
 
@@ -274,7 +281,7 @@ def main():
     por = args.por
     variables = args.param
     dest = "."
-    download_ncro_por(destdir,variables)
+    download_ncro_por(destdir, variables)
 
 
 if __name__ == "__main__":
