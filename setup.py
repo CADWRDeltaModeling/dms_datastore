@@ -4,6 +4,7 @@ import versioneer
 with open('README.rst') as readme_file:
     readme = readme_file.read()
 requirements = [ "vtools3",
+                 "yaml",
                  "beautifulsoup4",
                  "pandas>=2",
                  "xarray",
