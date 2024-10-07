@@ -14,6 +14,7 @@ dependencies:
   - scikit-learn
   #- schimpy # remove this!
   - matplotlib
+  - yaml
   - scikit-learn
   - cfgrib
   - pandoc ## Installing this here because pip is only a wrapper
