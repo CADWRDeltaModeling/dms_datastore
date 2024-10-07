@@ -12,6 +12,7 @@ requirements = [ "vtools3",
                  "boto3",
                  "netCDF4",
                  "diskcache",
+                 "matplotlib",
                  "scikit-learn"]
 setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
