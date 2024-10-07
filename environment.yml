@@ -18,7 +18,8 @@ dependencies:
   - scikit-learn
   - cfgrib
   - pandoc ## Installing this here because pip is only a wrapper
-  
+  - pip:
+    - diskcache 
   #- pip:
   #   - -e git+https://github.com/CADWRDeltaModeling/dms_datastore#egg=dms_datastore
 # alternatively if you want to develop ...
