@@ -13,7 +13,6 @@ requirements = [
     "dask",
     "scikit-learn",
     "matplotlib",
-    "yaml",
     "matplotlib",
     "cfgrib",
     "diskcache",
@@ -58,6 +57,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
+            "download_hycom=dms_datastore.download_hycom:main",
             "download_hrrr=dms_datastore.download_hrrr:main",
             "download_noaa=dms_datastore.download_noaa:main",
             "download_cdec=dms_datastore.download_cdec:main",
