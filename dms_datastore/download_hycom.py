@@ -4,7 +4,6 @@ import xarray as xr
 import pandas as pd
 import pyproj 
 import os
-import ogr, osr
 import numpy as np
 import time
 import datetime as dtm
@@ -23,12 +22,12 @@ def create_arg_parser():
         Download hycom ocean model raw opendap data within lat(37,39),lon(236,239),
         and interpolated to hourly data.
         Usage:
-        download_hycom --sdate 2018-02-19  --raw_dest /path/to/modeling_data/raw
+        download_hycom --sdate 2020-02-19  --raw_dest /path/to/modeling_data/raw
                      --processed_dest /path/to/modeling_data/raw
                      """)
     parser.add_argument('--sdate', default=None, required=True,
                         help='starting date of HRRR data, must be \
-                        format like 2018-02-19')
+                        format like 2020-02-19')
     parser.add_argument('--raw_dest', default=None, required=True,
                         help='path to store downloaded raw hycom data')
     parser.add_argument('--processed_dest', default=None, required=True,
