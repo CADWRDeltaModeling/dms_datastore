@@ -333,7 +333,7 @@ class HRRR:
         
         year_path = pathlib.Path(pscr+"/"+date.strftime("%Y"))
         year_path.mkdir(parents=True, exist_ok=True)
-        fout.to_netcdf(path=path/ f'{pscr}/{date.strftime("%Y")}/hrrr_{date.strftime("%Y%m%d")}{cycle:02d}.nc',mode='w',format='NETCDF4', engine='netcdf4', unlimited_dims='time')
+        fout.to_netcdf(path=f'{pscr}/{date.strftime("%Y")}/hrrr_{date.strftime("%Y%m%d")}{cycle:02d}.nc',mode='w',format='NETCDF4', engine='netcdf4', unlimited_dims='time')
 
     def modified_latlon(self, grbfile):
 

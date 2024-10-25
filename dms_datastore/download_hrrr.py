@@ -56,11 +56,9 @@ def main():
     """
     parser = create_arg_parser()
     args = parser.parse_args()
-
     bbox = [args.lon_min, args.lat_min, args.lon_max, args.lat_max]
     pscr = args.dest
     end_date = args.edate
-
     start_date = datetime.datetime.strptime(args.sdate, '%Y-%m-%d')
     if end_date is None:
         end_date = datetime.datetime.now()
