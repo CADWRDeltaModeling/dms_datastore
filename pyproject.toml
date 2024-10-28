@@ -9,7 +9,7 @@ description = "Downloading tools and data repository management"
 license = {text = "BSD"}
 authors = [{name = "Eli Ateljevich", email = "Eli.Ateljevich@water.ca.gov"}]
 readme = "README.rst"
-requires-python = ">=3.9"  # Minimum Python version
+requires-python = ">=3.9,<=3.11"  # Minimum Python version
 keywords = ["dms_datastore", "data", "repository", "download"]
 classifiers = [
     "Programming Language :: Python :: 3.9",
