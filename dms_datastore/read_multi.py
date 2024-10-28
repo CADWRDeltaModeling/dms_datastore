@@ -14,6 +14,10 @@ __all__ = ["read_ts_repo","ts_multifile_read"]
 
 
 def infer_source_priority(station_id):
+    """Infer the priority of provider for a given station.
+       For instance, if the station_id is from NCRO, the best provider
+       for that source is ncro and the backup is cdec: ["ncro","cdec"]
+    """
     if 'source_priority' not in dstore_config.config:
         return None
     priorities = dstore_config.config["source_priority"]
@@ -29,7 +33,7 @@ def fahren2cel(ts):
 
 def read_ts_repo(station_id,variable,
                  subloc=None,repo=None,
-                 src_priority=None,
+                 src_priority="infer",
                  meta=False,
                  force_regular=False):
     """ Read time series data from a repository, prioritizing sources

@@ -19,7 +19,9 @@ This is the query -- you will need to cahnge
 SET QUOTED_IDENTIFIER OFF
 SELECT * FROM OPENQUERY(INSQL, "SELECT DateTime = convert(nvarchar, DateTime, 20),[DTHST.CCFB_GATE01.POS_FT],[DTHST.CCFB_GATE02.POS_FT], [DTHST.CCFB_GATE03.POS_FT], [DTHST.CCFB_GATE04.POS_FT], [DTHST.CCFB_GATE05.POS_FT]
 FROM WideHistory
-WHERE wwRetrievalMode = 'Delta'
+WHERE wwRetrievalMode = 'Cyclic'
+AND wwResolution = 120000
+AND wwVersion = 'Latest'
 AND wwVersion = 'Latest'
 AND DateTime >= '20220101 00:00:00.000'
 AND DateTime <= '20220514 00:00:00.000'")

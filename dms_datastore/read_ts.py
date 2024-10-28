@@ -243,10 +243,10 @@ def read_ncro_std(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
     """Based on Hydstra nightly dump. WDL is a separate reader"""
-    if selector is not None:
-        raise ValueError(
-            "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
-        )
+    #if selector is not None:
+    #    raise ValueError(
+    #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
+    #    )
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -287,10 +287,10 @@ def is_des_std(fname):
 def read_des_std(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    if selector is not None:
-        raise ValueError(
-            "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
-        )
+    #if selector is not None:
+    #    raise ValueError(
+    #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
+    #    )
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -331,10 +331,10 @@ def is_des(fname):
 def read_des(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    if selector is not None:
-        raise ValueError(
-            "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
-        )
+    #if selector is not None:
+    #    raise ValueError(
+    #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
+    #    )
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -371,10 +371,10 @@ def is_cdec_csv2(fname):
 def read_cdec2(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    if selector is not None:
-        raise ValueError(
-            "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
-        )
+    #if selector is not None:
+    #    raise ValueError(
+    #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
+    #    )
     dateformat = "%Y%m%d %H%M"
     ts = csv_retrieve_ts(
         fpath_pattern,
@@ -410,10 +410,10 @@ def is_cdec_csv1(fname):
 def read_cdec1(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    if selector is not None:
-        raise ValueError(
-            "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
-        )
+    #if selector is not None:
+    #    raise ValueError(
+    #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
+    #    )
 
     def cdec_date_parser(*args):
         if len(args) == 2:
@@ -462,10 +462,10 @@ def is_wdl(fname):
 def read_wdl(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    if selector is not None:
-        raise ValueError(
-            "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
-        )
+    #if selector is not None:
+    #    raise ValueError(
+    #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
+    #    )
 
     ts = csv_retrieve_ts(
         fpath_pattern,
@@ -499,10 +499,10 @@ def is_wdl2(fname):
 def read_wdl2(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    if selector is not None:
-        raise ValueError(
-            "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
-        )
+    #if selector is not None:
+    #    raise ValueError(
+    #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
+    #    )
 
     ts = csv_retrieve_ts(
         fpath_pattern,
@@ -539,10 +539,10 @@ def read_wdl3(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
     """Handles NCRO nightly dump"""
-    if selector is not None:
-        raise ValueError(
-            "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
-        )
+    #if selector is not None:
+    #    raise ValueError(
+    #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
+    #    )
     try:
         ts = csv_retrieve_ts(
             fpath_pattern,
@@ -1136,7 +1136,7 @@ def read_last_resort_csv(fpath_pattern, start=None, end=None, selector=None, for
         start,
         end,
         force_regular,
-        selector=None,
+        selector=selector,
         format_compatible_fn=lambda x: True,
         qaqc_selector=None,
         parsedates=[0],
