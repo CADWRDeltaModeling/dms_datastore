@@ -1,15 +1,15 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "versioneer[toml]"]
+requires = ["setuptools>=42", "wheel", "versioneer"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "dms_datastore"
-version = "0.0.0"  # Placeholder, as versioneer will manage the version dynamically
 description = "Downloading tools and data repository management"
+dynamic = ["version"]
 license = {text = "BSD"}
 authors = [{name = "Eli Ateljevich", email = "Eli.Ateljevich@water.ca.gov"}]
 readme = "README.rst"
-requires-python = ">=3.9,<=3.11"  # Minimum Python version
+requires-python = ">=3.9,<3.12"  # Minimum Python version
 keywords = ["dms_datastore", "data", "repository", "download"]
 classifiers = [
     "Programming Language :: Python :: 3.9",
@@ -49,7 +49,7 @@ VCS = "git"
 versionfile_source = "dms_datastore/_version.py"
 versionfile_build = "dms_datastore/_version.py"
 tag_prefix = ""
-parentdir_prefix = "dms_datastore-"
+parentdir_prefix = "dms_datastore"
 
 [tool.pytest.ini_options]
 norecursedirs = [".*", "*.egg*", "build", "dist", "conda.recipe"]
