@@ -4,23 +4,27 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  - python
+  - python=3.11
   - pip
   - beautifulsoup4
-  - requests
-  - vtools3
+  - dask
+  - numba
+  - scipy
   - pandas>=2
   - xarray
-  - dask
-  - scikit-learn
+  - vtools3
+  - gdal
+  - pyshp # a new schimpy dependency ?
+  - schimpy # remove this!
+  - seaborn
   - matplotlib
-  - yaml
   - scikit-learn
-  - cfgrib
-  - pandoc ## Installing this here because pip is only a wrapper
-  - pip:
-    - diskcache 
-  #- pip:
+  - contourpy
+  - joblib
+  - fonttools
+  - pyparsing
+  - kiwisolver
+#- pip:
   #   - -e git+https://github.com/CADWRDeltaModeling/dms_datastore#egg=dms_datastore
 # alternatively if you want to develop ...
 # git clone this repo
