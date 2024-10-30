@@ -6,8 +6,11 @@ build-backend = "setuptools.build_meta"
 name = "dms_datastore"
 description = "Downloading tools and data repository management"
 dynamic = ["version"]
-license = {text = "BSD"}
-authors = [{name = "Eli Ateljevich", email = "Eli.Ateljevich@water.ca.gov"}]
+license = "MIT"
+authors = [
+    "Eli Ateljevich <Eli.Ateljevich@water.ca.gov>",
+    "Nicky Sandhu <psandhu@water.ca.gov>"
+]
 readme = "README.rst"
 requires-python = ">=3.9,<3.12"  # Minimum Python version
 keywords = ["dms_datastore", "data", "repository", "download"]
