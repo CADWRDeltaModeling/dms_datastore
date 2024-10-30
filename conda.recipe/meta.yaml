@@ -56,4 +56,3 @@ about:
   home: https://github.com/CADWRDeltaModeling/dms_datastore
   summary: Downloading tools and data repository management
   license: {{ pyproject['project']['license'] }}
-  license_file: LICENSE
