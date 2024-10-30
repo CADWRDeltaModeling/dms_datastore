@@ -6,53 +6,52 @@ build-backend = "setuptools.build_meta"
 name = "dms_datastore"
 description = "Downloading tools and data repository management"
 dynamic = ["version"]
-license = "MIT"
+license = {text = "MIT"}
 authors = [
-    "Eli Ateljevich <Eli.Ateljevich@water.ca.gov>",
-    "Nicky Sandhu <psandhu@water.ca.gov>"
+    {name = "Eli Ateljevich", email = "Eli.Ateljevich@water.ca.gov"},
+    {name = "Nicky Sandhu", email = "psandhu@water.ca.gov"}
 ]
 readme = "README.rst"
-requires-python = ">=3.9,<3.12"  # Minimum Python version
+requires-python = ">=3.9,<3.12"
 keywords = ["dms_datastore", "data", "repository", "download"]
 classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11"
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License"  # Added license classifier
 ]
 
-# Dependencies
 dependencies = [
     "vtools3",
-    "yaml",
+    "pyyaml",
     "beautifulsoup4",
     "requests",
     "pandas>=2",
-	"numpy<2",
+    "numpy<2",
     "xarray",
     "dask",
     "scikit-learn",
     "matplotlib",
     "cfgrib",
     "diskcache",
-	"pytest",   # needed for repo testing by users, not just development
-	"pytest-runner"
+    "pytest",
+    "pytest-runner"
 ]
 
-# Optional development dependencies (e.g., for testing)
 [project.optional-dependencies]
 dev = [
     "pandoc"
 ]
 
 [project.urls]
-homepage = "https://github.com/water-e/dms_datastore"
+Homepage = "https://github.com/water-e/dms_datastore"
 
 [tool.versioneer]
 VCS = "git"
 versionfile_source = "dms_datastore/_version.py"
 versionfile_build = "dms_datastore/_version.py"
 tag_prefix = ""
-parentdir_prefix = "dms_datastore"
+parentdir_prefix = "dms_datastore-"
 
 [tool.pytest.ini_options]
 norecursedirs = [".*", "*.egg*", "build", "dist", "conda.recipe"]
