@@ -236,8 +236,6 @@ class HRRR:
                         print('instant surface not found in %s'%file)
                    
         #write netcdf
-        times = pd.date_range(date,freq="1h",periods=len(grbfiles))
-        
         fout = xr.Dataset({
             'stmp': (['time', 'ny_grid', 'nx_grid'], np.array(stmp)),
             'spfh': (['time', 'ny_grid', 'nx_grid'], np.array(spfh)),
@@ -249,7 +247,7 @@ class HRRR:
             'dswrf': (['time', 'ny_grid', 'nx_grid'], np.array(dswrf)),
             },
             coords={
-                'time': times,
+                'time': np.round(np.arange(1, len(grbfiles)+1)/24, 4).astype('float32'),
                 'lon': (['ny_grid', 'nx_grid'], lon),
                 'lat': (['ny_grid', 'nx_grid'], lat)})
 
@@ -259,8 +257,8 @@ class HRRR:
         fout.time.attrs = {
             'long_name': 'Time',
             'standard_name': 'time',
-            'base_date': bdate
-            #'units': f"days since {date.year}-{date.month}-{date.day} {cycle:02d}:00 UTC"
+            'base_date': bdate,
+            'units': f"days since {date.year}-{date.month}-{date.day} {cycle:02d}:00 UTC"
         }
 
         fout.lat.attrs = {
