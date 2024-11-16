@@ -157,6 +157,9 @@ def repo_data_inventory(fpath,full=True,by="file_pattern"):
     metadf = pd.DataFrame(allmeta)
     metadf['original_filename'] = metadf.filename
     metadf['filename'] = metadf.apply(lambda x: to_wildcard(x.filename,remove_source=True),axis=1)
+    metadf['source'] = metadf['agency']
+
+    metadf.loc[:,'agency'] = station_db.loc[metadf.station_id,'agency'].to_numpy()
     double_year_format = "syear" in metadf.columns
 
     #meta2 = metadf.groupby(["station_id","subloc","param"]).first()
@@ -164,7 +167,7 @@ def repo_data_inventory(fpath,full=True,by="file_pattern"):
         # todo: is a groupby necessary for double year format? are there duplicates?
         grouped_meta = metadf.groupby(["station_id","subloc","param"],dropna=False).agg(
             {
-             "agency": lambda ser: reduce(prioritize_source,ser),
+             "agency": ['first'],
              "agency_id":['first'],
              "syear":['min'],
              "eyear":['max'],
@@ -175,7 +178,7 @@ def repo_data_inventory(fpath,full=True,by="file_pattern"):
     else:        
         grouped_meta = metadf.groupby(["station_id","subloc","param"],dropna=False).agg(
             {
-             "agency": lambda ser: reduce(prioritize_source,ser),
+             "agency": ['first'],
              "agency_id":['first'],
              "year":['min','max'],
              "filename": ['first'],

@@ -128,7 +128,6 @@ def write_ts_csv(ts,fpath,metadata=None,chunk_years=False,format_version="dwr-dm
                 pass
                 #print(f"Year already in file name for file {newfname}")
             with open(newfname,'w',newline="\n") as outfile:
-                print(meta_header)
                 outfile.write(meta_header)
                 tssub.to_csv(outfile,header=True,sep=",",date_format="%Y-%m-%dT%H:%M:%S",**kwargs)
     else: # not chunk_years

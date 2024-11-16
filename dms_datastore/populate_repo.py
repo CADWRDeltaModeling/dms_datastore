@@ -438,7 +438,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
             for var in varlist:
                 if not partial_update:
                     logger.info(
-                        f"Calling populate_repo (1) with agency {agency} variable: {var}"
+                        f"Calling populate_repo (1) with agency {agency} variable: {var}  start: 1980-01-01"
                     )
                     populate_repo(
                         agency,
@@ -449,7 +449,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                         ignore_existing=ignore_existing,
                     )
                     logger.info(
-                        f"Calling populate_repo (2) with agency {agency} variable: {var}"
+                        f"Calling populate_repo (2) with agency {agency} variable: {var} start: 2000-01-01"
                     )
                     populate_repo(
                         agency,
@@ -460,9 +460,10 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                         ignore_existing=ignore_existing,
                     )
                 logger.info(
-                    f"Calling populate_repo (3) with agency {agency} variable: {var}"
+                    f"Calling populate_repo (3) with agency {agency} variable: {var}  start: 2020-01-01"
                 )
                 end_download = pd.Timestamp(2039,12,31,23,59) if ((agency == "noaa") and (var == "predictions")) else None
+
                 populate_repo(
                     agency, var, dest, pd.Timestamp(2020, 1, 1), end_download, overwrite=True
                 )
@@ -471,11 +472,11 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                     os.path.join(dest, f"{agency}*_{var}_*.{ext}")
                 )
                 logger.info(f"Done with agency {agency} variable: {var}")
-        print(f"Done with agency {agency} for all variables")
+        logger.info(f"Done with agency {agency} for all variables")
         doneagency.append(agency)
-    print("Completed population for these agencies: ")
+    logger.info("Completed population for these agencies: ")
     for agent in doneagency:
-        print(agent)
+        logger.info(agent)
 
 
 def purge(dest):

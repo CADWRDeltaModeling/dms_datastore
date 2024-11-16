@@ -211,7 +211,7 @@ def parse_usgs_json(parseinput,outfile,report_empty=False):
     # subloc_yaml = yaml.dump(subloc_dict, default_flow_style=False)
 
     write_ts_csv(result_df,outfile,site_metadata,chunk_years=False)
-    return unique_qual
+    return result_df
 
 
 
@@ -219,13 +219,17 @@ def parse_usgs_json(parseinput,outfile,report_empty=False):
 def download_station(
     row, dest_dir, start, end, param, overwrite, endfile, successes, failures, skips
 ):
+ 
     agency_id = row.agency_id
     station = row.station_id
     param = row.src_var_id
     paramname = row.param
     subloc = row.subloc
+
     if (station, paramname) in successes:
         return
+    
+
 
     yearname = (
         f"{start.year}_{endfile}"  # if start.year != end.year else f"{start.year}"
@@ -272,18 +276,20 @@ def download_station(
             station_html = response.read().decode().replace("\r", "")
         except:
             station_html = ""  # Catches incomplete read error
-        if len(station_html) > 80 and not "No sites found matching" in station_html:
+        if len(station_html) > 120 and not "No sites found matching" in station_html or "\"timeSeries\":[]" in station_html:
             found = True
-            logger.info(f"Parsing USGS JSON: {path}")
+            logger.info(f"Parsing USGS JSON: {path} param {param}")
             try:
-                parse_usgs_json(station_html,path,report_empty=f"{station} {paramname} ({param})")
+                df = parse_usgs_json(station_html,path,report_empty=f"{station} {paramname} ({param})")
             except Exception as exc:
                 logger.info(f"Parsing of {station} {paramname} ({param}) JSON to csv failed")
                 with open(path, "w") as f:
                     f.write(station_html)
                 _quarantine_file(path)
                 raise
-            successes.add((station, paramname))
+            if df is not None and not df.empty:
+                found = True
+                successes.add((station, paramname))
         if not found:
             logger.debug(f"Station {station} query failed or produced no data")
             if (station, paramname) not in failures:
