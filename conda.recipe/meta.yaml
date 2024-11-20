@@ -1,4 +1,4 @@
-{% set pyproject = load_file_data('pyproject.toml') %}
+{% set pyproject = load_file_data("../pyproject.toml", from_recipe_dir=True)  %}
 {% set versioneer = pyproject['tool']['versioneer'] %}
 {% set python_version = pyproject['project']['requires-python'] %}
 {% set setup_data = load_setup_py_data() %}
@@ -18,7 +18,7 @@ build:
   script: {{ PYTHON }} -m pip install --no-deps --ignore-installed -vv .
   noarch: python
   entry_points:
-  {% for entry in pyproject['project']['scripts'] %}
+  {% for entry in setup_data['entry_points']['console_scripts'] %}
     - {{ entry }}
   {% endfor %}
   #skip:           true
@@ -55,4 +55,4 @@ test:
 about:
   home: https://github.com/CADWRDeltaModeling/dms_datastore
   summary: Downloading tools and data repository management
-  license: {{ pyproject['project']['license'] }}
+  license: {{ setup_data['license'] }}

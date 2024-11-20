@@ -23,6 +23,7 @@ test_requirements = ["pytest", "pandoc"]
 setup(
     name="dms_datastore",
     version=versioneer.get_version(),
+    license="MIT",
     cmdclass=versioneer.get_cmdclass(),
     description="Downloading tools and data repository management",
     long_description=readme,
