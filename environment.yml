@@ -16,6 +16,7 @@ dependencies:
   - gdal
   - pyshp # a new schimpy dependency ?
   - schimpy # remove this!
+  - eccodes
   - seaborn
   - matplotlib
   - scikit-learn

@@ -25,7 +25,6 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
     description="Downloading tools and data repository management",
-    license="BSD",
     long_description=readme,
     install_requires=requirements,
     # extras_require=extras,
