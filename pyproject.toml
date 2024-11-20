@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "dms_datastore"
 description = "Downloading tools and data repository management"
-dynamic = ["version"]
+dynamic = ["version", "scripts", "license"]
 authors = [
     {name = "Eli Ateljevich", email = "Eli.Ateljevich@water.ca.gov"},
     {name = "Nicky Sandhu", email = "psandhu@water.ca.gov"}
