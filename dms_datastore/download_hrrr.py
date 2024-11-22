@@ -64,7 +64,7 @@ def main():
         end_date = datetime.datetime.now()
     else:
         end_date = datetime.datetime.strptime(end_date, '%Y-%m-%d')
-    rnday = (datetime.datetime.now() - start_date).days + 1
+    rnday = (end_date - start_date).days + 1
     download_hrrr(start_date, rnday, pscr, bbox)
 
 

@@ -222,18 +222,17 @@ class HRRR:
                    
 
                 else:
-                    try:
-                        ds=xr.open_dataset(file,
-                        engine='cfgrib',
-                        backend_kwargs=dict(filter_by_keys={'stepType': 'instant','typeOfLevel': 'surface'}))
-                        for key2, value2 in value.items():
+                    ds=xr.open_dataset(file,
+                    engine='cfgrib',
+                    backend_kwargs=dict(filter_by_keys={'stepType': 'instant','typeOfLevel': 'surface'}))
+                    for key2, value2 in value.items():
+                      try:
                           value2[1].append(ds[key2][idx_ymin:idx_ymax+1, idx_xmin:idx_xmax+1].astype('float32'))
-                        ds.close()  
-                    except Exception:
-                        for key2, value2 in value.items():
-                            value2[1].append(np.tile(np.nan,(idx_ymax-idx_ymin+1,idx_xmax-idx_xmin+1)))
-                        logger.info('instant surface not found in %s'%file)
-                        print('instant surface not found in %s'%file)
+                      except KeyError:
+                          value2[1].append(np.tile(np.nan,(idx_ymax-idx_ymin+1,idx_xmax-idx_xmin+1)))
+                          logger.info(f'instant {key2} not found in %s'%file)
+                          print(f'instant {key2} not found in %s'%file)     
+                    ds.close() 
                    
         #write netcdf
         fout = xr.Dataset({
