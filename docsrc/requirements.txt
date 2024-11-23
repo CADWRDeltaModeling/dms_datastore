@@ -8,6 +8,7 @@ ghp-import # for GitHub Pages import
 nbsphinx
 numpydoc
 docutils
+pandoc
 matplotlib # needed for matplotlib.sphinxext.mathmply
 ipython    # neededd for IPython.sphinxext.ipython_directive
 pip
