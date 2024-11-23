@@ -178,7 +178,7 @@ def process_hycom(start=None, end=None,dest=None):
         os.mkdir(dest)
         print("Destination path created: %s"%dest)
 
-    nnday = (end - start).days + 1
+    nnday = (end - start).days 
     s = copy.copy(start)
 
     for nday in range(nnday):
