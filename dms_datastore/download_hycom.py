@@ -2,7 +2,6 @@
 import urllib.request
 import xarray as xr
 import pandas as pd
-import pyproj 
 import os
 import numpy as np
 import time
@@ -81,6 +80,56 @@ def hycom_schism_opendap(start=None,end=None,dest=None):
                            encoding = {'salinity': {'_FillValue': -9999.0}, 'water_temp': {'_FillValue': -9999.0}} )
         s = s + days(1)
         e = e + hours(24)
+        
+def hycom_schism_opendap_alt2(start=None,end=None,dest=None):
+    """ Download hycom  opendap data for all time based on a bounding set of lat/lon   
+        from a seperate repos. 
+    
+    This particular variant is available from 8/10/2024
+    """
+    url="https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/s3z?lat,lon,time,salinity"
+    url2="https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/t3z?lat,lon,time,water_temp"
+    data = xr.open_dataset(url)
+    data2 = xr.open_dataset(url2)
+
+    if start is None:
+        start = pd.Timestamp(2024,9,1)
+    if end is None:
+        end = pd.Timestamp.now()
+    if dest is None:
+        dest = './raw'
+        
+    if os.path.exists(dest) is False:
+        os.mkdir(dest)
+        print("Destination path created: %s"%dest)
+        
+    s = copy.copy(start)
+    nnday = (end - start).days+1
+    print(nnday)
+    print("Start=",start," End=",end," dest=",dest," nday=",nnday)        
+
+    
+    for nday in range(nnday):
+        print("Downloading: ",s)
+        e = s + days(1)
+        #subset = data.sel(time=slice(s.to_datetime64(),e.to_datetime64()),lat=slice(37.2,38.801),lon=slice(236.48,238.021))
+        subset = data.sel(time=slice(s.to_datetime64(),e.to_datetime64()),lat=slice(37,39),lon=slice(236,239))
+        subset2 = data2.sel(time=slice(s.to_datetime64(),e.to_datetime64()),lat=slice(37,39),lon=slice(236,239))
+        ##sub['salinity' = sub['salinity']*sub['salinity']get
+        #newtime = pd.date_range(s,freq='1H',periods=24)
+        #resampled= subset.interp(time=newtime)
+        datestr = s.strftime("%Y%m%d")        
+        #filename = os.path.join(dest,"hycom_processed_"+datestr+".nc")
+        filename = os.path.join(dest,"hycom_raw_"+datestr+".nc")
+        subset.to_netcdf(filename,mode='w',\
+                           format='NETCDF4_CLASSIC',unlimited_dims=['time'],\
+                           encoding = {'salinity': {'_FillValue': -9999.0}} )
+        subset2.to_netcdf(filename,mode='a',\
+                           format='NETCDF4_CLASSIC',unlimited_dims=['time'],\
+                           encoding = {'water_temp': {'_FillValue': -9999.0}} )
+        s = s + days(1)
+        e = e + hours(24)
+
 
 def hycom_schism_opendap_alt():
     """ Alternate interface that seems slower, so this is currently not used"""
@@ -129,7 +178,7 @@ def process_hycom(start=None, end=None,dest=None):
         os.mkdir(dest)
         print("Destination path created: %s"%dest)
 
-    nnday = (end - start).days  
+    nnday = (end - start).days + 1
     s = copy.copy(start)
 
     for nday in range(nnday):
@@ -186,10 +235,10 @@ def main():
     
     start_date = pd.to_datetime(args.sdate, format='%Y-%m-%d')
     if end_date is None:
-        end_date = pd.Timestamp.today().date()
+        end_date = pd.Timestamp.today()
     else:
         end_date = pd.to_datetime(args.edate, format='%Y-%m-%d')
-    hycom_schism_opendap(start_date,end_date,raw_dest)
+    hycom_schism_opendap_alt2(start_date,end_date,raw_dest)
     process_hycom(start_date,end_date,processed_dest)
 
 if __name__ == '__main__':

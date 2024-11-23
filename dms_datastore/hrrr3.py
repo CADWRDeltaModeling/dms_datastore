@@ -180,7 +180,7 @@ class HRRR:
         Vars = {
             'group1': {'sh2': ['174096', spfh], 't2m': ['167', stmp],'u10': ['165', uwind], 'v10': ['166', vwind]},
             'group2': {'mslma': ['meanSea', prmsl]},
-            'group3': {'prate': ['surface', prate], 'dlwrf': ['surface', dlwrf], 'dswrf': ['surface', dswrf]}
+            'group3': {'prate': ['surface', prate,'prate'], 'dlwrf': ['surface', dlwrf,'sdlwrf'], 'dswrf': ['surface', dswrf,'sdswrf']}
         }
 
         
@@ -219,13 +219,15 @@ class HRRR:
                     
                         logger.info('meanSea'+' not found in %s'%file)
                         print('meanSea'+' not found in %s'%file)
-                   
-
-                else:
+                else:                    
                     ds=xr.open_dataset(file,
                     engine='cfgrib',
                     backend_kwargs=dict(filter_by_keys={'stepType': 'instant','typeOfLevel': 'surface'}))
+                    available_key = [key for key in ds.data_vars]
                     for key2, value2 in value.items():
+                      if key2 not in available_key:
+                          # try alternate name
+                          key2 = value2[2]
                       try:
                           value2[1].append(ds[key2][idx_ymin:idx_ymax+1, idx_xmin:idx_xmax+1].astype('float32'))
                       except KeyError:
@@ -233,6 +235,8 @@ class HRRR:
                           logger.info(f'instant {key2} not found in %s'%file)
                           print(f'instant {key2} not found in %s'%file)     
                     ds.close() 
+
+                  
                    
         #write netcdf
         fout = xr.Dataset({
