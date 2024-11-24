@@ -146,7 +146,7 @@ def hycom_schism_opendap_alt():
             data = xr.open_dataset('test.nc')    
     print(data)    
 
-def process_hycom(start=None, end=None,dest=None):
+def process_hycom(start=None, end=None,dest="./processed", raw="./raw"):
     """
     Interpolate hycome data to hourly;
     converte from UTC to PST
@@ -171,8 +171,6 @@ def process_hycom(start=None, end=None,dest=None):
         start = pd.Timestamp(2022,10,1)
     if end is None: # due to conversion from utc to pst, data for the last day is not available
         end = pd.Timestamp.now()
-    if dest is None:
-        dest = './processed'     
     
     if os.path.exists(dest) is False:
         os.mkdir(dest)
@@ -184,8 +182,6 @@ def process_hycom(start=None, end=None,dest=None):
     for nday in range(nnday):
         print("Processing: ",s)
         e = s + days(1)    
-        raw = './raw'
-        dest = './processed'
         datestr1 = s.strftime("%Y%m%d") 
         datestr2 = e.strftime("%Y%m%d") 
         filename1 = os.path.join(raw,"hycom_raw_"+datestr1+".nc")
@@ -202,9 +198,9 @@ def process_hycom(start=None, end=None,dest=None):
         if len(np.where(raw_nc2.time.diff(dim='time')!=np.timedelta64(3,'h'))[0] ) !=0: # time inverval different from 3hours
             print("%s has inconsistent time interval different from 3 hours "%filename2)
         
-        newtime1 = pd.date_range(s,freq='1H',periods=24)
+        newtime1 = pd.date_range(s,freq='1h',periods=24)
         resampled1 = raw_nc1.interp(time=newtime1)
-        newtime2 = pd.date_range(e,freq='1H',periods=24)
+        newtime2 = pd.date_range(e,freq='1h',periods=24)
         resampled2 = raw_nc2.interp(time=newtime2)
             
         resampled1['time'] = resampled1.time - pd.Timedelta(8,'h')
@@ -239,7 +235,7 @@ def main():
     else:
         end_date = pd.to_datetime(args.edate, format='%Y-%m-%d')
     hycom_schism_opendap_alt2(start_date,end_date,raw_dest)
-    process_hycom(start_date,end_date,processed_dest)
+    process_hycom(start_date,end_date,processed_dest,raw_dest)
 
 if __name__ == '__main__':
     main()
