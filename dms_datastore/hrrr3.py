@@ -119,8 +119,23 @@ class AWSGrib2Inventory:
     @property
     def tmpdir(self):
         if not hasattr(self, "_tmpdir"):
-            self._tmpdir = tempfile.TemporaryDirectory(dir=self.pscr)
+            # Convert self.pscr to Path object if it isn't already
+            pscr_path = pathlib.Path(self.pscr)
+            
+            # Create directory if it doesn't exist
+            pscr_path.mkdir(parents=True, exist_ok=True)
+            
+            # Create a temporary directory
+            self._tmpdir = tempfile.TemporaryDirectory(dir=str(pscr_path))
+        
+        # Return the path as a Path object
         return pathlib.Path(self._tmpdir.name)
+    
+    # def tmpdir(self):
+    #     if not hasattr(self, "_tmpdir"):
+    #         self._tmpdir = os.makedirs(self.pscr)
+    #         #self._tmpdir = tempfile.TemporaryDirectory(dir=self.pscr)
+    #     return pathlib.Path(self._tmpdir.name)
 
     @property
     def files(self):
