@@ -10,6 +10,7 @@ dependencies:
   - dask
   - numba
   - scipy
+  - lxml # for pandas html parsing
   - pandas>=2
   - numpy<2
   - cfgrib

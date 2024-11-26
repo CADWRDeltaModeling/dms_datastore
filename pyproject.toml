@@ -24,6 +24,7 @@ dependencies = [
     "pyyaml",
     "beautifulsoup4",
     "requests",
+    "lxml",
     "pandas>=2",
     "numpy<2",
     "xarray",
