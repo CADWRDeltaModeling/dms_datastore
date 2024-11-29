@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import urllib.request
+import requests
 import xarray as xr
 import pandas as pd
 import os
@@ -139,7 +139,7 @@ def hycom_schism_opendap_alt():
     print("OK")
     url ="http://ncss.hycom.org/thredds/ncss/GLBy0.08/expt_93.0/ts3z?var=salinity&var=water_temp&north=38.801&west=236.4899&east=238.021&south=37.299&disableProjSubset=on&horizStride=1&time=2023-01-10T09%3A00%3A00Z&vertCoord=&addLatLon=true&accept=netcdf4"
     data = None
-    with urllib.request.urlopen(url) as response:
+    with requests.get(url) as response:
         
         with open('test.nc','wb') as fout:
             fout.write(response.read())

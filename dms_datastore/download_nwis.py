@@ -9,7 +9,7 @@ import argparse
 import sys
 import pandas as pd
 import traceback
-import urllib.request
+import requests
 import re
 import zipfile
 import os
@@ -268,12 +268,12 @@ def download_station(
         if sys.version_info[0] == 2:
             raise ValueError("Python 2 no longer supported")
         elif sys.version_info[0] == 3:
-            response = urllib.request.urlopen(station_query)
+            response = requests.get(station_query)
     except:
         failures.append(station)
     else:
         try:
-            station_html = response.read().decode().replace("\r", "")
+            station_html = response.text.replace("\r", "")
         except:
             station_html = ""  # Catches incomplete read error
         if len(station_html) > 120 and not "No sites found matching" in station_html or "\"timeSeries\":[]" in station_html:

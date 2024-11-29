@@ -1,10 +1,10 @@
 '''
 CIMIS provides ETo associated information which is needed for the consumptive use model calculations.
 '''
+import requests
 import pandas as pd
 import numpy as np
 # For dealing with zipped files
-from urllib.request import urlopen
 from zipfile import ZipFile
 from io import BytesIO
 from .logging_config import logger
@@ -40,8 +40,8 @@ def fetch_data_for_year(sid,year,colnames=[]):
     '''
     if len(colnames) < 1:
         colnames=fetch_column_names_from_readme()
-    z=urlopen('ftp://ftpcimis.water.ca.gov/pub2/annual/dailyStns%04d.zip'%year)
-    myzip=ZipFile(BytesIO(z.read())).extract('%04ddaily%03d.csv'%(year,sid))
+    z=requests.get('ftp://ftpcimis.water.ca.gov/pub2/annual/dailyStns%04d.zip'%year)
+    myzip=ZipFile(BytesIO(z.content)).extract('%04ddaily%03d.csv'%(year,sid))
     df=pd.read_csv(myzip,parse_dates=[1])
     df.columns=colnames
     return df

@@ -13,7 +13,8 @@ import datetime as dt
 import time
 import re
 import ssl
-import urllib.request
+import requests
+import io
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
 import pandas as pd
@@ -44,9 +45,7 @@ def open_url_no_ssl_cert_check(url):
     """
     returns a url open handle without SSL certification checks
     """
-    scontext = ssl.SSLContext(ssl.PROTOCOL_TLS)
-    scontext.verify_mode = ssl.VerifyMode.CERT_NONE
-    return urllib.request.urlopen(url, context=scontext)
+    return io.BytesIO(requests.get(url, verify=False).content) #  needed to bypass SSL certification checks
 
 def create_arg_parser():
     parser = argparse.ArgumentParser()

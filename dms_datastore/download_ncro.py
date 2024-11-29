@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import ssl
-import urllib.request
 import requests
 import pandas as pd
 import re
@@ -43,8 +42,9 @@ def download_ncro_inventory(dest, cache=True):
     for attempt in range(1, (max_attempt + 1)):
         logger.info(f"Downloading inventory for NCRO attempt #{attempt}")
         try:
-            response = urllib.request.urlopen(url, context=ctx).read()
-            fio = io.BytesIO(response)
+            response = requests.get(url)
+            response.raise_for_status()
+            fio = io.BytesIO(response.content)
             idf = pd.read_csv(
                 fio,
                 header=0,
@@ -159,9 +159,9 @@ def download_station_period_record(row, dbase, dest, variables, failures, ctx):
 
             ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
             ctx.options |= 0x4
-            response = urllib.request.urlopen(link_url, context=ctx)
-            # response = urllib.request.get(url).content
-            station_html = response.read().decode().replace("\r", "")
+            response = requests.get(link_url)
+            response.raise_for_status()
+            station_html = response.text.replace("\r", "")
 
             break
         except Exception as e:
@@ -185,7 +185,7 @@ def download_station_period_record(row, dbase, dest, variables, failures, ctx):
             f.write(station_html)
     else:
         logger.info(f"{station_id} not found after attempt {attempt}")
-        logger.info("Station %s produced no data" % station)
+        logger.info("Station %s produced no data" % station_id)
         failures.append((station_id, agency_id, var, param))
     return
 

@@ -4,11 +4,7 @@
  
 """
 import sys                       # noqa
-
-if sys.version_info[0] == 2:
-    import urllib2
-else:
-    import urllib.request as urllib2
+import requests
 import re
 import zipfile
 import os
@@ -190,7 +186,8 @@ def wdl_download(station_list,years,dest_dir,syear,eyear,overwrite=False,expand_
                 station_query="{}/{}/{}/{}".format(base_url,agency_id.upper(),year,filename)
                 logger.info(station_query)
                 try:
-                    response = urllib2.urlopen(station_query)
+                    response = requests.get(station_query)
+                    response.raise_for_status()
                 except Exception as e:
                     if 'blob does not exist' in e.reason: 
                         logger.info("No data found")
@@ -200,7 +197,7 @@ def wdl_download(station_list,years,dest_dir,syear,eyear,overwrite=False,expand_
                 fname = fname.lower()
                 localname = os.path.join(work_dir,fname)
                 with open(localname, "wb") as local_file:
-                    local_file.write(response.read())
+                    local_file.write(response.content)
 
                 f = open(localname,"r")             
                 mode = "a" if file_created else "w"

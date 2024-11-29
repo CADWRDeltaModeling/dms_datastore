@@ -7,11 +7,7 @@
 """
 import sys  # noqa
 import argparse
-
-if sys.version_info[0] == 2:
-    import urllib2
-else:
-    import urllib.request
+import requests
 import re
 import zipfile
 import os
@@ -124,20 +120,17 @@ def download_station_data(row, dest_dir, start, end, endfile,
         dur_codes = ["E", "H", "D", "M"] if freq is None else [freq]
         for dur in dur_codes:
             station_query = f"http://{cdec_base_url}/dynamicapp/req/CSVDataServletPST?Stations={cdec_id}&SensorNums={code}&dur_code={dur}&Start={stime}&End={etime}"
-            if sys.version_info[0] == 2:
-                response = urllib2.urlopen(station_query)
-            else:
-                maxattempt = 5
-                response = None
-                for iattempt in range(maxattempt):
-                    try:
-                        response = urllib.request.urlopen(station_query)
-                        station_html = response.read().decode().replace("\r", "")
-                        break
-                    except:
-                        time.sleep(1)
-                        station_html = ""
-                        found = False
+            maxattempt = 5
+            response = None
+            for iattempt in range(maxattempt):
+                try:
+                    response = requests.get(station_query)
+                    station_html = response.text.replace("\r", "")
+                    break
+                except:
+                    time.sleep(1)
+                    station_html = ""
+                    found = False
 
             if (station_html.startswith("Title") and len(station_html) > 16) or (
                 station_html.startswith("STATION_ID") and len(station_html) > 90
