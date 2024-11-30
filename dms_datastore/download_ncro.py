@@ -42,9 +42,15 @@ def download_ncro_inventory(dest, cache=True):
     for attempt in range(1, (max_attempt + 1)):
         logger.info(f"Downloading inventory for NCRO attempt #{attempt}")
         try:
-            response = requests.get(url)
-            response.raise_for_status()
-            fio = io.BytesIO(response.content)
+            session = requests.Session()
+            response = session.get(url,verify=False, stream=False,headers={'User-Agent': 'Mozilla/6.0'})
+            if response.status_code != 200: 
+                continue
+            print("Encoding ",response.apparent_encoding)
+            response.encoding = 'UTF-8'
+            inventory_html = response.content.decode('utf-8')
+            fio = io.StringIO(inventory_html)
+
             idf = pd.read_csv(
                 fio,
                 header=0,
@@ -157,11 +163,10 @@ def download_station_period_record(row, dbase, dest, variables, failures, ctx):
                 if attempt > 16:
                     logger.info(fname)
 
-            ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-            ctx.options |= 0x4
-            response = requests.get(link_url)
+            response = requests.get(link_url,verify=False,stream=False)
+            response.encoding = 'UTF-8' # it will mistakenly assume ascii
             response.raise_for_status()
-            station_html = response.text.replace("\r", "")
+            station_html = response.content.decode('utf-8').replace("\r", "")
 
             break
         except Exception as e:
