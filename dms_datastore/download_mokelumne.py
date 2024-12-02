@@ -8,7 +8,7 @@ import datetime
 import requests
 import glob
 import pandas as pd
-from . import store_utils as utils
+from dms_datastore import store_utils as utils
 
 
 def build_filename(date_str, base_dir):
@@ -81,3 +81,7 @@ def download_last_7(base_dir="raw"):
 def main():
     download_last_7()
     update_last_7days()
+
+
+if __name__ == "__main__":
+    main()
