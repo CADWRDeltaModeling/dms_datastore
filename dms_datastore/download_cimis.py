@@ -360,7 +360,7 @@ class CIMIS:
             print(dfstations[dfstations["Station Number"].isin(failed_stations)])
 
 
-if __name__ == "__main__":
+def main():
     password = os.environ.get("CIMIS_PASSWORD", default="xxx")
     cx = CIMIS(password=password)
     dfcat = cx.get_stations_info()
@@ -383,3 +383,7 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error: {e}")
             continue
+
+
+if __name__ == "__main__":
+    main()

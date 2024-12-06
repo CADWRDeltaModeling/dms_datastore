@@ -67,6 +67,8 @@ setup(
             "download_des=dms_datastore.download_des:main",
             "download_ncro=dms_datastore.download_ncro:main",
             "download_mokelumne=dms_datastore.download_mokelumne:main",
+            "download_ucdipm=dms_datastore.download_ucdipm:main",
+            "download_cimis=dms_datastore.download_cimis:main",
             "compare_directories=dms_datastore.compare_directories:main",
             "populate_repo=dms_datastore.populate_repo:main",
             "station_info=dms_datastore.station_info:main",

@@ -17,7 +17,9 @@ def get_weather_data(start_date, end_date, stnKey=281):
 
 
 # argparse for calling get_weather_data from command line
-if __name__ == "__main__":
+
+
+def main():
     import argparse
 
     parser = argparse.ArgumentParser()
@@ -27,3 +29,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     df = get_weather_data(args.start_date, args.end_date)
     df.to_csv(f"ucdipm_{args.stnKey}.csv")
+
+
+if __name__ == "__main__":
+    main()
