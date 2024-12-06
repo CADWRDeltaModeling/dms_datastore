@@ -10,7 +10,10 @@ dependencies:
   - dask
   - numba
   - scipy
+  - tqdm
+  - openpyxl
   - lxml # for pandas html parsing
+  - paramiko # for sftp cimis requests
   - pandas>=2
   - numpy<2
   - cfgrib
