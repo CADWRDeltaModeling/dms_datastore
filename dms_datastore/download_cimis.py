@@ -39,7 +39,7 @@ class CIMIS:
         # Create an SSH client
         ssh = paramiko.SSHClient()
         # Load system SSH keys
-        ssh.load_system_host_keys()
+        # ssh.load_system_host_keys()
         # Add the server's SSH key automatically if missing
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         # Connect to the server
