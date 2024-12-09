@@ -23,40 +23,23 @@ def parse_mokelumne_flow(fname):
     return date, float(val.replace(",", ""))
 
 
-def update_existing(date, value, fname):
-    name = fname.split(".csv")[0]
-    if not len(glob.glob(f"{name}*.csv")):
-        print(f"{fname} does not exist! Starting a new file named: {fname}")
-        df = pd.DataFrame(columns=["Date", "Value"])
-        df = df.set_index("Date")
-        df = df.astype("float")
-    else:
-        df = utils.read_by_years(name)
-    #
-    dfnew = pd.DataFrame(
-        [[float(value)]], columns=df.columns, index=[pd.to_datetime(date)]
-    )
-    dfnew.index.name = "Date"
-    # update the new data frame values
-    df = pd.concat([df, dfnew])
-    # if duplicate indexes, keep the last one (latest)
-    df = df[~df.index.duplicated(keep="last")]
-    df = df.sort_index()
-    utils.store_by_years(df, name)
-
-
 def update_last_7days(
     fname="mokelumne_flow.csv",
     raw_dir="raw",
-    converted_dir="formatted",
+    converted_dir=".",
 ):
     today = datetime.datetime.now()
+    vals = []
     for i in range(7):
         report_date = today - datetime.timedelta(days=(i + 1))
         date_str = report_date.strftime("%m/%d/%Y")
         download_fname = build_filename(date_str, raw_dir)
         rvals = parse_mokelumne_flow(download_fname)
-        update_existing(*rvals, fname=os.path.join(converted_dir, fname))
+        vals.append(rvals)
+    df = pd.DataFrame(vals, columns=["Date", "Value"])
+    df.set_index("Date", inplace=True)
+    df.sort_index(inplace=True)
+    df.to_csv(fname)
 
 
 def save_report(date_str, base_dir):
