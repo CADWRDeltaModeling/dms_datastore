@@ -8,7 +8,15 @@ import datetime
 import requests
 import glob
 import pandas as pd
+import numpy as np
 from dms_datastore import store_utils as utils
+
+
+def float_conversion_with_nan_default(value):
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        return np.nan
 
 
 def build_filename(date_str, base_dir):
@@ -20,7 +28,7 @@ def parse_mokelumne_flow(fname):
     df = tables[2]
     date = os.path.basename(fname).split(".")[0]
     val = df[df[0] == "Mokelumne River below WID"][4].values[0].split()[0]
-    return date, float(val.replace(",", ""))
+    return date, float_conversion_with_nan_default(val.replace(",", ""))
 
 
 def update_last_7days(
