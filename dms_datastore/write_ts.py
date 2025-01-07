@@ -67,7 +67,7 @@ def prep_header(metadata,format_version):
         header_no_comment = yaml.dump(metadata)
         header = block_comment(header_no_comment)
         if not "format" in metadata:
-            header = "# format: dwr-dms-1.0\n" + header
+            header = f"# format: {format_version}\n" + header
     if not header.endswith("\n"): header=header+"\n"            
     return header
         
