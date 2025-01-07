@@ -28,6 +28,21 @@ def station_dbase(dbase_name=None):
         station_dbase_cache = db
     return station_dbase_cache
 
+subloc_cache = None
+def sublocation_df(dbase_name=None):
+    global subloc_cache
+    if subloc_cache is None:
+        subloc_name = config_file("sublocations")
+        db = pd.read_csv(subloc_name,sep=",",comment="#",header=0,dtype={"id": str, "subloc": str, "z": float, "comment": str})        
+        dup = db.duplicated(subset=["id","subloc"],keep="first")
+        if dup.sum(axis=0)> 0:
+            print("Duplicates in subloc table")
+            print(db[dup])
+            raise ValueError("Station database has duplicate id keys. See above")
+        subloc_cache = db
+    return subloc_cache
+
+
 
 def configuration():
     config_ret = config.copy()
