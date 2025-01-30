@@ -88,7 +88,7 @@ class CIMIS:
         self.sftp.get(remotefile, localfile)
         return localfile
 
-    def download_hourly(self, year):
+    def download_hourly_zipped(self, year):
         """
         download hourly data using the FTP site : 'ftp://ftpcimis.water.ca.gov/pub2/annual/hourlyStns{year}.zip
 
@@ -103,7 +103,7 @@ class CIMIS:
 
     def download_hourly_unzipped(self, year, stations):
         """
-        download hourly data using the FTP site : 'ftp://ftpcimis.water.ca.gov/pub2/annual/{year}hourly{station}.zip
+        download hourly data using the FTP site : 'ftp://ftpcimis.water.ca.gov/pub2/annual/{year}hourly{station}.csv
 
         :param year: year to download, e.g. 2020
         :type year: int
@@ -155,12 +155,12 @@ class CIMIS:
             df2 = df.iloc[:, 0].str.split("\\s+\\d+\\.\\s+", n=1, expand=True)
         return df2.iloc[:, 1].str.strip().values
 
-    def download_all(self, start, end):
+    def download_all_hourly_zipped(self, start, end):
         import tqdm
 
         self.ensure_dir(self.CIMIS_DOWNLOAD_DIR)
         for year in tqdm.tqdm(range(start, end)):
-            lfile = self.download_hourly(year)
+            lfile = self.download_hourly_zipped(year)
             self.unzip(
                 lfile,
                 os.path.join(
@@ -171,28 +171,27 @@ class CIMIS:
     def get_months_and_current_year(self):
         # Get the current month
         current_month = datetime.datetime.now().month
-
+        current_year = datetime.datetime.now().year
         # List of all months in 3-letter lowercase codes
         months_so_far = [
-            datetime.datetime(2024, i, 1).strftime("%b").lower()
+            datetime.datetime(current_year, i, 1).strftime("%b").lower()
             for i in range(1, current_month + 1)
         ]
         # get current year and ensure directory
         current_year = datetime.date.today().year
         return months_so_far, current_year
 
-    def download_current_year(self):
+    def download_current_year(self, active_stations):
         month_list, current_year = self.get_months_and_current_year()
         self.ensure_dir(os.path.join(self.CIMIS_DOWNLOAD_DIR, str(current_year)))
-        # urls for downloading to files
-        urls = ["/pub2/monthly/hourlyStns%s.zip" % mon for mon in month_list]
-        for urlpath in urls:
-            self.download(urlpath)
-        # unzip the downloaded files to the current year
-        for lfile in [
-            self.CIMIS_DOWNLOAD_DIR + "/hourlyStns%s.zip" % mon for mon in month_list
-        ]:
-            self.unzip(lfile, self.CIMIS_DOWNLOAD_DIR + "/%d" % (current_year))
+        for station in active_stations:
+            try:
+                self.download(
+                    f"/pub2/hourly/hourly{station:03d}.csv",
+                    dir=os.path.join(self.CIMIS_DOWNLOAD_DIR, str(current_year)),
+                )
+            except Exception as ex:
+                logging.warning(f"Error downloading station {station}: {ex}")
 
     def get_stations_info(
         self,
@@ -300,12 +299,9 @@ class CIMIS:
     def load_station_for_current_year(self, station_number, dir=None):
         if dir is None:
             dir = self.CIMIS_DOWNLOAD_DIR
-        month_list, current_year = self.get_months_and_current_year()
-        files_for_year = [
-            "%s/%d/%shourly%03d.csv" % (dir, current_year, month, station_number)
-            for month in month_list
-        ]
-        cols = self.get_columns_for_year(2014)  # format of years >= 2014
+        current_year = datetime.date.today().year
+        files_for_year = [f"{dir}/{current_year}/hourly{station_number:03d}.csv"]
+        cols = self.get_columns_for_year(current_year)
         ddfa = dask.dataframe.read_csv(
             files_for_year,
             header=None,
@@ -369,10 +365,11 @@ def main():
     dfcat.to_csv("cimis_stations.csv", index="Station Number")
     # %%
     current_year = pd.to_datetime("today").year
-    cx.download_all(min_year, current_year - 2)
+    cx.download_all_hourly_zipped(min_year, current_year - 2)
     active_stations = list(dfcat[dfcat["Status"] == "Active"]["Station Number"])
-    cx.download_hourly_unzipped(current_year - 1, active_stations)
-    cx.download_current_year()
+    for year in range(current_year - 2, current_year):
+        cx.download_hourly_unzipped(year, active_stations)
+    cx.download_current_year(active_stations)
     #
     import tqdm
 
@@ -381,7 +378,7 @@ def main():
             dfs = cx.load_station(station)
             dfs.to_csv(f"cimis_{station:03d}.csv", index="Date")
         except Exception as e:
-            print(f"Error: {e}")
+            logging.error(f"Error: {e}")
             continue
 
 
