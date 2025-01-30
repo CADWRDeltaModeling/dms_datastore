@@ -1,3 +1,14 @@
+# secret files
+**/*.secret
+#data files
+**/*.html
+**/*.*json
+**/*.xml
+**/*.xls*
+**/*.txt
+**/*.csv
+**/*.zip
+**/*.gz
 # cache dir
 **/cache
 # jupyter notebooks temp dir
