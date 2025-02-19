@@ -69,6 +69,8 @@ setup(
             "download_mokelumne=dms_datastore.download_mokelumne:main",
             "download_ucdipm=dms_datastore.download_ucdipm:main",
             "download_cimis=dms_datastore.download_cimis:main",
+            "download_dcc=dms_datastore.download_dcc:main",
+            "download_montezuma_gates=dms_datastore.download_montezuma_gates:main",
             "compare_directories=dms_datastore.compare_directories:main",
             "populate_repo=dms_datastore.populate_repo:main",
             "station_info=dms_datastore.station_info:main",

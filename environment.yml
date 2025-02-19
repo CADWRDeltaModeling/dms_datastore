@@ -14,6 +14,7 @@ dependencies:
   - openpyxl
   - lxml # for pandas html parsing
   - paramiko # for sftp cimis requests
+  - tabula-py # for pdf parsing
   - pandas>=2
   - numpy<2
   - cfgrib
