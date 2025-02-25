@@ -6,17 +6,28 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from dms_datastore.read_ts import read_ts,read_yaml_header
 from dms_datastore import dstore_config
+from dms_datastore.filename import *
 import glob
 from vtools.functions.merge import ts_merge,ts_splice
 from vtools.functions.unit_conversions import *
 
-__all__ = ["read_ts_repo","ts_multifile_read"]
+
+__all__ = ["read_ts_repo","ts_multifile_read","infer_source_priority"]
 
 
 def infer_source_priority(station_id):
-    """Infer the priority of provider for a given station.
-       For instance, if the station_id is from NCRO, the best provider
-       for that source is ncro and the backup is cdec: ["ncro","cdec"]
+    """
+    Infer the priority of data providers for a given station based on config file entries.
+
+    Parameters
+    ----------
+    station_id : str
+        The station identifier.
+
+    Returns
+    -------
+    list of str or None
+        A list of provider priorities if available, otherwise None.
     """
     if 'source_priority' not in dstore_config.config:
         return None
@@ -34,23 +45,37 @@ def fahren2cel(ts):
 def read_ts_repo(station_id,variable,
                  subloc=None,repo=None,
                  src_priority="infer",
+                 start = None,
+                 end = None,
                  meta=False,
                  force_regular=False):
-    """ Read time series data from a repository, prioritizing sources
-  
-    station_id : str
-        Station ID as defined in csv station file (see station_dbase.csv or station_info).
-        Possibly make it so that the agency or source id also works?
+    """ Read time series data from a repository, prioritizing sources.
 
+    Parameters
+    ----------
+    station_id : str
+        Station ID as defined in the station database.
     variable : str
-        Variable name as defined in variables.csv (not the agency name)
-        
-    repo : str
-        Name of repository. If it is a directory, will be used directly. Otherwise
-        it will be used to look up the name of the resitory using the dbase config file.
-        Finally if it is None, it will look up the default config file which is 
-        in the config file under the name 'repo'.
-        
+        Variable name as defined in the variable database.
+    subloc : str, optional
+        Sublocation identifier if applicable.
+    repo : str, optional
+        Name or path of the repository.
+    src_priority : str or list of str, optional, default="infer"
+        Source priority for data retrieval.
+    start : str, pandas.Timestamp, or None, optional
+        Start date for filtering data.
+    end : str, pandas.Timestamp, or None, optional
+        End date for filtering data.
+    meta : bool, optional
+        Whether to return metadata.
+    force_regular : bool, optional
+        Whether to enforce a regular time step.
+
+    Returns
+    -------
+    pandas.DataFrame or tuple
+        Time series data, or a tuple of metadata and time series if meta=True.
     """
     # Do this before adding the sublocation and creating the pattern
     if  src_priority == 'infer':
@@ -71,7 +96,8 @@ def read_ts_repo(station_id,variable,
     else:
         repository = dstore_config.config_file(repo)
 
-
+    start = pd.to_datetime(start)
+    end = pd.to_datetime(end)
 
     pats = []
     for src in src_priority:
@@ -82,6 +108,20 @@ def read_ts_repo(station_id,variable,
     return retval
 
 def detect_dms_unit(fname):
+    """
+    Detect the unit of measurement from a metadata file.
+
+    Parameters
+    ----------
+    fname : str
+        Path to the metadata file.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the unit as a string and a transformation function (if applicable),
+        otherwise None.
+    """    
     meta = read_yaml_header(fname)
     unit =  meta['unit'] if 'unit' in meta else None
     if unit in ["FNU","NTU"]:
@@ -96,9 +136,71 @@ def detect_dms_unit(fname):
         return "deg_c",fahren2cel
     else:
         return unit, None
+        
+def filter_date(metafname,start=None, end=None):
+    """
+    Filter metadata from interpret_filename to see if it falls in on a date range.
 
-def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=True):
-    """ within a pattern assumes unit consistency and uses merge. between it assumes splice with earlier better"""
+    Parameters
+    ----------
+    metafname : dict
+        Metadata dictionary containing a "year" key.
+    start : int, str, or pandas.Timestamp, optional
+        Start year or timestamp for filtering.
+    end : int, str, or pandas.Timestamp, optional
+        End year or timestamp for filtering.
+
+    Returns
+    -------
+    bool
+        True if the file should be excluded based on the date filter, False otherwise.
+    """    
+    start = pd.to_datetime(start)
+    end = pd.to_datetime(end)
+    if "year" in metafname:
+        yr = int(metafname["year"])
+        if start is None:
+            syr = 0
+        else:
+            syr = start if type(start) == int else start.year
+        if end is None:
+            eyr = 3000
+        else:
+            eyr = end if type(end) == int else end.year
+        return yr < syr or yr > eyr
+    else:
+        return False
+
+def ts_multifile(pats,selector=None,column_names=None,start=None,end=None,meta=False,force_regular=True):
+    """
+    Read and merge/splice multiple time series files based on provided patterns.
+
+    Parameters
+    ----------
+    pats : str or list of str
+        File patterns for time series data.
+    selector : str, optional
+        Column name to select if multiple columns exist.
+    column_names : str or list of str, optional
+        New column names for the output.
+    start : str, pandas.Timestamp, or None, optional
+        Start date for filtering data.
+    end : str, pandas.Timestamp, or None, optional
+        End date for filtering data.
+    meta : bool, optional
+        Whether to return metadata.
+    force_regular : bool, optional
+        Whether to enforce a regular time step.
+
+    Returns
+    -------
+    pandas.DataFrame or tuple
+        Merged time series data, or a tuple of metadata and data if meta=True.
+    """
+    
+    start = pd.to_datetime(start)
+    end = pd.to_datetime(end)
+    
     if not(isinstance(pats,list)):
         pats = [pats]
 
@@ -133,8 +235,10 @@ def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=T
         unit,transform = utrans
         commonfreq = None
         for tsfile in tsfiles:  # loop through files in pattern
-            print(tsfile)
             # read one by one, not by pattern/wildcard
+            metafname = interpret_fname(tsfile)
+            if filter_date(metafname,start,end): 
+                continue
             ts = read_ts(tsfile,force_regular=force_regular)  
             if ts.shape[1] > 1:   # not sure about why we do this here
                 if selector is not None:
@@ -165,10 +269,6 @@ def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=T
                 patfull = patfull.asfreq(commonfreq)
             bigts.append(patfull)
                 
-    #if total_series == 0: 
-    #    for p in pats: 
-    #        print(p)
-    #    raise ValueError("Patterns produced no matches")
 
     # now organize freq across patterns
     cfrq = None     # this will be the common frequency
@@ -183,8 +283,30 @@ def ts_multifile(pats,selector=None,column_names=None,meta=False,force_regular=T
     retval = (metas,fullout) if meta else fullout
     return retval
 
-def ts_multifile_read(pats,transforms=None,selector=None,column_name=None):
+def ts_multifile_read(pats,transforms=None,selector=None,column_name=None, start=None, end=None):
+    """
+    Read and merge multiple time series files with optional transformations.
 
+    Parameters
+    ----------
+    pats : str or list of str
+        File patterns for time series data.
+    transforms : list of callable, optional
+        Transformation functions to apply to each file.
+    selector : str, optional
+        Column name to select if multiple columns exist.
+    column_name : str, optional
+        New column name for the output.
+    start : str, pandas.Timestamp, or None, optional
+        Start date for filtering data.
+    end : str, pandas.Timestamp, or None, optional
+        End date for filtering data.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Merged time series data.
+    """
     if not(isinstance(pats,list)):
         pats = [pats]
     if transforms is None: transforms = [None]*len(pats)
@@ -192,7 +314,6 @@ def ts_multifile_read(pats,transforms=None,selector=None,column_name=None):
     for fp,trans in zip(pats,transforms):
         tsfiles = glob.glob(fp)
         for tsfile in tsfiles:
-            print(tsfile)
             ts = read_ts(tsfile)
             if ts.shape[1] > 1:
                 if selector is None:
