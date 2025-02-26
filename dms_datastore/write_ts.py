@@ -3,6 +3,7 @@
 import yaml
 import pandas as pd
 import warnings
+import os
 
 __all__ = ["write_ts_csv"]
 
@@ -159,8 +160,11 @@ def write_ts_csv(
                     **kwargs
                 )
     else:  # not chunk_years
-        with open(fpath, "w", newline="\n") as outfile:
-            outfile.write(meta_header)
-            ts.to_csv(
-                outfile, header=True, sep=",", date_format="%Y-%m-%dT%H:%M:%S", **kwargs
-            )
+        if isinstance(fpath, (str, bytes, os.PathLike)):
+            outfile = open(fpath, "w", newline="\n")
+        else:
+            outfile = fpath
+        outfile.write(meta_header)
+        ts.to_csv(
+            outfile, header=True, sep=",", date_format="%Y-%m-%dT%H:%M:%S", **kwargs
+        )
