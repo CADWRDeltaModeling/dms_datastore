@@ -11,12 +11,11 @@ authors = [
     {name = "Nicky Sandhu", email = "psandhu@water.ca.gov"}
 ]
 readme = "README.rst"
-requires-python = "<3.13"
+requires-python = "<3.14"
 keywords = ["dms_datastore", "data", "repository", "download"]
 classifiers = [
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11"
+    "Development Status :: 0 - Beta",
+    "Programming Language :: Python :: 3",
 ]
 
 dependencies = [
