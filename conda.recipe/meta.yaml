@@ -29,12 +29,14 @@ requirements:
   #    read more at https://docs.conda.io/projects/conda-build/en/latest/resources/compiler-tools.html
   build:
     - python {{ python_version }}
+    - setuptools
     {% for dep in pyproject['build-system']['requires'] %}
     - {{ dep.lower() }}
     {% endfor %}
   host:
     - python {{ python_version }}
     - pip
+    - setuptools
     - versioneer
   run:
     - python {{ python_version }}

@@ -28,7 +28,7 @@ dependencies = [
     "openpyxl",
     "paramiko",
     "pandas>=2",
-    "numpy<2",
+    "numpy",
     "xarray",
     "dask",
     "scikit-learn",
