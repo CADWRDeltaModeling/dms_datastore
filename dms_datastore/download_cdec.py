@@ -114,7 +114,7 @@ def download_station_data(row, dest_dir, start, end, endfile,
     stime = start.strftime("%m-%d-%Y")
     etime = end if end == "Now" else end.strftime("%m-%d-%Y")
     found = False
-    logger.info(f"Downloading station {station} parameter {p}")
+    logger.info(f"Downloading station {station} parameter {p} sensor code {z}")
     zz = [z]
     for code in zz:
         dur_codes = ["E", "H", "D", "M"] if freq is None else [freq]
@@ -144,6 +144,7 @@ def download_station_data(row, dest_dir, start, end, endfile,
             break
     if not found:
         failures.append((station, p))
+        logger.info(f"No data found for durations {dur_codes}, sensor codes {zz}")
 
 
 def cdec_download(
