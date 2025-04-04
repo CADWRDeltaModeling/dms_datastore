@@ -18,6 +18,7 @@ import dask.dataframe
 
 import logging
 import click
+from functools import lru_cache
 
 logging.basicConfig(level=logging.ERROR)
 VARTYPES = [
@@ -105,7 +106,11 @@ class CIMIS:
             dir = self.CIMIS_DOWNLOAD_DIR
         localfile = os.path.join(dir, str.split(remotefile, "/")[-1])
         self.ensure_dir(os.path.dirname(localfile))
-        self.sftp.get(remotefile, localfile)
+        try:
+            self.sftp.get(remotefile, localfile)
+        except Exception as ex:
+            logging.error(f"Error downloading {remotefile}: {ex}")
+            raise ex
         return localfile
 
     def download_zipped(self, year, hourly=True):
@@ -152,6 +157,7 @@ class CIMIS:
             except Exception as ex:
                 logging.warning(f"Error downloading {interval} station {station}: {ex}")
 
+    @lru_cache(maxsize=128)
     def get_columns_for_year(self, y, hourly=True):
         if y >= 2014:
             units_file = self.download("/pub2/readme-ftp-Revised5units.txt")
@@ -234,6 +240,7 @@ class CIMIS:
             except Exception as ex:
                 logging.warning(f"Error downloading station {station}: {ex}")
 
+    @lru_cache(maxsize=128)
     def get_stations_info(
         self,
         file="/pub2/CIMIS Stations List (January20).xlsx",
@@ -443,7 +450,14 @@ class CIMIS:
             print(dfstations[dfstations["Station Number"].isin(failed_stations)])
 
 
-def download_all_data(hourly=True):
+def download_all_data(hourly=True, partial=False):
+    """
+    Download all CIMIS data from the FTP site. Each year is a separate file for hourly data
+    Each month is a separate file for hourly data
+
+    :param hourly: download hourly data (default is True)
+    :param partial: download only partial data (default is False) (only downloads last couple of years)
+    """
     password = os.environ.get("CIMIS_PASSWORD", default="xxx")
     cx = CIMIS(password=password)
     if hourly:
@@ -456,9 +470,11 @@ def download_all_data(hourly=True):
     dfcat.to_csv("cimis_stations.csv", index="Station Number")
     current_year = pd.to_datetime("today").year
     active_stations = list(dfcat[dfcat["Status"] == "Active"]["Station Number"])
-    for year in range(min_year, current_year - 2):
-        print(f"Downloading zipped {interval} data for year", year)
-        cx.download_zipped(year, hourly)
+
+    if not partial:
+        for year in range(min_year, current_year - 2):
+            print(f"Downloading zipped {interval} data for year", year)
+            cx.download_zipped(year, hourly)
 
     for year in range(current_year - 2, current_year):
         print(f"Downloading unzipped {interval} data for year", year)
@@ -472,7 +488,7 @@ def download_all_data(hourly=True):
             dfs = cx.load_station(station, True, hourly)
             dfs.to_csv(f"cimis_{interval}_{station:03d}.csv", index="Date")
         except Exception as e:
-            logging.error(f"Error: {e}")
+            logging.error(f"Error loading station {station}: {e}")
             continue
 
 
@@ -492,7 +508,11 @@ def merge_with_existing(existing_dir, new_dir, hourly=True):
         dfn = pd.read_csv(file, index_col=0, parse_dates=True)
         if os.path.exists(existing_file):
             dfe = pd.read_csv(existing_file, index_col=0, parse_dates=True)
-            dfe.combine_first(dfn).to_csv(existing_file)
+            # Combine the two DataFrames and remove duplicates
+            combined = pd.concat([dfe, dfn]).drop_duplicates(
+                keep="last"
+            )  # Keeps the last occurrence
+            combined.to_csv(existing_file)
         else:
             logging.warning(f"File {existing_file} does not exist so writing new file")
             dfn.to_csv(existing_file)
@@ -503,7 +523,19 @@ def merge_with_existing(existing_dir, new_dir, hourly=True):
     "--hourly", type=bool, default=True, help="Download hourly data (default is True)"
 )
 @click.option("--existing_dir", default=None, help="Directory to merge new data into")
-def main(hourly, existing_dir=None):
+@click.option(
+    "--download",
+    type=bool,
+    default=True,
+    help="Download data (default is True)",
+)
+@click.option(
+    "--partial",
+    is_flag=True,
+    default=False,
+    help="Set partial download to True if provided (default is False)",
+)
+def main(hourly, existing_dir=None, download=True, partial=False):
     """
     Download CIMIS data
     --hourly: download hourly data (default is True)
@@ -512,6 +544,9 @@ def main(hourly, existing_dir=None):
     environment variable CIMIS_PASSWORD must be set to the password for the CIMIS FTP site
 
     """
-    download_all_data(hourly=hourly)
+    if partial:
+        partial_only = True
+    if download:
+        download_all_data(hourly=hourly, partial=partial)
     if existing_dir is not None:
         merge_with_existing(existing_dir, ".", hourly=hourly)
