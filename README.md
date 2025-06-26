@@ -11,6 +11,8 @@ Delta Modeling Section Datastore provides tools for downloading and managing con
 - [File Naming Conventions](#file-naming-conventions)
 - [Units and Standardization](#units-and-standardization)
 - [Data Fetching and Priority](#data-fetching-and-priority)
+- [Configuration System](#configuration-system)
+- [Accessing Datastore Data](#accessing-datastore-data)
 - [Challenges and Exceptions](#challenges-and-exceptions)
 - [Installation](#installation)
 
@@ -160,6 +162,175 @@ The system aims for standardization of variables and units:
 Data is fetched through download scripts (`download_noaa`, `download_cdec`, `download_nwis`, `download_des.py`). The `auto_screen` process uses `custom_fetcher` functions to retrieve data.
 
 The system handles cases where data for the same station comes from different sources. The `src_priority` mechanism in `read_ts_repo` ensures that data from higher-priority sources is preferred.
+
+## Configuration System
+
+The datastore uses a configuration system based on YAML files and Python modules to manage various aspects of data handling, station metadata, and screening processes.
+
+### Configuration Files
+
+The main configuration files are:
+
+- **dstore_config.yaml**: The central configuration file that defines paths to critical datasets, repository locations, source priorities, and screening configurations.
+- **dstore_config.py**: Python module that reads the YAML configuration and provides functions to access various configuration elements.
+
+#### Station Database and Variable Mappings
+
+The configuration system points to several key data files:
+
+- **station_dbase.csv**: Contains the master database of all stations with their metadata including:
+  - `id`: Internal unique identifier for each station
+  - `agency_id`: The ID used by the agency that operates the station
+  - Geographic coordinates, station name, and other metadata
+
+- **variable_mappings.csv**: Maps between agency-specific variable codes/names and the standardized variable naming used within the datastore system.
+
+- **variable_definitions.csv**: Defines standard variables used in the system along with their units and descriptive information.
+
+- **station_subloc.csv**: Contains information about sublocations (e.g., depths, sensor positions) for stations where simple station ID is insufficient.
+
+### Source Priority Configuration
+
+The `source_priority` section in `dstore_config.yaml` defines the preferred data sources for each agency:
+
+```
+source_priority:
+  ncro: ['ncro','cdec']
+  dwr_ncro: ['ncro']
+  des: ['des']
+  dwr_des: ['des']
+  usgs: ['usgs']
+  noaa: ['noaa']
+  usbr: ['cdec']
+  dwr_om: ['cdec']
+  dwr: ['cdec']
+  ebmud: ['usgs','ebmud','cdec']
+```
+
+This configuration specifies the priority order for data sources when multiple sources exist for the same station. For example, for EBMUD stations, the system will first try to use USGS data, then EBMUD's own data, and finally fall back to CDEC if neither of the higher priority sources are available.
+
+### Screen Configuration
+
+The screening configuration (referenced by `screen_config` and `screen_config_v20230126` in dstore_config.yaml) specifies automated data quality checking rules. The screening configuration YAML file contains rule sets for:
+
+1. **Bounds checking**: Defining acceptable minimum and maximum values for variables
+2. **Spike detection**: Parameters for identifying and flagging data spikes
+3. **Repetition checking**: Rules for flagging suspicious repetitions in data
+4. **Custom screening functions**: Advanced screening algorithms for specific data types
+
+The `auto_screen.py` module applies these rules to incoming data to flag potential quality issues automatically, which can later be reviewed by users.
+
+### Using the Configuration System
+
+The `dstore_config.py` module provides several functions to interact with the configuration:
+
+- `station_dbase()`: Returns the station database as a pandas DataFrame
+- `sublocation_df()`: Returns the sublocations database
+- `configuration()`: Returns the entire configuration dictionary
+- `get_config()` or `config_file()`: Returns the path to a specific configuration file
+
+The module implements caching to avoid repeatedly loading the same configuration files.
+
+## Accessing Datastore Data
+
+The `read_ts_repo` function is the primary way to access data from the datastore. This function handles the complex task of finding the appropriate data files, prioritizing sources based on the configuration, and returning the data as a pandas DataFrame.
+
+### Using the `read_ts_repo` Function
+
+The `read_ts_repo` function requires station identification and variable information to retrieve data. It handles file path construction, source prioritization, and data consolidation automatically.
+
+Basic syntax:
+```python
+from dms_datastore.read_multi import read_ts_repo
+
+# Basic usage - retrieve data for a station and variable
+data = read_ts_repo(station_id="sjj", variable="flow")
+
+# With sublocation - for stations where position matters
+data = read_ts_repo(station_id="msd", variable="elev", subloc="bottom")
+
+# Specifying date ranges (after loading)
+data = read_ts_repo(station_id="mrz", variable="elev", subloc="upper").loc[
+    pd.Timestamp(2018, 1, 1):pd.Timestamp(2023, 1, 1)
+]
+
+# With metadata
+data_with_meta = read_ts_repo(station_id="sjj", variable="flow", meta=True)
+
+# With custom source priority (overriding defaults from config)
+data = read_ts_repo(station_id="sjj", variable="flow", src_priority=["usgs", "cdec"])
+
+# With custom repository location
+data = read_ts_repo(station_id="msd", variable="elev", repo="/path/to/custom/repo")
+```
+
+### Function Parameters
+
+- **station_id**: Station identifier as defined in the station database.
+- **variable**: The variable name using standardized naming (e.g., "flow", "elev", "temp").
+- **subloc**: Optional sublocation identifier (e.g., "bottom", "upper", "bgc").
+- **repo**: Optional repository location. If None, uses the default from configuration.
+- **src_priority**: Source priority list. If "infer", derives from configuration based on station type.
+- **meta**: If True, returns metadata along with the data.
+- **force_regular**: Force the returned time series to have regular time intervals.
+
+### Example: Data Retrieval and Processing
+
+```python
+import pandas as pd
+from dms_datastore.read_multi import read_ts_repo
+import matplotlib.pyplot as plt
+
+# Get flow data for San Joaquin at Jersey Point
+flow_data = read_ts_repo("sjj", "flow")
+
+# Get the same data but with a specific sublocation
+flow_data = read_ts_repo("sjj", "flow", subloc="bgc")
+
+# Filter to a specific time period
+start_date = pd.Timestamp("2020-01-01")
+end_date = pd.Timestamp("2020-12-31") 
+flow_period = flow_data.loc[start_date:end_date]
+
+# Basic visualization
+plt.figure(figsize=(12, 6))
+plt.plot(flow_period.index, flow_period.values)
+plt.title("San Joaquin River Flow at Jersey Point (2020)")
+plt.xlabel("Date")
+plt.ylabel("Flow (cfs)")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+```
+
+### Caching Data Access
+
+For repeated access to the same data, especially when additional processing is involved, the datastore provides a caching mechanism through the `@cache_dataframe` decorator:
+
+```python
+from dms_datastore.read_multi import read_ts_repo
+from dms_datastore.caching import cache_dataframe
+
+@cache_dataframe()
+def get_filtered_flow(station, variable):
+    """Retrieve and process flow data with caching for improved performance."""
+    # Read data from repository
+    data = read_ts_repo(station, variable)
+    
+    # Perform some processing
+    data = data.interpolate(method='linear', limit=4)
+    
+    # Calculate daily averages
+    daily = data.resample('D').mean()
+    
+    return daily
+
+# First call will read from repository (slower)
+daily_flow = get_filtered_flow(station="sjj", variable="flow")
+
+# Subsequent calls will use cached data (much faster)
+daily_flow = get_filtered_flow(station="sjj", variable="flow")
+```
 
 ## Challenges and Exceptions
 
