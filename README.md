@@ -163,6 +163,14 @@ Data is fetched through download scripts (`download_noaa`, `download_cdec`, `dow
 
 The system handles cases where data for the same station comes from different sources. The `src_priority` mechanism in `read_ts_repo` ensures that data from higher-priority sources is preferred.
 
+### Dropbox Data Processing
+
+The Dropbox Data Processing System provides a mechanism for importing ad-hoc or one-off data files into the repository. This is particularly useful for integrating data that was sourced as files rather than through automated downloads, or for processing data from non-standard sources.
+
+The system uses a YAML configuration file (`dropbox_spec.yaml`) to define data sources, collection patterns, and metadata handling rules. The `dropbox_data.py` script processes these configurations to locate, transform, and store the data in the standardized repository format.
+
+See [README-dropbox.md](README-dropbox.md) for detailed documentation on this system.
+
 ## Configuration System
 
 The datastore uses a configuration system based on YAML files and Python modules to manage various aspects of data handling, station metadata, and screening processes.
