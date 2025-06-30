@@ -11,8 +11,8 @@ import pandas as pd
 import pytz
 
 """ Preprocess CCF data from Wonderware to dated SCHISM format
-1.	Get the latest gate open and closure height file from Wonderware but only for the gap between the last forecast and this one -- don’t overwrite data that has already been corrected for DST. Wonderware is well behaved, and it will be assumed here that this file is complete and needs no backup plan. You can log in at https://csbis.water.ca.gov.  You will use your water domain username and password. 
-
+1.	Get the latest gate open and closure height file from Wonderware but only for the gap between the last forecast and this one -- don’t overwrite data that has already been corrected for DST. Wonderware is well behaved, and it will be assumed here that this file is complete and needs no backup plan. You can log in at .  You will use your water domain username and password. 
+https://csbis.water.ca.gov
 2. Select Query from the initial menu and then the SQL tab. You eventually will want to change the start time (the one with DateTime >=) but you don't need to do it every time and some overlap helps prevent errors when integrating old and new data.
 
 This is the query -- you will need to cahnge
@@ -22,22 +22,17 @@ FROM WideHistory
 WHERE wwRetrievalMode = 'Cyclic'
 AND wwResolution = 120000
 AND wwVersion = 'Latest'
-AND wwVersion = 'Latest'
-AND DateTime >= '20220101 00:00:00.000'
-AND DateTime <= '20220514 00:00:00.000'")
+AND DateTime >= '20250101 00:00:00.000'
+AND DateTime <= '20250630 16:00:00.000'")
+2.	Save. The save button makes csv in wonderware. I use ccf_gate_height_wonderware_2023_9999.csv 
 
-2.	Save. The save button makes csv in wonderware. I use ccf_gate_height_wonderware_2022_9999.csv 
+3. The preprocessor will correct the file for DST, match date/number format to the one used for schism and append to the existing. It will also trim redundant entries and reformat. Run process_ccfb_gate_height. At that point,you would append to prior files in GitHub and in Modeling_Data. We tend to find problems and fix them. 
 
-3. The preprocessor will correct the file for DST, match date/number format to the one used for schism (2009-01-31 00:00) and append to the existing. It will also trim redundant entries and reformat. Run process_ccfb_gate_height. At that point,you would append to prior files in GitHub and in Modeling_Data. We tend to find problems and fix them. 
+The dataprep work area no longer reconstructs the entire history of CCF, because this involvoes onerous switching between methods during the pre-Wonderware/SAP era. 
 
-The dataprep work area no longer has the entire history of CCF, because this involvoes onerous switching between methods in the pre-Wonderware/SAP era. 
-
-todo: 
-1. Automate the appending of this data to an original and of a forecast to this file.
-2. Automate the estimation of gate heights given irregular timing (e.eg. priority 3) and a file of SWP pumping flows. There is a function doing this approximation in this file but it isn't hooked up anymore.
 Sample usage:
-process_ccfb_gate_height.py --infile ccf_gate_height_wonderware_2022_9999.csv --basefile D:/Delta/BayDeltaSCHISM/data/time_history/ccfb_gate.th --transition 2022-05-20 --outfile ccfb_gate_20220818.th
-
+process_ccfb_gate_height.py --infile //cnrastore-bdo/Modeling_Data/clifton_court/ccf_gate_height_wonderware_2023.csv --basefile D:/Delta/BayDeltaSCHISM/data/time_history/ccfb_gate.th --transition 2023-01-02 --outfile ccfb_gate_20230208.th
+python process_ccfb_gate_height.py --infile gate_height_wonderware_2025b.csv --outfile ccfb_gate_20250610.th
 """
 
 
@@ -50,15 +45,15 @@ def read_wonderware(infile):
     path to the Wonderware file
     """
     
-    ts = pd.read_csv(infile,sep=",",parse_dates=["DateTime"],
+    ts = pd.read_csv(infile,sep=",",comment="#",parse_dates=["DateTime"],
                      index_col="DateTime",dtype=float,na_values=["(null)"])    
-    pst = pytz.timezone('ETC/GMT+8')
-    pdt = pytz.timezone('US/Pacific')
+    pst = 'ETC/GMT+8'
+    pdt = 'US/Pacific'
 
 
-    ts.index = ts.index.tz_localize(pdt).tz_convert(pst)
-    ts.index = ts.index.floor("1T")
-    ts = ts[~ts.index.duplicated(keep="first")]
+    ts.index = ts.index.tz_localize(pdt,nonexistent="shift_backward",ambiguous="infer").tz_convert(pst)
+    #ts.index = ts.index.floor("1min")
+    #ts = ts[~ts.index.duplicated(keep="first")]
     ts.index = ts.index.tz_localize(None)
     return ts
 
@@ -74,18 +69,21 @@ def ccf_trim(df,outfile):
     # Trim near-duplicate times and then duplicate data
     df2 = df.asfreq('2min',method='pad')
 
-    df2=df2.apply(np.round, args=[2])
+    #df2=df2.apply(np.round, args=[2])
+    df2 = df2.round(2)
     df2=df2.loc[~df2.isnull().any(axis=1)]
+    #df2.where((df2 > 0.1
 
     # Workaround to a problem in drop_duplicates()
-    if (df2.iloc[0,:] == 0.).all():
-        df2.iloc[0,4]=1.e-6
-    if (df2.iloc[-1,:] == 0.).all():
-        df2.iloc[-1,3]=1.e-6
+    #if (df2.iloc[0,:] == 0.).all():
+    #    df2.iloc[0,4]=1.e-6
+    #if (df2.iloc[-1,:] == 0.).all():
+    #    df2.iloc[-1,3]=1.e-6
 
-    df2.drop_duplicates(inplace=True,keep='first')
-    
-
+    df2sum = df2.sum(axis=1)
+    df2dup = (df2 == 0.).all(axis=1) & (df2 == df2.shift(1)).all(axis=1)
+    df2dup  |= (df2sum != 0.) & ((df2 - df2.shift(1)).abs() <= 0.01).all(axis=1)
+    df2 = df2.loc[~df2dup,:]
     df2.to_csv(outfile,float_format="%.4f")
     return df2
 
@@ -162,7 +160,7 @@ def read_gate_height(datafile,thresh_open=0.03):
        thresh_open is the threshold at which gate is considered in use, which can filter a lot of noise
     """
     lastmin=-1
-    df = pd.read_csv(datafile,sep=",",index_col=0,parse_dates=[0],header=0,na_values=["(null)"])
+    df = pd.read_csv(datafile,sep=",",index_col=0,parse_dates=[0],header=0,na_values=["(null)"],dtype=float)
     height_sum = df.sum(axis=1)  # don't move this without care
     df["ndup"] = (df>thresh_open).sum(axis=1)
     df["height"] = height_sum.divide(df.ndup,axis="index",fill_value=0.)*units.FT2M
@@ -262,7 +260,7 @@ def create_arg_parser():
     parser.add_argument('--outfile', type=str,default="",
                         help='name of output *.th file')
     parser.add_argument('--preprocess', type=bool,default=True,
-                        help='preprocess Wonderware file for time zone and sparsity')
+                        help='preprocess Wonderware file for time zone and sparsity, default true')
     parser.add_argument('--prepro_out',type=str,help="name of intermediate output file for preprocessor",default="ccf_prepro.csv")
     return parser
     
@@ -346,5 +344,15 @@ def main():
         
 if __name__=="__main__":
     main()    
+    #dfa = pd.read_csv("ccfb_gate_20241106.th",sep="\s+",index_col=0,parse_dates=[0],header=0)
+    #dfb = pd.read_csv("d:/Delta/BayDeltaSCHISM/data/time_history/ccfb_gate.th",sep="\s+",index_col=0,parse_dates=[0],header=0)
+    #fig,ax = plt.subplots(1)
+    #ax.step(dfa.index,dfa.height.values,where="post")
+    #ax.step(dfb.index,dfb.height.values,where="post")
+    #ax.legend(["new","orig"])
+    #plt.show()
     
+    
+#process_ccfb_gate_height.py --infile gate_height_wonderware_2023.csv --transition 2023-01-01 --outfile ccfb_gate_2025a.th
+#python process_ccfb_gate_height.py --infile gate_height_wonderware_2025b.csv --outfile ccfb_gate_20250410.th
     
