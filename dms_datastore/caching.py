@@ -1,6 +1,7 @@
 import diskcache as dc
 import os
 import shutil
+import inspect
 import pandas as pd
 import functools
 import urllib.parse
@@ -23,6 +24,14 @@ class LocalCache:
             cls._instance.close()
             cls._instance = None
 
+
+def wrap_cache_value(data, func):
+    return {"data": data, "fname": f"{func.__module__}.{func.__name__}"}
+
+def unwrap_cache_value(obj):
+    if isinstance(obj, dict) and "data" in obj:
+        return obj["data"]
+    return obj
 def parse_cache_key(key):
     func_name, args_str = key.split("|", 1)
     args = dict(urllib.parse.parse_qsl(args_str))
@@ -74,23 +83,56 @@ def cache_dataframe(key_args=None):
     ...     # some data fetching logic
     ...     return arg1 + arg2 + (kwarg1 if kwarg1 else 0) + (kwarg2 if kwarg2 else 0)
     """        
+import inspect
+
+def cache_dataframe(key_args=None):
+    """
+    Decorator to cache function outputs based on selected keyword arguments.
+
+    Parameters
+    ----------
+    key_args : list of str, optional
+        Names of arguments to include in the cache key. If None, use all named arguments.
+    """
+import inspect
+
+def cache_dataframe(key_args=None):
+    """
+    Decorator to cache function outputs based on selected keyword arguments.
+
+    Parameters
+    ----------
+    key_args : list of str, optional
+        Names of arguments to include in the cache key. If None, use all named arguments.
+    """
     def decorator(func):
-        func_name = func.__name__  # Capture the function name as a string
+        sig = inspect.signature(func)
+        func_name = func.__name__
 
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
+            # Bind args and kwargs to parameter names
+            bound = sig.bind(*args, **kwargs)
+            bound.apply_defaults()
+            all_args = bound.arguments  # ordered dict of all arguments
+
+            # Filter to just those used in the cache key
+            key_dict = {k: v for k, v in all_args.items() if key_args is None or k in key_args}
+
             cache = LocalCache.instance()
-            key_kwargs = {k: v for k, v in kwargs.items() if k in key_args} if key_args is not None else kwargs
-            cache_key = generate_cache_key(func_name, **key_kwargs)
-            
+            cache_key = generate_cache_key(func_name, **key_dict)
+
             if cache_key in cache:
                 return cache[cache_key]
             else:
                 result = func(*args, **kwargs)
                 cache[cache_key] = result
                 return result
+
         return wrapper
     return decorator
+
+
 
 def generate_cache_key(func_name, **kwargs):
     """
@@ -158,8 +200,25 @@ def retrieve_all_data(func_name):
             df = cache[key].copy()
             _, args = parse_cache_key(key)
             # Extend the index with function arguments for each row
-            extended_index = pd.MultiIndex.from_arrays([df.index] + [[value] * len(df) for value in args.values()],
-                                                       names=['datetime'] + list(args.keys()))
+            if isinstance(df.index, pd.MultiIndex):
+                index_arrays = list(df.index.levels)
+                index_values = list(zip(*df.index.values))
+                df_index_parts = [pd.Index(level) for level in zip(*df.index.values)]
+            else:
+                df_index_parts = [df.index]
+
+            if isinstance(df.index, pd.MultiIndex):
+                index_names = list(df.index.names)
+                df_index_parts = [df.index.get_level_values(i) for i in index_names]
+            else:
+                index_names = [df.index.name or "index"]
+                df_index_parts = [df.index]
+
+            key_parts = [[args[k]] * len(df) for k in args]
+            extended_index = pd.MultiIndex.from_arrays(
+                df_index_parts + key_parts,
+                names=index_names + list(args.keys())
+            )
             df.set_index(extended_index, inplace=True)
             dataframes.append(df)
     return pd.concat(dataframes) if dataframes else pd.DataFrame()
@@ -196,28 +255,55 @@ def load_cache_csv(file_path):
     # This will load data from 'get_dataframe1.csv' into the cache, reconstructing
     # the DataFrame structure and using it to populate the cache.
     """    
-def load_cache_csv(file_path):
+    class DummyFunction:
+        def __init__(self, name):
+            self.__name__ = name
+            self.__module__ = "from_csv"
+
     cache = LocalCache.instance()
+    header_map = {}
+
     with open(file_path, 'r') as f:
-        function_line = f.readline().strip().split(": ")[1]
-        index_name_line = f.readline().strip().split(": ")[1]
-        keys_line = f.readline().strip().split(": ")[1].split(', ')
-    df = pd.read_csv(file_path, comment='#', header=0)
-    # Combine the dynamic index name with the keys for setting the index
-    df.set_index([index_name_line] + keys_line, inplace=True)
-    
-    grouped = df.groupby(keys_line)
+        while True:
+            pos = f.tell()
+            line = f.readline()
+            if not line.startswith("#"):
+                f.seek(pos)
+                break
+            if ":" in line:
+                key, val = line[1:].strip().split(":", 1)
+                header_map[key.strip()] = val.strip()
 
-    for name, group in grouped:
-        kwargs = {key: value for key, value in zip(keys_line, name)}
-        cache_key = generate_cache_key(function_line, **kwargs)
-        group.reset_index(keys_line + [index_name_line], inplace=True)
-        group.set_index(index_name_line, inplace=True)
+    function_line = header_map.get("cached_function")
+    keys_line = [s.strip() for s in header_map.get("keys", "").split(",") if s.strip()]
+    col_keys_line = [s.strip() for s in header_map.get("col_keys", "").split(",") if s.strip()]
+    index_names = [s.strip() for s in header_map.get("index_name", "").split(",") if s.strip()]
 
-        cache[cache_key] = group
+    # Load CSV body
+    df = pd.read_csv(file_path, comment="#", header=0)
 
+    # groupby requires keys to be in columns, not index — DO NOT drop them yet
+    # Just confirm drop_keys for later
+    drop_keys = [k for k in keys_line if k not in col_keys_line]
 
-def cache_to_csv():
+    # Group using keys
+    for name, group in df.groupby(keys_line):
+        kwargs = dict(zip(keys_line, name if isinstance(name, tuple) else (name,)))
+
+        # Remove unwanted key columns from inside each group
+        group = group.drop(columns=drop_keys, errors="ignore")
+
+        # Set final index
+        final_index = [col for col in index_names if col in group.columns]
+        group = group.set_index(final_index)
+
+        group = coerce_datetime_index(group)
+
+        wrapped = wrap_cache_value(group, DummyFunction(function_line))
+        print("CACHE INSERT:", generate_cache_key(function_line, **kwargs))
+        cache[generate_cache_key(function_line, **kwargs)] = wrapped
+
+def cache_to_csv(float_format=None):
     """
     Writes all cached data to CSV files, one for each unique function.
 
@@ -247,24 +333,51 @@ def cache_to_csv():
     """       
     cache = LocalCache.instance()
     seen = set()
-    for key in cache.iterkeys():
-        func_name = key.split('|')[0]
-        if func_name not in seen:
-            seen.add(func_name)
-            print(f"Exporting {func_name} to csv")
-            all_data = retrieve_all_data(func_name)
-            if not all_data.empty:
-                index_name = all_data.index.names[0] if all_data.index.names else 'index'
-                file_path = f'{func_name}.csv'
-                with open(file_path, 'w') as f:
-                    f.write(f"# cached_function: {func_name}\n")
-                    f.write(f"# index_name: {index_name}\n")
-                    keys = [name for name in all_data.index.names[1:]]
-                    f.write(f"# keys: {', '.join(keys)}\n")
-                all_data.to_csv(file_path, mode='a', header=True)
-            else:
-                print(f"No data available to save for function: {func_name}")
 
+    for key in cache.iterkeys():
+        func_name = key.split("|")[0]
+        if func_name in seen:
+            continue
+        seen.add(func_name)
+
+        all_data = retrieve_all_data(func_name)
+        if all_data.empty:
+            continue
+
+        index_name = all_data.index.names[0]
+        keys = all_data.index.names[1:]
+        file_path = f"{func_name}.csv"
+        
+        # Determine which keys are retained in the data
+        col_keys = [key for key in keys if key in all_data.columns]
+        with open(file_path, 'w') as f:
+            f.write(f"# cached_function: {func_name}\n")
+            f.write(f"# index_name: {', '.join(all_data.index.names)}\n")
+            f.write(f"# keys: {', '.join(keys)}\n")
+            if len(col_keys) > 0:
+                f.write(f"# col_keys: {', '.join(col_keys)}\n")
+        all_data.to_csv(file_path, mode='a', float_format=float_format)
+
+def coerce_datetime_index(df):
+    """
+    Try to convert the index of a DataFrame to a DatetimeIndex if possible.
+    
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        The DataFrame whose index may need datetime coercion.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The DataFrame with a datetime index if conversion succeeded.
+    """
+    if isinstance(df.index, pd.Index) and df.index.dtype == object:
+        try:
+            df.index = pd.to_datetime(df.index)
+        except Exception:
+            pass
+    return df
 
 def main_example():
     # Using the caching system example. No entry to here
@@ -293,17 +406,20 @@ def main_example():
 
     # Retrieve data from cache to confirm it's correctly loaded
     cache = LocalCache.instance()
-    print(cache[generate_cache_key(get_dataframe1, string_arg="example1", int_arg=10)[0]])
-    print(cache[generate_cache_key(get_dataframe1, string_arg="example1bb", int_arg=15)[0]])
-    print(cache[generate_cache_key(get_dataframe2, string_arg="example2")[0]])
+    print(cache[generate_cache_key(get_dataframe1, string_arg="example1", int_arg=10)])
+    print(cache[generate_cache_key(get_dataframe1, string_arg="example1bb", int_arg=15)])
+    print(cache[generate_cache_key(get_dataframe2, string_arg="example2")])
 
 def create_arg_parser():
-    """ Create an argument parser
-    """
-    parser = argparse.ArgumentParser(description="Create inventory files, including a file inventory, a data inventory and an obs-links file.")
-    parser.add_argument('--clear',  action='store_true', help = "clear local cache") 
-    parser.add_argument('--to_csv', action='store_true', help = "flush to csv")
-    parser.add_argument('--delete', action='store_true', help = "clear local cache") 
+    """Create an argument parser for cache utilities."""
+    parser = argparse.ArgumentParser(
+        description="Manage cached time series data and optionally export or import it via CSV."
+    )
+    parser.add_argument('--clear', action='store_true', help="Clear local cache")
+    parser.add_argument('--delete', action='store_true', help="(Alias for --clear)")
+    parser.add_argument('--to_csv', action='store_true', help="Flush current cache to CSV files (one per function)")
+    parser.add_argument("--float_format", type=str, default=None, help="Float format string for to_csv")
+    parser.add_argument('--from_csv', metavar='CSV_FILE', type=str, help="Load cache from a previously saved CSV file")
     return parser
 
 
@@ -313,16 +429,23 @@ def main():
     args = parser.parse_args()
     clear = args.clear
     to_csv = args.to_csv
+    from_csv = args.from_csv
     delete = args.delete
     if (to_csv and delete) or (to_csv and clear):
         raise ValueError("to_csv and delete/clear are incompatible. dump to csv, check the result then delete")
     
+    if (from_csv and delete) or (from_csv and clear) or (from_csv and to_csv):
+        raise ValueError("from_csv and delete/clear/to_csv are incompatible.")   
+        
     if clear:
         print("Clearing local cache.")
         LocalCache.instance().clear()
 
     if to_csv:
-        cache_to_csv()
+        cache_to_csv(args.float_format)
+
+    if from_csv:
+        load_cache_csv(from_csv)
 
     if delete:
         if os.path.exists('cache'):
