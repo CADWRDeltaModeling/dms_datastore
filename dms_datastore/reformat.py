@@ -12,7 +12,7 @@ from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
 from dms_datastore.populate_repo import interpret_fname
 from dms_datastore.dstore_config import config_file, station_dbase
-from .logging_config import logger
+from dms_datastore.logging_config import logger
 
 
 __all__ = ["reformat","reformat_main",
@@ -97,19 +97,28 @@ def noaa_unit(fname):
     header = read_yaml_header(fname)
     return header['unit']
 
-
-def ncro_unit(header_text, param):
+def ncro_unit_json(header_text,param):
+    """Use this if the file is translated from json and marked as format dwr-ncro-json"""
     unit_reformat = {"feet": "feet",
-                     "microsiemens/cm": "microS/cm",
+                     "foot": "feet",
+                     "microsiemens/cm": "uS/cm",
+                     "mgl":"mg/l,",
+                     "ut":"ug/l",
                      "mg/l": "mg/l",
                      "milligrams/litre": "mg/l", "cfs": "ft^3/s",
                      "cubic feet/second": "ft^3/s",
-                     "ph": "pH", "PSU": "psu",
+                     "cfs": "ft^3/s",
+                     "fts": "ft/s",
+                     "ph": "pH", 
+                     "PSU": "psu",
+                     "degf": "deg_f",
                      "degrees farenheit": "deg_f",
+                     "degc": "deg_c",
                      "degrees celsius": "deg_c",
                      "feet/second": "ft/s",
                      "us/cm": "uS/cm",
-                     "ntu": "NTU", "fnu": "FNU",
+                     "ntu": "NTU", 
+                     "fnu": "FNU",
                      "degrees c": "deg_c",
                      "micrograms/litre": "ug/l",
                      "pss-15": "psu",
@@ -122,7 +131,64 @@ def ncro_unit(header_text, param):
                      "velocity": "ft/s",
                      "flow": "ft^3/s",
                      "fdom": "ug/l",
-                     "do": "mg/l"}
+                     "do": "mg/l"}    
+
+    yml = parse_yaml_header(header_text)
+    if 'agency_unit' in yml:
+        agency_unit = yml['agency_unit']
+        if agency_unit.lower() == "misc":
+            unit = param_defaults[param] if param in param_defaults else "unknown"
+        else:
+            unit = unit_reformat[agency_unit.lower()] if agency_unit.lower() in unit_reformat else "unknown"
+    else:    
+        unit = param_defaults[param] if param in param_defaults else "unknown"
+
+    #print("agency_unit ", agency_unit," ", unit)
+        
+    if agency_unit.lower() in unit_reformat:
+        return unit_reformat[agency_unit.lower()]
+    elif agency_variable in var_to_unit:
+        return var_to_unit[agency_variable]
+    else: 
+        print(f"Unrecognized variable/unit {agency_variable}, {agency_unit}")
+        raise ValueError(f"unrecognized variable/unit {agency_variable}, {agency_unit}")
+    return("unknown")
+
+def ncro_unit(header_text, param):
+    if len(header_text) > 15 and 'format: dwr-ncro-json' in header_text:
+        return ncro_unit_json(header_text,param) 
+    
+    unit_reformat = {"feet": "feet",
+                     "foot": "feet",
+                     "microsiemens/cm": "uS/cm",
+                     "mgl":"mg/l,",
+                     "ut":"ug/l",
+                     "mg/l": "mg/l",
+                     "milligrams/litre": "mg/l", "cfs": "ft^3/s",
+                     "cfs": "ft^3/s",
+                     "cubic feet/second": "ft^3/s",
+                     "fts": "ft/s",
+                     "ph": "pH", 
+                     "PSU": "psu",
+                     "degrees farenheit": "deg_f",
+                     "degrees celsius": "deg_c",
+                     "feet/second": "ft/s",
+                     "us/cm": "uS/cm",
+                     "ntu": "NTU", "fnu": "FNU",
+                     "degrees c": "deg_c",
+                     "micrograms/litre": "ug/l",
+                     "pss-15": "psu",
+                     "quinine sulfate unit": "ug/l"  # for fdom
+                     }
+    var_to_unit = {"pH": "pH", "Flow": "ft^3/s", "Conductivity": "uS/cm", }
+    param_defaults = {"ec": "uS/cm", 
+                      "turbidity": "NTU",
+                      "elev": "feet",
+                      "temp": "deg_c",
+                      "velocity": "ft/s",
+                      "flow": "ft^3/s",
+                      "fdom": "ug/l",
+                      "do": "mg/l"}
     # 860.00 - pH () " header_text comes in without comments \s\((\.?)\)
     var = re.compile("[0-9\.]+\s-\s(.+)\((.*)\)")
     parsing = False
@@ -160,7 +226,7 @@ usgs_params = pd.read_csv(os.path.join(os.path.split(__file__)[0],"usgs_paramete
 def usgs_unit(header_text):
     
     unit_remap = {"ft":"feet","ft3/s":"ft^3/s",
-                  "uS/cm @25C":"microS/cm","ft":"feet",
+                  "uS/cm @25C":"uS/cm","ft":"feet",
                   "ft/sec":"ft/s","m/sec":"m/s",
                   "ng/m3":"ng/m^3","deg C":"deg_c"}    
     parsing = False
@@ -208,8 +274,9 @@ def infer_internal_meta_for_file(fpath):
     meta_out["projection_y_coordinate"] = slookup.loc[station_id, 'y']
     meta_out["projection_authority_id"] = "epsg:26910"
     meta_out["crs_note"] = "Reported lat-lon are agency provided. Projected coordinates may have been revised based on additional information."
-    original_hdr = ncro_header(
-        fpath) if meta_out["source"] == "ncro" else original_header(fpath, "#")
+    original_hdr = original_header(fpath, '#')
+    if meta_out["source"] == "ncro" and len(original_hdr) == 0:
+        original_hdr = ncro_header(fpath) 
     if source == "cdec":
         unit, agency_unit = cdec_unit(fpath)
         meta_out["unit"] = unit
