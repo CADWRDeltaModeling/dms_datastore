@@ -93,3 +93,5 @@ water_level,noaa,water_level,elev,Query results are not marked with variable
 predictions,noaa,predictions,predictions,Query results are not marked with variable
 conductivity,noaa,conductivity,ec,Query results are not marked with variable
 water_temperature,noaa,water_temperature,temp,Query results are not marked with variable
+Electrical Conductivity at 25C,ncro,Electrical Conductivity at 25C,ec
+ECat25C,ncro,ECat25C,ec

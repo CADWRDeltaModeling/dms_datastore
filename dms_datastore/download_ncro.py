@@ -13,71 +13,16 @@ import numpy as np
 import concurrent
 import concurrent.futures
 import time
+import json
+from dms_datastore import read_ts
+from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.process_station_variable import (
     process_station_list,
-    stationfile_or_stations,
+    stationfile_or_stations
 )
+
 from dms_datastore import dstore_config
-from .logging_config import logger
-
-__all__ = ["download_ncro_por"]
-
-ncro_inventory_file = "ncro_por_inventory.txt"
-
-
-def station_dbase():
-    dbase_fname = dstore_config.config_file("station_dbase")
-    dbase_df = pd.read_csv(dbase_fname, header=0, comment="#", index_col="id")
-    is_ncro = dbase_df.agency.str.lower().str.contains("ncro")
-    logger.info(is_ncro[is_ncro.isnull()])
-    return dbase_df.loc[is_ncro, :]
-
-
-def download_ncro_inventory(dest, cache=True):
-    ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    ctx.options |= 0x4
-    url = "https://data.cnra.ca.gov/dataset/fcba3a88-a359-4a71-a58c-6b0ff8fdc53f/resource/cdb5dd35-c344-4969-8ab2-d0e2d6c00821/download/station-trace-download-links.csv"
-
-    max_attempt = 10
-    for attempt in range(1, (max_attempt + 1)):
-        logger.info(f"Downloading inventory for NCRO attempt #{attempt}")
-        try:
-            session = requests.Session()
-            response = session.get(url,verify=False, stream=False,headers={'User-Agent': 'Mozilla/6.0'})
-            if response.status_code != 200: 
-                continue
-            print("Encoding ",response.apparent_encoding)
-            response.encoding = 'UTF-8'
-            inventory_html = response.content.decode('utf-8')
-            fio = io.StringIO(inventory_html)
-
-            idf = pd.read_csv(
-                fio,
-                header=0,
-                parse_dates=["start_time", "end_time"],
-            )
-
-            idf = idf.loc[
-                (idf.station_type != "Groundwater") & (idf.output_interval == "RAW"), :
-            ]
-            logger.info(idf)
-
-            idf.to_csv(
-                os.path.join(dest, ncro_inventory_file),
-                sep=",",
-                index=False,
-                date_format="%Y-%d%-mT%H:%M",
-            )
-            return idf
-        except:
-            if attempt == max_attempt:
-                raise Exception("Could not open inventory.")
-            continue
-
-
-def ncro_variable_map():
-    varmap = pd.read_csv("variable_mappings.csv", header=0, comment="#")
-    return varmap.loc[varmap.src_name == "wdl", :]
+from dms_datastore.logging_config import logger 
 
 
 # station_number,station_type,start_time,end_time,parameter,output_interval,download_link
@@ -102,7 +47,6 @@ mappings = {
     "StreamFlow": "flow",
     "WaterTemp": "temp",
     "WaterTempADCP": "temp",
-    "DissolvedOxygen": "do",
     "DissolvedOxygenPercentage": None,
     "StreamLevel": "elev",
     "WaterSurfaceElevationNAVD88": "elev",
@@ -110,51 +54,108 @@ mappings = {
 }
 
 
-def download_station_period_record(row, dbase, dest, variables, failures, ctx):
-    """Downloads station/param combo period of record"""
-    agency_id = row.station_number
-    param = row.parameter
-    if param in mappings.keys():
-        var = mappings[param]
-        if var is None:
-            return
-        if var not in variables:
-            return
+mapping_df = pd.DataFrame(list(mappings.items()), columns=["src_var_id", "var_name"])
+mapping_df['src_name'] = 'ncro'
+
+def similar_ncro_station_names(site_id):
+    """This routine is here to convert a single site_id to a short list of related names.
+       The reason for the routine is that NCRO surface water stations identifiers
+       don't correspond well to our abstraction of a station.
+       There are station ids that are stripped down B1234, or that have added 00 digits B9123400
+       or that have added Q B91234Q
+    """
+    if site_id.lower().endswith("q"):
+        base_id = site_id[:-1]
+    elif site_id.lower().endswith("00") and len(site_id)>6:
+        base_id = site_id[:-2]
     else:
-        logger.info(f"Problem on row: {row}")
-        if type(param) == float:
-            if np.isnan(param):
-                return  # todo: this is a fix for an NCRO-end bug. Really the ValueError is best
-        raise ValueError(f"No standard mapping for NCRO parameter {param}.")
+        base_id = site_id
+    return [base_id.upper(), base_id.upper()+"Q", base_id.upper()+"00"]
 
-    # printed.add(param)
-    var = mappings[param]
-    link_url = row.download_link
-    sdate = row.start_time
-    edate = row.end_time
-    entry = None
-    ndx = ""
-    for suffix in ["", "00", "Q"]:
-        full_id = dbase.agency_id + suffix
-        entry = dbase.index[full_id == agency_id]
-        if len(entry) > 1:
-            raise ValueError(f"multiple entries for agency id {agency_id} in database")
-        elif not entry.empty:
-            station_id = str(entry[0])
 
-    if station_id == "":
-        raise ValueError(
-            f"Item {agency_id} not found in station database after accounting for Q and 00 suffixes"
-        )
 
-    fname = f"ncro_{station_id}_{agency_id}_{var}_{sdate.year}_{edate.year}.csv".lower()
-    fpath = os.path.join(dest, fname)
-    logger.info(f"Processing: {agency_id} {param} {sdate} {edate}")
-    logger.info(link_url)
 
+ncro_inventory_file = "ncro_por_inventory.txt"
+ncro_inventory = None
+inventory_dir = os.path.split(__file__)[0]
+inventoryfile = os.path.join(inventory_dir,"ncro_inventory_full.csv")
+
+def load_inventory():
+    global ncro_inventory,inventoryfile
+    
+    if ncro_inventory is not None:
+        return ncro_inventory
+    if os.path.exists(inventoryfile) and (time.time() - os.stat(inventoryfile).st_mtime) < 6000.:
+        ncro_inventory = pd.read_csv(inventoryfile,header=0,sep=",",\
+              parse_dates=["start_time","end_time"])
+        return(ncro_inventory)
+        
+    url = "https://wdlhyd.water.ca.gov/hydstra/sites"
+    
+    dbase = dstore_config.station_dbase()
+    dbase = dbase.loc[dbase['agency'].str.contains('ncro'),:]
+
+
+    session = requests.Session()
+    response = session.get(url) #,verify=False, stream=False,headers={'User-Agent': 'Mozilla/6.0'})
+    response.encoding = 'UTF-8'
+    inventory_html = response.content.decode('utf-8')
+    fio = io.StringIO(inventory_html)
+    data = json.load(fio)
+    sites = data['return']['sites']
+    sites_df = pd.DataFrame(sites)
+
+    dfs = []
+    for id,row in dbase.iterrows():
+        agency_id = row.agency_id
+        origname = agency_id
+        names = similar_ncro_station_names(origname)
+
+        url2 = f"https://wdlhyd.water.ca.gov/hydstra/sites/{','.join(names)}/traces"
+        response = session.get(url2) #,verify=False, stream=False,headers={'User-Agent': 'Mozilla/6.0'})
+        response.encoding = 'UTF-8'
+        inventory_html = response.content.decode('utf-8')
+        fio2 = io.StringIO(inventory_html)
+        data2 = json.load(fio2)
+
+        
+        # Flatten the JSON
+        flattened_data = []
+        for site in data2['return']['sites']:
+            if site is None or not 'site' in site:
+                json.dump(f'examplebad_{origname}.json',data2)
+                logger.info("Bad file for {origname}")
+                continue
+            else:
+                site_name = site['site']
+            for trace in site['traces']:
+                trace_data = trace.copy()  # Avoid modifying the original JSON
+                trace_data['site'] = site_name
+                flattened_data.append(trace_data)
+
+        df2 = pd.DataFrame(flattened_data)
+        if df2.empty: 
+            continue
+
+        df2 = df2.loc[df2['trace'].str.endswith("RAW"),:]
+        df2['start_time'] = pd.to_datetime(df2.start_time)
+        df2['end_time'] = pd.to_datetime(df2.end_time)
+        dfs.append(df2)
+
+    df_full = pd.concat(dfs,axis=0)
+    df_full = df_full.reset_index(drop=True)
+    df_full.index.name = "index"
+    df_full.to_csv(inventoryfile)
+    ncro_inventory = df_full
+    return df_full
+
+def download_trace(site,trace,stime,etime):
+    """Download time series trace associated with one request"""
+    url_trace = f"https://wdlhyd.water.ca.gov/hydstra/sites/{site}/traces/{trace}/points?start-time={stime.strftime('%Y%m%d%H%M%S')}&end-time={etime.strftime('%Y%m%d%H%M%S')}"
+    max_attempt = 4
+    session = requests.Session()
+    
     attempt = 0
-    max_attempt = 20
-    station_html = ""
     while attempt < max_attempt:
         attempt = attempt + 1
         try:
@@ -162,132 +163,195 @@ def download_station_period_record(row, dbase, dest, variables, failures, ctx):
                 logger.info(f"{station_id} attempt {attempt}")
                 if attempt > 16:
                     logger.info(fname)
-
-            response = requests.get(link_url,verify=False,stream=False)
-            response.encoding = 'UTF-8' # it will mistakenly assume ascii
+            logger.info(f"Submitting request to URL {url_trace} attempt {attempt}")
+            #time1=time.time()
+            streaming = False
+            response = session.get(url_trace, stream=streaming,timeout=200)
             response.raise_for_status()
-            station_html = response.content.decode('utf-8').replace("\r", "")
-
+            if streaming:
+                pass
+                #station_html = ""
+                #for chunk in response.iter_lines(chunk_size=4096):  # Iterate over lines
+                #    if chunk:  # Filter out keep-alive new chunks
+                #        station_html += chunk.decode()+"\n" 
+            station_html = response.text.replace("\r", "")            
             break
         except Exception as e:
+            logger.info("Exception: " + str(e) )
             if attempt == max_attempt:
-                logger.warning(
-                    f"Failure in URL request or reading the response after {attempt} tries for station {station_id} param {param}. Link=\n{link_url}\nException below:"
-                )
-                logger.exception(e)
-                failures.append((station_id, agency_id, var, param))
-                attampt = 0
-                return
+                return None
             else:
-                time.sleep(
-                    attempt
-                )  # Wait one second more second each time to clear any short term bad stuff
-    if len(station_html) > 30 and not "No sites found matching" in station_html:
-        found = True
-        if attempt > 1:
-            logger.info(f"{station_id} found on attempt {attempt}")
-        with open(fpath, "w") as f:
-            f.write(station_html)
-    else:
-        logger.info(f"{station_id} not found after attempt {attempt}")
-        logger.info("Station %s produced no data" % station_id)
-        failures.append((station_id, agency_id, var, param))
-    return
+                time.sleep(1)  # Wait one second more second each time to clear any short term bad stuff
+    return station_html
+
+def parse_json_to_series(json_txt):
+    jsdata = json.loads(json_txt)
+    
+    traces = jsdata['return']['traces']
+    if len(traces) > 1: raise ValueError("Multiple trace json responses not supported")
+
+    # Preallocate lists for columns
+    sites, times, values, qualities = [], [], [], []
+
+    # Populate the lists efficiently
+    for trace_entry in traces:
+        site = trace_entry['site']
+        site_details = trace_entry['site_details']
+        trace = trace_entry['trace']
+        trace_details = trace_entry['trace_details']
+        
+        for record in trace:
+            times.append(record['t'])
+            values.append(record['v'])
+            qualities.append(record['q'])
+
+        # Create DataFrame directly from lists
+    df = pd.DataFrame({
+        'datetime': pd.to_datetime(times, format='%Y%m%d%H%M%S'),  # Vectorized timestamp parsing
+        'value': pd.to_numeric(values,errors='coerce'),  # Vectorized conversion to float
+        'qaqc_flag': qualities
+    })
+
+    # Set 't' as the index
+    df.set_index('datetime', inplace=True)
+
+    return site,site_details,trace_details,df
+
+def ncro_metadata(station_id,agency_id,site_details,trace_details,paramname):
+    meta = {}
+    meta["provider"] = "DWR-NCRO"
+    meta["station_id"] = station_id
+    meta["agency_station_id"] = agency_id
+    meta["agency_station_name"] = site_details['name']
+    meta["agency_unit"] = trace_details['unit']
+    meta["agency_param_desc"] = trace_details['desc']    
+    meta["param"] = paramname
+    return meta 
 
 
-def download_ncro_period_record(inventory, dbase, dest, variables=None):
-
-    if variables is None:
-        variables = ["flow", "elev", "ec", "temp", "do", "ph", "turbidity", "cla"]
-    global mappings
-    # mappings = ncro_variable_map()
-    ctx = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    ctx.options |= 0x4
+def ncro_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
+    """ Download robot for NCRO
+    Requires a list of stations, destination directory and start/end date
+    """
+    
+    if end == None: end = dt.datetime.now()
+    if not os.path.exists(dest_dir):
+        os.mkdir(dest_dir) 
+    
     failures = []
-    # Use ThreadPoolExecutor
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-        # Schedule the download tasks and handle them asynchronously
-        futures = []
-        for ndx, row in inventory.iterrows():
-            future = executor.submit(
-                download_station_period_record,
-                row,
-                dbase,
-                dest,
-                variables,
-                failures,
-                ctx,
-            )
-            futures.append(future)
-        # Optionally, handle the results of the tasks
-        for future in concurrent.futures.as_completed(futures):
-            try:
-                future.result()  # This line can be used to handle results or exceptions from the tasks
-            except Exception as e:
-                logger.error(f"Exception occurred during download: {e}")
+    skips = []
+    inventory = load_inventory()
+    dbase = dstore_config.station_dbase()
 
-    logger.debug("Failures in download_ncro")
-    for f in failures:
-        logger.debug(f)
+    for ndx,row in stations.iterrows():
+        agency_id = row.agency_id
+        station = row.station_id
+        param = row.src_var_id
+        paramname = row.param
+        subloc = row.subloc
 
+        stime = pd.to_datetime(start) 
+        try: 
+            etime=pd.to_datetime(end)
+        except:
+            etime=pd.Timestamp.now()
+        found = False
 
-def download_ncro_por(dest, variables=None):
-    idf = download_ncro_inventory(dest)
-    dbase = station_dbase()
-    upper_station = idf.station_number.str.upper()
-    is_in_dbase = (
-        upper_station.isin(dbase.agency_id)
-        | upper_station.isin(dbase.agency_id + "00")
-        | upper_station.isin(dbase.agency_id + "Q")
-    )
-    if variables is None:
-        variables = [
-            "flow",
-            "velocity",
-            "elev",
-            "ec",
-            "temp",
-            "do",
-            "ph",
-            "turbidity",
-            "cla",
-        ]
-    download_ncro_period_record(idf.loc[is_in_dbase, :], dbase, dest, variables)
+        subinventory = inventory.loc[(inventory.site.isin(similar_ncro_station_names(row.agency_id))) & 
+                                     (inventory.param == param) & 
+                                     (inventory.start_time <= etime) & 
+                                     (inventory.end_time >= stime), : ]
+        for tsndx,tsrow in subinventory.iterrows():
+            site = tsrow.site
+            trace = tsrow.trace
+            txt = download_trace(site,trace,stime,etime)
 
+            if txt is not None:
+                logger.debug("Query produced trace")
+                site,site_details,trace_details,df = parse_json_to_series(txt)
+                fname = f"ncro_{row.station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
+                fpath = os.path.join(dest_dir, fname)
+                meta = ncro_metadata(row.station_id,agency_id,site_details,trace_details,paramname)                    
+                write_ts_csv(df,fpath,metadata=meta,
+                             chunk_years=False,format_version="dwr-ncro-json")
+
+            else:
+                logger.debug(f"Empty return")
+          
+ 
 
 def create_arg_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--por",
-        dest="por",
-        action="store_true",
-        help="Do period of record download. Must be explicitly set to true in anticipation of other options",
-    )
-    parser.add_argument(
-        "--dest",
-        dest="dest_dir",
-        default=".",
-        help="Destination directory for downloaded files.",
-    )
-    parser.add_argument(
-        "--param",
-        dest="param",
-        nargs="+",
-        default=None,
-        help="Parameters to download.",
-    )
+    parser = argparse.ArgumentParser("Download NCRO data")
+   
+    parser.add_argument('--dest', dest = "dest_dir", default="ncro_download", help = 'Destination directory for downloaded files.')
+    parser.add_argument('--start',default=None,help = 'Start time, format 2009-03-31 14:00')    
+    parser.add_argument('--end',default = None,help = 'End time, format 2009-03-31 14:00')
+    parser.add_argument('--param',default = None, help = 'Parameter(s) to be downloaded.')
+    parser.add_argument('--stations', default=None, nargs="*", required=False,
+                        help='Id or name of one or more stations.')
+    parser.add_argument('stationfile',nargs="*", help = 'CSV-format station file.')
+    parser.add_argument('--overwrite', action="store_true", help =  
+    'Overwrite existing files (if False they will be skipped, presumably for speed)')
     return parser
+
+
 
 
 def main():
     parser = create_arg_parser()
     args = parser.parse_args()
     destdir = args.dest_dir
-    por = args.por
-    variables = args.param
-    dest = "."
-    download_ncro_por(destdir, variables)
+    stationfile = args.stationfile
+    overwrite = args.overwrite
+    start = args.start
+    end = args.end
+    if start is None: 
+        stime = pd.Timestamp(2024,1,1)
+    else:
+        stime = dt.datetime(*list(map(int, re.split(r'[^\d]', start))))
+    if end is None:
+        etime = dt.datetime.now()
+    else:
+        etime = dt.datetime(*list(map(int, re.split(r'[^\d]', end))))
+    param = args.param
 
+    stationfile=stationfile_or_stations(args.stationfile,args.stations)
+    slookup = dstore_config.config_file("station_dbase")
+    vlookup = mapping_df
+    #vlookup = dstore_config.config_file("variable_mappings")            
+    df = process_station_list(stationfile,param=param,station_lookup=slookup,
+                                  agency_id_col="agency_id",param_lookup=vlookup,source='ncro')
+
+    ncro_download(df,destdir,stime,etime,overwrite=overwrite)  
+
+def test():
+    destdir = "."
+    overwrite = True
+    stime = pd.Timestamp(2015,1,1)
+    etime = dt.datetime.now()
+    params = ["do","elev","flow","velocity","ph","cla","turbidity","temp"]
+    params = ["fdom"]
+    params = ["ssc"]
+    for param in params:
+        stations = ["orm","old","oh1","bet"]
+        stationfile=stationfile_or_stations(stationfile=None,stations=stations)
+        slookup = dstore_config.config_file("station_dbase")
+        vlookup = mapping_df
+        #vlookup = dstore_config.config_file("variable_mappings")            
+        df = process_station_list(stationfile,param=param,station_lookup=slookup,
+                                  agency_id_col="agency_id",param_lookup=vlookup,source='ncro')
+        ncro_download(df,destdir,stime,etime,overwrite=overwrite)  
+
+def test_read():
+    fname = "ncro_old_b95380_temp_2015_2024.csv"
+    fname = "ncro_orm_b95370_cla_*.csv"
+    ts = read_ts.read_ts(fname)
+    print(ts)
 
 if __name__ == "__main__":
     main()
+    #test()
+    #test_read()
+    #df = load_inventory()
+    #print(df)
+    #download_ncro_period_record(df,dbase,dest="",variables=None)    

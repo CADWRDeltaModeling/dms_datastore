@@ -10,6 +10,8 @@ file_deletion_list: non_15_min_files_checked.txt
 compare_excepts_formatted: compare_excepts_formatted.txt
 
 repo: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
+screened: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
+processed: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed"
 
 source_priority:
   ncro: ['ncro','cdec']
@@ -18,9 +20,9 @@ source_priority:
   dwr_des: ['des']
   usgs: ['usgs']
   noaa: ['noaa']
-  usbr: ['cdec']
+  usbr: ['usbr','cdec']
   dwr_om: ['cdec']
-  dwr: ['cdec']
+  dwr: ['dwr','cdec']
   ebmud: ['usgs','ebmud','cdec']
   
 screen_config_v20230126: screen_config_v20230126.yaml

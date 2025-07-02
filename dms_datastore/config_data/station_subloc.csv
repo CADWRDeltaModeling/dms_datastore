@@ -9,8 +9,8 @@ mrz,upper,-1.0,
 mrz,lower,-7.6,
 anh,upper,-1.0,
 anh,lower,-3.5,
-rri,upper,-4.0,
-rri,lower,-10.0,
+rri2,mid,-4.0,
+rri2,lower,-10.0,
 tibc1,upper,-2.0,Tiburon
 scqc1,upper,-1.5,China Camp
 mateo,upper,-1.36,San Mateo

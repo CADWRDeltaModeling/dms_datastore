@@ -18,7 +18,7 @@ import io
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
 import pandas as pd
-from .logging_config import logger 
+from dms_datastore.logging_config import logger 
 
 __all__=["des_download"]
 
@@ -125,10 +125,16 @@ def inventory(program_name, program_id):
         program_id :  is an integer identifying the DES program ("100 = EMP, 200 = Marsh")
 
     '''
+    
     url = 'https://dwrmsweb0263.ad.water.ca.gov/TelemetryDirect/api/Results?program='+str(program_id)
 
     results_df = pd.read_csv(open_url_no_ssl_cert_check(url), sep='|',dtype={"interval_id":int,"aggregate_id":int,"station_active":str},
                              parse_dates=["start_date","end_date"])
+    #print("yo")
+    for (id,row) in results_df.loc[results_df.station_id >= 90,:].iterrows():
+        if "chl" in row.analyte_name.lower():
+            print("\n")
+            print(row)
     results_df = results_df.loc[results_df.interval_id != 4,:]  # Not "Visit"
     results_df = results_df.loc[results_df.aggregate_id <= 2,:]  # Not labeled "inst" or "Avg"
     #results_df = results_df.loc[results_df.station_active=="Y",:]  # Active
@@ -167,7 +173,7 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
     skips = []
     inventoryfile = os.path.join(des_local_dir,"inventory_full.csv")
 
-    if os.path.exists(inventoryfile) and (time.time() - os.stat(inventoryfile).st_mtime) < 6000.:
+    if os.path.exists(inventoryfile) and (time.time() - os.stat(inventoryfile).st_mtime) < 0.:   #6000.
         logger.info(f"Loading existing inventory file {inventoryfile}")
         inventory_full = pd.read_csv(inventoryfile,header=0,sep=",",\
               dtype={"interval_id":int,"aggregate_id":int,"station_active":str},
