@@ -54,15 +54,12 @@ def process_station_list(stationlist,id_col="id",agency_id_col="agency_id",
     
     station_lookup
     Lookup file containing "id" and "agency_id" columns.
-    
-    
+        
     """
-    
-    
+
     if param_col is not None and param is not None:
         raise ValueError("Cannot use both param_col and param arguments")
-    
-    
+
     if isinstance(stationlist,str):
         station_df = pd.read_csv(stationlist,sep=",",comment="#",header=0)
     elif isinstance(stationlist,list):
@@ -70,6 +67,7 @@ def process_station_list(stationlist,id_col="id",agency_id_col="agency_id",
     else:
         station_df = stationlist
     
+
     # Rename the parameter column as param to standardize
     # If there is no param column, create one and populate all its rows with param.
     if param is not None:          # only one parameter, append as column
@@ -101,8 +99,12 @@ def process_station_list(stationlist,id_col="id",agency_id_col="agency_id",
     station_df["agency_id"] = station_df["agency_id"].astype(str).str.replace("\'","",regex=True)   
     
     # Replace parameters with lookup values from station_lookup. Failure will leave as-is, in case of mix.
-    if param_lookup:
-        vlookup = pd.read_csv(param_lookup,sep=",",comment="#",header=0,usecols=['var_name','src_var_id','src_name'],dtype=str)
+    if param_lookup is not None:
+        if isinstance(param_lookup,str):
+            vlookup = pd.read_csv(param_lookup,sep=",",comment="#",header=0,
+                                  usecols=['var_name','src_var_id','src_name'],dtype=str)
+        else:
+            vlookup = param_lookup
         vlookup = vlookup.loc[vlookup.src_name == source,:]
         vlookup.rename(columns={"var_name":"param"},inplace=True)       
         station_df = station_df.merge(vlookup,on="param",how="left")
