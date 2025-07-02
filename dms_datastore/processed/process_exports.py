@@ -9,26 +9,39 @@ import datetime as dtm
 import pandas as pd
 import sys
 from vtools.functions.unit_conversions import cfs_to_cms,CFS2CMS
-from vtools.data.vtime import *
+from vtools import *
 import matplotlib.pyplot as plt
-from vtools.functions.filter import *
-from vtools.functions.interpolate import *
-from vtools.functions.period_op import *
-from scipy.ndimage.filters import gaussian_filter1d
+from scipy.ndimage import gaussian_filter1d
 from dms_datastore.read_ts import *
-from vtools.functions.merge import *
 
-def process_bbid(bbid_csv,interval,stime,etime):
+def process_bbid(bbid_csv,bbid_bak,interval,stime,etime):
     """Read and smooth BBID data, possibly folding together with DSS file"""
     
     # Read in whatever length period we have -- if it is longer
     # things like gaussian filter won't have edge effects at beginning.
     #if bbid_csv:
-    bbid = read_ts(bbid_csv,start=None,end=None).to_period()
+    bbid = read_ts(bbid_csv,start=None,end=None)
+    bbid.mask(bbid<0,inplace=True)
+    bbid.columns=["value"]
+    bbid.index.name="datetime"
+    print("BBID info")
+    print(bbid_csv)
     print("CDEC BBID end: %s freq: %s" % (bbid.index[-1],bbid.index.freq))
+    print(bbid)
     bbid = bbid.interpolate(limit=60)
+    
+    
+    bbid2 = pd.read_csv(bbid_bak,index_col=0,parse_dates=[0],comment="#",sep=",")
+    bbid2.columns=["value"]
+    bbid2 = bbid2.asfreq("D")
+    bbid.index.name="datetime"
    
-    bbid_fine = rhistinterp(bbid+5.,interval,lowbound=0.0,p=8.) - 5.
+    print(bbid.index.freq, bbid2.index.freq)
+    bbid = ts_merge([bbid,bbid2])
+    print(bbid.index.freq)
+    bbid=bbid.to_period()
+   
+    bbid_fine = rhistinterp(bbid+5.,interval,lowbound=0.0,p=20.) - 5.
 
     print("Smoothing and refining BBID")
     bbid_fine=bbid_fine.clip(lower=0.0)[stime:etime]
@@ -58,8 +71,8 @@ def write_cdec2(fname,ts,headers):
 def write_csv(fname,ts,meta={}):
     with open(fname,"w") as f:
         for item in meta:
-            f.write("#{}: {}".format(item,meta[item]))
-        ts.to_csv(f,date_format="%Y-%m-%dT%H:%M",float_format="%.2f",line_terminator="\n")
+            f.write("# {}: {}\n".format(item,meta[item]))
+        ts.to_csv(f,date_format="%Y-%m-%dT%H:%M",float_format="%.2f",lineterminator="\n")
         
 
 MAX_OP_DAY = 300
@@ -305,18 +318,19 @@ def dparse(x,y):
     
 def main():
     """Read and smooth BBID data, possibly folding together with DSS file"""
-    stime = dtm.datetime(2007,10,1)
-    etime = dtm.datetime(2022,1,3)
+    stime = dtm.datetime(2006,10,1)
+    etime = dtm.datetime(2025,6,30)
     interval = minutes(15)
     # Are we using DSM2, perhaps for future part of operational forecast?
     #bbid_dss_dicu = None
-    bbid_csv = "./data/cdec_download/cdec_bbi_bbi_flow_2007_2022.csv"
+    bbid_csv = "./data/cdec_download/cdec_bbi_bbi_flow_2006_*.csv"
+    bbid_bak = "./data/archived/bbid_daily_2000_2011.csv"  # Early record -- from O&M
     
-    bbid_cfs = process_bbid(bbid_csv,interval,stime,etime)
+    bbid_cfs = process_bbid(bbid_csv,bbid_bak,interval,stime,etime)
     
 
 
-    banks_xls = "data/sap_banks_2006_2022_edit.xlsx"
+    banks_xls = "data/sap_banks_2006_9999_qaqc.xlsx"
     rversion = DFD  # version of the rating to turn pumping unit status into cfs
     
 
@@ -324,12 +338,13 @@ def main():
     banks_df = pd.read_excel(banks_xls,header=0,dtype={"Date": str,"Time":str,"Exclude":str,"AVR":str,"CFS":str})
                              #parse_dates=[[5,0]],date_parser=dparse,index_col=("Date_Time","Unit"))
                              
-    banks_df["Datetime"] = pd.to_datetime(banks_df.Date.str.slice(0,11) +" " + banks_df.Time.str.slice(0,2) + ":" + banks_df.Time.str.slice(2,4))   
-    print(banks_df)    
-    banks_df=banks_df.set_index(["Datetime","Unit"])[["Status","AVR","PSS","MWs","CFS","Notes","Exclude"]]
+    banks_df["Datetime"] = pd.to_datetime(banks_df.Date.str.slice(0,11) +" " 
+         + banks_df.Time.str.slice(0,2) + ":" + banks_df.Time.str.slice(2,4))   
     
+    banks_df=banks_df.set_index(["Datetime","Unit"])[["Status","AVR","PSS","MWs","CFS","Notes","Exclude"]]
+    print(banks_df)    
     banks_dss = None
-    hro_daily_fname = "data/cdec_download/cdec_hro_hro_flow_2007_2022.csv"
+    hro_daily_fname = "data/cdec_download/cdec_hro_hro_flow_2006_*.csv"
     qbanks_cdec_daily = read_ts(hro_daily_fname,start=stime,end=etime)
 
     
@@ -341,7 +356,7 @@ def main():
             ts = augment_with_dss(uts,stime,etime,
                              interval,banks_dss,banks_path)
         else:
-            ts = uts.resample(interval).fillna("pad")
+            ts = uts.resample(interval).ffill()
         finalize_and_compare(ts,bbid_cfs,qbanks_cdec_daily,stime,etime,interval)
     except Exception as e:
         print("Parse failed for file %s (or DSS had problem)" % banks_xls)

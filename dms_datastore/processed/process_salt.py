@@ -6,14 +6,16 @@ import numpy as np
 import matplotlib.pyplot as plt
 from vtools.functions.interpolate import *
 from vtools.functions.filter import *
-import vtools.functions.unit_conversions as units
 from vtools.data.vtime import *
+from vtools.data.vis_gap import *
 import os
 import os.path as osp
 from dms_datastore.read_ts import *
 import datetime as dtm  
-from scipy.ndimage.filters import gaussian_filter1d
+from vtools.functions.unit_conversions import *
+from scipy.ndimage import gaussian_filter1d
 from vtools.functions.error_detect import *
+from vtools import ts_merge
 import pandas as pd
 import pyhecdss
 
@@ -22,6 +24,28 @@ do_plots=False
 alt="DWR-DMS-201203"
 
 salt_ndx = {"time":0,"sjr":1,"sac":2,"yolo_toedrain":3,"yolo":4}
+
+def describe_null(dset,name):
+    print(f"describe_null for {name}")   
+    
+    if dset.isnull().values.any(): 
+        try:
+            isnan = dset.isnull().any(axis=1)
+            intnan = isnan.loc[dset.first_valid_index():dset.last_valid_index()]
+            nans = dset.loc[isnan,:]
+            print("dataframe")
+        except:
+            isnan = dset.isnull()
+            intnan = isnan.loc[dset.first_valid_index():dset.last_valid_index()]
+            nans = dset[isnan]
+            print("series")
+        interiornan = intnan.sum(axis=0)
+        count = isnan.sum(axis=0)
+        print("Count: {} Interior: {}".format(count,interiornan))
+        print(nans)
+    else: 
+        print("None")
+
 
 # These are the bcflux.in entries for the Bay Delta, in their simplest form
 # Note: this is not updated for the American and for the Yolo-Yolo Toedrain split, although the code 
@@ -83,29 +107,32 @@ def describe_null(dset,name):
         print(nans)
     else: print("None")
     
-sdate=dtm.datetime(2007,10,1)
-edate=dtm.datetime(2022,1,1)
+sdate=dtm.datetime(2006,10,1)
+edate=dtm.datetime(2025,6,30)
 
 interval = minutes(15)
 buffer = days(5)
+continuous_repo = '//cnrastore-bdo/Modeling_Data/jenkins_repo/continuous/formatted'
+continuous_repo = '//cnrastore-bdo/Modeling_Data/repo/continuous/screened'
+#usgs_dir = continuous_repo
+wdl_dir = continuous_repo
+des_dir = continuous_repo
 
 cdec_dir = "data/cdec_download"
 usgs_dir="Data/usgs_download"
-wdl_dir = "Data/wdl_download"
-des_dir = "Data/des_download"
-dsm2_file="D:/Delta/dsm2_v8/timeseries/hist_19902012.dss"
-alt="DWR-DMS-201203"
+#wdl_dir = "Data/wdl_download"
+#des_dir = "Data/des_download"
 
 
 print("sac")
-verona_gs = read_ts(os.path.join(usgs_dir,"usgs_von_11425500_ec_2007_2022.rdb")).squeeze()
+verona_gs = read_ts(os.path.join(usgs_dir,"usgs_von_11425500_ec_2006_*.csv")).squeeze()
 verona_gs = verona_gs.interpolate(limit=320)
 #verona_cdec = read_ts("data/cdec_download/von_ec.csv").squeeze()
 #verona_cdec = verona_cdec.mask((verona_cdec < 10.) | (verona_cdec > 500.))
 #verona_cdec = verona_cdec.interpolate(limit=10)
 #verona_cdec.loc["2008-02-01":"2008-04-01"] = np.nan
 #verona_cdec.loc["2021-01-04":"2008-01-05"] = np.nan
-srh = read_ts(os.path.join(des_dir,"des_srh_70_ec_2007_*.csv")).squeeze()
+srh = read_ts(os.path.join(des_dir,"des_srh_70_ec_*.csv")).squeeze()
 srh = srh.mask((srh < 10.) | (srh > 400.))
 approx_bias=25.
 srh = srh.interpolate(limit=10) - approx_bias
@@ -113,6 +140,9 @@ srh = srh.interpolate(limit=10) - approx_bias
 sac = ts_merge([verona_gs,srh])
 #srdiff = verona_gs - srh
 sac=sac.interpolate()   # todo: major 
+
+describe_null(sac,"sac")
+print(sac.tail())
 
 print("Sac EC has gap: %s" % sac.isnull().any())
 
@@ -130,12 +160,12 @@ with the insights being that
 yolo_toedrain = sac*0. + 650.
 yolo_toedrain.name = "yolo_toedrain"
 print(yolo_toedrain.tail())
-lisbon = read_ts(os.path.join(wdl_dir,"ncro_lis_b9156000_ec_2013_2021.csv"))
-lisbon = lisbon.resample('15T').interpolate(limit=200)
+lisbon = read_ts(os.path.join(wdl_dir,"ncro_lis_*_ec_*.csv"))
+lisbon = lisbon.resample('15min').interpolate(limit=200)
 #lisbon.name = "yolo_toedrain"
 lisbon.columns = ["yolo_toedrain"]
 print(lisbon.tail())
-lisbon_cdec = read_ts(os.path.join(cdec_dir,"cdec_lis_*ec_2007_*.csv"))
+lisbon_cdec = read_ts(os.path.join(cdec_dir,"cdec_lis_*ec_2006_*.csv"))
 lisbon_cdec = med_outliers(lisbon_cdec,level=4,quantiles=(0.01,0.99),range = (50,1500))
 #lisbon_cdec.name = "yolo_toedrain"
 lisbon_cdec.columns = ["yolo_toedrain"]
@@ -175,20 +205,20 @@ plt.show()
 
 
 print("sjr")
-sjr_ec = read_ts(os.path.join(des_dir,"des_sjr_90_ec_2007_9999.csv")).squeeze()
+sjr_ec = read_ts(os.path.join(des_dir,"des_sjr_90_ec_*.csv")).squeeze()
 sjr_ec = med_outliers(sjr_ec,level=4,quantiles=(0.25,0.75))
 
 # This is awfully close to a possible value, so a bit dangerous
 sjr_ec = sjr_ec.mask( (sjr_ec < 25.) | (sjr_ec > 1425.) )
 sjr_ec = sjr_ec.interpolate(limit=200)
 
-path="cdec_ver_*ec_2007_*.csv"
+path="cdec_ver_*ec_2006_*.csv"
 ts_cdec = read_ts(osp.join(cdec_dir,path),start=None, end=None).squeeze()
 ts_cdec = med_outliers(ts_cdec,level=4,quantiles=(0.25,0.75))
 ts_cdec = ts_cdec.mask( (ts_cdec < 25.) | (ts_cdec > 1425.) )
 ts_cdec = ts_cdec.interpolate(limit=150)
 
-sjr = ts_merge([sjr_ec,ts_cdec])["2007-01-01":]
+sjr = ts_merge([sjr_ec,ts_cdec])[sdate-buffer:]
 # ax=sjr.plot()
 # ts_cdec.plot(ax=ax)
 # sjr_ec.plot(ax=ax)
@@ -196,8 +226,6 @@ sjr = ts_merge([sjr_ec,ts_cdec])["2007-01-01":]
 print(sjr[sjr.isnull()])
 
 print("SJR EC has gap: %s" % sjr[sdate:edate].isnull().any())
-
-
 
 print("yolo")
 """ The assumption here is that when Yolo bypass is used, flow is mostly fresh coming from runoff
@@ -209,14 +237,17 @@ salt = pd.concat([sjr,sac,yolo_toedrain,yolo],axis=1)[sdate:edate]
 
 salt.columns = columns
 ec = salt.copy()
-salt[:] = units.ec_psu_25c(salt[:])
+salt[:] = ec_psu_25c(salt[:])
+salt.index.name="datetime"
 
 salt[columns].to_csv("salt_new.th",date_format="%Y-%m-%dT%H:%M",float_format="%4.2f",sep=" ")
 
+
+
 # This subset is enough to see the missign values and nature, since the others are pure copies
-ec.plot(subplots=True)
-plt.legend()
-plt.show()
+#ec.plot(subplots=True)
+#plt.legend()
+#plt.show()
 
 print("Null values in salt: {}".format(salt.isnull().any()))
 
