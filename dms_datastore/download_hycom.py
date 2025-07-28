@@ -89,8 +89,6 @@ def hycom_schism_opendap_alt2(start=None,end=None,dest=None):
     """
     url="https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/s3z?lat,lon,time,salinity"
     url2="https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/t3z?lat,lon,time,water_temp"
-    data = xr.open_dataset(url)
-    data2 = xr.open_dataset(url2)
 
     if start is None:
         start = pd.Timestamp(2024,9,1)
@@ -98,6 +96,18 @@ def hycom_schism_opendap_alt2(start=None,end=None,dest=None):
         end = pd.Timestamp.now()
     if dest is None:
         dest = './raw'
+
+    start_year = start.year 
+    end_year = end.year 
+
+    if start_year == end_year: ## if the start and end year are the same, we add year to the urls
+        url = f"https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/s3z/{start_year}?lat,lon,time,salinity"
+        url2= f"https://tds.hycom.org/thredds/dodsC/ESPC-D-V02/t3z/{start_year}?lat,lon,time,water_temp"
+
+    data = xr.open_dataset(url)
+    data2 = xr.open_dataset(url2)
+
+
         
     if os.path.exists(dest) is False:
         os.mkdir(dest)
