@@ -10,6 +10,8 @@ import copy
 import argparse
 from vtools.data.vtime import hours,days,minutes
 
+lat_lon_bounds = {'lat': (37, 39), 'lon': (236, 239)}
+
 def create_arg_parser():
     """ Create an argument parser
         return: argparse.ArgumentParser
@@ -22,9 +24,14 @@ def create_arg_parser():
         and interpolated to hourly data.
         Usage:
         download_hycom --sdate 2020-02-19  --raw_dest /path/to/modeling_data/raw
-                     --processed_dest /path/to/modeling_data/raw
+                     --processed_dest /path/to/modeling_data/processed
+        or
+        If --latest is set, it will download the latest +/-7 days of data from current date.
+        e.g.,
+        download_hycom --latest --raw_dest /path/to/modeling_data/raw 
+        --processed_dest /path/to/modeling_data/processed
                      """)
-    parser.add_argument('--sdate', default=None, required=True,
+    parser.add_argument('--sdate', default=None, required=False,
                         help='starting date of HRRR data, must be \
                         format like 2020-02-19')
     parser.add_argument('--raw_dest', default=None, required=True,
@@ -34,6 +41,10 @@ def create_arg_parser():
     parser.add_argument('--edate', default=None, required=False,
                         help="end date for the record to be downloaded,\
                             if not given download up to today")
+    
+    parser.add_argument('--latest', action='store_true', required=False,
+                        help="if set, download the latest data from \
+                        the repository, which is +/- 7 days from today. ")
 
     return parser
 
@@ -140,6 +151,67 @@ def hycom_schism_opendap_alt2(start=None,end=None,dest=None):
         s = s + days(1)
         e = e + hours(24)
 
+def hycom_schism_opendap_latest(dest=None):
+    """ Download hycom  opendap data from the latest repository
+        This means 7 days backward and forward of the current date.
+        Although respository has data from 8 days back/forward, dato on the edge date
+        is availble for half day and they are treated as incomplete and not downloaded.
+    
+        return start and end date of the data downloaded.
+    """
+    url="https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02_s3z/FMRC_ESPC-D-V02_s3z_best.ncd?lat,lon,time,salinity"
+    url2="https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02_t3z/FMRC_ESPC-D-V02_t3z_best.ncd?lat,lon,time,water_temp"
+
+
+    data = xr.open_dataset(url)
+    data2 = xr.open_dataset(url2)
+
+  
+    if os.path.exists(dest) is False:
+        os.mkdir(dest)
+        print("Destination path created: %s"%dest)
+
+    start = data.time.values[0]
+    end = data.time.values[-1] 
+
+    ## get date of the first and last time
+    ## if end time is set at the ebginning of the day, we will
+    ## download data for the end date. If not, move time to the next day (beginning )
+    ## or the day before (end )  
+    start_date = start.astype('datetime64[D]')
+    end_date = end.astype('datetime64[D]')
+
+    if start_date != start:
+        start_date = start_date + np.timedelta64(1, 'D')
+    if end_date != end:
+        end_date = end_date - np.timedelta64(1, 'D')
+    start = pd.Timestamp(start_date)
+    end = pd.Timestamp(end_date)
+    nnday = (end - start).days+1
+    print(nnday)
+    print("Start=",start," End=",end," dest=",dest," nday=",nnday)        
+    s = copy.copy(start)
+    lat_low = lat_lon_bounds['lat'][0]
+    lat_high = lat_lon_bounds['lat'][1]
+    lon_low = lat_lon_bounds['lon'][0]
+    lon_high = lat_lon_bounds['lon'][1]
+    for nday in range(nnday):
+        print("Downloading: ",s)
+        e = s + days(1)
+        subset = data.sel(time=slice(s.to_datetime64(),e.to_datetime64()),lat=slice(lat_low,lat_high),lon=slice(lon_low,lon_high))
+        subset2 = data2.sel(time=slice(s.to_datetime64(),e.to_datetime64()),lat=slice(lat_low,lat_high),lon=slice(lon_low,lon_high))
+        datestr = s.strftime("%Y%m%d")        
+        filename = os.path.join(dest,"hycom_raw_"+datestr+".nc")
+        subset.to_netcdf(filename,mode='w',\
+                           format='NETCDF4_CLASSIC',unlimited_dims=['time'],\
+                           encoding = {'salinity': {'_FillValue': -9999.0}} )
+        subset2.to_netcdf(filename,mode='a',\
+                           format='NETCDF4_CLASSIC',unlimited_dims=['time'],\
+                           encoding = {'water_temp': {'_FillValue': -9999.0}} )
+        s = s + days(1)
+        e = e + hours(24)
+    return start, end
+
 
 def hycom_schism_opendap_alt():
     """ Alternate interface that seems slower, so this is currently not used"""
@@ -237,14 +309,20 @@ def main():
     args = parser.parse_args()
     raw_dest = args.raw_dest
     processed_dest = args.processed_dest
-    end_date = args.edate
     
-    start_date = pd.to_datetime(args.sdate, format='%Y-%m-%d')
-    if end_date is None:
-        end_date = pd.Timestamp.today()
+    
+    if args.latest:
+        start_date, end_date = hycom_schism_opendap_latest(dest=raw_dest)
     else:
-        end_date = pd.to_datetime(args.edate, format='%Y-%m-%d')
-    hycom_schism_opendap_alt2(start_date,end_date,raw_dest)
+        end_date = args.edate
+        start_date = pd.to_datetime(args.sdate, format='%Y-%m-%d')
+        if start_date is None:
+            raise ValueError("You must give start_date when flag 'latest' not set.")
+        if end_date is None:
+            end_date = pd.Timestamp.today()
+        else:
+            end_date = pd.to_datetime(args.edate, format='%Y-%m-%d')
+        hycom_schism_opendap_alt2(start_date,end_date,raw_dest)
     process_hycom(start_date,end_date,processed_dest,raw_dest)
 
 if __name__ == '__main__':
