@@ -11,7 +11,7 @@ from vtools.functions.merge import *
 from vtools.data.vtime import minutes
 from dms_datastore.filename import extract_year_fname
 
-__all__ = ["original_header", "read_yaml_header", "read_ts"]
+__all__ = ["original_header", "read_yaml_header", "parse_yaml_header", "read_ts"]
 
 
 def read_flagged(
@@ -128,6 +128,17 @@ def original_header(fpath, comment="#"):
     return "\n".join(original_head) if len(original_head) > 0 else ""
 
 
+def parse_yaml_header(header):
+    if isinstance(header,str):
+        header = "\n".join([x.replace("#", "") for x in header.split("\n")])
+    try:
+        yamlhead = yaml.safe_load(header)
+    except:
+        raise ValueError(f"Failure reading header in file {fpath}")
+    return yamlhead
+
+
+
 def read_yaml_header(fpath):
     """Reads yaml-based header at top of file
 
@@ -141,15 +152,8 @@ def read_yaml_header(fpath):
     Nested yaml data structure (lists and dicts)
 
     """
-
     header = original_header(fpath)
-    header = "\n".join([x.replace("#", "") for x in header.split("\n")])
-    try:
-        yamlhead = yaml.safe_load(header)
-    except:
-        raise ValueError(f"Failure reading header in file {fpath}")
-    return yamlhead
-
+    return parse_yaml_header(header)
 
 def is_dms1_screen(fname):
     if not fname.endswith(".csv"):
@@ -229,7 +233,13 @@ def read_dms1(
     return ts
 
 
-def is_ncro_std(fname):
+def is_ncro_json(fname):
+    with open(fname, "r") as f:
+        first_line = f.readline()
+        return "format: dwr-ncro-json" in first_line
+
+
+def is_ncro_cnra(fname):
     pattern = re.compile("#\s?provider\s?=\s?dwr-ncro")
     with open(fname, "r") as f:
         for i, line in enumerate(f):
@@ -238,36 +248,53 @@ def is_ncro_std(fname):
             if pattern.match(line.lower()):
                 return True
 
+def read_ncro_json(
+    fpath_pattern, start=None, end=None, 
+    selector=None, force_regular=True, nrows=None):
+    """Based on Hydstra web service"""
+    
+    ts = read_ncro_hydstra(
+        fpath_pattern, start=None, end=None, 
+        selector=None, force_regular=True, 
+        nrows=None,variant="json")
+    return ts
 
-def read_ncro_std(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
-):
-    """Based on Hydstra nightly dump. WDL is a separate reader"""
-    #if selector is not None:
-    #    raise ValueError(
-    #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
-    #    )
+
+def read_ncro_hydstra(
+    fpath_pattern, start=None, 
+    end=None, selector=None, force_regular=True, 
+    nrows=None, variant="cnra"):
+    """Based on Hydstra nightly dump to CNRA. If variant="json" comes from streaming web service"""
+    if variant == "cnra":
+        format_compatible_fn = is_ncro_cnra
+        usecols = [0,1,2,3]
+    elif variant == "json":
+        format_compatible_fn = is_ncro_json    
+        usecols = ["datetime","value","qaqc_code"]
+    else:
+        raise ValueError(f"Uncknown variant of Hystra in read_ncro_hydstra: {variant}")
+
     ts = csv_retrieve_ts(
-        fpath_pattern,
-        start,
-        end,
-        force_regular,
-        format_compatible_fn=is_ncro_std,
-        selector="value",
-        qaqc_selector="qaqc_code",
-        qaqc_accept=["", " ", " ", "e", "1", "2","25","70"],
-        parsedates=["datetime"],
-        indexcol="datetime",
-        sep=",",
-        skiprows=0,
-        # column_names=["datetime","value","qaqc_code","qaqc_description","status"],
-        column_names=["datetime", "value", "qaqc_code"],
-        use_cols=[0, 1, 2, 3],
-        header=0,
-        dateformat=None,
-        comment="#",
-        nrows=nrows,
-    )
+            fpath_pattern,
+            start,
+            end,
+            force_regular,
+            format_compatible_fn=format_compatible_fn,
+            selector="value",
+            qaqc_selector="qaqc_code",
+            qaqc_accept=["", " ", " ", "e", "1", "2","25","70"],
+            parsedates=["datetime"],
+            indexcol="datetime",
+            sep=",",
+            skiprows=0,
+            # column_names=["datetime","value","qaqc_code","qaqc_description","status"],
+            column_names=["datetime", "value", "qaqc_code"],
+            usecols=usecols,
+            header=0,
+            dateformat=None,
+            comment="#",
+            nrows=nrows,
+        )
     return ts
 
 
@@ -1227,7 +1254,8 @@ def read_ts(
         read_des_std,
         read_cdec1,
         read_cdec2,
-        read_ncro_std,
+        read_ncro_json,
+        read_ncro_hydstra,
         read_wdl3,
         read_wdl2,
         read_wdl,

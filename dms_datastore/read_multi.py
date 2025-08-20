@@ -101,11 +101,10 @@ def read_ts_repo(station_id,variable,
 
     pats = []
     for src in src_priority:
-        pats.append(os.path.join(repository,f"{src}_{station_id}_*_{variable}_*.*"))
-    retval = ts_multifile(pats,meta=meta) 
-    print(type(retval))
-    print("meta is",meta)
+        pats.append(os.path.join(repository, f"{src}_{station_id}_*_{variable}_*.*"))
+    retval = ts_multifile(pats, meta=meta)
     return retval
+
 
 def detect_dms_unit(fname):
     """
@@ -171,7 +170,16 @@ def filter_date(metafname,start=None, end=None):
     else:
         return False
 
-def ts_multifile(pats,selector=None,column_names=None,start=None,end=None,meta=False,force_regular=True):
+
+def ts_multifile(
+    pats,
+    selector=None,
+    column_names=None,
+    start=None,
+    end=None,
+    meta=False,
+    force_regular=True,
+):
     """
     Read and merge/splice multiple time series files based on provided patterns.
 
