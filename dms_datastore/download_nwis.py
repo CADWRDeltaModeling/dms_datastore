@@ -264,36 +264,71 @@ def download_station(
         else:
             station_query = station_query_base
     logger.info(f"USGS Query for ({station},{paramname}): {station_query}")
-    try:
-        if sys.version_info[0] == 2:
-            raise ValueError("Python 2 no longer supported")
-        elif sys.version_info[0] == 3:
-            response = requests.get(station_query)
-    except:
-        failures.append(station)
-    else:
+    max_attempt = 10
+    session = requests.Session()
+    station_html = ""
+    found = False
+    for attempt in range(1, (max_attempt + 1)):    
+        logger.debug(f"attempt: {attempt} variable {int(param):05}")
         try:
-            station_html = response.text.replace("\r", "")
-        except:
-            station_html = ""  # Catches incomplete read error
-        if len(station_html) > 120 and not "No sites found matching" in station_html or "\"timeSeries\":[]" in station_html:
-            found = True
+            response = session.get(station_query, stream=True, headers={'User-Agent': 'Mozilla/6.0'}, timeout=15)
+            response.raise_for_status()
+            for chunk in response.iter_lines(chunk_size=4096):  # Iterate over lines
+                if chunk:  # Filter out keep-alive new chunks
+                    station_html += chunk.decode()+"\n" 
+            logger.debug("Request successful, got text")
+            break
+        except Exception as e:
+            # html part failed
+            if attempt == max_attempt:
+                failures.append(station)
+                found = False
+                logger.debug("Multiple failures in USGS web request for ({station},{paramname},{param})") 
+            else:
+                continue  # Failed communication or download, next attempt
+        # If we got here, we got content. Find out whether it is legit data and parse it from json to csv
+        # Otherwise record it as not having provided data
+        # Assume, simply by virtue of size and the fact that the download code was success, that data are empty
+        found = True
+    if len(station_html) < 1000:  # Most USGS data fewer than 2000 characters have no good data
+        logger.info(f"Small file for station {station} param name {paramname} param code {int(param):05}")
+        found = False
+    else:
+        # We know download code was success and file is big enough to test. 
+        # The length threshold is conservative so could still be empty or bogus
+        # Todo get rid of this
+        with open(f"temp_out_{attempt}_{int(param):05}.txt","w") as fl:
+            fl.write(station_html)
+        if "No sites found matching" in station_html or "\"timeSeries\":[]" in station_html:
+            found = False
+            logger.debug(f"Based on typical indicators, attempt yielded no data for vari {int(param):05}.txt")
+        else: 
+            # Try parsing -- final word detecting non-data
             logger.info(f"Parsing USGS JSON: {path} param {param}")
             try:
                 df = parse_usgs_json(station_html,path,report_empty=f"{station} {paramname} ({param})")
             except Exception as exc:
-                logger.info(f"Parsing of {station} {paramname} ({param}) JSON to csv failed")
+                # Parsing broke. The quarantine allows it to be looked at for improvement of the parser. 
+                # But here we just log it as no data and move on.
+                logger.info(f"Parsing of {station} {paramname} ({param}) JSON to csv failed. Writing to quarantine")
                 with open(path, "w") as f:
                     f.write(station_html)
                 _quarantine_file(path)
-                raise
+                found = False
             if df is not None and not df.empty:
                 found = True
                 successes.add((station, paramname))
-        if not found:
-            logger.debug(f"Station {station} query failed or produced no data")
-            if (station, paramname) not in failures:
-                failures.append((station, paramname))
+                print(f"Apparent success in attempt {attempt} param {int(param):05}")
+                
+            else: 
+                found = False # Looke promising but yielded no data
+                print("attempt yielded no data")
+
+                
+    if not found:
+       logger.debug(f"Station {station} query failed or produced no data")
+       if (station, paramname) not in failures:
+           failures.append((station, paramname))
 
 
 def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=False):

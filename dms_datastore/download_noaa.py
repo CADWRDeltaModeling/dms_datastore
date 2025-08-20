@@ -94,6 +94,16 @@ def download_station_data(
     subloc = row.subloc
 
     product_info = {
+        "hourly_height": {
+            "agency": "noaa",
+            "unit": "meters",
+            "datum": "NAVD",
+            "station_id": f"{agency_id}",
+            "station_name": f"{station_name}",
+            "param": "elev",
+            "timezone": "LST",
+            "source": "http://tidesandcurrents.noaa.gov/",
+        },    
         "water_level": {
             "agency": "noaa",
             "unit": "meters",
@@ -156,7 +166,7 @@ def download_station_data(
         if param in ("conductivity", "temperature")
         else "NOS.COOPS.TAC.WL"
     )
-
+    sesssion = requests.Session()
     for year in range(start.year, end.year + 1):
         month_start = start.month if year == start.year else 1
         month_end = end.month if year == end.year else 12
@@ -173,15 +183,19 @@ def download_station_data(
 
             datum = "NAVD"
             datum_str = (
-                f"&datum={datum}" if param in ("water_level", "predictions") else ""
+                f"&datum={datum}" if param in ("water_level", "hourly_height","predictions") else ""
             )
             url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric{datum_str}&format=csv"
 
+            print(url)
             # logger.info(f"Retrieving {url}\n station {agency_id} from {date_start} to {date_end}".format(url,agency_id, date_start, date_end))
             # logger.info("URL: {}".format(url))
 
             try:
-                raw_table = retrieve_csv(url).decode()
+                response = requests.get(url)
+                response.raise_for_status()
+                content = response.content
+                raw_table = content.decode()
                 if faulty_output(raw_table):
                     if verbose:
                         logger.info(f"No good data produced for {station},{paramname}")
@@ -196,7 +210,7 @@ def download_station_data(
             if raw_table[0] == "\n":
                 datum = "STND"
                 datum_str = (
-                    f"&datum={datum}" if param in ("water_level", "predictions") else ""
+                    f"&datum={datum}" if param in ("water_level", "hourly_height", "predictions") else ""
                 )
                 url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric&{datum_str}&format=csv"
                 # logger.info("Retrieving Station {}, from {} to {}...".format(agency_id, date_start, date_end))
