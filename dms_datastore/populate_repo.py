@@ -40,7 +40,7 @@ from dms_datastore.read_ts import read_ts
 from dms_datastore.download_nwis import nwis_download, parse_start_year
 from dms_datastore.download_noaa import noaa_download
 from dms_datastore.download_cdec import cdec_download
-from dms_datastore.download_ncro import (
+from dms_datastore.download_ncro_cnra import (
     download_ncro_por,
     download_ncro_inventory,
     station_dbase,
