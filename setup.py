@@ -65,7 +65,7 @@ setup(
             "download_wdl=dms_datastore.download_wdl:main",
             "download_nwis=dms_datastore.download_nwis:main",
             "download_des=dms_datastore.download_des:main",
-            "download_ncro=dms_datastore.download_ncro:main",
+            "download_ncro=dms_datastore.download_ncro_cnra:main",
             "download_mokelumne=dms_datastore.download_mokelumne:main",
             "download_ucdipm=dms_datastore.download_ucdipm:main",
             "download_cimis=dms_datastore.download_cimis:main",
