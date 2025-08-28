@@ -271,6 +271,8 @@ def ts_multifile(
         if len(tss) == 0:
             print(f"No series for subpattern: {fp}")
         else:
+            if force_regular:
+                tss = [x.asfreq(commonfreq) for x in tss]
             patfull = ts_merge(tss)
             total_series = total_series + len(tss)
             if commonfreq is not None: 
