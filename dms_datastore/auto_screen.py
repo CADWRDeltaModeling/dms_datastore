@@ -37,7 +37,7 @@ def screener(
     do_plot=False,
     plot_label=None,
     return_anomaly=False,
-    plot_dest=None, # directory or 'interactive' or None for no plots
+    plot_dest=None,  # directory or 'interactive' or None for no plots
 ):
     """Performs yaml-specified screening protocol on time series"""
     print("screener", station_id, subloc, param)
@@ -204,7 +204,6 @@ def auto_screen(
         screen_config = config
 
     active = start_station is None
-
     station_db = station_dbase()
     inventory = repo_data_inventory(fpath)
     inventory = filter_inventory_(inventory, stations, params)
@@ -237,10 +236,10 @@ def auto_screen(
         fetcher = custom_fetcher(agency)
         # these may be lists
         try:
-            #print(f"fetching {fpath},{station_id},{param}")
+            # print(f"fetching {fpath},{station_id},{param}")
             meta_ts = fetcher(fpath, station_id, param, subloc=subloc)
         except:
-            print("Read failed for ", fpath,station_id, param, subloc)
+            print("Read failed for ", fpath, station_id, param, subloc)
             meta_ts = None
 
         if meta_ts is None:
@@ -255,12 +254,10 @@ def auto_screen(
         subloc_actual = (
             meta["sublocation"]
             if "sublocation" in meta
-            else meta["subloc"]
-            if "subloc" in meta
-            else "default"
+            else meta["subloc"] if "subloc" in meta else "default"
         )
         proto = context_config(screen_config, station_id, subloc, param)
-        do_plot = (plot_dest is not None)
+        do_plot = plot_dest is not None
         subloc_label = "" if subloc == "default" else subloc
         plot_label = f"{station_info['name']}_{station_id}@{subloc_label}_{param}"
         screened = screener(
@@ -286,6 +283,7 @@ def auto_screen(
         print("start write")
         write_ts_csv(screened, output_fpath, meta, chunk_years=True)
         print("end write")
+
 
 def update_steps(proto, x):
     """Modifies the steps in proto with changes in x.
@@ -416,9 +414,10 @@ class RegionChecker(object):
         df["coords"] = list(zip(df["x"], df["y"]))
         df["coords"] = df["coords"].apply(Point)
         points = gpd.GeoDataFrame(df, geometry="coords", crs=self.shp.crs)
-        point_in_polys = gpd.tools.sjoin(points, self.shp, predicate="within", how="left")
+        point_in_polys = gpd.tools.sjoin(
+            points, self.shp, predicate="within", how="left"
+        )
         return point_in_polys
-
 
 
 def dip_test(ts, low, dip):
@@ -477,7 +476,6 @@ def spatial_config(configfile, x, y):
     return checker.region_info(x, y)
 
 
-
 def ncro_fetcher(repo_path, station_id, param, subloc):
     """Reads NCRO data, correctly folding together NCRO and CDEC by priority.
     Celsius is converted to Farenheit
@@ -534,11 +532,12 @@ def create_argparse():
     )
     parser.add_argument("--stations", nargs="+", type=str)
     parser.add_argument("--params", nargs="+", type=str)
-    parser.add_argument("--plot_dest", 
-                        default=None, 
-                        type=str,
-                        help="directory or the word 'interactive' for screen or None for no plots"
-                        )
+    parser.add_argument(
+        "--plot_dest",
+        default=None,
+        type=str,
+        help="directory or the word 'interactive' for screen or None for no plots",
+    )
     parser.add_argument(
         "--start_station",
         type=str,
