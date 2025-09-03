@@ -1,1 +1,3 @@
 include versioneer.py
+recursive-include dms_datastore/config_data *
+include dms_datastore/usgs_parameter_cd_query.txt

@@ -4,7 +4,7 @@ channels:
   - conda-forge
   - nodefaults
 dependencies:
-  - python=3.11
+  - python=3.12
   - pip
   - beautifulsoup4
   - dask
@@ -12,11 +12,12 @@ dependencies:
   - scipy
   - tqdm
   - openpyxl
+  - boto3 # for hrrr 
   - lxml # for pandas html parsing
   - paramiko # for sftp cimis requests
   - tabula-py # for pdf parsing
   - pandas>=2
-  - numpy<2
+  - numpy
   - cfgrib
   - xarray
   - vtools3

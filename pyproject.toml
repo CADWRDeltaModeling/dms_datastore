@@ -24,6 +24,7 @@ dependencies = [
     "beautifulsoup4",
     "tqdm",
     "requests",
+    "boto3",
     "lxml",
     "openpyxl",
     "paramiko",
@@ -45,7 +46,7 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/water-e/dms_datastore"
+Homepage = "https://github.com/CADWRDeltaModeling/dms_datastore"
 
 [tool.versioneer]
 VCS = "git"
