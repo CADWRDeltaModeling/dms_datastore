@@ -109,7 +109,7 @@ def read_ts_repo(
     pats = []
     for src in src_priority:
         pats.append(os.path.join(repository, f"{src}_{station_id}_*_{variable}_*.*"))
-    retval = ts_multifile(pats, meta=meta)
+    retval = ts_multifile(pats, meta=meta, start=start, end=end)
     return retval
 
 
@@ -301,6 +301,7 @@ def ts_multifile(
     fullout = ts_splice(bigts, transition="prefer_first")
     if cfrq is not None:
         fullout = fullout.asfreq(cfrq)
+    fullout = fullout.loc[start:end] # Will have already been filtered to about 1 year
     retval = (metas, fullout) if meta else fullout
     return retval
 

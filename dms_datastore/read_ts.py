@@ -8,7 +8,7 @@ import re
 import warnings  # temporary?
 from collections import defaultdict
 from vtools.functions.merge import *
-from vtools.data.vtime import minutes
+from vtools.data.vtime import days, minutes
 from dms_datastore.filename import extract_year_fname
 
 __all__ = ["original_header", "read_yaml_header", "parse_yaml_header", "read_ts"]
@@ -1591,7 +1591,10 @@ def csv_retrieve_ts(
         if f is None:
             raise NotImplementedError("force_regular but could not discover freq")
         # Round to neat times, which may cause duplicates or gaps
-        big_ts.index = big_ts.index.round(f)
+        try:
+            big_ts.index = big_ts.index.round(f)
+        except:
+            pass
         big_ts = big_ts.loc[~big_ts.index.duplicated(keep="first")]
         # Now everything is on an expected timestamp, so subsample leaving uncovered times NaN
         big_ts = big_ts.asfreq(f)
