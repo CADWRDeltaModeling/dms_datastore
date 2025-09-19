@@ -37,7 +37,8 @@ dependencies = [
     "cfgrib",
     "diskcache",
     "pytest",
-    "pytest-runner"
+    "pytest-runner",
+    "tabula-py"
 ]
 
 [project.optional-dependencies]

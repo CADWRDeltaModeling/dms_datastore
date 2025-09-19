@@ -71,6 +71,7 @@ setup(
             "download_cimis=dms_datastore.download_cimis:main",
             "download_dcc=dms_datastore.download_dcc:main",
             "download_montezuma_gates=dms_datastore.download_montezuma_gates:main",
+            "download_smscg=dms_datastore.download_smscg:main",            
             "compare_directories=dms_datastore.compare_directories:main",
             "populate_repo=dms_datastore.populate_repo:main",
             "station_info=dms_datastore.station_info:main",
