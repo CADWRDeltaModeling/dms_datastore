@@ -19,7 +19,8 @@ def main(base_dir=".", outfile="dms_smscg_gate.csv"):
     os.makedirs(convert_dir, exist_ok=True)
     df0 = download_and_parse_archived_pdf(raw_dir)
     df1 = download_and_parse_active_gate_log(raw_dir)
-    df_final = reconcile_archive_with_new(df0, df1)
+    df_final = reconcile_archive_with_new(df0, df1)    
+    df_final["remarks"] = df_final["remarks"].str.replace("\n", " ", regex=False).str.replace("\r", " ", regex=False)
     # Write CSV with only "remarks" and "user_remarks" quoted
     #df_final = _quote_selected_columns(df_final, ["remarks", "user_remarks"])
     outfile = os.path.join(convert_dir, outfile)
@@ -56,7 +57,7 @@ def reconcile_archive_with_new(df_archive,df_new):
         # Ensure the time index is sorted and unique
         df_final = df_final[~df_final.index.duplicated(keep="last")]
         df_final = df_final.sort_index()
-       
+
     return df_final
 
 def download_and_parse_active_gate_log(raw_dir="raw"):
