@@ -23,7 +23,7 @@ def main(base_dir=".", outfile="dms_smscg_gate.csv"):
     # Write CSV with only "remarks" and "user_remarks" quoted
     #df_final = _quote_selected_columns(df_final, ["remarks", "user_remarks"])
     outfile = os.path.join(convert_dir, outfile)
-    df_final.to_csv(outfile, index=True, quoting=QUOTE_MINIMAL)
+    df_final.to_csv(outfile, index=True, quoting=QUOTE_MINIMAL,date_format="%Y-%m-%dT%H:%M")
 
 
 
