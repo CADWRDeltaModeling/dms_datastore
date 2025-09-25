@@ -158,7 +158,7 @@ def read_yaml_header(fpath):
 def is_dms1_screen(fname):
     if not fname.endswith(".csv"):
         return False
-    pattern = re.compile("#\s?format\s?:\s?dwr-dms-1.0")
+    pattern = re.compile(r"#\s?format\s?:\s?dwr-dms-1.0")
     with open(fname, "r") as f:
         line = f.readline()
         if pattern.match(line) is None:
@@ -201,7 +201,7 @@ def read_dms1_screen(
 def is_dms1(fname):
     if not fname.endswith(".csv"):
         return False
-    pattern = re.compile("#\s?format\s?:\s?dwr-dms-1.0")
+    pattern = re.compile(r"#\s?format\s?:\s?dwr-dms-1.0")
     with open(fname, "r") as f:
         line = f.readline()
         if pattern.match(line) is None:
@@ -240,7 +240,7 @@ def is_ncro_json(fname):
 
 
 def is_ncro_cnra(fname):
-    pattern = re.compile("#\s?provider\s?=\s?dwr-ncro")
+    pattern = re.compile(r"#\s?provider\s?=\s?dwr-ncro")
     with open(fname, "r") as f:
         for i, line in enumerate(f):
             if i > 6:
@@ -301,8 +301,8 @@ def read_ncro_hydstra(
 def is_des_std(fname):
     import re
 
-    pattern0 = re.compile("#\s?provider\s?=\s?dwr-des")
-    pattern1 = re.compile("#\s?provider\s?:\s?dwr-des")
+    pattern0 = re.compile(r"#\s?provider\s?=\s?dwr-des")
+    pattern1 = re.compile(r"#\s?provider\s?:\s?dwr-des")
     with open(fname, "r") as f:
         for i, line in enumerate(f):
             if i > 6:
@@ -1195,7 +1195,7 @@ def read_vtide(fpath_pattern, start=None, end=None, selector=None, force_regular
         parsedates=[0],
         indexcol=0,
         header=None,
-        sep="\s+",
+        sep=r"\s+",
         comment="#",
     )
 
