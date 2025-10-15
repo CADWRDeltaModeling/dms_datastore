@@ -77,7 +77,7 @@ def process_station_list(stationlist,id_col="id",agency_id_col="agency_id",
             station_df.rename(columns={param_col:"param"})
     
     if not "subloc" in station_df.columns: 
-        station_df["subloc"]="default"
+        station_df["subloc"]=subloc
     else:
         station_df["subloc"] = station_df.subloc.astype(str)
 
