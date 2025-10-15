@@ -82,7 +82,7 @@ def write_ts(fpath,df,meta):
 
 des_unit_map = {"ÂµS/cm":"microS/cm",
                 "µS/cm":"microS/cm",
-                "μS/cm":"microS/cm",
+                "μS/cm at 25°C":"microS/cm",
                 "°C":"deg_c",
                 "°F":"deg_f","CFS":"ft^3/s",
                 "ft (MSL)":"feet","inches":"inches",
@@ -130,11 +130,7 @@ def inventory(program_name, program_id):
 
     results_df = pd.read_csv(open_url_no_ssl_cert_check(url), sep='|',dtype={"interval_id":int,"aggregate_id":int,"station_active":str},
                              parse_dates=["start_date","end_date"])
-    #print("yo")
-    for (id,row) in results_df.loc[results_df.station_id >= 90,:].iterrows():
-        if "chl" in row.analyte_name.lower():
-            print("\n")
-            print(row)
+
     results_df = results_df.loc[results_df.interval_id != 4,:]  # Not "Visit"
     results_df = results_df.loc[results_df.aggregate_id <= 2,:]  # Not labeled "inst" or "Avg"
     #results_df = results_df.loc[results_df.station_active=="Y",:]  # Active
@@ -218,23 +214,26 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                                                                               'aggregate_name','interval_name',
                                                                               'start_date','end_date'] ] #
         
-        # Add subloc column that is translated to "air", "upper" or "lower". If there is only a single subloc (depth) it is marked "default"
+       
+        # Add subloc column that is translated to "air", "upper" or "lower". 
+        # If there is only a single subloc (depth=1) it is marked "default"
         rids["subloc"] = rids["probe_depth"].apply(_depth_trans) #"default" # dummy for transform
         rids["nrep"] = rids.groupby(['station_id','analyte_name'])["subloc"].transform('count')
         rids["nrepdepth"] = rids.groupby(['station_id','analyte_name','subloc'])["subloc"].transform('count')
+
         
-        if subloc == 'default':
+        if subloc in ('all', 'default'):
             # Assume default requests makes sense if all the rid entries are the same
             # otherwise we need a direct hit
-            # todo: a better way to handle this would be to link the subloc table and look and see if the station
+            # todo: a better way to handle this would be to 
+            # link the subloc table and look and see if the station
             # has sublocations defined and only use 'default' if it isn't defined. 
             # Here we hope the client application has done this.
             rids.loc[rids.nrep == rids.nrepdepth,"subloc"] = "default"
             #if not is_unique(rids.subloc):
             #    raise ValueError(f"Default location requested for a station with multiple sublocations for variable {param}")
-        rids = rids.loc[rids.subloc == subloc,:]
-
-        #rids.loc[rids.nrep > rids.nrepdepth,"subloc"] = rids.loc[rids.nrep > rids.nrepdepth,"probe_depth"].str.replace("depth =","").replace("depth=","")
+        elif subloc != 'all':
+            rids = rids.loc[rids.subloc == subloc,:]
 
             
         if len(rids) == 0: 
@@ -276,11 +275,12 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
             else:
                 yearname = f"{fstart.year}_{fend.year}" 
 
-            
-            if subloc == "default":  # omit from name
+            sub = rid.subloc
+
+            if sub == "default":  # omit from name
                 outfname = f"des_{station}_{agency_id}_{paramname}_{yearname}.csv"
             else:
-                outfname = f"des_{station}@{subloc}_{agency_id}_{paramname}_{yearname}.csv"            
+                outfname = f"des_{station}@{sub}_{agency_id}_{paramname}_{yearname}.csv"            
             outfname = outfname.lower()
             outfname = outfname.lower()
             path = os.path.join(dest_dir,outfname)
@@ -348,7 +348,10 @@ def main():
     slookup = dstore_config.config_file("station_dbase")
     vlookup = dstore_config.config_file("variable_mappings")            
     df = process_station_list(stationfile,param=param,station_lookup=slookup,
-                                  agency_id_col="agency_id",param_lookup=vlookup,source='dwr_des')
+                                  agency_id_col="agency_id",
+                                  param_lookup=vlookup,
+                                  source='dwr_des',
+                                  subloc='all')
     des_download(df,destdir,stime,etime,overwrite=overwrite)  
         
 
