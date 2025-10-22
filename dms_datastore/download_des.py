@@ -206,11 +206,6 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
             failures.append((station,param))
             continue
             
-        print("Redundancy check for station id program ")
-        bad = (inventory_full.loc[inventory_full['station_id'].isin([10,21,22,40,110,120])])
-        bad = bad.drop_duplicates(subset=["station_id","program_id"],keep="first")
-        bad = bad.sort_values(by=["station_id","program_id"])[["result_id","station_id","station_name","cdec_code","program_id"]]
-        bad.to_csv("bad.csv")
 
         rids = inventory_full.loc[(inventory_full['station_id'] == tst_id) & 
                                   (inventory_full['interval_name']!='Visit') & 
