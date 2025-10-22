@@ -198,6 +198,7 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
             etime=pd.Timestamp.now().strftime("%Y-%m-%d")
         found = False
 
+        
         try:
             tst_id = int(agency_id)
         except:
@@ -205,16 +206,28 @@ def des_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
             failures.append((station,param))
             continue
             
-        
+        print("Redundancy check for station id program ")
+        bad = (inventory_full.loc[inventory_full['station_id'].isin([10,21,22,40,110,120])])
+        bad = bad.drop_duplicates(subset=["station_id","program_id"],keep="first")
+        bad = bad.sort_values(by=["station_id","program_id"])[["result_id","station_id","station_name","cdec_code","program_id"]]
+        bad.to_csv("bad.csv")
+
         rids = inventory_full.loc[(inventory_full['station_id'] == tst_id) & 
                                   (inventory_full['interval_name']!='Visit') & 
                                   (inventory_full['analyte_name'] == param), ['result_id','station_id','station_name',
                                                                               'analyte_name','program_id',
                                                                               'probe_depth','unit_name','equipment_name',
-                                                                              'aggregate_name','interval_name',
+                                                                              'aggregate_name','interval_name','cdec_code',
                                                                               'start_date','end_date'] ] #
-        
-       
+        # This is a workaround at a time when DISE data is due to shift back ends and I (Eli) didn't want to do a ton
+        # of work that would be superceded. Apparently the DISE backend station_id is not unique across EMP and Suisun
+        # Marsh programs. This makes it kind of useless, but we will deal with that later.
+        cross_program_redundant_ids = [10,21,22,40,110,120]
+        if tst_id in cross_program_redundant_ids:
+            # Think the CDEC code works for these cases
+            row_station_id = row.station_id.upper()
+            rids = rids.loc[rids['cdec_code'].str[0:3] == row_station_id[0:3]]
+
         # Add subloc column that is translated to "air", "upper" or "lower". 
         # If there is only a single subloc (depth=1) it is marked "default"
         rids["subloc"] = rids["probe_depth"].apply(_depth_trans) #"default" # dummy for transform
