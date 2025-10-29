@@ -1,0 +1,25 @@
+repo: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed/"
+screened: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened/"
+processed: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed/"
+
+yolo:
+  start_date: 2022-01-01 00:00
+  end_date: 2025-09-01 00:00
+  output:
+    - yolo_flow.csv
+    - ytoe_flow.csv
+  data_sources:
+    rye_flow: usgs_rye_11455385_flow_*.csv
+    ryi_flow: usgs_ryi_11455350_flow_*.csv
+    hwb_flow: usgs_hwb_11455165_flow_*.csv
+    sacweir_flow: usgs_ssw2_11426000_flow_2000_*.rdb
+    woodland_flow: usgs_yby_11453000_flow_*.csv
+    lis_flow: ncro_lis_b91560q_flow_*.csv
+    lis_elev: ncro_lis_b91560_elev_*.csv
+sjr:
+  start_date: 2022-01-01 00:00
+  end_date: 2025-08-01 00:00
+  output: vns_flow.csv
+  data_sources: 
+    vns_flow: usgs_vns_11303500_flow_*.csv
+    msd_flow: ncro_msd__b95820q_flow_*.csv
