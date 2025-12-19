@@ -2,7 +2,7 @@ import os
 import re
 import yaml
 import glob
-from dms_datastore.read_ts import *
+from dms_datastore.read_ts import read_ts, infer_freq_robust
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.dstore_config import station_dbase
 
@@ -62,6 +62,7 @@ def populate_meta(fpath,listing,meta_out=None):
     meta_out["param"] = meta["param"]
     source = meta["source"]
     meta_out["agency"] = meta["agency"] if "agency" in meta else slookup.loc[station_id, "agency"]
+    meta_out["freq"] = meta["freq"]
     meta_out["source"] = source
     meta_out["station_id"] = station_id
     station_name = slookup.loc[station_id, "name"]
@@ -143,7 +144,13 @@ def get_data(spec):
 
             meta_out = populate_meta(fpath, listing, metadata)
             
+            # infer frequency if requested
+            if meta_out["freq"] == "infer":
+                meta_out["freq"] = infer_freq_robust(ts.index)
 
+            # use "irregular" if None is specified
+            if meta_out["freq"] is None or meta_out["freq"] == "None":
+                meta_out["freq"] = "irregular"
             if "sublocation" not in meta_out or meta_out["sublocation"] is None:
                 meta_out["sublocation"] = "default"  # check not just "subloc"
 
