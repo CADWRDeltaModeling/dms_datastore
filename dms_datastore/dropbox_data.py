@@ -116,7 +116,10 @@ def get_data(spec):
 
         item = listing["collect"]
         metadata = listing["metadata"]
+        dest = listing["dest"]
 
+        if not os.path.exists(dest):
+            raise ValueError(f"Destination {dest} does not exist.")
 
         file_pattern = item["file_pattern"].format(dropbox_home=dropbox_home)
         location = item["location"].format(dropbox_home=dropbox_home)
@@ -159,7 +162,7 @@ def get_data(spec):
             fname_out = (meta_out["source"] + "_" + meta_out["station_id"] 
                         + "_" + meta_out["agency_id"] + "_" + meta_out["param"] + ".csv")
             
-            fname_out = os.path.join("formatted", fname_out)
+            fname_out = os.path.join(dest, fname_out)
             print(fname_out)
             write_ts_csv(ts, fname_out, meta_out, chunk_years=True)
 
