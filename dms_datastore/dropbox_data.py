@@ -117,13 +117,12 @@ def get_data(spec):
         metadata = listing["metadata"]
 
 
-        name = item["name"]
         file_pattern = item["file_pattern"].format(dropbox_home=dropbox_home)
         location = item["location"].format(dropbox_home=dropbox_home)
         recursive = bool(item["recursive_search"])
         
 
-        collector = DataCollector(name, location, file_pattern, recursive)
+        collector = DataCollector("dummy", location, file_pattern, recursive)
         allfiles = collector.data_file_list()
         print("all files")
         print(allfiles)
