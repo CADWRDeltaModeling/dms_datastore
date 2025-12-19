@@ -81,7 +81,8 @@ setup(
             "usgs_multi=dms_datastore.usgs_multi:main",
             "delete_from_filelist=dms_datastore.delete_from_filelist:main",
             "data_cache=dms_datastore.caching:main",
-            "merge_files=dms_datastore.merge_files:main"
+            "merge_files=dms_datastore.merge_files:main",
+            "dropbox_data=dms_datastore.dropbox_data:main"
         ]
     },
 )

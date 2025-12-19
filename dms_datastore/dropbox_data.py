@@ -5,6 +5,7 @@ import glob
 from dms_datastore.read_ts import read_ts, infer_freq_robust
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.dstore_config import station_dbase
+import argparse
 
 # Global variable to store cached data
 _cached_spec = None
@@ -167,6 +168,14 @@ def dropbox_data(spec_fname):
     spec = get_spec(spec_fname)
     get_data(spec)
 
+def create_arg_parser():
+    parser = argparse.ArgumentParser("Reads unformatted data files and writes to formatted csv files according to dropbox specification.")
+    parser.add_argument('--input',default=False,help=".yaml file with dropbox specification")
+    return parser
 
-if __name__ == "__name__" or True:
-    dropbox_data("dropbox_spec.yaml")
+def main():
+    parser = create_arg_parser()
+    args = parser.parse_args()
+    if not args.input:
+        raise ValueError("input yaml file required")
+    dropbox_data(args.input)
