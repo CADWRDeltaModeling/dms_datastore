@@ -103,10 +103,10 @@ def infer_meta(fpath, listing,fail="none"):
 def get_data(spec):
     
     dropbox_home = spec["dropbox_home"]
-    never_skip = False
+    always_skip = True
     
-    for listing in spec["data"]:
-        if "skip" in listing and not never_skip:
+    for listing in spec["data"]: # iterate over listings (Moke, Clifton Court, etc.)
+        if "skip" in listing and always_skip:
             """skip the item, possibly because it is securely archived already"""
             if listing["skip"] in ["True",True]: 
                 continue
