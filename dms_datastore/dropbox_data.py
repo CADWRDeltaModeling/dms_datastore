@@ -63,6 +63,7 @@ def populate_meta(fpath,listing,meta_out=None):
     source = meta["source"]
     meta_out["agency"] = meta["agency"] if "agency" in meta else slookup.loc[station_id, "agency"]
     meta_out["freq"] = meta["freq"]
+    meta_out["unit"] = meta["unit"]
     meta_out["source"] = source
     meta_out["station_id"] = station_id
     station_name = slookup.loc[station_id, "name"]
