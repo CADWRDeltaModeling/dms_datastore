@@ -1,5 +1,5 @@
 
-dropbox_home: //cnrastore-bdo/Modeling_Data/repo_staging/dropbox
+dropbox_home: //cnrastore-bdo/Modeling_Data
 dest: &formatted //cnrastore-bdo/Modeling_Data/repo_staging/dropbox/formatted
 
 data:
@@ -8,7 +8,7 @@ data:
     dest: *formatted
     collect:
       file_pattern: "ebmud_wbr_flow*.csv"
-      location:   //cnrastore-bdo/Modeling_Data/ebmud/  # This could be understood as a default
+      location:   "{dropbox_home}/ebmud/"  # This could be understood as a default
       recursive_search: False
       reader: read_ts    # Names, pointers to code etc. To be fleshed out
       selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
