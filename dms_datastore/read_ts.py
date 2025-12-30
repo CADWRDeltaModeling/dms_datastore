@@ -1282,6 +1282,8 @@ def read_ts(
                         freq = kwargs.get("freq")
 
             if freq_in_kwargs == True:
+                if freq == "None" or freq == None:
+                    force_regular = False
                 ts = reader(
                     fpath, start, end, selector, force_regular=force_regular, nrows=nrows, freq=freq
                 )
@@ -1615,6 +1617,8 @@ def csv_retrieve_ts(
         # Now everything is on an expected timestamp, so subsample leaving uncovered times NaN
         big_ts = big_ts.asfreq(f)
 
+    else:
+        pass
     # This try/except Ensures frame rather than Series
     num_null_index = big_ts.index.isnull().sum()
     if num_null_index > 1:

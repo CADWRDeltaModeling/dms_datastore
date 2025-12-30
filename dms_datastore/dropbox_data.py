@@ -67,16 +67,34 @@ def populate_meta(fpath,listing,meta_out=None):
     meta_out["unit"] = meta["unit"]
     meta_out["source"] = source
     meta_out["station_id"] = station_id
-    station_name = slookup.loc[station_id, "name"]
+    try:
+        station_name = slookup.loc[station_id, "name"]
+    except:
+        station_name = station_id
     meta_out["station_name"] = station_name
     meta_out["sublocation"] = (
         meta["sublocation"] if meta["sublocation"] is not None else "default"
     )
-    meta_out["agency_id"] = slookup.loc[station_id, "agency_id"]
-    meta_out["latitude"] = float(slookup.loc[station_id, "lat"])
-    meta_out["longitude"] = float(slookup.loc[station_id, "lon"])
-    meta_out["projection_x_coordinate"] = float(slookup.loc[station_id, "x"])
-    meta_out["projection_y_coordinate"] = float(slookup.loc[station_id, "y"])
+    try:
+        meta_out["agency_id"] = slookup.loc[station_id, "agency_id"]
+    except:
+        meta_out["agency_id"] = meta["agency"]
+    try:
+        meta_out["latitude"] = float(slookup.loc[station_id, "lat"])
+    except:
+        meta_out["latitude"] = -9999.0
+    try:
+        meta_out["longitude"] = float(slookup.loc[station_id, "lon"])
+    except:
+        meta_out["longitude"] = -9999.0
+    try:
+        meta_out["projection_x_coordinate"] = float(slookup.loc[station_id, "x"])
+    except:
+        meta_out["projection_x_coordinate"] = -9999.0
+    try:
+        meta_out["projection_y_coordinate"] = float(slookup.loc[station_id, "y"])
+    except:
+        meta_out["projection_y_coordinate"] = -9999.0
     meta_out["projection_authority_id"] = "epsg:26910"
     meta_out["crs_note"] = (
         "Reported lat-lon are agency provided. Projected coordinates may have been revised based on additional information."
@@ -137,7 +155,10 @@ def get_data(spec):
             if "selector" in item: 
                 selector = item["selector"]
             ts = reader(fpath, selector=selector, freq=metadata["freq"])
-            ts.columns = ["value"]
+            try:
+                ts.columns = ["value"]
+            except:
+                pass
             
             inferring_meta = "metadata_infer" in listing
             if inferring_meta:
@@ -155,6 +176,7 @@ def get_data(spec):
             # use "irregular" if None is specified
             if meta_out["freq"] is None or meta_out["freq"] == "None":
                 meta_out["freq"] = "irregular"
+                metadata["freq"] = None # Must reset.
             if "sublocation" not in meta_out or meta_out["sublocation"] is None:
                 meta_out["sublocation"] = "default"  # check not just "subloc"
 
