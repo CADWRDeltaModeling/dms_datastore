@@ -6,6 +6,7 @@ import glob
 import yaml
 import re
 import warnings  # temporary?
+import inspect
 from collections import defaultdict
 from vtools.functions.merge import *
 from vtools.data.vtime import days, minutes
@@ -1157,7 +1158,7 @@ def read_noaa(
     return ts
 
 # This reader must be last
-def read_last_resort_csv(fpath_pattern, start=None, end=None, selector=None, force_regular=False,nrows=None):
+def read_last_resort_csv(fpath_pattern, start=None, end=None, selector=None, force_regular=False,nrows=None, **kwargs):
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -1172,6 +1173,7 @@ def read_last_resort_csv(fpath_pattern, start=None, end=None, selector=None, for
         sep=",",
         comment="#",
         nrows=nrows,
+        **kwargs
     )
     return ts        
     
@@ -1210,6 +1212,7 @@ def read_ts(
     nrows=None,
     selector=None,
     hint=None,
+    **kwargs
 ):
     """Read a time series from a text file in various formats.
     This function asks readers for different file formats to attempt to read the file.
@@ -1270,9 +1273,22 @@ def read_ts(
             if hint not in reader.__name__:
                 continue
         try:
-            ts = reader(
-                fpath, start, end, selector, force_regular=force_regular, nrows=nrows
-            )
+            freq_in_kwargs = False
+            sig = inspect.signature(reader)
+            for param in sig.parameters.values():
+                if param.kind == inspect.Parameter.VAR_KEYWORD:
+                    if "freq" in kwargs:
+                        freq_in_kwargs = True
+                        freq = kwargs.get("freq")
+
+            if freq_in_kwargs == True:
+                ts = reader(
+                    fpath, start, end, selector, force_regular=force_regular, nrows=nrows, freq=freq
+                )
+            else:
+                ts = reader(
+                    fpath, start, end, selector, force_regular=force_regular, nrows=nrows
+                )
             return ts
         except IOError as e:
             if str(e).startswith("No match"):
@@ -1346,7 +1362,7 @@ def path_pattern(path_pattern):
     return fdir, fpat
 
 
-def infer_freq_robust(index, preferred=["h", "15min", "6min", "10min", "h", "d"]):
+def infer_freq_robust(index, preferred=["h", "15min", "6min", "10min", "h", "d"], **kwargs):
     index = index.round("1min")
 
     if len(index) < 8:

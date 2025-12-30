@@ -136,7 +136,7 @@ def get_data(spec):
             reader = reader_for(item["reader"])
             if "selector" in item: 
                 selector = item["selector"]
-            ts = reader(fpath, selector=selector)
+            ts = reader(fpath, selector=selector, freq=metadata["freq"])
             ts.columns = ["value"]
             
             inferring_meta = "metadata_infer" in listing
