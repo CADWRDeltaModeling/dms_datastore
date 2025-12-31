@@ -1,6 +1,6 @@
 
-dropbox_home: //cnrastore-bdo/Modeling_Data
-dest: &formatted //cnrastore-bdo/Modeling_Data/repo_staging/dropbox/formatted
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_staging/dropbox # can be used to set path like "{dropbox_home}/repo". Otherwise, not required.
+dest: &formatted output
 
 data:
   - name: Mokelumne
@@ -8,7 +8,7 @@ data:
     dest: *formatted
     collect:
       file_pattern: "ebmud_wbr_flow*.csv"
-      location:   "{dropbox_home}/ebmud/"  # This could be understood as a default
+      location:   "{dropbox_home}/ebmud"  # This could be understood as a default
       recursive_search: False
       reader: read_ts    # Names, pointers to code etc. To be fleshed out
       selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
@@ -19,6 +19,24 @@ data:
       freq: infer   # None for irregular, "infer" for infer.
       param: flow
       unit: ft^3/s
+      sublocation: default
+
+  - name: ccfb
+    skip: False
+    dest: *formatted
+    collect:
+      file_pattern: "CC_Gate_Positions*.csv"
+      location:   "{dropbox_home}/hydraulic_structures/incoming"  # This could be understood as a default
+      recursive_search: False
+      reader: read_ts    # Names, pointers to code etc. To be fleshed out
+      selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
+    metadata: 
+      station_id: ccfb_station
+      source: ccfb_source
+      agency: ccfb_agency
+      freq: None   # None for irregular, "infer" for infer.
+      param: gate
+      unit: m
       sublocation: default
 
   - name: USGS Aquarius flows
@@ -42,6 +60,7 @@ data:
         1: agency_id
 
   - name: Dayflow X2
+    skip: True  
     collect: 
       name: file_search
       station_id: x2
@@ -59,6 +78,7 @@ data:
       unit: km
 
   - name: Dayflow Flows
+    skip: True  
     collect: 
       name: parameterized_file_search
       station_id: {id}
@@ -76,6 +96,7 @@ data:
       unit: ft^3/s
 
   - name: Dayflow EI
+    skip: True  
     collect: 
       name: file_search
       station_id: ei
