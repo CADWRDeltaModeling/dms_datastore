@@ -14,7 +14,7 @@ from dms_datastore.process_station_variable import (
     stationfile_or_stations,
 )
 from dms_datastore import dstore_config
-from .logging_config import logger
+from dms_datastore.logging_config import logger
 
 __all__ = ["noaa_download"]
 
@@ -81,6 +81,12 @@ def write_header(fname, headers):
 
 def faulty_output(text):
     return "Please make sure" in text or len(text) < 300
+
+
+def subprogram(df):
+    return df.agency_id.apply(
+        lambda x: "tidecurrent" if isinstance(x, str) and len(x) == 7 and x.isdigit() else "buoy"
+    )
 
 
 def download_station_data(
@@ -265,8 +271,15 @@ def noaa_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
         os.mkdir(dest_dir)
     skips = []
 
+    # This is an attempt to short-circuit the download of water levels for non-tidal stations
+    # The correctness of this remains to be checked.
+    if param in ("elev","water_level", "hourly_height", "predictions"):
+        stations = stations.loc[subprogram(stations)=="tidecurrent"]
+    elif param in ("temp","temperature","conductivity","ec"):
+        stations = stations.loc[subprogram(stations)=="buoy"]
+
     # Use ThreadPoolExecutor
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         # Schedule the download tasks and handle them asynchronously
         futures = []
         for ndx, row in stations.iterrows():
