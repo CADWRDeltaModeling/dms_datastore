@@ -12,7 +12,7 @@ from vtools.functions.merge import *
 from vtools.data.vtime import days, minutes
 from dms_datastore.filename import extract_year_fname
 
-__all__ = ["original_header", "read_yaml_header", "parse_yaml_header", "read_ts"]
+__all__ = ["original_header", "read_yaml_header", "parse_yaml_header", "read_ts","read_vtide"]
 
 
 def read_flagged(
@@ -1194,10 +1194,10 @@ def read_vtide(fpath_pattern, start=None, end=None, selector=None, force_regular
         selector=selector,
         format_compatible_fn=lambda x: True,
         qaqc_selector=None,
-        parsedates=[0],
+        parsedates=[0,1],
         indexcol=0,
         header=None,
-        sep=r"\s+",
+        sep=r"\\s+",
         comment="#",
     )
 
