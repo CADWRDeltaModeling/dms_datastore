@@ -8,6 +8,7 @@ import calendar
 import datetime as dtm
 import re
 import os
+import click
 import concurrent.futures
 from dms_datastore.process_station_variable import (
     process_station_list,
@@ -305,65 +306,7 @@ def noaa_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                 logger.error(f"Exception occurred during download: {e}")
 
 
-def create_arg_parser():
-    """Create an ArgumentParser"""
-    import argparse
 
-    parser = argparse.ArgumentParser(
-        description="""Script to download NOAA 6 minute water level data """
-    )
-    parser.add_argument(
-        "--start", default=None, required=False, type=str, help="First date to download"
-    )
-    parser.add_argument(
-        "--end",
-        default=None,
-        required=False,
-        type=str,
-        help="Last date to download, inclusive",
-    )
-    parser.add_argument(
-        "--syear", default=None, required=False, type=int, help="First year to download"
-    )
-    parser.add_argument(
-        "--eyear",
-        default=None,
-        required=False,
-        type=int,
-        help="Last year to download, inclusive to end" " of the year.",
-    )
-    parser.add_argument(
-        "--param",
-        default=None,
-        required=False,
-        type=str,
-        help="Product to download: water_level, predictions, water_temperature, conductivity.",
-    )
-
-    parser.add_argument(
-        "--stations",
-        default=None,
-        nargs="*",
-        required=False,
-        help="Id or name of one or more stations.",
-    )
-    parser.add_argument("stationfile", nargs="*", help="CSV-format station file.")
-
-    parser.add_argument(
-        "--dest",
-        dest="dest_dir",
-        default="noaa_download",
-        help="Destination directory for downloaded files.",
-    )
-    parser.add_argument(
-        "--list", default=False, action="store_true", help="List known station ids."
-    )
-    parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        help="Overwrite existing files (if False they will be skipped, presumably for speed",
-    )
-    return parser
 
 
 def list_stations():
@@ -391,22 +334,16 @@ def assure_datetime(dtime, isend=False):
         return (
             dtm.datetime(dtime, 12, 31, 23, 59) if isend else dtm.datetime(dtime, 1, 1)
         )
-
-
-def main():
-    """Main function"""
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    dest_dir = args.dest_dir
-    overwrite = args.overwrite
-    param = args.param
-    if args.list:
+        
+def download_noaa(start, end, syear, eyear, param, stations, dest_dir, list_stations_flag, overwrite, stationfile):
+    """Script to download NOAA 6 minute water level data"""
+    if list_stations_flag:
         logger.info(
             "listing is deprecated. Try 'station_info noaa' to get a list of noaa stations"
         )
         return
     else:
-        stationfile = stationfile_or_stations(args.stationfile, args.stations)
+        stationfile = stationfile_or_stations(stationfile, stations)
         slookup = dstore_config.config_file("station_dbase")
         vlookup = dstore_config.config_file("variable_mappings")
         df = process_station_list(
@@ -418,17 +355,15 @@ def main():
             source="noaa",
         )
 
-        if args.start:
-            start = dtm.datetime(*list(map(int, re.split(r"[^\d]", args.start))))
+        if start:
+            start = dtm.datetime(*list(map(int, re.split(r"[^\d]", start))))
         else:
             start = None
-        if args.end:
-            end = dtm.datetime(*list(map(int, re.split(r"[^\d]", args.end))))
+        if end:
+            end = dtm.datetime(*list(map(int, re.split(r"[^\d]", end))))
         else:
             end = None
 
-        syear = args.syear
-        eyear = args.eyear
         if syear or eyear:
             # from numpy import VisibleDeprecationWarning
             # raise VisibleDeprecationWarning("The syear and eyear arguments are deprecated. Please use start and end.")
@@ -449,20 +384,41 @@ def main():
                     )
                 )
 
-        if args.stations:
+        if stations:
             # stations explicitly input
-            stage_stations = args.stations
+            stage_stations = stations
         else:
             # stations in file
             stage_stations = []
-            for line in args.stationfile:
+            for line in stationfile:
                 if not line.startswith("#") and len(line) > 1:
                     sid = line.strip().split()[0]
                     logger.info("station id={}".format(sid))
                     stage_stations.append(sid)
 
         return noaa_download(df, dest_dir, start, end, param, overwrite)
-
+    
+@click.command()
+@click.option('--start', default=None, help='First date to download')
+@click.option('--end', default=None, help='Last date to download, inclusive')
+@click.option('--syear', type=int, default=None, help='First year to download')
+@click.option('--eyear', type=int, default=None, help='Last year to download, inclusive to end of the year.')
+@click.option('--param', default=None, help='Product to download: water_level, predictions, water_temperature, conductivity.')
+@click.option('--stations', multiple=True, help='Id or name of one or more stations.')
+@click.option('--dest', 'dest_dir', default='noaa_download', help='Destination directory for downloaded files.')
+@click.option('--list', 'list_stations_flag', is_flag=True, help='List known station ids.')
+@click.option('--overwrite', is_flag=True, help='Overwrite existing files (if False they will be skipped, presumably for speed')
+@click.argument('stationfile', nargs=-1)
+@click.help_option("-h", "--help")
+def download_noaa_cli(start, end, syear, eyear, param, stations, dest_dir, list_stations_flag, overwrite, stationfile):
+    """Command line interface to download NOAA water level data.
+    
+    STATIONFILE: CSV-format station file(s).
+    
+    example usage:
+    dms download_noaa --start 2020-01-01 --end 2020-12-31 --param water_level --dest noaa_data stationlist.txt
+    """
+    download_noaa(start, end, syear, eyear, param, stations, dest_dir, list_stations_flag, overwrite, stationfile)
 
 if __name__ == "__main__":
-    main()
+    download_noaa_cli()
