@@ -1,21 +1,29 @@
 [build-system]
-requires = ["setuptools>=42", "wheel", "versioneer"]
+requires = ["setuptools>=68", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "dms_datastore"
 description = "Downloading tools and data repository management"
-dynamic = ["version", "scripts", "license"]
+dynamic = ["version"]
 authors = [
     {name = "Eli Ateljevich", email = "Eli.Ateljevich@water.ca.gov"},
     {name = "Nicky Sandhu", email = "psandhu@water.ca.gov"}
 ]
 readme = "README.rst"
-requires-python = "<3.14"
+license = "MIT"
+license-files = [
+    "LICENSE",
+]
+requires-python = ">=3.8,<3.14"
 keywords = ["dms_datastore", "data", "repository", "download"]
 classifiers = [
     "Development Status :: 0 - Beta",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
 ]
 
 dependencies = [
@@ -45,16 +53,67 @@ dependencies = [
 dev = [
     "pandoc"
 ]
+# These are the tools needed to perform documentation
+doc = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-click",
+    "sphinx-design",
+    "sphinx-argparse",
+    "sphinxcontrib-bibtex",
+    "sphinxcontrib-mermaid",
+    "myst-parser",
+    "numpydoc",
+    "pillow>=4.0.0",
+    "nbsphinx",
+	"nbconvert",
+	"ipykernel",
+    "docutils",
+	"pandoc",
+	"matplotlib",
+	"ipython"
+]
 
+#These are the tools needed to perform testing. 
+test = [
+    "pytest>=3",
+    "pytest-cov",
+    "tox",
+    "click"
+]
+
+# If using pip, these would be used for the build
+# similar tools are listed in python-package-conda.yml and if there are minimum versions (e.g. setuptools)
+# this is where they should be spelled out
+build = [
+    "build",
+    "pip",
+    "setuptools>68",
+    "wheel",
+    "setuptools-scm"
+]
 [project.urls]
 Homepage = "https://github.com/CADWRDeltaModeling/dms_datastore"
 
-[tool.versioneer]
-VCS = "git"
-versionfile_source = "dms_datastore/_version.py"
-versionfile_build = "dms_datastore/_version.py"
-tag_prefix = ""
-parentdir_prefix = "dms_datastore-"
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["dms_datastore"]
+exclude = ["docsrc"]
+
+[tool.setuptools_scm]
+
+[tool.setuptools.package-data]
+dms_datastore = [
+    "config_data/*.csv",
+    "config_data/*.yaml",
+    "usgs_parameter_cd_query.txt",
+    "config_data/*.sh*",
+    "config_data/*.prj",
+    "config_data/*.dbf",
+    "config_data/*.txt",
+]
 
 [tool.pytest.ini_options]
 norecursedirs = [".*", "*.egg*", "build", "dist", "conda.recipe"]

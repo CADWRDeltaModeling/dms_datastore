@@ -1,10 +1,19 @@
-from ._version import get_versions
-__version__ = get_versions()['version']
-del get_versions
+__author__ = """Eli Ateljevich, Nicky Sandhu"""
+__email__ = "Eli.Ateljevich@water.ca.gov, psandhu@water.ca.gov"
 
-from . import _version
-__version__ = _version.get_versions()['version']
+try:
+    from importlib.metadata import version, PackageNotFoundError
+except ImportError:
+    from pkg_resources import get_distribution, DistributionNotFound
+    def version(pkg): return get_distribution(pkg).version
+    PackageNotFoundError = DistributionNotFound
 
-from dms_datastore.read_ts import *
-from dms_datastore.write_ts import write_ts_csv
-from dms_datastore.read_multi import *
+try:
+    __version__ = version("dms_datastore")
+except PackageNotFoundError:
+    # Fallback for running from a VCS checkout without installation
+    try:
+        from setuptools_scm import get_version
+        __version__ = get_version(root="..", relative_to=__file__)
+    except Exception:
+        __version__ = "unknown"
