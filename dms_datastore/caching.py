@@ -6,7 +6,7 @@ import pandas as pd
 import functools
 import urllib.parse
 import atexit
-import argparse
+import click
 
 class LocalCache:
     _instance = None
@@ -379,58 +379,9 @@ def coerce_datetime_index(df):
             pass
     return df
 
-def main_example():
-    # Using the caching system example. No entry to here
-    df1 = get_dataframe1(string_arg="example1", int_arg=10)
-    df2 = get_dataframe2(string_arg="example2", float_arg=2.5)
-
-    print(df1)
-    print(df2)
-
-    # Save all caches to CSV
-    cache_to_csv()
-
-    # Using the caching system
-        
-    df1 = get_dataframe1(string_arg="example1", int_arg=10)
-    df1b = get_dataframe1(string_arg="example1bb", int_arg=15)
-    df2 = get_dataframe2(string_arg="example2")
-    print(df1)
-
-    # Save all caches to CSV
-    cache_to_csv()
-
-    # Load the data back into the cache to verify it was saved correctly
-    load_cache_csv('get_dataframe1.csv')
-    load_cache_csv('get_dataframe2.csv')
-
-    # Retrieve data from cache to confirm it's correctly loaded
-    cache = LocalCache.instance()
-    print(cache[generate_cache_key(get_dataframe1, string_arg="example1", int_arg=10)])
-    print(cache[generate_cache_key(get_dataframe1, string_arg="example1bb", int_arg=15)])
-    print(cache[generate_cache_key(get_dataframe2, string_arg="example2")])
-
-def create_arg_parser():
-    """Create an argument parser for cache utilities."""
-    parser = argparse.ArgumentParser(
-        description="Manage cached time series data and optionally export or import it via CSV."
-    )
-    parser.add_argument('--clear', action='store_true', help="Clear local cache")
-    parser.add_argument('--delete', action='store_true', help="(Alias for --clear)")
-    parser.add_argument('--to_csv', action='store_true', help="Flush current cache to CSV files (one per function)")
-    parser.add_argument("--float_format", type=str, default=None, help="Float format string for to_csv")
-    parser.add_argument('--from_csv', metavar='CSV_FILE', type=str, help="Load cache from a previously saved CSV file")
-    return parser
-
-
-def main():
-
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    clear = args.clear
-    to_csv = args.to_csv
-    from_csv = args.from_csv
-    delete = args.delete
+def caching(clear, to_csv, from_csv, delete, float_format):
+    """Manage the local cache"""
+    
     if (to_csv and delete) or (to_csv and clear):
         raise ValueError("to_csv and delete/clear are incompatible. dump to csv, check the result then delete")
     
@@ -442,18 +393,58 @@ def main():
         LocalCache.instance().clear()
 
     if to_csv:
-        cache_to_csv(args.float_format)
+        cache_to_csv(float_format)
 
     if from_csv:
         load_cache_csv(from_csv)
 
     if delete:
         if os.path.exists('cache'):
-            shutil.rmtree("cache")            
+            shutil.rmtree("cache")
 
-
+@click.command()
+@click.option('--clear', is_flag=True, help="Clear local cache")
+@click.option('--delete', is_flag=True, help="(Alias for --clear)")
+@click.option('--to-csv', 'to_csv', is_flag=True, help="Flush current cache to CSV files (one per function)")
+@click.option('--float-format', 'float_format', default=None, help="Float format string for to_csv")
+@click.option('--from-csv', 'from_csv', default=None, help="Load cache from a previously saved CSV file")
+@click.help_option("-h", "--help")
+def data_cache_cli(clear, to_csv, from_csv, delete, float_format):
+    """CLI for managing the local cache."""
+    
+    caching(clear, to_csv, from_csv, delete, float_format)
 
 
 if __name__ == "__main__":
-    main()
+    data_cache_cli()
+    
+    # Main Example:
+    # # Using the caching system example. No entry to here
+    # df1 = get_dataframe1(string_arg="example1", int_arg=10)
+    # df2 = get_dataframe2(string_arg="example2", float_arg=2.5)
 
+    # print(df1)
+    # print(df2)
+
+    # # Save all caches to CSV
+    # cache_to_csv()
+
+    # # Using the caching system
+        
+    # df1 = get_dataframe1(string_arg="example1", int_arg=10)
+    # df1b = get_dataframe1(string_arg="example1bb", int_arg=15)
+    # df2 = get_dataframe2(string_arg="example2")
+    # print(df1)
+
+    # # Save all caches to CSV
+    # cache_to_csv()
+
+    # # Load the data back into the cache to verify it was saved correctly
+    # load_cache_csv('get_dataframe1.csv')
+    # load_cache_csv('get_dataframe2.csv')
+
+    # # Retrieve data from cache to confirm it's correctly loaded
+    # cache = LocalCache.instance()
+    # print(cache[generate_cache_key(get_dataframe1, string_arg="example1", int_arg=10)])
+    # print(cache[generate_cache_key(get_dataframe1, string_arg="example1bb", int_arg=15)])
+    # print(cache[generate_cache_key(get_dataframe2, string_arg="example2")])
