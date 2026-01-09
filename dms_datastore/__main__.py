@@ -8,6 +8,7 @@ from dms_datastore.download_nwis import download_nwis_cli
 from dms_datastore.download_des import download_des_cli
 from dms_datastore.download_ncro_cnra import download_ncro_cnra_cli
 from dms_datastore.download_mokelumne import download_mokelumne_cli
+from dms_datastore.download_ucdipm import download_ucdipm_cli
 
 @click.group(
     help="DMS CLI tools for data processing and extraction."
@@ -27,6 +28,7 @@ cli.add_command(download_nwis_cli, "download_nwis")
 cli.add_command(download_des_cli, "download_des")
 cli.add_command(download_ncro_cnra_cli, "download_ncro")
 cli.add_command(download_mokelumne_cli, "download_mokelumne")
+cli.add_command(download_ucdipm_cli, "download_ucdipm")
 
 if __name__ == "__main__":
     cli()
