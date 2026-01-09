@@ -6,7 +6,7 @@ import re
 import os
 import sys
 import traceback
-import argparse
+import click
 import pandas as pd
 from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
@@ -469,47 +469,54 @@ def reformat_main(inpath="raw", outpath="formatted", agencies=["usgs", "des", "c
                 sys.stdout.flush()
     print("Exiting reformat_main")
 
-def create_arg_parser():
-    parser = argparse.ArgumentParser('Reformat files from raw to standard format and add metadata')
 
-    parser.add_argument('--inpath', dest="inpath", default=None,
-                        help='Directory where files will be stored. ')
-    parser.add_argument('--outpath', dest="outpath", default=None,
-                        help='Directory where files will be stored. ')
-    parser.add_argument('--pattern',dest="pattern",default=None,nargs='+',help="File name or pattern to reformat. If omitted, uses agencies to form patterns")
-    parser.add_argument('--agencies', nargs='+', default=[],
-                        help='Agencies to process, in which case pattern should be omitted. If not specified, does ["usgs","des","cdec","noaa","ncro"].')
-    return parser
-
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    in_dir = args.inpath
-    out_dir = args.outpath
-    agencies = args.agencies
-    pattern = args.pattern  
-    print(f"in_dir={in_dir},out_dir={out_dir},agencies={agencies},pattern={pattern}")
+@click.command()
+@click.option(
+    '--inpath',
+    required=True,
+    help='Input directory where files are stored.',
+)
+@click.option(
+    '--outpath',
+    required=True,
+    help='Output directory where files will be stored.',
+)
+@click.option(
+    '--pattern',
+    multiple=True,
+    default=None,
+    help='File name or pattern to reformat. If omitted, uses agencies to form patterns',
+)
+@click.option(
+    '--agencies',
+    multiple=True,
+    default=None,
+    help='Agencies to process, in which case pattern should be omitted. If not specified, does ["usgs","des","cdec","noaa","ncro"].',
+)
+def reformat_cli(inpath, outpath, pattern, agencies):
+    """Reformat files from raw to standard format and add metadata."""
+    in_dir = inpath
+    out_dir = outpath
+    agencies_list = list(agencies) if agencies else []
+    pattern_list = list(pattern) if pattern else None
     
+    print(f"in_dir={in_dir},out_dir={out_dir},agencies={agencies_list},pattern={pattern_list}")
     
-    if (pattern is not None) and ((agencies is not None) and len(agencies)>0):
+    if (pattern_list is not None) and (len(agencies_list) > 0):
         raise ValueError(f"File pattern and list of agencies cannot both be specified")
     
-    if (pattern is None) and (agencies is None or len(agencies) == 0):
-        agencies = ["usgs", "des", "cdec", "noaa", "ncro"]
+    if (pattern_list is None) and (len(agencies_list) == 0):
+        agencies_list = ["usgs", "des", "cdec", "noaa", "ncro"]
 
-    if in_dir is None or out_dir is None:
-        raise ValueError("inpath and outpath must be specified explicitly")
-
-    if pattern is None:
+    if pattern_list is None:
         # Send to multithreaded driver
-        reformat_main(inpath=in_dir, outpath=out_dir,agencies=agencies)
+        reformat_main(inpath=in_dir, outpath=out_dir, agencies=agencies_list)
     else:
         # Send to simple python with pattern
-        reformat(inpath=in_dir,outpath=out_dir,pattern=pattern)
+        reformat(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
        
 
 
 
 if __name__ == "__main__":
-    main()
+    reformat_cli()
