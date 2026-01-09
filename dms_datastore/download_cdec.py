@@ -6,7 +6,7 @@
     python cdec_download.py --help
 """
 import sys  # noqa
-import argparse
+import click
 import requests
 import re
 import zipfile
@@ -27,58 +27,6 @@ from .logging_config import logger
 __all__ = ["cdec_download"]
 
 cdec_base_url = "cdec.water.ca.gov"
-
-
-def create_arg_parser():
-    parser = argparse.ArgumentParser()
-    paramhelp = "Variable to download"
-
-    parser.add_argument(
-        "--dest",
-        dest="dest_dir",
-        default="cdec_download",
-        help="Destination directory for downloaded files.",
-    )
-    parser.add_argument(
-        "--id_col",
-        default="id",
-        type=str,
-        help="Column in station file representing CDEC ID. IDs with > 3 characters will be ignored.",
-    )
-    parser.add_argument(
-        "--param_col",
-        type=str,
-        default=None,
-        help="Column in station file representing the parameter to download.",
-    )
-    parser.add_argument(
-        "--start", required=True, help="Start time, format 2009-03-31 14:00"
-    )
-    parser.add_argument(
-        "--end", default=None, help="Start time, format 2009-03-31 14:00"
-    )
-
-    parser.add_argument("--param", help=paramhelp)
-    parser.add_argument(
-        "--stations",
-        default=None,
-        nargs="*",
-        required=False,
-        help="Id or name of one or more stations.",
-    )
-    parser.add_argument("stationfile", nargs="*", help="CSV-format station file.")
-    parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        default=False,
-        help="Overwrite existing files (if False they will be skipped, presumably for speed",
-    )
-    parser.add_argument(
-        "--freq",
-        default=None,
-        help="specify the frequency. Otherwise proceeds from even to hour to day. must be H or D",
-    )
-    return parser
 
 
 def download_station_data(row, dest_dir, start, end, endfile, 
@@ -234,19 +182,11 @@ def process_station_list2(file, cdec_ndx, param_ndx=None):
                 variables.append(param)
     return stations, variables
 
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    cdec_column = args.id_col
-    param_column = args.param_col
-    destdir = args.dest_dir
-    stationfile = args.stationfile
-    overwrite = args.overwrite
-    param = args.param
-    start = args.start
-    end = args.end
-    freq = args.freq
+def download_cdec(dest_dir, id_col, param_col, start, end, param, stations, stationfile, overwrite, freq):
+    """Download robot for CDEC water data."""
+    cdec_column = id_col
+    param_column = param_col
+    destdir = dest_dir
     stime = dt.datetime(*list(map(int, re.split(r"[^\d]", start))))
     if end is not None:
         etime = dt.datetime(*list(map(int, re.split(r"[^\d]", end))))
@@ -257,7 +197,7 @@ def main():
     if param_column is None and param is None:
         param_column = "param"
 
-    stationfile = stationfile_or_stations(args.stationfile, args.stations)
+    stationfile = stationfile_or_stations(stationfile, stations)
     slookup = dstore_config.config_file("station_dbase")
     vlookup = dstore_config.config_file("variable_mappings")
     df = process_station_list(
@@ -272,7 +212,64 @@ def main():
     # stations,variables = process_station_list(stationfile,cdec_column,param_column)
     # if not variables: variables = [param]*len(stations)
     cdec_download(df, destdir, stime, etime, param, overwrite, freq)
+    
+@click.command()
+@click.option(
+    "--dest",
+    "dest_dir",
+    default="cdec_download",
+    help="Destination directory for downloaded files.",
+)
+@click.option(
+    "--id_col",
+    default="id",
+    type=str,
+    help="Column in station file representing CDEC ID. IDs with > 3 characters will be ignored.",
+)
+@click.option(
+    "--param_col",
+    type=str,
+    default=None,
+    help="Column in station file representing the parameter to download.",
+)
+@click.option(
+    "--start",
+    required=True,
+    help="Start time, format 2009-03-31 14:00",
+)
+@click.option(
+    "--end",
+    default=None,
+    help="End time, format 2009-03-31 14:00",
+)
+@click.option(
+    "--param",
+    default=None,
+    help="Variable to download",
+)
+@click.option(
+    "--stations",
+    multiple=True,
+    default=None,
+    help="Id or name of one or more stations.",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    default=False,
+    help="Overwrite existing files (if False they will be skipped, presumably for speed)",
+)
+@click.option(
+    "--freq",
+    default=None,
+    help="Specify the frequency. Otherwise proceeds from even to hour to day. Must be H or D",
+)
+@click.argument("stationfile", nargs=-1)
+def download_cdec_cli(dest_dir, id_col, param_col, start, end, param, stations, stationfile, overwrite, freq):
+    """CLI for downloading CDEC water data."""
+    
+    download_cdec_cli(dest_dir, id_col, param_col, start, end, param, stations, stationfile, overwrite, freq)
 
 
 if __name__ == "__main__":
-    main()
+    download_cdec_cli()
