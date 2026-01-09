@@ -7,49 +7,12 @@ import numpy as np
 import time
 import datetime as dtm
 import copy
-import argparse
+import click
 from vtools.data.vtime import hours,days,minutes
 
 lat_lon_bounds = {'lat': (37, 39), 'lon': (236, 239)}
 
-def create_arg_parser():
-    """ Create an argument parser
-        return: argparse.ArgumentParser
-    """
 
-    # Read in the input file
-    parser = argparse.ArgumentParser(
-        description="""
-        Download hycom ocean model raw opendap data within lat(37,39),lon(236,239),
-        and interpolated to hourly data.
-        Usage:
-        download_hycom --sdate 2020-02-19  --raw_dest /path/to/modeling_data/raw
-                     --processed_dest /path/to/modeling_data/processed
-        or
-        If --latest is set, it will download the latest +/-7 days of data from current date.
-        e.g.,
-        download_hycom --latest --raw_dest /path/to/modeling_data/raw 
-        --processed_dest /path/to/modeling_data/processed
-                     """)
-    parser.add_argument('--sdate', default=None, required=False,
-                        help='starting date of HRRR data, must be \
-                        format like 2020-02-19')
-    parser.add_argument('--raw_dest', default=None, required=True,
-                        help='path to store downloaded raw hycom data')
-    parser.add_argument('--processed_dest', default=None, required=True,
-                        help='path to store interpolated hycom data')
-    parser.add_argument('--edate', default=None, required=False,
-                        help="end date for the record to be downloaded,\
-                            if not given download up to today")
-    
-    parser.add_argument('--latest', action='store_true', required=False,
-                        help="if set, download the latest data from \
-                        the repository, which is +/- 7 days from today. ")
-
-    return parser
-
-
-    
 def hycom_schism_opendap(start=None,end=None,dest=None):
     """ Download hycom  opendap data for all time based on a bounding set of lat/lon 
     
@@ -304,28 +267,45 @@ def process_hycom(start=None, end=None,dest="./processed", raw="./raw"):
         assert(merged_set.time.shape[0]==24) # This can occur for the last day downloaded due to conversion from utc to pst.            
         s = s + days(1)
 
-def main():   
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    raw_dest = args.raw_dest
-    processed_dest = args.processed_dest
-    
-    
-    if args.latest:
+def download_hycom(sdate, raw_dest, processed_dest, edate, latest):
+    """Download hycom ocean model raw opendap data within lat(37,39),lon(236,239),
+    and interpolated to hourly data.
+    """
+    if latest:
         start_date, end_date = hycom_schism_opendap_latest(dest=raw_dest)
     else:
-        end_date = args.edate
-        start_date = pd.to_datetime(args.sdate, format='%Y-%m-%d')
+        start_date = pd.to_datetime(sdate, format='%Y-%m-%d') if sdate else None
         if start_date is None:
             raise ValueError("You must give start_date when flag 'latest' not set.")
-        if end_date is None:
+        if edate is None:
             end_date = pd.Timestamp.today()
         else:
-            end_date = pd.to_datetime(args.edate, format='%Y-%m-%d')
-        hycom_schism_opendap_alt2(start_date,end_date,raw_dest)
-    process_hycom(start_date,end_date,processed_dest,raw_dest)
+            end_date = pd.to_datetime(edate, format='%Y-%m-%d')
+        hycom_schism_opendap_alt2(start_date, end_date, raw_dest)
+    process_hycom(start_date, end_date, processed_dest, raw_dest)
+    
+@click.command()
+@click.option('--sdate', default=None, help='Starting date of HYCOM data, format like 2020-02-19')
+@click.option('--raw_dest', required=True, help='Path to store downloaded raw hycom data')
+@click.option('--processed_dest', required=True, help='Path to store interpolated hycom data')
+@click.option('--edate', default=None, help='End date for the record to be downloaded, if not given download up to today')
+@click.option('--latest', is_flag=True, help='If set, download the latest data from the repository, which is +/- 7 days from today.')
+@click.help_option("-h", "--help")
+def download_hycom_cli(sdate, raw_dest, processed_dest, edate, latest):
+    """Download hycom ocean model raw opendap data within lat(37,39),lon(236,239),
+    and interpolated to hourly data.
+    
+    Usage:
+    download_hycom --sdate 2020-02-19 --raw_dest /path/to/modeling_data/raw --processed_dest /path/to/modeling_data/processed
+    
+    or
+    
+    download_hycom --latest --raw_dest /path/to/modeling_data/raw --processed_dest /path/to/modeling_data/processed
+    """
+    
+    download_hycom(sdate, raw_dest, processed_dest, edate, latest)
 
 if __name__ == '__main__':
-    main()
+    download_hycom_cli()
 
 
