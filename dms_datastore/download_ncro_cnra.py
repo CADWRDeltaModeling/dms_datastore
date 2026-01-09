@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import argparse
+import click
 import ssl
 import requests
 import pandas as pd
@@ -261,39 +261,30 @@ def download_ncro_por(dest, variables=None):
     download_ncro_period_record(idf.loc[is_in_dbase, :], dbase, dest, variables)
 
 
-def create_arg_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--por",
-        dest="por",
-        action="store_true",
-        help="Do period of record download. Must be explicitly set to true in anticipation of other options",
-    )
-    parser.add_argument(
-        "--dest",
-        dest="dest_dir",
-        default=".",
-        help="Destination directory for downloaded files.",
-    )
-    parser.add_argument(
-        "--param",
-        dest="param",
-        nargs="+",
-        default=None,
-        help="Parameters to download.",
-    )
-    return parser
-
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    destdir = args.dest_dir
-    por = args.por
-    variables = args.param
-    dest = "."
+@click.command()
+@click.option(
+    '--por',
+    is_flag=True,
+    help='Do period of record download. Must be explicitly set to true in anticipation of other options',
+)
+@click.option(
+    '--dest',
+    'dest_dir',
+    default='.',
+    help='Destination directory for downloaded files.',
+)
+@click.option(
+    '--param',
+    multiple=True,
+    default=None,
+    help='Parameters to download.',
+)
+def download_ncro_cnra_cli(por, dest_dir, param):
+    """Download NCRO data from CNRA."""
+    destdir = dest_dir
+    variables = list(param) if param else None
     download_ncro_por(destdir, variables)
 
 
 if __name__ == "__main__":
-    main()
+    download_ncro_cnra_cli()
