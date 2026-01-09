@@ -7,7 +7,7 @@
     For help/usage:
     python nwis_download.py --help
 """
-import argparse
+import click
 import os
 import datetime as dt
 import time
@@ -46,20 +46,6 @@ def open_url_no_ssl_cert_check(url):
     returns a url open handle without SSL certification checks
     """
     return io.BytesIO(requests.get(url, verify=False).content) #  needed to bypass SSL certification checks
-
-def create_arg_parser():
-    parser = argparse.ArgumentParser()
-   
-    parser.add_argument('--dest', dest = "dest_dir", default="des_download", help = 'Destination directory for downloaded files.')
-    parser.add_argument('--start',default=None,help = 'Start time, format 2009-03-31 14:00')    
-    parser.add_argument('--end',default = None,help = 'End time, format 2009-03-31 14:00')
-    parser.add_argument('--param',default = None, help = 'Parameter(s) to be downloaded.')
-    parser.add_argument('--stations', default=None, nargs="*", required=False,
-                        help='Id or name of one or more stations.')
-    parser.add_argument('stationfile',nargs="*", help = 'CSV-format station file.')
-    parser.add_argument('--overwrite', action="store_true", help =  
-    'Overwrite existing files (if False they will be skipped, presumably for speed)')
-    return parser
 
 def query_station_data(program_id,result_id,start,end):
     # download, parse, and write the data
@@ -332,16 +318,11 @@ def process_station_list2(file):
     f.close()
     stations = [x.strip().split(',')[0] for x in all_lines if not x.startswith("#")]
     return stations
-                
 
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    destdir = args.dest_dir
-    stationfile = args.stationfile
-    overwrite = args.overwrite
-    start = args.start
-    end = args.end
+
+def download_des(dest_dir, start, end, param, stations, overwrite, stationfile):
+    """Download robot for DES (DWR Environmental Services)."""
+    destdir = dest_dir
     if start is None: 
         stime = pd.Timestamp(1900,1,1)
     else:
@@ -350,9 +331,8 @@ def main():
         etime = dt.datetime.now()
     else:
         etime = dt.datetime(*list(map(int, re.split(r'[^\d]', end))))
-    param = args.param
 
-    stationfile=stationfile_or_stations(args.stationfile,args.stations)
+    stationfile=stationfile_or_stations(stationfile, stations)
     slookup = dstore_config.config_file("station_dbase")
     vlookup = dstore_config.config_file("variable_mappings")            
     df = process_station_list(stationfile,param=param,station_lookup=slookup,
@@ -361,7 +341,45 @@ def main():
                                   source='dwr_des',
                                   subloc='all')
     des_download(df,destdir,stime,etime,overwrite=overwrite)  
-        
+
+@click.command()
+@click.option(
+    '--dest',
+    'dest_dir',
+    default='des_download',
+    help='Destination directory for downloaded files.',
+)
+@click.option(
+    '--start',
+    default=None,
+    help='Start time, format 2009-03-31 14:00',
+)
+@click.option(
+    '--end',
+    default=None,
+    help='End time, format 2009-03-31 14:00',
+)
+@click.option(
+    '--param',
+    default=None,
+    help='Parameter(s) to be downloaded.',
+)
+@click.option(
+    '--stations',
+    multiple=True,
+    default=None,
+    help='Id or name of one or more stations.',
+)
+@click.option(
+    '--overwrite',
+    is_flag=True,
+    help='Overwrite existing files (if False they will be skipped, presumably for speed)',
+)
+@click.argument('stationfile', nargs=-1)
+def download_des_cli(dest_dir, start, end, param, stations, overwrite, stationfile):
+    """CLI for downloading DES (DWR Environmental Services) data."""
+    
+    download_des(dest_dir, start, end, param, stations, overwrite, stationfile)
 
 if __name__ == '__main__':
-    main()
+    download_des_cli()
