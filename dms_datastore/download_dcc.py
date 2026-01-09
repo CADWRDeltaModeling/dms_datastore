@@ -9,11 +9,8 @@ import requests
 from . import store_utils as utils
 import click
 
-click.command()
 
-
-@click.option("--base-dir", default="data/raw/dxc_gate")
-def main(base_dir="data/raw/dxc_gate"):
+def download_dcc(base_dir):
     """
     Download the Delta Cross Channel gate log from the US Bureau of Reclamation
     https://www.usbr.gov/mp/cvo/vungvari/Ccgates.pdf
@@ -60,6 +57,13 @@ def main(base_dir="data/raw/dxc_gate"):
     utils.ensure_dir(conv_dir)
     df.to_csv(os.path.join(conv_dir, fname.split(".")[0] + ".csv"))
 
+@click.command()
+@click.option("--base-dir", default="data/raw/dxc_gate", help="Base directory for downloading files")
+def download_dcc_cli(base_dir):
+    """
+    CLI for downloading Delta Cross Channel gate log
+    """
+    download_dcc(base_dir)
 
 if __name__ == "__main__":
-    main()
+    download_dcc_cli()
