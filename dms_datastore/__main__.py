@@ -12,6 +12,7 @@ from dms_datastore.download_ucdipm import download_ucdipm_cli
 from dms_datastore.download_cimis import download_cimis_cli
 from dms_datastore.download_dcc import download_dcc_cli
 from dms_datastore.download_montezuma_gates import download_montezuma_gates_cli
+from dms_datastore.download_smscg import download_smscg_cli
 
 @click.group(
     help="DMS CLI tools for data processing and extraction."
@@ -35,6 +36,7 @@ cli.add_command(download_ucdipm_cli, "download_ucdipm")
 cli.add_command(download_cimis_cli, "download_cimis")
 cli.add_command(download_dcc_cli, "download_dcc")
 cli.add_command(download_montezuma_gates_cli, "download_montezuma_gates")
+cli.add_command(download_smscg_cli, "download_smscg")
 
 if __name__ == "__main__":
     cli()
