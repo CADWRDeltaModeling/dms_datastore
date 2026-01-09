@@ -20,6 +20,7 @@ from dms_datastore.reformat import reformat_cli
 from dms_datastore.auto_screen import auto_screen_cli
 from dms_datastore.inventory import inventory_cli
 from dms_datastore.usgs_multi import usgs_multi_cli
+from dms_datastore.delete_from_filelist import delete_from_filelist_cli
 
 @click.group(
     help="DMS CLI tools for data processing and extraction."
@@ -51,6 +52,7 @@ cli.add_command(reformat_cli, "reformat")
 cli.add_command(auto_screen_cli, "auto_screen")
 cli.add_command(inventory_cli, "inventory")
 cli.add_command(usgs_multi_cli, "usgs_multi")
+cli.add_command(delete_from_filelist_cli, "delete_from_filelist")
 
 if __name__ == "__main__":
     cli()

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-import pandas as pd
 
 import os
-import argparse
+import click
 import dms_datastore.dstore_config as dbconfig
 from .logging_config import logger
 
@@ -48,23 +48,14 @@ def delete_from_filelist(filelist, dpath=None):
                     logger.info(f"Path not found: {path}")
 
 
-def create_arg_parser():
-    parser = argparse.ArgumentParser('Delete files contained in a list')
-
-    parser.add_argument('--dpath', dest="dpath", default=None,
-                        help='Directory where files will be located and deleted. If not, the file names must work in a relative or absolute sense.')
-    parser.add_argument('--filelist', default=None,
-                        help='Text file listing files to delete.')
-    return parser
-
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    dpath = args.dpath
-    filelist = args.filelist
+@click.command()
+@click.option('--dpath', default=None, help='Directory where files will be located and deleted. If not, the file names must work in a relative or absolute sense.')
+@click.option('--filelist', default=None, help='Text file listing files to delete.')
+def delete_from_filelist_cli(dpath, filelist):
+    """CLI for deleting files listed in a text file."""
+    
     delete_from_filelist(filelist, dpath)
 
 
 if __name__ == "__main__":
-    main()
+    delete_from_filelist_cli()
