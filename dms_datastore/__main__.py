@@ -15,6 +15,7 @@ from dms_datastore.download_montezuma_gates import download_montezuma_gates_cli
 from dms_datastore.download_smscg import download_smscg_cli
 from dms_datastore.compare_directories import compare_dir_cli
 from dms_datastore.populate_repo import populate_main_cli
+from dms_datastore.station_info import station_info_cli
 
 @click.group(
     help="DMS CLI tools for data processing and extraction."
@@ -41,6 +42,7 @@ cli.add_command(download_montezuma_gates_cli, "download_montezuma_gates")
 cli.add_command(download_smscg_cli, "download_smscg")
 cli.add_command(compare_dir_cli, "compare_directories")
 cli.add_command(populate_main_cli, "populate_repo")
+cli.add_command(station_info_cli, "station_info")
 
 if __name__ == "__main__":
     cli()

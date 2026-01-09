@@ -3,10 +3,16 @@
 
 import sys
 import pandas as pd
-import argparse
+import click
 from dms_datastore import dstore_config
 
 def station_info(search):
+    """
+    Lookup station metadata by partial string match on id or name.
+    
+    Arguments:
+        SEARCHPHRASE: Search phrase which can be blank if using --config
+    """
     station_lookup = dstore_config.config_file("station_dbase")
     if search == "config":
         print(dstore_config.configuration())
@@ -32,21 +38,26 @@ def station_info(search):
     return mlook
     
     
-def create_arg_parser():
-    parser = argparse.ArgumentParser("Lookup station metadata by partial string match on id or name")
-    parser.add_argument('--config',default=False,action ="store_true",help="Print configuration and location of lookup files")
-    parser.add_argument('searchphrase',nargs='?',default="",help = 'Search phrase which can be blank if using --config')
-
-    return parser    
-
-
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    searchphrase = args.searchphrase
-    if args.config:
+@click.command()
+@click.option(
+    '--config',
+    is_flag=True,
+    default=False,
+    help='Print configuration and location of lookup files'
+)
+@click.argument('searchphrase', required=False, default='')
+def station_info_cli(config, searchphrase):
+    """CLI for searching station information.
+    
+    Arguments:
+        SEARCHPHRASE: Search phrase which can be blank if using --config
+    """
+    if config:
         searchphrase = "config"
-    if searchphrase is None and not args.config:
+    if not searchphrase and not config:
         raise ValueError("searchphrase required")
     station_info(searchphrase)
+
+
+if __name__ == "__main__":
+    station_info_cli()
