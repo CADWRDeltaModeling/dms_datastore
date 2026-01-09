@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*
 
-import argparse
+import click
 import glob
 import os
 import random
@@ -517,46 +517,55 @@ def test_single(fname):  # not maintained
     screener(ts, station_id, subloc, param, proto)
 
 
-def create_argparse():
-    parser = argparse.ArgumentParser(
-        description="Auto-screen individual files or whole repos."
-    )
-    parser.add_argument(
-        "--config", type=str, help="yaml file containing screening criteria and methods"
-    )
-    parser.add_argument(
-        "--fpath", type=str, default=None, help="directory containing data"
-    )
-    parser.add_argument(
-        "--dest", type=str, help="destination directory for screened data"
-    )
-    parser.add_argument("--stations", nargs="+", type=str)
-    parser.add_argument("--params", nargs="+", type=str)
-    parser.add_argument(
-        "--plot_dest",
-        default=None,
-        type=str,
-        help="directory or the word 'interactive' for screen or None for no plots",
-    )
-    parser.add_argument(
-        "--start_station",
-        type=str,
-        help="Station id for starting or restarting the screening process.",
-    )
-    return parser
-
-
-def main():
-    parser = create_argparse()
-    args = parser.parse_args()
-    params = args.params
-    stations = args.stations
-    repo = args.fpath
-    dest = args.dest
-    global_config = args.config
-    plot_dest = args.plot_dest
-    start_station = args.start_station
-    config = args.config
+@click.command()
+@click.option(
+    '--config',
+    type=str,
+    default=None,
+    help='Yaml file containing screening criteria and methods',
+)
+@click.option(
+    '--fpath',
+    type=str,
+    default=None,
+    help='Directory containing data',
+)
+@click.option(
+    '--dest',
+    type=str,
+    required=True,
+    help='Destination directory for screened data',
+)
+@click.option(
+    '--stations',
+    multiple=True,
+    type=str,
+    help='Station IDs to process',
+)
+@click.option(
+    '--params',
+    multiple=True,
+    type=str,
+    help='Parameters to process',
+)
+@click.option(
+    '--plot-dest',
+    default=None,
+    type=str,
+    help="Directory or the word 'interactive' for screen or None for no plots",
+)
+@click.option(
+    '--start-station',
+    type=str,
+    default=None,
+    help='Station id for starting or restarting the screening process.',
+)
+def auto_screen_cli(config, fpath, dest, stations, params, plot_dest, start_station):
+    """Auto-screen individual files or whole repos."""
+    repo = fpath
+    stations_list = list(stations) if stations else None
+    params_list = list(params) if params else None
+    
     if config is None:
         config = config_file("screen_config")
     elif not os.path.exists(config):
@@ -566,12 +575,12 @@ def main():
         fpath=repo,
         config=config,
         dest=dest,
-        stations=stations,
-        params=params,
+        stations=stations_list,
+        params=params_list,
         plot_dest=plot_dest,
         start_station=start_station,
     )
 
 
 if __name__ == "__main__":
-    main()
+    auto_screen_cli()

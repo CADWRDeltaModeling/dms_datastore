@@ -17,6 +17,7 @@ from dms_datastore.compare_directories import compare_dir_cli
 from dms_datastore.populate_repo import populate_main_cli
 from dms_datastore.station_info import station_info_cli
 from dms_datastore.reformat import reformat_cli
+from dms_datastore.auto_screen import auto_screen_cli
 
 @click.group(
     help="DMS CLI tools for data processing and extraction."
@@ -45,6 +46,7 @@ cli.add_command(compare_dir_cli, "compare_directories")
 cli.add_command(populate_main_cli, "populate_repo")
 cli.add_command(station_info_cli, "station_info")
 cli.add_command(reformat_cli, "reformat")
+cli.add_command(auto_screen_cli, "auto_screen")
 
 if __name__ == "__main__":
     cli()
