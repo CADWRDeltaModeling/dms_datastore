@@ -8,7 +8,7 @@ import pandas as pd
 import tempfile
 import shutil
 import matplotlib.pyplot as plt
-import argparse
+import click
 import yaml
 import numpy as np
 from dms_datastore.dstore_config import sublocation_df
@@ -329,33 +329,11 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
     logger.info("Exiting process_multivariate_usgs")
 
 
-def create_arg_parser():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--pat", dest="pat", default="usgs*.csv", help="Pattern of files to process"
-    )
-    parser.add_argument(
-        "--fpath", dest="fpath", default=".", help="Directory of files to process."
-    )
-    return parser
-
-
-def xtest(fname):
-    # for fname in ["raw/usgs_benbr_11455780_ec_2020_9999.rdb",
-    #              "formatted/usgs_benbr_11455780_ec_2021.csv",
-    #              "raw/usgs_sjj_11337190_do_2020_9999.rdb",
-    #              "formatted/usgs_sjj_11337190_do_2021.csv"]:
-    #    print(fname)
-    #    print(usgs_scan_series(fname))
-    return usgs_scan_series(fname)
-
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    pat = args.pat
-    fpath = args.fpath
-
+@click.command()
+@click.option('--pat', default='usgs*.csv', help='Pattern of files to process')
+@click.option('--fpath', default='.', help='Directory of files to process.')
+def usgs_multi_cli(pat, fpath):
+    """CLI for processing multivariate USGS files."""
     # recatalogs the unique series. If false an old catalog will be used, which is useful
     # for sequential debugging.
     rescan = True
@@ -363,4 +341,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    usgs_multi_cli()
