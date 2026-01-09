@@ -2,6 +2,7 @@
 import datetime as dtm
 import os
 import numpy as np
+import click
 import vtools.functions.unit_conversions as units
 import matplotlib.pylab as plt
 from dms_datastore.read_ts import *
@@ -238,43 +239,9 @@ def heights_inverted_hourly(hills_csv):
 #################
 
 
-
-
-
-def create_arg_parser():
-    # Argument parsing not really ready yet
-    import argparse
-    parser = argparse.ArgumentParser(
-        description='Convert a csv file with date and five CCFB heights to *.th file.')
-    parser.add_argument('--infile', type=str,
-                        help='name of the input csv file containing CCFB heights from wonderware')
-    parser.add_argument('--basefile',type=str,default=None,
-                        help='name of prior file to append')
-    parser.add_argument('--transition',type=lambda x: pd.to_datetime(x),default=None,
-                        help='Date of transition. This is first day to start using the new data. Default is to truncate the last day of the base file to midnight so any improvements in that file are retained')
-    parser.add_argument('--appendfile',type=str,default=None,
-                        help='name of prediction file to append')
-    parser.add_argument('--append_transition',type=lambda x: pd.to_datetime(x),
-                        default=None,
-                        help='Date of transition to secondary file for predictions. This is the first time to use the prediction data. Default is to use the last moment of the new data')
-    parser.add_argument('--outfile', type=str,default="",
-                        help='name of output *.th file')
-    parser.add_argument('--preprocess', type=bool,default=True,
-                        help='preprocess Wonderware file for time zone and sparsity, default true')
-    parser.add_argument('--prepro_out',type=str,help="name of intermediate output file for preprocessor",default="ccf_prepro.csv")
-    return parser
-    
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    infile=args.infile
-    thfile = args.outfile
-    preprocess = args.preprocess
-    intermediate = args.prepro_out 
-    basefile = args.basefile
-    transition = args.transition
-    appendfile = args.appendfile
-    append_transition = args.append_transition
+def process_ccfb_gate(infile, outfile, preprocess, prepro_out, basefile, transition, appendfile, append_transition):
+    thfile = outfile
+    intermediate = prepro_out
     # Check that prepend and append files exist
     if basefile == thfile:
         raise ValueError("basefile and outfile must be different")
@@ -339,11 +306,22 @@ def main():
     print(height_ts.last_valid_index())
     write_ccf_th(thfile,height_ts)
 
-        
+@click.command()
+@click.option('--infile', type=str, help='name of the input csv file containing CCFB heights from wonderware')
+@click.option('--basefile', type=str, default=None, help='name of prior file to append')
+@click.option('--transition', type=click.DateTime(), default=None, help='Date of transition. This is first day to start using the new data. Default is to truncate the last day of the base file to midnight so any improvements in that file are retained')
+@click.option('--appendfile', type=str, default=None, help='name of prediction file to append')
+@click.option('--append-transition', 'append_transition', type=click.DateTime(), default=None, help='Date of transition to secondary file for predictions. This is the first time to use the prediction data. Default is to use the last moment of the new data')
+@click.option('--outfile', type=str, default='', help='name of output *.th file')
+@click.option('--preprocess', type=bool, default=True, help='preprocess Wonderware file for time zone and sparsity, default true')
+@click.option('--prepro-out', 'prepro_out', type=str, default='ccf_prepro.csv', help='name of intermediate output file for preprocessor')
+def process_ccfb_gate_cli(infile, outfile, preprocess, prepro_out, basefile, transition, appendfile, append_transition):
+    """ CLI to preprocess CCF data to dated SCHISM format
+    """
+    process_ccfb_gate(infile, outfile, preprocess, prepro_out, basefile, transition, appendfile, append_transition)
 
-        
 if __name__=="__main__":
-    main()    
+    process_ccfb_gate_cli()    
     #dfa = pd.read_csv("ccfb_gate_20241106.th",sep="\s+",index_col=0,parse_dates=[0],header=0)
     #dfb = pd.read_csv("d:/Delta/BayDeltaSCHISM/data/time_history/ccfb_gate.th",sep="\s+",index_col=0,parse_dates=[0],header=0)
     #fig,ax = plt.subplots(1)
