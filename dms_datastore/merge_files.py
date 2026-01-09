@@ -3,7 +3,7 @@
 """
 CLI utility to merge or splice time series files using ts_merge or ts_splice.
 
-This script uses argparse to parse command-line arguments, processes a list of file glob
+This script uses click to parse command-line arguments, processes a list of file glob
 patterns (in the order provided), and applies a merge or splice operation on the files
 matching those patterns.
 
@@ -14,10 +14,10 @@ WARNING: The --order order is applied both to the file glob ordering and any int
 sharding. Therefore, order matters!
 
 Usage Example:
-    merge_files.py --merge_type splice --order last --pattern "moke_*" "ebmud_moke_*" [--output merged.csv]
+    merge_files.py --merge-type splice --order last --pattern "moke_*" "ebmud_moke_*" [--output merged.csv]
 """
 
-import argparse
+import click
 import glob
 import os
 import pandas as pd
@@ -113,56 +113,47 @@ def merge_files(merge_type, order, names, patterns):
     return merged
 
 
-def create_arg_parser():
-    # Set up the command-line argument parser.
-    parser = argparse.ArgumentParser(
-        description=("Merge or splice time series files using ts_merge or ts_splice. "
-                     "File patterns are applied in the order provided and sorted by basename only. "
-                     "WARNING: --order order is applied across both file globs and time sharding, so order matters!")
-    )
-    parser.add_argument(
-        "--merge_type",
-        choices=["merge", "splice"],
-        required=True,
-        help=("Merging strategy: 'merge' fills missing values (ts_merge) while 'splice' stitches time series (ts_splice).")
-    )
-    parser.add_argument(
-        "--order",
-        choices=["first", "last"],
-        default="last",
-        help=("File ordering orderence: 'first' prioritizes earlier files; 'last' prioritizes later files. "
-              "Affects both file ordering and time sharding.")
-    )
-    parser.add_argument(
-        "--pattern",
-        nargs="+",
-        required=True,
-        help=("List of file glob patterns to match files. Patterns are processed in order, and only the file basename is used for ordering.")
-    )
-    parser.add_argument(
-        "--names",
-        required=False,
-        help=("Names argument to select or rename columns. See the vtools documentation on ts_merge and ts_splice.")
-    )    
-    parser.add_argument(
-        "--output",
-        type=str,
-        default=None,
-        help=("Optional output CSV file to save the merged result. If not provided, the result is printed to stdout.")
-    )
-
-    return parser
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
+@click.command()
+@click.option(
+    '--merge-type',
+    'merge_type',
+    type=click.Choice(['merge', 'splice']),
+    required=True,
+    help="Merging strategy: 'merge' fills missing values (ts_merge) while 'splice' stitches time series (ts_splice)."
+)
+@click.option(
+    '--order',
+    type=click.Choice(['first', 'last']),
+    default='last',
+    help="File ordering preference: 'first' prioritizes earlier files; 'last' prioritizes later files. Affects both file ordering and time sharding."
+)
+@click.option(
+    '--pattern',
+    multiple=True,
+    required=True,
+    help="List of file glob patterns to match files. Patterns are processed in order, and only the file basename is used for ordering."
+)
+@click.option(
+    '--names',
+    default=None,
+    help="Names argument to select or rename columns. See the vtools documentation on ts_merge and ts_splice."
+)
+@click.option(
+    '--output',
+    default=None,
+    help="Optional output CSV file to save the merged result. If not provided, the result is printed to stdout."
+)
+def merge_files_cli(merge_type, order, pattern, names, output):
+    """
+    CLI for merging or splicing time series files using ts_merge or ts_splice.
+    """
 
     try:
-        result = merge_files(args.merge_type, args.order, args.names, args.pattern)
+        result = merge_files(merge_type, order, names, list(pattern))
         # Modify the read/write operations here as needed.
-        if args.output:
-            result.to_csv(args.output)
-            print(f"Merged result saved to {args.output}")
+        if output:
+            result.to_csv(output)
+            print(f"Merged result saved to {output}")
         else:
             print(result)
     except Exception as e:
@@ -170,4 +161,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    merge_files_cli()
