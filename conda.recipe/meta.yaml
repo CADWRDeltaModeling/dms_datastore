@@ -30,6 +30,7 @@ requirements:
   build:
     - python {{ python_version }}
     - setuptools
+    - setuptools-scm
     {% for dep in pyproject['build-system']['requires'] %}
     - {{ dep.lower() }}
     {% endfor %}
@@ -37,6 +38,7 @@ requirements:
     - python {{ python_version }}
     - pip
     - setuptools
+    - setuptools-scm
     - versioneer
   run:
     - python {{ python_version }}
