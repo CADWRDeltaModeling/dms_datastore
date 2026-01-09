@@ -1,8 +1,7 @@
 {# raw is for ignoring templating with cookiecutter, leaving it for use with conda-build -#}
 {% set pyproject = load_file_data('../pyproject.toml', from_recipe_dir=True) %}
 {% set project = pyproject['project'] %}
-{% set version = environ.get("SETUPTOOLS_SCM_PRETEND_VERSION", "0.0.0") %}
-{% set version = environ.get('PKG_VERSION') or environ.get('SETUPTOOLS_SCM_PRETEND_VERSION') %}
+{% set version = environ.get('PKG_VERSION') or environ.get('SETUPTOOLS_SCM_PRETEND_VERSION') or "0.0.0" %}
 
 package:
   name: dms-datastore
@@ -69,5 +68,5 @@ about:
   home: https://github.com/CADWRDeltaModeling/dms_datastore
   summary: Downloading tools and data repository management
   license: MIT
-  license_file: LICENSE
+  license_file: ../LICENSE
 
