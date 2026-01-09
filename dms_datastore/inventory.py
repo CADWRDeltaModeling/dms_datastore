@@ -4,7 +4,7 @@
 import os
 import re
 import glob
-import argparse
+import click
 from functools import reduce
 from dms_datastore.filename import interpret_fname
 from dms_datastore.dstore_config import station_dbase
@@ -269,40 +269,8 @@ def repo_data_inventory(fpath, full=True, by="file_pattern"):
 
     return metastat
 
-
-def create_arg_parser():
-    """Create an argument parser"""
-    parser = argparse.ArgumentParser(
-        description="Create inventory files, including a file inventory, a data inventory and an obs-links file."
-    )
-    parser.add_argument("--repo", type=str, help="directory to be catalogued")
-    parser.add_argument(
-        "--out_files",
-        default=None,
-        help="Output path for file inventory. Default is file_inventory_{todaydate}.csv ",
-    )
-    parser.add_argument(
-        "--out_data",
-        default=None,
-        help="Output path for data inventory. Default is file_inventory_{todaydate}.csv",
-    )
-    parser.add_argument(
-        "--out_obslinks",
-        default=None,
-        help="Output path for obslinks.csv file. Default is obs_links_{todaydate}.csv",
-    )
-    return parser
-
-
-def main():
-
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    out_files = args.out_files
-    out_data = args.out_data
-    out_obslinks = args.out_obslinks
-    repo = args.repo
-
+def inventory(repo, out_files, out_data, out_obslinks):
+    """Create inventory files, including a file inventory, a data inventory and an obs-links file."""
     nowstr = pd.Timestamp.now().strftime("%Y%m%d")
     # inventory based on describing every file
     if out_files is None:
@@ -334,6 +302,34 @@ def main():
         out_obslinks = f"./obs_links_{repo}_{nowstr}.csv"
     db_obs.to_csv(out_obslinks, sep=",", index=False)
 
+@click.command()
+@click.option(
+    '--repo',
+    type=str,
+    required=True,
+    help='Directory to be catalogued',
+)
+@click.option(
+    '--out-files',
+    default=None,
+    help='Output path for file inventory. Default is file_inventory_{todaydate}.csv',
+)
+@click.option(
+    '--out-data',
+    default=None,
+    help='Output path for data inventory. Default is file_inventory_{todaydate}.csv',
+)
+@click.option(
+    '--out-obslinks',
+    default=None,
+    help='Output path for obslinks.csv file. Default is obs_links_{todaydate}.csv',
+)
+def inventory_cli(repo, out_files, out_data, out_obslinks):
+    """
+    CLI for creating inventory files for a data repository.
+    """
+    
+    inventory(repo, out_files, out_data, out_obslinks)
 
 if __name__ == "__main__":
-    main()
+    inventory_cli()
