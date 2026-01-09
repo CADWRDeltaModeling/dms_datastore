@@ -1,11 +1,12 @@
-{% set pyproject = load_file_data("../pyproject.toml", from_recipe_dir=True)  %}
-{% set versioneer = pyproject['tool']['versioneer'] %}
-{% set python_version = pyproject['project']['requires-python'] %}
-{% set setup_data = load_setup_py_data() %}
+{# raw is for ignoring templating with cookiecutter, leaving it for use with conda-build -#}
+{% set pyproject = load_file_data('../pyproject.toml', from_recipe_dir=True) %}
+{% set project = pyproject['project'] %}
+{% set version = environ.get("SETUPTOOLS_SCM_PRETEND_VERSION", "0.0.0") %}
+{% set version = environ.get('PKG_VERSION') or environ.get('SETUPTOOLS_SCM_PRETEND_VERSION') %}
 
 package:
   name: dms-datastore
-  version: {{ setup_data['version'] }}
+  version: {{ version }}
 
 source:
   path: ..
@@ -17,10 +18,14 @@ build:
   # "skip: True  # [not win]" to limit to Windows.
   script: {{ PYTHON }} -m pip install --no-deps --ignore-installed -vv .
   noarch: python
+  number: 0
+  script_env:
+    - PKG_VERSION
+    - SETUPTOOLS_SCM_PRETEND_VERSION
   entry_points:
-  {% for entry in setup_data['entry_points']['console_scripts'] %}
-    - {{ entry }}
-  {% endfor %}
+    {% for name, reference in project['scripts'].items() %}
+    - {{ name }} = {{ reference }}
+    {% endfor %}
   #skip:           true
 
 
@@ -28,22 +33,25 @@ requirements:
   # if you need compilers, uncomment these
   #    read more at https://docs.conda.io/projects/conda-build/en/latest/resources/compiler-tools.html
   build:
-    - python {{ python_version }}
+    - python {{ project['requires-python'] }}
     - setuptools
     - setuptools-scm
     {% for dep in pyproject['build-system']['requires'] %}
     - {{ dep.lower() }}
     {% endfor %}
   host:
-    - python {{ python_version }}
+    - python {{ project['requires-python'] }}
     - pip
+    {% for dep in pyproject['build-system']['requires'] %}
+    - {{ dep.lower() }}
+    {% endfor %}
     - setuptools
     - setuptools-scm
     - versioneer
   run:
-    - python {{ python_version }}
-    # dependencies are defined in setup.py
-    {% for dep in pyproject['project']['dependencies'] %}
+    - python {{ project['requires-python'] }}
+    # dependencies are defined in pyproject.toml
+    {% for dep in project.get('dependencies', []) %}
     - {{ dep.lower() }}
     {% endfor %}
 
@@ -54,9 +62,12 @@ test:
     - pytest
     - pytest-cov
   commands:
-    - pytest
+    - (cd tests && pytest) # [win]
+    - (cd tests; pytest) # [unix]
 
 about:
   home: https://github.com/CADWRDeltaModeling/dms_datastore
   summary: Downloading tools and data repository management
-  license: {{ setup_data['license'] }}
+  license: MIT
+  license_file: LICENSE
+
