@@ -80,11 +80,11 @@ def process_station_list(
     if param is not None:  # only one parameter, append as column
         station_df["param"] = param
     else:
-        if param_col is not None: 
-            station_df.rename(columns={param_col:"param"})
-    
-    if not "subloc" in station_df.columns: 
-        station_df["subloc"]=subloc
+        if param_col is not None:
+            station_df.rename(columns={param_col: "param"})
+
+    if not "subloc" in station_df.columns:
+        station_df["subloc"] = subloc
     else:
         station_df["subloc"] = station_df.subloc.astype(str)
 

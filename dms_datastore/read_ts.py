@@ -12,7 +12,13 @@ from vtools.functions.merge import *
 from vtools.data.vtime import days, minutes
 from dms_datastore.filename import extract_year_fname
 
-__all__ = ["original_header", "read_yaml_header", "parse_yaml_header", "read_ts","read_vtide"]
+__all__ = [
+    "original_header",
+    "read_yaml_header",
+    "parse_yaml_header",
+    "read_ts",
+    "read_vtide",
+]
 
 
 def read_flagged(
@@ -1190,7 +1196,7 @@ def read_last_resort_csv(
         sep=",",
         comment="#",
         nrows=nrows,
-        **kwargs
+        **kwargs,
     )
     return ts
 
@@ -1209,7 +1215,7 @@ def read_vtide(fpath_pattern, start=None, end=None, selector=None, force_regular
         selector=selector,
         format_compatible_fn=lambda x: True,
         qaqc_selector=None,
-        parsedates=[0,1],
+        parsedates=[0, 1],
         indexcol=0,
         header=None,
         sep=r"\\s+",
@@ -1227,7 +1233,7 @@ def read_ts(
     nrows=None,
     selector=None,
     hint=None,
-    **kwargs
+    **kwargs,
 ):
     """Read a time series from a text file in various formats.
     This function asks readers for different file formats to attempt to read the file.
@@ -1300,11 +1306,22 @@ def read_ts(
                 if freq == "None" or freq == None:
                     force_regular = False
                 ts = reader(
-                    fpath, start, end, selector, force_regular=force_regular, nrows=nrows, freq=freq
+                    fpath,
+                    start,
+                    end,
+                    selector,
+                    force_regular=force_regular,
+                    nrows=nrows,
+                    freq=freq,
                 )
             else:
                 ts = reader(
-                    fpath, start, end, selector, force_regular=force_regular, nrows=nrows
+                    fpath,
+                    start,
+                    end,
+                    selector,
+                    force_regular=force_regular,
+                    nrows=nrows,
                 )
             return ts
         except IOError as e:
@@ -1379,7 +1396,9 @@ def path_pattern(path_pattern):
     return fdir, fpat
 
 
-def infer_freq_robust(index, preferred=["h", "15min", "6min", "10min", "h", "d"], **kwargs):
+def infer_freq_robust(
+    index, preferred=["h", "15min", "6min", "10min", "h", "d"], **kwargs
+):
     index = index.round("1min")
 
     if len(index) < 8:

@@ -263,7 +263,6 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
             etime = pd.Timestamp.now().strftime("%Y-%m-%d")
         found = False
 
-        
         try:
             tst_id = int(agency_id)
         except:
@@ -272,49 +271,67 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
             )
             failures.append((station, param))
             continue
-            
 
-        rids = inventory_full.loc[(inventory_full['station_id'] == tst_id) & 
-                                  (inventory_full['interval_name']!='Visit') & 
-                                  (inventory_full['analyte_name'] == param), ['result_id','station_id','station_name',
-                                                                              'analyte_name','program_id',
-                                                                              'probe_depth','unit_name','equipment_name',
-                                                                              'aggregate_name','interval_name','cdec_code',
-                                                                              'start_date','end_date'] ] #
+        rids = inventory_full.loc[
+            (inventory_full["station_id"] == tst_id)
+            & (inventory_full["interval_name"] != "Visit")
+            & (inventory_full["analyte_name"] == param),
+            [
+                "result_id",
+                "station_id",
+                "station_name",
+                "analyte_name",
+                "program_id",
+                "probe_depth",
+                "unit_name",
+                "equipment_name",
+                "aggregate_name",
+                "interval_name",
+                "cdec_code",
+                "start_date",
+                "end_date",
+            ],
+        ]  #
         # This is a workaround at a time when DISE data is due to shift back ends and I (Eli) didn't want to do a ton
         # of work that would be superceded. Apparently the DISE backend station_id is not unique across EMP and Suisun
         # Marsh programs. This makes it kind of useless, but we will deal with that later.
-        cross_program_redundant_ids = [10,21,22,40,110,120]
+        cross_program_redundant_ids = [10, 21, 22, 40, 110, 120]
         if tst_id in cross_program_redundant_ids:
             # Think the CDEC code works for these cases
             row_station_id = row.station_id.upper()
-            rids = rids.loc[rids['cdec_code'].str[0:3] == row_station_id[0:3]]
+            rids = rids.loc[rids["cdec_code"].str[0:3] == row_station_id[0:3]]
 
-        # Add subloc column that is translated to "air", "upper" or "lower". 
+        # Add subloc column that is translated to "air", "upper" or "lower".
         # If there is only a single subloc (depth=1) it is marked "default"
-        rids["subloc"] = rids["probe_depth"].apply(_depth_trans) #"default" # dummy for transform
-        rids["nrep"] = rids.groupby(['station_id','analyte_name'])["subloc"].transform('count')
-        rids["nrepdepth"] = rids.groupby(['station_id','analyte_name','subloc'])["subloc"].transform('count')
+        rids["subloc"] = rids["probe_depth"].apply(
+            _depth_trans
+        )  # "default" # dummy for transform
+        rids["nrep"] = rids.groupby(["station_id", "analyte_name"])["subloc"].transform(
+            "count"
+        )
+        rids["nrepdepth"] = rids.groupby(["station_id", "analyte_name", "subloc"])[
+            "subloc"
+        ].transform("count")
 
-        
-        if subloc in ('all', 'default'):
+        if subloc in ("all", "default"):
             # Assume default requests makes sense if all the rid entries are the same
             # otherwise we need a direct hit
-            # todo: a better way to handle this would be to 
+            # todo: a better way to handle this would be to
             # link the subloc table and look and see if the station
-            # has sublocations defined and only use 'default' if it isn't defined. 
+            # has sublocations defined and only use 'default' if it isn't defined.
             # Here we hope the client application has done this.
             rids.loc[rids.nrep == rids.nrepdepth, "subloc"] = "default"
             # if not is_unique(rids.subloc):
             #    raise ValueError(f"Default location requested for a station with multiple sublocations for variable {param}")
-        elif subloc != 'all':
-            rids = rids.loc[rids.subloc == subloc,:]
+        elif subloc != "all":
+            rids = rids.loc[rids.subloc == subloc, :]
 
-            
-        if len(rids) == 0: 
-            logger.debug(f"No Data for station {station} and param {paramname}, agency station id {agency_id}")
-            failures.append((station,paramname))
-            continue # next request
+        if len(rids) == 0:
+            logger.debug(
+                f"No Data for station {station} and param {paramname}, agency station id {agency_id}"
+            )
+            failures.append((station, paramname))
+            continue  # next request
 
         for ndx, rid in rids.iterrows():
             rid_code = rid.result_id
@@ -356,14 +373,14 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
             if pd.isnull(fend):
                 yearname = f"{fstart.year}_9999"
             else:
-                yearname = f"{fstart.year}_{fend.year}" 
+                yearname = f"{fstart.year}_{fend.year}"
 
             sub = rid.subloc
 
             if sub == "default":  # omit from name
                 outfname = f"des_{station}_{agency_id}_{paramname}_{yearname}.csv"
             else:
-                outfname = f"des_{station}@{sub}_{agency_id}_{paramname}_{yearname}.csv"            
+                outfname = f"des_{station}@{sub}_{agency_id}_{paramname}_{yearname}.csv"
             outfname = outfname.lower()
             outfname = outfname.lower()
             path = os.path.join(dest_dir, outfname)
@@ -426,13 +443,18 @@ def download_des(dest_dir, start, end, param, stations, overwrite, stationfile):
 
     stationfile = stationfile_or_stations(stationfile, stations)
     slookup = dstore_config.config_file("station_dbase")
-    vlookup = dstore_config.config_file("variable_mappings")            
-    df = process_station_list(stationfile,param=param,station_lookup=slookup,
-                                  agency_id_col="agency_id",
-                                  param_lookup=vlookup,
-                                  source='dwr_des',
-                                  subloc='all')
-    des_download(df,destdir,stime,etime,overwrite=overwrite)  
+    vlookup = dstore_config.config_file("variable_mappings")
+    df = process_station_list(
+        stationfile,
+        param=param,
+        station_lookup=slookup,
+        agency_id_col="agency_id",
+        param_lookup=vlookup,
+        source="dwr_des",
+        subloc="all",
+    )
+    des_download(df, destdir, stime, etime, overwrite=overwrite)
+
 
 @click.command()
 @click.option(

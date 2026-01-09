@@ -41,10 +41,11 @@ from dms_datastore.download_nwis import nwis_download, parse_start_year
 from dms_datastore.download_noaa import noaa_download
 from dms_datastore.download_cdec import cdec_download
 from dms_datastore.download_ncro2 import ncro_download, mapping_df
+
 #    download_ncro_por,
 #    download_ncro_inventory,
 #    station_dbase,
-#)
+# )
 from dms_datastore.download_des import des_download
 
 
@@ -65,7 +66,7 @@ downloaders = {
     "noaa": noaa_download,
     "usgs": nwis_download,
     "usbr": cdec_download,
-    "dwr":  cdec_download,
+    "dwr": cdec_download,
     "cdec": cdec_download,
     "ncro": ncro_download,
 }
@@ -256,10 +257,9 @@ def populate_repo(
     slookup = dstore_config.config_file("station_dbase")
     if "ncro" in agency:
         vlookup = mapping_df
-        agency = "ncro"   # todo: this could be cleaned up throught library
+        agency = "ncro"  # todo: this could be cleaned up throught library
     else:
         vlookup = dstore_config.config_file("variable_mappings")
-
 
     subloclookup = dstore_config.config_file("sublocations")
     df = pd.read_csv(slookup, sep=",", comment="#", header=0, dtype={"agency_id": str})
@@ -269,7 +269,6 @@ def populate_repo(
 
     dfsub = read_station_subloc(subloclookup)
     df = merge_station_subloc(df, dfsub, default_z=-0.5)
-    
 
     # This will be used to try upper and lower regardless of whether they are listed
     maximize_subloc = False
@@ -291,7 +290,7 @@ def populate_repo(
         agency_id_col=agency_id_col,
         source=source,
     )
-  
+
     if maximize_subloc:
         stationlist["subloc"] = "default"
         if param not in ["flow", "elev"]:
@@ -633,9 +632,9 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
         future_to_agency = {
             executor.submit(populate, dest, agency, varlist, partial_update): agency
             for agency in all_agencies
-            #if (agency not in ["dwr_ncro", "ncro"])
+            # if (agency not in ["dwr_ncro", "ncro"])
         }
-        #if do_ncro:
+        # if do_ncro:
         #    future_to_agency[executor.submit(populate_ncro_repo, dest,varlist)] = "ncro"
 
     for future in concurrent.futures.as_completed(future_to_agency):
@@ -646,7 +645,7 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
             failures.append(agency)
             trace = traceback.format_exc()
             logger.info(f"{agency} generated an exception: {exc} with trace:\n{trace}")
-        # This requires that CDEC already be done, though it coudl be split by variable 
+        # This requires that CDEC already be done, though it coudl be split by variable
         # with some work
         if "ncro" in agency:
             populate_ncro_realtime(dest)

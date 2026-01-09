@@ -2,18 +2,18 @@
 # -*- coding: utf-8 -*-
 
 """
-   Scripts to populate raw/incoming with populate() obtaining des, usgs, noaa, usgs, usbr
-   usgs: files may have two series
-   des: naive download will produce files from different instruments with time overlaps
-        the script    run rationalize_time_partitions for des
+Scripts to populate raw/incoming with populate() obtaining des, usgs, noaa, usgs, usbr
+usgs: files may have two series
+des: naive download will produce files from different instruments with time overlaps
+     the script    run rationalize_time_partitions for des
 
-   ncro: typically done with download_ncro which is a period of record downloader
-         ncro is not realtime run populate2 to get the update for ncro 
-   run revise_time to correct start and end times.
-   
-   What are steps to update just realtime
-   
-   Need to add something for the daily stations and for O&M (Clifton Court, Banks)
+ncro: typically done with download_ncro which is a period of record downloader
+      ncro is not realtime run populate2 to get the update for ncro
+run revise_time to correct start and end times.
+
+What are steps to update just realtime
+
+Need to add something for the daily stations and for O&M (Clifton Court, Banks)
 """
 SAFEGUARD = False
 import glob
@@ -32,7 +32,7 @@ from dms_datastore.process_station_variable import (
     merge_station_subloc,
 )
 
-#if not SAFEGUARD:
+# if not SAFEGUARD:
 #    from schimpy.station import *
 from dms_datastore import dstore_config
 from dms_datastore.filename import interpret_fname, meta_to_filename
@@ -69,10 +69,11 @@ downloaders = {
     "cdec": cdec_download,
 }
 
-def _quarantine_file(fname,quarantine_dir = "quarantine"):
+
+def _quarantine_file(fname, quarantine_dir="quarantine"):
     if not os.path.exists(quarantine_dir):
         os.makedirs("quarantine")
-    shutil.copy(fname,"quarantine")
+    shutil.copy(fname, "quarantine")
 
 
 def revise_filename_syears(pat, force=True, outfile="rename.txt"):
@@ -161,11 +162,15 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
             if file_size < 25000:
                 os.remove(fname)
                 bad.append(fname + " (small,deleted)")
-                logger.info(f"Small file {fname} caused read exception. Deleted during rename")
+                logger.info(
+                    f"Small file {fname} caused read exception. Deleted during rename"
+                )
             else:
-                quarantine_file(fname,"quarantine")
+                quarantine_file(fname, "quarantine")
                 bad.append(fname + " (not small, not deleted)")
-                logger.info(f"non-small file {fname} caused read exception. Not deleted during rename")
+                logger.info(
+                    f"non-small file {fname} caused read exception. Not deleted during rename"
+                )
             continue
         if ts is None:
             logger.info(f"File {fname} produced None during read")
@@ -178,8 +183,10 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
                 os.remove(fname)
             else:
                 raise ValueError(f"Issue obtaining start time from file: {fname}")
-        elif not hasattr(ts.first_valid_index(),"year"):
-            logger.info(f"Index in file {fname} not a time stamp: {ts.first_valid_index()}")
+        elif not hasattr(ts.first_valid_index(), "year"):
+            logger.info(
+                f"Index in file {fname} not a time stamp: {ts.first_valid_index()}"
+            )
             bad.append(fname + " (first index not a time stamp)")
             os.remove(fname)
         else:
@@ -188,11 +195,11 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
             new_time_block = newstart + "_" + newend
             old_time_block = oldstart + "_" + oldend
             newname = fname.replace(old_time_block, new_time_block)
-            
+
             if fname == newname:
-                logger.debug(f"Not renaming {fname}")                   
+                logger.debug(f"Not renaming {fname}")
             else:
-                logger.info(f"Renaming {fname} to {newname}")                
+                logger.info(f"Renaming {fname} to {newname}")
                 renames.append((fname, newname))
                 try:
                     if force:
@@ -208,7 +215,6 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
                     logger.info(str(bad))
                     raise
 
-                
     _write_renames(renames, outfile)
     if len(bad) > 0:
         logger.info("Bad files:")
@@ -374,7 +380,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
     for agency in all_agencies:
         if agency == "noaa":
             if varlist is None or len(varlist) == 0:
-                # "predictions" was removed because it can be done very 
+                # "predictions" was removed because it can be done very
                 # occasionally, when tidal epochs/fits are revised
                 varlist = ["elev"]  # handled in next section
         else:
@@ -462,10 +468,19 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                 logger.info(
                     f"Calling populate_repo (3) with agency {agency} variable: {var}  start: 2020-01-01"
                 )
-                end_download = pd.Timestamp(2039,12,31,23,59) if ((agency == "noaa") and (var == "predictions")) else None
+                end_download = (
+                    pd.Timestamp(2039, 12, 31, 23, 59)
+                    if ((agency == "noaa") and (var == "predictions"))
+                    else None
+                )
 
                 populate_repo(
-                    agency, var, dest, pd.Timestamp(2020, 1, 1), end_download, overwrite=True
+                    agency,
+                    var,
+                    dest,
+                    pd.Timestamp(2020, 1, 1),
+                    end_download,
+                    overwrite=True,
                 )
                 ext = "rdb" if agency == "usgs" else ".csv"
                 revise_filename_syear_eyear(
@@ -561,7 +576,7 @@ def rationalize_time_partitions(pat):
                     fnamesuper = meta["filename"]
                     logger.info(f"superseded: {fnamesuper} superseded by:")
                     for sf in superseding:
-                        info_fname = sf['filename']
+                        info_fname = sf["filename"]
                         logger.info(f"  {info_fname}")
                     os.remove(os.path.join(repodir, fnamesuper))
                     superseded.append(fnamesuper)
@@ -611,7 +626,9 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
             if (agency not in ["dwr_ncro", "ncro"])
         }
         if do_ncro:
-            future_to_agency[executor.submit(populate_ncro_repo, dest,varlist)] = "ncro"
+            future_to_agency[executor.submit(populate_ncro_repo, dest, varlist)] = (
+                "ncro"
+            )
 
     for future in concurrent.futures.as_completed(future_to_agency):
         agency = future_to_agency[future]

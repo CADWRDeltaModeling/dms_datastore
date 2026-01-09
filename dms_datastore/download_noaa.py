@@ -85,7 +85,11 @@ def faulty_output(text):
 
 def subprogram(df):
     return df.agency_id.apply(
-        lambda x: "tidecurrent" if isinstance(x, str) and len(x) == 7 and x.isdigit() else "buoy"
+        lambda x: (
+            "tidecurrent"
+            if isinstance(x, str) and len(x) == 7 and x.isdigit()
+            else "buoy"
+        )
     )
 
 
@@ -277,10 +281,10 @@ def noaa_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
 
     # This is an attempt to short-circuit the download of water levels for non-tidal stations
     # The correctness of this remains to be checked.
-    if param in ("elev","water_level", "hourly_height", "predictions"):
-        stations = stations.loc[subprogram(stations)=="tidecurrent"]
-    elif param in ("temp","temperature","conductivity","ec"):
-        stations = stations.loc[subprogram(stations)=="buoy"]
+    if param in ("elev", "water_level", "hourly_height", "predictions"):
+        stations = stations.loc[subprogram(stations) == "tidecurrent"]
+    elif param in ("temp", "temperature", "conductivity", "ec"):
+        stations = stations.loc[subprogram(stations) == "buoy"]
 
     # Use ThreadPoolExecutor
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:

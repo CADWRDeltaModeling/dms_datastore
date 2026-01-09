@@ -69,7 +69,9 @@ def populate_meta(fpath, listing, meta_out=None):
         meta_out = {}
     meta_out["param"] = meta["param"]
     source = meta["source"]
-    meta_out["agency"] = meta["agency"] if "agency" in meta else slookup.loc[station_id, "agency"]
+    meta_out["agency"] = (
+        meta["agency"] if "agency" in meta else slookup.loc[station_id, "agency"]
+    )
     meta_out["freq"] = meta["freq"]
     meta_out["unit"] = meta["unit"]
     meta_out["source"] = source
@@ -131,8 +133,8 @@ def get_data(spec):
 
     dropbox_home = spec["dropbox_home"]
     always_skip = True
-    
-    for listing in spec["data"]: # iterate over listings (Moke, Clifton Court, etc.)
+
+    for listing in spec["data"]:  # iterate over listings (Moke, Clifton Court, etc.)
         if "skip" in listing and always_skip:
             """skip the item, possibly because it is securely archived already"""
             if listing["skip"] in ["True", True]:
@@ -148,7 +150,6 @@ def get_data(spec):
         file_pattern = item["file_pattern"].format(dropbox_home=dropbox_home)
         location = item["location"].format(dropbox_home=dropbox_home)
         recursive = bool(item["recursive_search"])
-        
 
         collector = DataCollector("dummy", location, file_pattern, recursive)
         allfiles = collector.data_file_list()
@@ -165,7 +166,7 @@ def get_data(spec):
                 ts.columns = ["value"]
             except:
                 pass
-            
+
             inferring_meta = "metadata_infer" in listing
             if inferring_meta:
                 metadata = infer_meta(fpath, listing)
@@ -173,7 +174,7 @@ def get_data(spec):
                 metadata = {}
 
             meta_out = populate_meta(fpath, listing, metadata)
-            
+
             # infer frequency if requested
             if meta_out["freq"] == "infer":
                 meta_out["freq"] = infer_freq_robust(ts.index)
@@ -181,14 +182,21 @@ def get_data(spec):
             # use "irregular" if None is specified
             if meta_out["freq"] is None or meta_out["freq"] == "None":
                 meta_out["freq"] = "irregular"
-                metadata["freq"] = None # Must reset.
+                metadata["freq"] = None  # Must reset.
             if "sublocation" not in meta_out or meta_out["sublocation"] is None:
                 meta_out["sublocation"] = "default"  # check not just "subloc"
 
-            
-            fname_out = (meta_out["source"] + "_" + meta_out["station_id"] 
-                        + "_" + meta_out["agency_id"] + "_" + meta_out["param"] + ".csv")
-            
+            fname_out = (
+                meta_out["source"]
+                + "_"
+                + meta_out["station_id"]
+                + "_"
+                + meta_out["agency_id"]
+                + "_"
+                + meta_out["param"]
+                + ".csv"
+            )
+
             fname_out = os.path.join(dest, fname_out)
             print(fname_out)
             write_ts_csv(ts, fname_out, meta_out, chunk_years=True)
@@ -198,10 +206,16 @@ def dropbox_data(spec_fname):
     spec = get_spec(spec_fname)
     get_data(spec)
 
+
 def create_arg_parser():
-    parser = argparse.ArgumentParser("Reads unformatted data files and writes to formatted csv files according to dropbox specification.")
-    parser.add_argument('--input',default=False,help=".yaml file with dropbox specification")
+    parser = argparse.ArgumentParser(
+        "Reads unformatted data files and writes to formatted csv files according to dropbox specification."
+    )
+    parser.add_argument(
+        "--input", default=False, help=".yaml file with dropbox specification"
+    )
     return parser
+
 
 def main():
     parser = create_arg_parser()
