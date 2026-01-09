@@ -5,7 +5,7 @@ import re
 import os
 import sys
 import pandas as pd
-import argparse
+import click
 import datetime as dtm
 import matplotlib.pyplot as plt
 from dms_datastore import dstore_config
@@ -218,42 +218,6 @@ def compare_dir(base,
     if out is not None:
         out.close()
 
-def create_arg_parser():
-    parser = argparse.ArgumentParser('Compare contents of two repositories')
-
-    parser.add_argument('--pat', default='*',
-                        help='Pattern of files to compare, default is *.')
-    parser.add_argument('--apply_change',action="store_true", 
-                        help='Apply all changes detected.')
-    parser.add_argument('--apply_update',action="store_true", 
-                        help='Copy new and changed files but not deletions.')
-    parser.add_argument('--excepts',
-                        default=None,
-                        help="""Optional name of csv file storing exceptions. 
-                              Can also be a config key that points to such a file
-                              CSV should have headers 
-                              'file_pattern','base','compare'. 
-                              First column is a regular expression, with {current_year}
-                              available as a substitution that will be filled with year (this is sometimes
-                              an advantage for thinning differences but may not be useful when --apply_update
-                              is selected, because the more recent files won't be moved. The next two
-                              base and compare are boolean columns that 
-                              collectively describe the situation 
-                              (file present in each) 
-                              in which exception is made""")                        
-    parser.add_argument('--year2',default=None,type=bool, 
-                        help="""Match if years that are the 
-                        same up to the second year 
-                        in files with start and end year format. 
-                        For example name_2020_2023.csv 
-                        would be identified as an update to name_2020_2022.csv""")
-    parser.add_argument('--base',
-                        type=str,
-                        help='Base (existing) directory')
-    parser.add_argument('--compare',type=str,help='Comparison directory') 
-    parser.add_argument('--outfile',type=str,help='Comparison output file path')     
-    return parser
-
 
 def load_exceptions(excepts):
     if excepts is None:
@@ -279,30 +243,69 @@ def load_exceptions(excepts):
                          dtype={"file_pattern":str,"base":bool,"compare":bool})
     return df
 
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    pat = args.pat
-    apply_change = args.apply_change
-    apply_update = args.apply_update    
-    base = args.base
-    compare = args.compare
-    year2 = args.year2
-    excepts = args.excepts
+
+@click.command()
+@click.option(
+    '--pat',
+    default='*',
+    help='Pattern of files to compare, default is *.',
+)
+@click.option(
+    '--apply-change',
+    is_flag=True,
+    help='Apply all changes detected.',
+)
+@click.option(
+    '--apply-update',
+    is_flag=True,
+    help='Copy new and changed files but not deletions.',
+)
+@click.option(
+    '--excepts',
+    default=None,
+    help="""Optional name of csv file storing exceptions. Can also be a config key that points to such a file.
+    CSV should have headers 'file_pattern','base','compare'. First column is a regular expression, with {current_year}
+    available as a substitution that will be filled with year (this is sometimes an advantage for thinning differences
+    but may not be useful when --apply_update is selected, because the more recent files won't be moved. The next two
+    base and compare are boolean columns that collectively describe the situation (file present in each) in which
+    exception is made""",
+)
+@click.option(
+    '--year2',
+    default=None,
+    type=bool,
+    help="""Match if years that are the same up to the second year in files with start and end year format.
+    For example name_2020_2023.csv would be identified as an update to name_2020_2022.csv""",
+)
+@click.option(
+    '--base',
+    required=True,
+    help='Base (existing) directory',
+)
+@click.option(
+    '--compare',
+    required=True,
+    help='Comparison directory',
+)
+@click.option(
+    '--outfile',
+    default=None,
+    help='Comparison output file path',
+)
+def compare_dir_cli(pat, apply_change, apply_update, excepts, year2, base, compare, outfile):
+    """Compare contents of two repositories."""
     exceptions = load_exceptions(excepts)
-    outfile = args.outfile    
-    
     
     if apply_change: 
-        print("--apply_change selected")
+        print("--apply-change selected")
     else:
-        print("--apply_change not selected")
+        print("--apply-change not selected")
     if apply_update: 
-        print("--apply_update selected")
+        print("--apply-update selected")
     else:
-        print("--apply_update not selected")
+        print("--apply-update not selected")
     if apply_change and apply_update:
-        raise("apply_change and apply_update are mutually exclusive")    
+        raise ValueError("apply_change and apply_update are mutually exclusive")    
         
     compare_dir(base=base,comp=compare,pat=pat,exceptions=exceptions,
                 apply_change=apply_change,
@@ -310,5 +313,6 @@ def main():
                 year2=year2,
                 outfile=outfile)    
 
+
 if __name__ == '__main__':
-    main()
+    compare_dir_cli()
