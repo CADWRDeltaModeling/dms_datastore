@@ -11,7 +11,7 @@ import os
 import string
 import datetime as dtm
 import numpy as np
-import argparse
+import click
 import pandas as pd
 from dms_datastore.process_station_variable import process_station_list,stationfile_or_stations
 from dms_datastore import dstore_config
@@ -33,26 +33,6 @@ items = {"flow": "FLOW_15-MINUTE",
          }
 
 
-def create_arg_parser():
-    parser = argparse.ArgumentParser()
-    paramhelp = 'Variable to download, should be in list:\n%s' % list(items.keys())
-    
-    parser.add_argument('--dest', dest = "dest_dir", default="wdl_download", help = 'Destination directory for downloaded files.')
-    parser.add_argument('--id_col',default = None, help = 'Column in station file representing station. IDs not matched will trigger failure. Header is assumed to represent column names')
-    parser.add_argument('--expand_id',default = True, help = 'Expand station ids to include all NCRO programs (try suffices with 00 and Q and blank ends)')
-    parser.add_argument('--param_col',default = None, help = 'Column representing the parameter to download. Parameter can be ommitted if it is all the same and given in the --param argument')
-    #parser.add_argument('--start',required=True,help = 'Start time, format 2009-03-31 14:00')    
-    #parser.add_argument('--end',default = None,help = 'Start time, format 2009-03-31 14:00')    
-    parser.add_argument('--syear',required=True,help = 'Start year (these are water years starting previous October')    
-    parser.add_argument('--eyear',default = None,help = 'End year, if blank current year (water year)')
-    parser.add_argument('--param',help=paramhelp)
-    parser.add_argument('--overwrite',  action="store_true", help = 'Overwrite existing files (if False they will be skipped)')
-    parser.add_argument('--stations', default=None, nargs="*", required=False,
-                        help='Id or name of one or more stations.')
-    parser.add_argument('stationfile',nargs="*", help = 'CSV-format station file.') 
-    return parser
-
-
 def process_station_list2(file,id_col=None,param_col=None,param=None):
     import pandas as pd
     station_list = pd.read_csv(file,sep=',',header=0,dtype=str)
@@ -63,39 +43,6 @@ def process_station_list2(file,id_col=None,param_col=None,param=None):
         station_list.loc[:,'parameter'] = param
     station_list.columns = ['station_id','parameter']
     return station_list
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    id_column = args.id_col
-    param_column = args.param_col
-    destdir = args.dest_dir
-    overwrite = args.overwrite
-    param = args.param
-    expand_id = args.expand_id
-    syear = int(args.syear)
-    eyear = args.eyear
-    if eyear is None: 
-        today = dtm.datetime.today()
-        eyear = today.year
-    eyear = int(eyear)
-
-    if param_column and param:
-        raise ValueError("param_col and param cannot both be specified")
-    if not (param_column or param):
-        param_column = 'param'
-        
-
-    stationfile=stationfile_or_stations(args.stationfile,args.stations)
-    slookup = dstore_config.config_file("station_dbase")
-    vlookup = dstore_config.config_file("variable_mappings")            
-    df = process_station_list(stationfile,param=param,station_lookup=slookup,
-                                  agency_id_col="agency_id",param_lookup=vlookup,source='wdl') 
-    wdl_download(df,destdir,
-                  destdir,syear,
-                  eyear,
-                  overwrite,expand_id)
-
 
 
 def candidate_id(orig,param):
@@ -235,8 +182,90 @@ def wdl_download(station_list,years,dest_dir,syear,eyear,overwrite=False,expand_
             if not file_created: fails.append((station,paramname))
     logger.info("Fails:")
     for fl in fails: logger.info(fl)
+
+def download_wdl(dest_dir, id_col, expand_id, param_col, syear, eyear, param, overwrite, stations, stationfile):
+    """Download robot for Water Data Library."""
+    id_column = id_col
+    param_column = param_col
+    destdir = dest_dir
+    syear = int(syear)
+    eyear = eyear
+    if eyear is None: 
+        today = dtm.datetime.today()
+        eyear = today.year
+    eyear = int(eyear)
+
+    if param_column and param:
+        raise ValueError("param_col and param cannot both be specified")
+    if not (param_column or param):
+        param_column = 'param'
         
-                    
+
+    stationfile=stationfile_or_stations(stationfile, stations)
+    slookup = dstore_config.config_file("station_dbase")
+    vlookup = dstore_config.config_file("variable_mappings")            
+    df = process_station_list(stationfile,param=param,station_lookup=slookup,
+                                  agency_id_col="agency_id",param_lookup=vlookup,source='wdl') 
+    wdl_download(df,destdir,
+                  destdir,syear,
+                  eyear,
+                  overwrite,expand_id)
+    
+@click.command()
+@click.option(
+    '--dest',
+    'dest_dir',
+    default='wdl_download',
+    help='Destination directory for downloaded files.',
+)
+@click.option(
+    '--id_col',
+    default=None,
+    help='Column in station file representing station. IDs not matched will trigger failure. Header is assumed to represent column names',
+)
+@click.option(
+    '--expand_id',
+    default=True,
+    type=bool,
+    help='Expand station ids to include all NCRO programs (try suffices with 00 and Q and blank ends)',
+)
+@click.option(
+    '--param_col',
+    default=None,
+    help='Column representing the parameter to download. Parameter can be ommitted if it is all the same and given in the --param argument',
+)
+@click.option(
+    '--syear',
+    required=True,
+    help='Start year (these are water years starting previous October)',
+)
+@click.option(
+    '--eyear',
+    default=None,
+    help='End year, if blank current year (water year)',
+)
+@click.option(
+    '--param',
+    default=None,
+    help='Variable to download, should be in list: flow, elev, ec, velocity, temp, turbidity, no3, toc, doc, ph, do, chl',
+)
+@click.option(
+    '--overwrite',
+    is_flag=True,
+    help='Overwrite existing files (if False they will be skipped)',
+)
+@click.option(
+    '--stations',
+    multiple=True,
+    default=None,
+    help='Id or name of one or more stations.',
+)
+@click.argument('stationfile', nargs=-1)
+def download_wdl_cli(dest_dir, id_col, expand_id, param_col, syear, eyear, param, overwrite, stations, stationfile):
+    """CLI for downloading Water Data Library."""
+    
+    download_wdl(dest_dir, id_col, expand_id, param_col, syear, eyear, param, overwrite, stations, stationfile)
+
 
 if __name__ == '__main__':
-    main()
+    download_wdl_cli()
