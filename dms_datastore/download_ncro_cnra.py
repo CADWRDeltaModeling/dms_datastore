@@ -44,21 +44,23 @@ def download_ncro_inventory(dest, cache=True):
     for attempt in range(1, (max_attempt + 1)):
         logger.info(f"Downloading inventory for NCRO attempt #{attempt}")
         try:
-            response = session.get(url, verify=False, stream=True,headers={'User-Agent': 'Mozilla/6.0'})
+            response = session.get(
+                url, verify=False, stream=True, headers={"User-Agent": "Mozilla/6.0"}
+            )
             response.raise_for_status()
             for chunk in response.iter_lines(chunk_size=1024):  # Iterate over lines
                 if chunk:  # Filter out keep-alive new chunks
-                    inventory_html += chunk.decode('utf-8')+"\n" 
+                    inventory_html += chunk.decode("utf-8") + "\n"
 
-            #response.encoding = 'UTF-8'
-            #inventory_html = response.content.decode('utf-8')
+            # response.encoding = 'UTF-8'
+            # inventory_html = response.content.decode('utf-8')
             fio = io.StringIO(inventory_html)
 
             idf = pd.read_csv(
                 fio,
                 header=0,
                 parse_dates=["start_time", "end_time"],
-                skip_blank_lines=True
+                skip_blank_lines=True,
             )
 
             idf = idf.loc[
@@ -168,14 +170,14 @@ def download_station_period_record(row, dbase, dest, variables, failures):
                 if attempt > 16:
                     logger.info(fname)
 
-            response = requests.get(link_url,verify=False, stream=True)
+            response = requests.get(link_url, verify=False, stream=True)
             response.raise_for_status()
             with open(fpath, "w") as f:
                 for chunk in response.iter_lines(chunk_size=4096):  # Iterate over lines
                     if chunk:  # Filter out keep-alive new chunks
-                        #station_html += chunk.decode('utf-8')+"\n" 
-                        #station_html = response.content.decode('utf-8').replace("\r", "")
-                        f.write(chunk.decode('utf-8')+"\n")
+                        # station_html += chunk.decode('utf-8')+"\n"
+                        # station_html = response.content.decode('utf-8').replace("\r", "")
+                        f.write(chunk.decode("utf-8") + "\n")
             break
         except Exception as e:
             if attempt == max_attempt:
@@ -195,7 +197,7 @@ def download_station_period_record(row, dbase, dest, variables, failures):
         if attempt > 1:
             logger.info(f"{station_id} found on attempt {attempt}")
         with open(fpath, "w") as f:
-            pass #f.write(station_html)
+            pass  # f.write(station_html)
     else:
         logger.info(f"{station_id} not found after attempt {attempt}")
         logger.info("Station %s produced no data" % station_id)
@@ -217,12 +219,7 @@ def download_ncro_period_record(inventory, dbase, dest, variables=None):
         futures = []
         for ndx, row in inventory.iterrows():
             future = executor.submit(
-                download_station_period_record,
-                row,
-                dbase,
-                dest,
-                variables,
-                failures
+                download_station_period_record, row, dbase, dest, variables, failures
             )
             futures.append(future)
         # Optionally, handle the results of the tasks
@@ -263,21 +260,21 @@ def download_ncro_por(dest, variables=None):
 
 @click.command()
 @click.option(
-    '--por',
+    "--por",
     is_flag=True,
-    help='Do period of record download. Must be explicitly set to true in anticipation of other options',
+    help="Do period of record download. Must be explicitly set to true in anticipation of other options",
 )
 @click.option(
-    '--dest',
-    'dest_dir',
-    default='.',
-    help='Destination directory for downloaded files.',
+    "--dest",
+    "dest_dir",
+    default=".",
+    help="Destination directory for downloaded files.",
 )
 @click.option(
-    '--param',
+    "--param",
     multiple=True,
     default=None,
-    help='Parameters to download.',
+    help="Parameters to download.",
 )
 def download_ncro_cnra_cli(por, dest_dir, param):
     """Download NCRO data from CNRA."""

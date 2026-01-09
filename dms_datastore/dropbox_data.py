@@ -26,18 +26,20 @@ def reader_for(fstr):
     else:
         return None
 
+
 class DataCollector(object):
-    def __init__(self,name,location,file_pattern,recursive=False):
+    def __init__(self, name, location, file_pattern, recursive=False):
         self.name = name
         self.location = location
         self.file_pattern = file_pattern
         self.recursive = recursive
- 
-    def data_file_list(self):
-        fpath = os.path.join(self.location,self.file_pattern)
-        return glob.glob(fpath,recursive=self.recursive)
 
-def populate_meta(fpath,listing,meta_out=None):
+    def data_file_list(self):
+        fpath = os.path.join(self.location, self.file_pattern)
+        return glob.glob(fpath, recursive=self.recursive)
+
+
+def populate_meta(fpath, listing, meta_out=None):
     meta = listing["metadata"]
     name = listing["name"]
 
@@ -45,21 +47,26 @@ def populate_meta(fpath,listing,meta_out=None):
     try:
         station_id = str(meta["station_id"])
     except:
-        raise ValueError(f"No station_id for {name}. The station_id must be a key in the metadata section. If inferred, set 'infer_from_agency_id' as value")
+        raise ValueError(
+            f"No station_id for {name}. The station_id must be a key in the metadata section. If inferred, set 'infer_from_agency_id' as value"
+        )
 
     if station_id == "infer_from_agency_id":
         # expect that agency_id has been inferred
         if "agency_id" in meta:
-            agency_id = meta['agency_id']
+            agency_id = meta["agency_id"]
         elif "agency_id" in meta_out:
-            agency_id = meta_out['agency_id']
+            agency_id = meta_out["agency_id"]
         else:
-            raise ValueError(f"station_id is specified for inference from agency_id in {name} but agency_id not specified in metadata or inferred sections")
+            raise ValueError(
+                f"station_id is specified for inference from agency_id in {name} but agency_id not specified in metadata or inferred sections"
+            )
 
-        station_id = slookup[slookup['agency_id'] == agency_id].index[0]
-        print("index",station_id)
+        station_id = slookup[slookup["agency_id"] == agency_id].index[0]
+        print("index", station_id)
 
-    if meta_out is None: meta_out = {}        
+    if meta_out is None:
+        meta_out = {}
     meta_out["param"] = meta["param"]
     source = meta["source"]
     meta_out["agency"] = meta["agency"] if "agency" in meta else slookup.loc[station_id, "agency"]
@@ -102,34 +109,33 @@ def populate_meta(fpath,listing,meta_out=None):
     return meta_out
 
 
-def infer_meta(fpath, listing,fail="none"):
+def infer_meta(fpath, listing, fail="none"):
     print(listing)
     meta_string = listing["metadata_infer"]["regex"]
     print(meta_string)
     meta_re = re.compile(meta_string)
     extractables = listing["metadata_infer"]["groups"]
     meta = {}
-    for key,val in extractables.items():
+    for key, val in extractables.items():
         ndx = int(key)
-        print(key,val)
+        print(key, val)
         try:
             m = meta_re.match(fpath)
             meta[val] = m.group(ndx)
         except:
             meta[val] = None
     return meta
-        
 
 
 def get_data(spec):
-    
+
     dropbox_home = spec["dropbox_home"]
     always_skip = True
     
     for listing in spec["data"]: # iterate over listings (Moke, Clifton Court, etc.)
         if "skip" in listing and always_skip:
             """skip the item, possibly because it is securely archived already"""
-            if listing["skip"] in ["True",True]: 
+            if listing["skip"] in ["True", True]:
                 continue
 
         item = listing["collect"]
@@ -148,11 +154,11 @@ def get_data(spec):
         allfiles = collector.data_file_list()
         print("all files")
         print(allfiles)
-         
+
         for fpath in allfiles:
             print("Working on", fpath)
             reader = reader_for(item["reader"])
-            if "selector" in item: 
+            if "selector" in item:
                 selector = item["selector"]
             ts = reader(fpath, selector=selector, freq=metadata["freq"])
             try:
@@ -163,9 +169,8 @@ def get_data(spec):
             inferring_meta = "metadata_infer" in listing
             if inferring_meta:
                 metadata = infer_meta(fpath, listing)
-            else: 
+            else:
                 metadata = {}
-
 
             meta_out = populate_meta(fpath, listing, metadata)
             

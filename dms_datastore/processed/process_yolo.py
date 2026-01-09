@@ -33,9 +33,9 @@ def process_yolo_cache_slough():
     # out of Yolo to the south
     miner = read_ts_repo(station_id='mir', variable='flow',start=sdate,end=edate)
     miner = miner.interpolate(limit=60)
-    miner = cosine_lanczos(miner,hours(40))
-    yolo_south = cache_interp.sub(miner.squeeze(),axis=0)
-    yolo_south_4d = cosine_lanczos(yolo_south,days(4))
+    miner = cosine_lanczos(miner, hours(40))
+    yolo_south = cache_interp.sub(miner.squeeze(), axis=0)
+    yolo_south_4d = cosine_lanczos(yolo_south, days(4))
 
     return yolo_south_4d
 

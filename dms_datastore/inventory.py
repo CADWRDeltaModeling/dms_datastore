@@ -269,6 +269,7 @@ def repo_data_inventory(fpath, full=True, by="file_pattern"):
 
     return metastat
 
+
 def inventory(repo, out_files, out_data, out_obslinks):
     """Create inventory files, including a file inventory, a data inventory and an obs-links file."""
     nowstr = pd.Timestamp.now().strftime("%Y%m%d")
@@ -302,34 +303,36 @@ def inventory(repo, out_files, out_data, out_obslinks):
         out_obslinks = f"./obs_links_{repo}_{nowstr}.csv"
     db_obs.to_csv(out_obslinks, sep=",", index=False)
 
+
 @click.command()
 @click.option(
-    '--repo',
+    "--repo",
     type=str,
     required=True,
-    help='Directory to be catalogued',
+    help="Directory to be catalogued",
 )
 @click.option(
-    '--out-files',
+    "--out-files",
     default=None,
-    help='Output path for file inventory. Default is file_inventory_{todaydate}.csv',
+    help="Output path for file inventory. Default is file_inventory_{todaydate}.csv",
 )
 @click.option(
-    '--out-data',
+    "--out-data",
     default=None,
-    help='Output path for data inventory. Default is file_inventory_{todaydate}.csv',
+    help="Output path for data inventory. Default is file_inventory_{todaydate}.csv",
 )
 @click.option(
-    '--out-obslinks',
+    "--out-obslinks",
     default=None,
-    help='Output path for obslinks.csv file. Default is obs_links_{todaydate}.csv',
+    help="Output path for obslinks.csv file. Default is obs_links_{todaydate}.csv",
 )
 def inventory_cli(repo, out_files, out_data, out_obslinks):
     """
     CLI for creating inventory files for a data repository.
     """
-    
+
     inventory(repo, out_files, out_data, out_obslinks)
+
 
 if __name__ == "__main__":
     inventory_cli()

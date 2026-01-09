@@ -1,11 +1,15 @@
 import logging
 import os
 
-def setup_logger(console_log_level=logging.INFO, file_log_level=logging.INFO, 
-                  log_format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"):
-    
-    file_log_name= "logger_datastore.log"
-    
+
+def setup_logger(
+    console_log_level=logging.INFO,
+    file_log_level=logging.INFO,
+    log_format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+):
+
+    file_log_name = "logger_datastore.log"
+
     # Create a logger instance
     logger = logging.getLogger(__name__)
 
@@ -20,9 +24,11 @@ def setup_logger(console_log_level=logging.INFO, file_log_level=logging.INFO,
     console_handler = logging.StreamHandler()
     console_handler.setLevel(console_log_level)
 
-
     # Create a formatter for the log messages
-    formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
     console_formatter = logging.Formatter(log_format, datefmt="%Y-%m-%d %H:%M:%S")
     # Attach the formatter to both handlers
     file_handler.setFormatter(formatter)
@@ -34,6 +40,7 @@ def setup_logger(console_log_level=logging.INFO, file_log_level=logging.INFO,
 
     #
     return logger
+
 
 # setup at module level as there is no classes defined
 logger = setup_logger(log_format="%(asctime)s - %(message)s")

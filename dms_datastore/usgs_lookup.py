@@ -6,7 +6,9 @@ import csv
 import math
 import shutil
 
-print("\n"*100)
+print("\n" * 100)
+
+
 ###############################################################################
 #   Functions used for processing of string
 ###############################################################################
@@ -30,6 +32,7 @@ def id_decompose(str_tmp):
 
     return str_list
 
+
 # Replace a comma in a string with a semicolon.
 # This helps with printing strings into a csv file;
 #   if a string contains a comma, the string is unintentionally split.
@@ -38,6 +41,7 @@ def comma_to_semicol(str_tmp):
     str_out = str_tmp.replace(",", ";")
 
     return str_out
+
 
 #   Converts a string containing spaces into list of substrings
 def space_decompose(str_tmp):
@@ -58,6 +62,7 @@ def space_decompose(str_tmp):
 
     return str_list
 
+
 #   Converts a list into a string, separated by "-"
 def list_to_string(list_tmp):
 
@@ -65,10 +70,11 @@ def list_to_string(list_tmp):
     count = 1
     for item in list_tmp:
         str_out = str_out + item
-        if (count < len(list_tmp)):
+        if count < len(list_tmp):
             str_out = str_out + "-"
         count = count + 1
     return str_out
+
 
 ###############################################################################
 # Main program
@@ -85,20 +91,21 @@ def main():
     # USER INPUT: Switch for renaming & copying files
     rename_file = 1
 
-    if (rename_file == 1):
+    if rename_file == 1:
         # Directory in which copies will be placed after renaming.
-        destination = os.path.join("D://Hans_Work//Work_Current//USGS_Lookup_with_Eli",
-                                   "Renamed")
-        if (not(os.path.exists(destination))):
+        destination = os.path.join(
+            "D://Hans_Work//Work_Current//USGS_Lookup_with_Eli", "Renamed"
+        )
+        if not (os.path.exists(destination)):
             os.mkdir(destination)
 
     # Create list of all files (.csv) to be scanned.
     fset = []
     for subdir, dirs, files in os.walk(fdir):
-        if (subdir != "."):
+        if subdir != ".":
             for filename in files:
                 filepath = subdir + os.sep + filename
-                if (filepath.endswith(".csv")):
+                if filepath.endswith(".csv"):
                     fset.append(filepath)
 
     fsetsize = len(fset)
@@ -117,7 +124,6 @@ def main():
 
     # Name of mapping file to be generated.
     fname_result_mapping = "result_aquarius_mapping.csv"
-
 
     ###########################################################################
     # Initialize lists to store variable information
@@ -161,14 +167,14 @@ def main():
     # Timeseries identifiers containing these keywords will be removed.
     # All items need to be capitalized.
     ###########################################################################
-    list_time_agg = ["MEAN", "MEDIAN", "MIN", "MAX", "AVE", "AVERAGE", "PEAK",
-                     "WY"]
+    list_time_agg = ["MEAN", "MEDIAN", "MIN", "MAX", "AVE", "AVERAGE", "PEAK", "WY"]
 
     ###########################################################################
     # Specify keywords that "nullify" list_time_agg
     ###########################################################################
-    list_valid = ["CROSS", # "cross section average"
-                  ]
+    list_valid = [
+        "CROSS",  # "cross section average"
+    ]
 
     ###########################################################################
     # Specify sublocation keywords.
@@ -181,11 +187,11 @@ def main():
     for i in range(0, fsetsize):
 
         # For monitoring.
-        print("Processing %i"%(i+1) + "/" + "%i"%fsetsize)
+        print("Processing %i" % (i + 1) + "/" + "%i" % fsetsize)
 
         # Open time series files in the specified directory.
         filepath = fset[i]
-        textfile = open(filepath, 'r')
+        textfile = open(filepath, "r")
 
         # Scan for variable identifier, name, and unit.
         scan_id = re.compile("\# Time-series identifier:\s+(.*)")
@@ -207,8 +213,12 @@ def main():
             # It's good to have this IF statement since the time series
             #   information is located in the top portion of the file.
             #   Otherwise the scanning takes a very long time.
-            if (len(found_id) == 1 and len(found_var) == 1 and
-                len(found_unit) == 1 and len(found_csv_line) == 1):
+            if (
+                len(found_id) == 1
+                and len(found_var) == 1
+                and len(found_unit) == 1
+                and len(found_csv_line) == 1
+            ):
                 break
 
         # Store the found information into repective lists.
@@ -231,14 +241,13 @@ def main():
         #######################################################################
         # Find date range (used to rename the file)
         #######################################################################
-        #df = pd.read_csv(filepath, header = int(found_csv_line[0])-1,
+        # df = pd.read_csv(filepath, header = int(found_csv_line[0])-1,
         #                 index_col = 0, low_memory = False)
-        #list_drange[i] = [df.index[0][:4], df.index[-1][:4]]
+        # list_drange[i] = [df.index[0][:4], df.index[-1][:4]]
 
-        textfile = open(filepath, 'r')
+        textfile = open(filepath, "r")
         lines = textfile.readlines()
-        list_drange[i] = [lines[int(found_csv_line[0])][:4],
-                          lines[-1][:4]]
+        list_drange[i] = [lines[int(found_csv_line[0])][:4], lines[-1][:4]]
 
         #######################################################################
         # Scan through the key to find a match.
@@ -248,9 +257,9 @@ def main():
 
         df_key = pd.read_csv(fname_key)
         list_key = df_key["src_var_name"].to_list()
-        if (comma_to_semicol(var_ts) in list_key):
+        if comma_to_semicol(var_ts) in list_key:
             ind_key = list_key.index(comma_to_semicol(var_ts))
-            if (df_key["src_name"][ind_key] == "usgs"):
+            if df_key["src_name"][ind_key] == "usgs":
                 acode = df_key["src_var_id"][ind_key]
                 dwr_var = df_key["var_name"][ind_key]
 
@@ -260,18 +269,18 @@ def main():
                     for item1 in space_decompose(item0):
 
                         # let valid data through (e.g., cross-section ave)
-                        if (item1 in list_valid):
+                        if item1 in list_valid:
                             ita = 1
                             break
 
-                        if (item1 in list_time_agg):
-                            acode = -999 # mark for skip
+                        if item1 in list_time_agg:
+                            acode = -999  # mark for skip
                             ita = 1
                             print("     Time aggregation keyword found:", item1)
                             print("     Variable skipped:", id_ts_raw)
                             break
 
-                    if(ita):
+                    if ita:
                         break
 
         # IF ACODE has been assigned, store it to list.
@@ -289,7 +298,7 @@ def main():
         for item0 in id_ts_set[2:]:
             for item1 in space_decompose(item0):
 
-                if (item1 in list_subloc):
+                if item1 in list_subloc:
                     sublocs.append(item1.lower())
 
         list_ts_subloc[i] = sublocs
@@ -299,7 +308,7 @@ def main():
     ###########################################################################
     list_skip = []
     for i in range(0, fsetsize):
-        if (int(list_acode[i]) < 0):
+        if int(list_acode[i]) < 0:
             list_skip.append(i)
 
     ###########################################################################
@@ -307,7 +316,7 @@ def main():
     # Sometimes the leading zeros are lost during file handling.
     ###########################################################################
     for i in range(0, fsetsize):
-        if (i in list_skip):
+        if i in list_skip:
             continue
         acode = list_acode[i]
 
@@ -318,14 +327,13 @@ def main():
 
         list_acode[i] = acode
 
-
     ###########################################################################
     # Convert floating NaN to string
     # try-except is used for convenience because of string/float mixed type
     ###########################################################################
     for i in range(fsetsize):
         try:
-            if (math.isnan(list_dwr_var[i])):
+            if math.isnan(list_dwr_var[i]):
                 list_dwr_var[i] = "UNSPECIFIED"
         except:
             pass
@@ -333,7 +341,7 @@ def main():
     ###########################################################################
     # Scan through stations_utm to identify station alias
     ###########################################################################
-    stations_utm = pd.read_csv(fname_stations_utm, index_col = "id")
+    stations_utm = pd.read_csv(fname_stations_utm, index_col="id")
 
     # The "id" column may contain quotation marks. Use list to find location.
     id_list = stations_utm.index.tolist()
@@ -342,11 +350,11 @@ def main():
 
     for i in range(0, fsetsize):
 
-        if (list_station_id[i] in id_list):
+        if list_station_id[i] in id_list:
             id_index = id_list.index(list_station_id[i])
             alias = stations_utm.iloc[id_index]["alias"]
 
-            if (type(alias) == str):
+            if type(alias) == str:
                 # Remove quotation mark in alias
                 alias = alias.replace("'", "")
 
@@ -363,7 +371,7 @@ def main():
     ###########################################################################
     # Confirm that subloc from timeseries file matches subloc from key file.
     ###########################################################################
-    stations_subloc = pd.read_csv(fname_station_subloc, header = 3)
+    stations_subloc = pd.read_csv(fname_station_subloc, header=3)
     stations_subloc = stations_subloc.set_index("id")
 
     # The "id" column may contain upper-case letters. Force loewr-case.
@@ -376,12 +384,12 @@ def main():
         sublocs = list_ts_subloc[i]
 
         # Skip for timeseries with no sublocation info
-        if (len(sublocs) == 0):
+        if len(sublocs) == 0:
             list_subloc_confirm[i] = ""
             continue
 
         for subloc in sublocs:
-            if (subloc.lower() in id_list):
+            if subloc.lower() in id_list:
                 id_index = id_list.index(subloc)
                 list_subloc_confirm[i] = stations_subloc.iloc[id_index]["subloc"]
 
@@ -394,18 +402,26 @@ def main():
     #          usgs_sjj@bgc_11337190_turbidity_2016_2020.csv
     ###########################################################################
     for i in range(fsetsize):
-        if (i in list_skip):
+        if i in list_skip:
             list_new_name[i] = "-"
             continue
 
-        name_tmp = "usgs" + "_" + \
-                            list_station_alias[i] + "@" + \
-                            list_to_string(list_ts_subloc[i]) + "_" + \
-                            list_station_id[i] + "_" + \
-                            list_dwr_var[i] + "_" + \
-                            list_drange[i][0] + "_" + \
-                            list_drange[i][1] + \
-                            ".csv"
+        name_tmp = (
+            "usgs"
+            + "_"
+            + list_station_alias[i]
+            + "@"
+            + list_to_string(list_ts_subloc[i])
+            + "_"
+            + list_station_id[i]
+            + "_"
+            + list_dwr_var[i]
+            + "_"
+            + list_drange[i][0]
+            + "_"
+            + list_drange[i][1]
+            + ".csv"
+        )
 
         # Force lower-case
         name_tmp = name_tmp.lower()
@@ -416,12 +432,12 @@ def main():
     ###########################################################################
     # Place copies in the destination with new names.
     ###########################################################################
-    if (rename_file == 1):
+    if rename_file == 1:
         print("Renaming and copying files..")
         for i in range(fsetsize):
-            print("     %i"%(i+1) + "/" + "%i"%fsetsize)
+            print("     %i" % (i + 1) + "/" + "%i" % fsetsize)
 
-            if (i in list_skip):
+            if i in list_skip:
                 continue
 
             path_current = fset[i]
@@ -434,22 +450,40 @@ def main():
     print("Printing summary into file..")
 
     f = open(fname_result_log, "w")
-    f.write("File Name" + ","
-            + "ID pt 0" + ","
-            + "ID pt 1" + ","
-            + "ID pt 2" + ","
-            + "ID pt 3" + ","
-            + "ID pt 4" + ","
-            + "ID pt 5" + ","
-            + "Value Parameter" + ","
-            + "Value Units" + ","
-            + "DWR Variable Name" + ","
-            + "ACODE" + ","
-            + "Station ID" + ","
-            + "Station Alias" + ","
-            + "Sublocation" + ","
-            + "Sublocation Confirmed" + ","
-            + "New Filename" + "\n")
+    f.write(
+        "File Name"
+        + ","
+        + "ID pt 0"
+        + ","
+        + "ID pt 1"
+        + ","
+        + "ID pt 2"
+        + ","
+        + "ID pt 3"
+        + ","
+        + "ID pt 4"
+        + ","
+        + "ID pt 5"
+        + ","
+        + "Value Parameter"
+        + ","
+        + "Value Units"
+        + ","
+        + "DWR Variable Name"
+        + ","
+        + "ACODE"
+        + ","
+        + "Station ID"
+        + ","
+        + "Station Alias"
+        + ","
+        + "Sublocation"
+        + ","
+        + "Sublocation Confirmed"
+        + ","
+        + "New Filename"
+        + "\n"
+    )
 
     for i in range(0, fsetsize):
         fname = os.path.basename(fset[i])
@@ -458,21 +492,25 @@ def main():
         # Print identifier components.
         #   Try-except is used because number of components varies.
         list0 = list_ts_id[i]
-        for j in range(0,6):
+        for j in range(0, 6):
             try:
                 f.write(comma_to_semicol(list0[j]) + ",")
             except IndexError:
                 f.write(",")
 
         # Print value parameter and unit.
-        f.write(comma_to_semicol(list_ts_var[i]) + ","
-                + comma_to_semicol(list_ts_unit[i]) + "," )
+        f.write(
+            comma_to_semicol(list_ts_var[i])
+            + ","
+            + comma_to_semicol(list_ts_unit[i])
+            + ","
+        )
 
         # Print DWR variable name
         f.write(list_dwr_var[i] + ",")
 
         # Print ACODE. Indicate if variable is skipped.
-        if (i in list_skip):
+        if i in list_skip:
             f.write("SKIPPED,")
 
         else:
@@ -508,12 +546,12 @@ def main():
     mapping_dwr_var = []
     for i in range(0, fsetsize):
 
-        if(i in list_skip):
+        if i in list_skip:
             continue
 
         acode = list_acode[i]
 
-        if(acode in mapping_acode):
+        if acode in mapping_acode:
             continue
         else:
             mapping_acode.append(acode)
@@ -522,20 +560,32 @@ def main():
             mapping_dwr_var.append(list_dwr_var[i])
 
     f = open(fname_result_mapping, "w")
-    f.write("Value Parameter" + ","
-            + "Value Units" + ","
-            + "Aquarius Code" + ","
-            + "DWR Variable Name \n")
+    f.write(
+        "Value Parameter"
+        + ","
+        + "Value Units"
+        + ","
+        + "Aquarius Code"
+        + ","
+        + "DWR Variable Name \n"
+    )
 
     for k in range(0, len(mapping_acode)):
-        f.write(comma_to_semicol(mapping_ts_var[k]) + ","
-                + comma_to_semicol(mapping_ts_unit[k]) + ","
-                + mapping_acode[k] + ","
-                + mapping_dwr_var[k] + "\n")
+        f.write(
+            comma_to_semicol(mapping_ts_var[k])
+            + ","
+            + comma_to_semicol(mapping_ts_unit[k])
+            + ","
+            + mapping_acode[k]
+            + ","
+            + mapping_dwr_var[k]
+            + "\n"
+        )
 
     f.close()
 
     print("Done.")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

@@ -58,20 +58,27 @@ def download_and_parse_archived_pdf(base_dir="data/raw/montezuma_gate_log"):
     utils.ensure_dir(conv_dir)
     df.to_csv(os.path.join(conv_dir, "histsmscgopnew.csv"), index=True)
 
+
 def download_montezuma_gates(base_dir="data/raw/montezuma_gate_log"):
     """Download and parse Montezuma Slough Salinity Control Gates data."""
-    
+
     download_and_parse_active_gate_log(base_dir)
     download_and_parse_archived_pdf(base_dir)
 
+
 @click.command()
-@click.option("--base-dir", default="data/raw/montezuma_gate_log", help="Base directory for downloading files")
+@click.option(
+    "--base-dir",
+    default="data/raw/montezuma_gate_log",
+    help="Base directory for downloading files",
+)
 def download_montezuma_gates_cli(base_dir):
     """
     CLI for downloading Montezuma Slough Salinity Control Gates data
     """
-    
+
     download_montezuma_gates(base_dir)
+
 
 if __name__ == "__main__":
     download_montezuma_gates_cli()

@@ -84,7 +84,7 @@ def merge_files(merge_type, order, names, patterns):
     # Sort files based on basename and pattern order.
     # For '--order first': lower pattern index has higher priority.
     # For '--order last': higher pattern index has higher priority.
-    reverse_pattern = (order == "last")
+    reverse_pattern = order == "last"
     file_entries.sort(key=lambda x: (x[0], x[1] if not reverse_pattern else -x[1]))
 
     # Extract the sorted file paths.
@@ -102,11 +102,11 @@ def merge_files(merge_type, order, names, patterns):
 
     # Perform merge or splice based on the merge_type.
     if merge_type == "merge":
-        merged = ts_merge(series,names=names)
+        merged = ts_merge(series, names=names)
     elif merge_type == "splice":
         # Pass transition parameter as "order_first" or "order_last" to ts_splice.
         transition = "prefer_" + order
-        merged = ts_splice(series,names=names,transition=transition)
+        merged = ts_splice(series, names=names, transition=transition)
     else:
         raise ValueError("Invalid merge_type. Must be 'merge' or 'splice'.")
 
@@ -115,33 +115,33 @@ def merge_files(merge_type, order, names, patterns):
 
 @click.command()
 @click.option(
-    '--merge-type',
-    'merge_type',
-    type=click.Choice(['merge', 'splice']),
+    "--merge-type",
+    "merge_type",
+    type=click.Choice(["merge", "splice"]),
     required=True,
-    help="Merging strategy: 'merge' fills missing values (ts_merge) while 'splice' stitches time series (ts_splice)."
+    help="Merging strategy: 'merge' fills missing values (ts_merge) while 'splice' stitches time series (ts_splice).",
 )
 @click.option(
-    '--order',
-    type=click.Choice(['first', 'last']),
-    default='last',
-    help="File ordering preference: 'first' prioritizes earlier files; 'last' prioritizes later files. Affects both file ordering and time sharding."
+    "--order",
+    type=click.Choice(["first", "last"]),
+    default="last",
+    help="File ordering preference: 'first' prioritizes earlier files; 'last' prioritizes later files. Affects both file ordering and time sharding.",
 )
 @click.option(
-    '--pattern',
+    "--pattern",
     multiple=True,
     required=True,
-    help="List of file glob patterns to match files. Patterns are processed in order, and only the file basename is used for ordering."
+    help="List of file glob patterns to match files. Patterns are processed in order, and only the file basename is used for ordering.",
 )
 @click.option(
-    '--names',
+    "--names",
     default=None,
-    help="Names argument to select or rename columns. See the vtools documentation on ts_merge and ts_splice."
+    help="Names argument to select or rename columns. See the vtools documentation on ts_merge and ts_splice.",
 )
 @click.option(
-    '--output',
+    "--output",
     default=None,
-    help="Optional output CSV file to save the merged result. If not provided, the result is printed to stdout."
+    help="Optional output CSV file to save the merged result. If not provided, the result is printed to stdout.",
 )
 def merge_files_cli(merge_type, order, pattern, names, output):
     """

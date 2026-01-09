@@ -130,14 +130,13 @@ def original_header(fpath, comment="#"):
 
 
 def parse_yaml_header(header):
-    if isinstance(header,str):
+    if isinstance(header, str):
         header = "\n".join([x.replace("#", "") for x in header.split("\n")])
     try:
         yamlhead = yaml.safe_load(header)
     except:
         raise ValueError(f"Failure reading header in file {fpath}")
     return yamlhead
-
 
 
 def read_yaml_header(fpath):
@@ -155,6 +154,7 @@ def read_yaml_header(fpath):
     """
     header = original_header(fpath)
     return parse_yaml_header(header)
+
 
 def is_dms1_screen(fname):
     if not fname.endswith(".csv"):
@@ -249,53 +249,64 @@ def is_ncro_cnra(fname):
             if pattern.match(line.lower()):
                 return True
 
+
 def read_ncro_json(
-    fpath_pattern, start=None, end=None, 
-    selector=None, force_regular=True, nrows=None):
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+):
     """Based on Hydstra web service"""
-    
+
     ts = read_ncro_hydstra(
-        fpath_pattern, start=None, end=None, 
-        selector=None, force_regular=True, 
-        nrows=None,variant="json")
+        fpath_pattern,
+        start=None,
+        end=None,
+        selector=None,
+        force_regular=True,
+        nrows=None,
+        variant="json",
+    )
     return ts
 
 
 def read_ncro_hydstra(
-    fpath_pattern, start=None, 
-    end=None, selector=None, force_regular=True, 
-    nrows=None, variant="cnra"):
+    fpath_pattern,
+    start=None,
+    end=None,
+    selector=None,
+    force_regular=True,
+    nrows=None,
+    variant="cnra",
+):
     """Based on Hydstra nightly dump to CNRA. If variant="json" comes from streaming web service"""
     if variant == "cnra":
         format_compatible_fn = is_ncro_cnra
-        usecols = [0,1,2,3]
+        usecols = [0, 1, 2, 3]
     elif variant == "json":
-        format_compatible_fn = is_ncro_json    
-        usecols = ["datetime","value","qaqc_code"]
+        format_compatible_fn = is_ncro_json
+        usecols = ["datetime", "value", "qaqc_code"]
     else:
         raise ValueError(f"Uncknown variant of Hystra in read_ncro_hydstra: {variant}")
 
     ts = csv_retrieve_ts(
-            fpath_pattern,
-            start,
-            end,
-            force_regular,
-            format_compatible_fn=format_compatible_fn,
-            selector="value",
-            qaqc_selector="qaqc_code",
-            qaqc_accept=["", " ", " ", "e", "1", "2","25","70"],
-            parsedates=["datetime"],
-            indexcol="datetime",
-            sep=",",
-            skiprows=0,
-            # column_names=["datetime","value","qaqc_code","qaqc_description","status"],
-            column_names=["datetime", "value", "qaqc_code"],
-            usecols=usecols,
-            header=0,
-            dateformat=None,
-            comment="#",
-            nrows=nrows,
-        )
+        fpath_pattern,
+        start,
+        end,
+        force_regular,
+        format_compatible_fn=format_compatible_fn,
+        selector="value",
+        qaqc_selector="qaqc_code",
+        qaqc_accept=["", " ", " ", "e", "1", "2", "25", "70"],
+        parsedates=["datetime"],
+        indexcol="datetime",
+        sep=",",
+        skiprows=0,
+        # column_names=["datetime","value","qaqc_code","qaqc_description","status"],
+        column_names=["datetime", "value", "qaqc_code"],
+        usecols=usecols,
+        header=0,
+        dateformat=None,
+        comment="#",
+        nrows=nrows,
+    )
     return ts
 
 
@@ -315,7 +326,7 @@ def is_des_std(fname):
 def read_des_std(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    #if selector is not None:
+    # if selector is not None:
     #    raise ValueError(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
@@ -359,7 +370,7 @@ def is_des(fname):
 def read_des(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    #if selector is not None:
+    # if selector is not None:
     #    raise ValueError(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
@@ -399,7 +410,7 @@ def is_cdec_csv2(fname):
 def read_cdec2(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    #if selector is not None:
+    # if selector is not None:
     #    raise ValueError(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
@@ -438,7 +449,7 @@ def is_cdec_csv1(fname):
 def read_cdec1(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    #if selector is not None:
+    # if selector is not None:
     #    raise ValueError(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
@@ -490,7 +501,7 @@ def is_wdl(fname):
 def read_wdl(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    #if selector is not None:
+    # if selector is not None:
     #    raise ValueError(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
@@ -503,7 +514,7 @@ def read_wdl(
         selector="value",
         format_compatible_fn=is_wdl,
         qaqc_selector="qaqc_flag",
-        qaqc_accept=["", " ", " ", "e", "1", "2","25","70"],
+        qaqc_accept=["", " ", " ", "e", "1", "2", "25", "70"],
         parsedates=["datetime"],
         indexcol="datetime",
         sep=",",
@@ -527,7 +538,7 @@ def is_wdl2(fname):
 def read_wdl2(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
-    #if selector is not None:
+    # if selector is not None:
     #    raise ValueError(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
@@ -540,7 +551,7 @@ def read_wdl2(
         selector="value",
         format_compatible_fn=is_wdl2,
         qaqc_selector="qaqc_flag",
-        qaqc_accept=["", " ", " ", "e", "1","2","25","75"],
+        qaqc_accept=["", " ", " ", "e", "1", "2", "25", "75"],
         parsedates=["datetime"],
         indexcol="datetime",
         sep=",",
@@ -567,7 +578,7 @@ def read_wdl3(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
 ):
     """Handles NCRO nightly dump"""
-    #if selector is not None:
+    # if selector is not None:
     #    raise ValueError(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
@@ -581,7 +592,7 @@ def read_wdl3(
             format_compatible_fn=is_wdl3,
             dtypes={"value": float, "qaqc_flag": str},
             qaqc_selector="qaqc_flag",
-            qaqc_accept=["", " ", " ", "e", "1","2","25","75"],
+            qaqc_accept=["", " ", " ", "e", "1", "2", "25", "75"],
             parsedates=["datetime"],
             indexcol="datetime",
             sep=",",
@@ -591,7 +602,7 @@ def read_wdl3(
             header=0,
             dateformat=None,
             comment=None,
-            nrows=nrows
+            nrows=nrows,
         )
     except pd.errors.ParserError as e:
         if "Too many columns" in str(e):
@@ -613,7 +624,7 @@ def read_wdl3(
                 header=0,
                 dateformat=None,
                 comment=None,
-                nrows=nrows
+                nrows=nrows,
             )
 
     return ts
@@ -623,30 +634,29 @@ def is_usgs_json1(fname):
     with open(fname, "r") as f:
         line0 = f.readline()
         line1 = f.readline()
-    
-    if 'parse-usgs-json' in line1:
-        return True 
+
+    if "parse-usgs-json" in line1:
+        return True
     return False
 
-def usgs_data_columns_json1(fname):
-    scan_data = pd.read_csv(fname,
-                            sep=",",
-                            comment="#",
-                            nrows=20,
-                            index_col=0)
-    cols = [col for col in scan_data.columns if "value" in col]
-    return(cols)
 
-def read_usgs_json1(fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None):
+def usgs_data_columns_json1(fname):
+    scan_data = pd.read_csv(fname, sep=",", comment="#", nrows=20, index_col=0)
+    cols = [col for col in scan_data.columns if "value" in col]
+    return cols
+
+
+def read_usgs_json1(
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+):
     if selector is None:
         selector = usgs_data_columns_json1
-        qaselect = lambda x, y: x.replace("_value","_qualifiers")
+        qaselect = lambda x, y: x.replace("_value", "_qualifiers")
 
     else:
         selector = listify(selector)
-        qaselect = [x.replace("_value","_qualifiers") for x in selector]
+        qaselect = [x.replace("_value", "_qualifiers") for x in selector]
 
-    
     # See https://help.waterdata.usgs.gov/codes-and-parameters/instantaneous-and-daily-value-status-codes
     status_codes = [
         "Fld",
@@ -679,11 +689,16 @@ def read_usgs_json1(fpath_pattern, start=None, end=None, selector=None, force_re
             " ",
             "A",
             "P",
-            "A:[99]","A,[99]",
-            "A:[91]","A,[91]",
-            "A:[92]","A,[92]",
-            "A:[93]","A,[93]",
-            "A:R","A,R",
+            "A:[99]",
+            "A,[99]",
+            "A:[91]",
+            "A,[91]",
+            "A:[92]",
+            "A,[92]",
+            "A:[93]",
+            "A,[93]",
+            "A:R",
+            "A,R",
             "Approved",
             "e",
         ],
@@ -702,7 +717,6 @@ def read_usgs_json1(fpath_pattern, start=None, end=None, selector=None, force_re
     ts = ts.loc[~ts.index.duplicated(keep="first")]
 
     return ts
-
 
 
 ############################################################
@@ -1157,8 +1171,11 @@ def read_noaa(
     )
     return ts
 
+
 # This reader must be last
-def read_last_resort_csv(fpath_pattern, start=None, end=None, selector=None, force_regular=False,nrows=None, **kwargs):
+def read_last_resort_csv(
+    fpath_pattern, start=None, end=None, selector=None, force_regular=False, nrows=None
+):
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -1175,9 +1192,7 @@ def read_last_resort_csv(fpath_pattern, start=None, end=None, selector=None, for
         nrows=nrows,
         **kwargs
     )
-    return ts        
-    
-
+    return ts
 
 
 def vtide_date_parser(*args):
@@ -1526,7 +1541,7 @@ def csv_retrieve_ts(
         else:
             skiprows_spec = skiprows
 
-        dset = None # to prevent holdover in memory
+        dset = None  # to prevent holdover in memory
         if column_names is None:
             # warnings.filterwarnings('error')
             # try:
@@ -1579,7 +1594,7 @@ def csv_retrieve_ts(
                 nrows=nrows,
                 **dargs,
             )
-        
+
         if qaqc_selector is not None:
             # It is costly to try to handle blanks differently for both data
             # (for which we usually want blanks to be NaN and alphanumeric flags.
@@ -1588,13 +1603,13 @@ def csv_retrieve_ts(
                     qaqc_accept.append(np.nan)
                 if "" not in qaqc_accept:
                     qaqc_accept.append("")
-                
+
             for v, f in zip(selector, qaqc_selector):
                 accept = dset[f].astype(str).str.strip().isin(qaqc_accept)
                 if blank_qaqc_good:
-                    accept |=  dset[f].isnull()
+                    accept |= dset[f].isnull()
                     dset.loc[~accept, v] = np.nan
-                   
+
         if selector is None:
             tsm.append(dset)
         else:
@@ -1622,10 +1637,10 @@ def csv_retrieve_ts(
     # This try/except Ensures frame rather than Series
     num_null_index = big_ts.index.isnull().sum()
     if num_null_index > 1:
-           raise ValueError("Multiple nan values found in index")
+        raise ValueError("Multiple nan values found in index")
     else:
-        if num_null_index == 1: 
-            big_ts = big_ts.loc[big_ts.index.notnull(),:]   
+        if num_null_index == 1:
+            big_ts = big_ts.loc[big_ts.index.notnull(), :]
     if start is None:
         start = big_ts.index[0]
     if end is None:

@@ -517,10 +517,11 @@ def merge_with_existing(existing_dir, new_dir, hourly=True):
             logging.warning(f"File {existing_file} does not exist so writing new file")
             dfn.to_csv(existing_file)
 
+
 def download_cimis(hourly, existing_dir, download, partial):
     """
     Download CIMIS data
-    
+
     Environment variable CIMIS_PASSWORD must be set to the password for the CIMIS FTP site
     """
     if download:
@@ -528,9 +529,13 @@ def download_cimis(hourly, existing_dir, download, partial):
     if existing_dir is not None:
         merge_with_existing(existing_dir, ".", hourly=hourly)
 
+
 @click.command()
 @click.option(
-    "--hourly", is_flag=True, default=True, help="Download hourly data (default is True)"
+    "--hourly",
+    is_flag=True,
+    default=True,
+    help="Download hourly data (default is True)",
 )
 @click.option("--existing-dir", default=None, help="Directory to merge new data into")
 @click.option(
@@ -549,7 +554,7 @@ def download_cimis_cli(hourly, existing_dir, download, partial):
     """
     DCLI for downloading CIMIS data
     """
-    
+
     download_cimis(hourly, existing_dir, download, partial)
 
 

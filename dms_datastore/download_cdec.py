@@ -1,9 +1,9 @@
 #!/usr/bin/env python
-""" Download robot for water data library
-    The main function in this file is cdec_download. 
-    
-    For help/usage:
-    python cdec_download.py --help
+"""Download robot for water data library
+The main function in this file is cdec_download.
+
+For help/usage:
+python cdec_download.py --help
 """
 import sys  # noqa
 import click
@@ -29,8 +29,9 @@ __all__ = ["cdec_download"]
 cdec_base_url = "cdec.water.ca.gov"
 
 
-def download_station_data(row, dest_dir, start, end, endfile, 
-                          param, overwrite, freq, failures, skips):
+def download_station_data(
+    row, dest_dir, start, end, endfile, param, overwrite, freq, failures, skips
+):
     # Extract station information
     station = row.station_id
     try:
@@ -134,30 +135,30 @@ def cdec_download(
         )
     # # Use ThreadPoolExecutor
     # with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-        # # Schedule the download tasks and handle them asynchronously
-        # futures = []
-        # for index, row in stations.iterrows():
-            # future = executor.submit(
-                # download_station_data,
-                # row,
-                # dest_dir,
-                # start,
-                # end,
-                # endfile,
-                # param,
-                # overwrite,
-                # freq,
-                # failures,
-                # skips,
-            # )
-            # futures.append(future)
+    # # Schedule the download tasks and handle them asynchronously
+    # futures = []
+    # for index, row in stations.iterrows():
+    # future = executor.submit(
+    # download_station_data,
+    # row,
+    # dest_dir,
+    # start,
+    # end,
+    # endfile,
+    # param,
+    # overwrite,
+    # freq,
+    # failures,
+    # skips,
+    # )
+    # futures.append(future)
 
-        # # Optionally, handle the results of the tasks
-        # for future in concurrent.futures.as_completed(futures):
-            # try:
-                # future.result()  # This line can be used to handle results or exceptions from the tasks
-            # except Exception as e:
-                # logger.error(f"Exception occurred during download: {e}")
+    # # Optionally, handle the results of the tasks
+    # for future in concurrent.futures.as_completed(futures):
+    # try:
+    # future.result()  # This line can be used to handle results or exceptions from the tasks
+    # except Exception as e:
+    # logger.error(f"Exception occurred during download: {e}")
 
     if len(failures) == 0:
         logger.debug("No failed station variable combinations")
@@ -182,7 +183,19 @@ def process_station_list2(file, cdec_ndx, param_ndx=None):
                 variables.append(param)
     return stations, variables
 
-def download_cdec(dest_dir, id_col, param_col, start, end, param, stations, stationfile, overwrite, freq):
+
+def download_cdec(
+    dest_dir,
+    id_col,
+    param_col,
+    start,
+    end,
+    param,
+    stations,
+    stationfile,
+    overwrite,
+    freq,
+):
     """Download robot for CDEC water data."""
     cdec_column = id_col
     param_column = param_col
@@ -212,7 +225,8 @@ def download_cdec(dest_dir, id_col, param_col, start, end, param, stations, stat
     # stations,variables = process_station_list(stationfile,cdec_column,param_column)
     # if not variables: variables = [param]*len(stations)
     cdec_download(df, destdir, stime, etime, param, overwrite, freq)
-    
+
+
 @click.command()
 @click.option(
     "--dest",
@@ -265,10 +279,32 @@ def download_cdec(dest_dir, id_col, param_col, start, end, param, stations, stat
     help="Specify the frequency. Otherwise proceeds from even to hour to day. Must be H or D",
 )
 @click.argument("stationfile", nargs=-1)
-def download_cdec_cli(dest_dir, id_col, param_col, start, end, param, stations, stationfile, overwrite, freq):
+def download_cdec_cli(
+    dest_dir,
+    id_col,
+    param_col,
+    start,
+    end,
+    param,
+    stations,
+    stationfile,
+    overwrite,
+    freq,
+):
     """CLI for downloading CDEC water data."""
-    
-    download_cdec_cli(dest_dir, id_col, param_col, start, end, param, stations, stationfile, overwrite, freq)
+
+    download_cdec_cli(
+        dest_dir,
+        id_col,
+        param_col,
+        start,
+        end,
+        param,
+        stations,
+        stationfile,
+        overwrite,
+        freq,
+    )
 
 
 if __name__ == "__main__":

@@ -24,13 +24,13 @@ from dms_datastore.delete_from_filelist import delete_from_filelist_cli
 from dms_datastore.caching import data_cache_cli
 from dms_datastore.merge_files import merge_files_cli
 
-@click.group(
-    help="DMS CLI tools for data processing and extraction."
-)
+
+@click.group(help="DMS CLI tools for data processing and extraction.")
 @click.help_option("-h", "--help")  # Add the help option at the group level
 def cli():
     """Main entry point for dms_datastore commands."""
     pass
+
 
 # Register the commands
 cli.add_command(download_noaa_cli, "download_noaa")

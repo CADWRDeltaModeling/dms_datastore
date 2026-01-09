@@ -113,10 +113,8 @@ def usgs_multivariate(pat, outfile):
         ("m13", "306155", "upward"),
         ("m13", "306207", "vertical"),
         ("c24", "287157", "vertical"),
-        ("c24", "287159", "upward")  
+        ("c24", "287159", "upward"),
     ]
-    
-
 
     with open(outfile, "w", encoding="utf-8") as out:
         files = glob.glob(pat)
@@ -128,15 +126,16 @@ def usgs_multivariate(pat, outfile):
             except:
                 logger.warning(f"Failed to read file with read_ts(): {fname}")
                 continue
-            
-            
+
             multi_cols = ts.shape[1] > 1
             subloc_df = sublocation_df()
-            station_id = meta['station_id']
-            param = meta['param']
-            known_multi = (subloc_df['id'] == station_id).any()
-            random_check = np.random.choice(2,1,[0.9,0.1])[0] == 1 # Small chance we will check the file. 
-            
+            station_id = meta["station_id"]
+            param = meta["param"]
+            known_multi = (subloc_df["id"] == station_id).any()
+            random_check = (
+                np.random.choice(2, 1, [0.9, 0.1])[0] == 1
+            )  # Small chance we will check the file.
+
             if multi_cols or known_multi or random_check:
                 message = f"usgs_meta: file {fname} Columns {ts.columns}"
                 logger.debug(message)
@@ -171,11 +170,12 @@ def usgs_multivariate(pat, outfile):
                         asubloc = "lower"
                     if "mid" in adescr.lower():
                         asubloc = "mid"
-                    
+
                     if random_check and not known_multi and asubloc != "default":
-                        logger.error(f"Sublocation labeling was detected during spot check in station {station_id} param {param} but no listing in subloc table")
-                        
-                        
+                        logger.error(
+                            f"Sublocation labeling was detected during spot check in station {station_id} param {param} but no listing in subloc table"
+                        )
+
                     yr = int(meta["year"]) if "year" in meta else int(meta["syear"])
                     data.append(
                         (
@@ -251,7 +251,7 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
         if subdf.empty:
             logger.debug("No entry in table indicating multivariate content, skipping")
             continue
-        #if len(subdf) == 1:
+        # if len(subdf) == 1:
         #    logger.info("Dataset with only one sublocation not expected for station_id {station_id}")
 
         original_header = read_yaml_header(fn)
@@ -270,8 +270,12 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
             logger.info(f"Isolating sublocation {asubloc[:]}")
             if asubloc[:] in ["lower", "upper", "upward", "vertical"]:
                 # write out each sublocation as individual file
-                selector = "value" if len(ts.columns) == 1 and ts.columns[0] == "value" else f"{row.ts_id}_value"
-           
+                selector = (
+                    "value"
+                    if len(ts.columns) == 1 and ts.columns[0] == "value"
+                    else f"{row.ts_id}_value"
+                )
+
                 try:
                     univariate = ts[selector]
                 except:
@@ -330,8 +334,8 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
 
 
 @click.command()
-@click.option('--pat', default='usgs*.csv', help='Pattern of files to process')
-@click.option('--fpath', default='.', help='Directory of files to process.')
+@click.option("--pat", default="usgs*.csv", help="Pattern of files to process")
+@click.option("--fpath", default=".", help="Directory of files to process.")
 def usgs_multi_cli(pat, fpath):
     """CLI for processing multivariate USGS files."""
     # recatalogs the unique series. If false an old catalog will be used, which is useful

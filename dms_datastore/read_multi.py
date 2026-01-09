@@ -301,7 +301,7 @@ def ts_multifile(
     fullout = ts_splice(bigts, transition="prefer_first")
     if cfrq is not None:
         fullout = fullout.asfreq(cfrq)
-    fullout = fullout.loc[start:end] # Will have already been filtered to about 1 year
+    fullout = fullout.loc[start:end]  # Will have already been filtered to about 1 year
     retval = (metas, fullout) if meta else fullout
     return retval
 

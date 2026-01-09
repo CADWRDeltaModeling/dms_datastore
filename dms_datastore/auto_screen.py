@@ -101,15 +101,14 @@ def screener(
         return ts
     print("time series screen complete")
 
-def plot_anomalies(ts, 
-                   anomaly_df, 
-                   plot_label, 
-                   gap_fill_final=0, 
-                   plot_dest="interactive"):
+
+def plot_anomalies(
+    ts, anomaly_df, plot_label, gap_fill_final=0, plot_dest="interactive"
+):
     mask = anomaly_df.any(axis=1)
     fig, (ax0, ax1) = plt.subplots(2, sharex=True, sharey=True)
-    ax0.plot(ts.index,ts.value, color = "0.7",label="series")
-    #ts.plot(label="series", color="0.7", ax=ax0)
+    ax0.plot(ts.index, ts.value, color="0.7", label="series")
+    # ts.plot(label="series", color="0.7", ax=ax0)
     nstep = len(anomaly_df.columns)
     for i, col in enumerate(anomaly_df.columns):
         subts = ts.loc[anomaly_df[col]]  # anomaly_df is binary, so acts on index
@@ -135,7 +134,7 @@ def plot_anomalies(ts,
         plot_label = f"Station: {station_id} Subloc: {subloc} Param {param}"
     ax0.set_title(plot_label)
     ts_masked = ts.mask(mask).interpolate(limit=gap_fill_final)
-    ax1.plot(ts_masked.index,ts_masked.value)
+    ax1.plot(ts_masked.index, ts_masked.value)
     ff = "_".join(plot_label.split("_")[1:])
     if plot_dest == "interactive":
         plt.show()
@@ -519,53 +518,53 @@ def test_single(fname):  # not maintained
 
 @click.command()
 @click.option(
-    '--config',
+    "--config",
     type=str,
     default=None,
-    help='Yaml file containing screening criteria and methods',
+    help="Yaml file containing screening criteria and methods",
 )
 @click.option(
-    '--fpath',
+    "--fpath",
     type=str,
     default=None,
-    help='Directory containing data',
+    help="Directory containing data",
 )
 @click.option(
-    '--dest',
+    "--dest",
     type=str,
     required=True,
-    help='Destination directory for screened data',
+    help="Destination directory for screened data",
 )
 @click.option(
-    '--stations',
+    "--stations",
     multiple=True,
     type=str,
-    help='Station IDs to process',
+    help="Station IDs to process",
 )
 @click.option(
-    '--params',
+    "--params",
     multiple=True,
     type=str,
-    help='Parameters to process',
+    help="Parameters to process",
 )
 @click.option(
-    '--plot-dest',
+    "--plot-dest",
     default=None,
     type=str,
     help="Directory or the word 'interactive' for screen or None for no plots",
 )
 @click.option(
-    '--start-station',
+    "--start-station",
     type=str,
     default=None,
-    help='Station id for starting or restarting the screening process.',
+    help="Station id for starting or restarting the screening process.",
 )
 def auto_screen_cli(config, fpath, dest, stations, params, plot_dest, start_station):
     """Auto-screen individual files or whole repos."""
     repo = fpath
     stations_list = list(stations) if stations else None
     params_list = list(params) if params else None
-    
+
     if config is None:
         config = config_file("screen_config")
     elif not os.path.exists(config):

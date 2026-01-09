@@ -69,31 +69,33 @@ def download_last_7(base_dir="raw"):
         date_str = report_date.strftime("%m/%d/%Y")
         save_report(date_str, base_dir=base_dir)
 
+
 def download_mokelumne(fname, raw_dir, converted_dir):
     """Download and process Mokelumne River flow data from EBMUD."""
-    
+
     download_last_7(raw_dir)
     update_last_7days(fname, raw_dir, converted_dir)
 
+
 @click.command()
 @click.option(
-    '--fname',
-    default='mokelumne_flow.csv',
-    help='Output filename for the flow data.',
+    "--fname",
+    default="mokelumne_flow.csv",
+    help="Output filename for the flow data.",
 )
 @click.option(
-    '--raw-dir',
-    default='raw',
-    help='Directory for raw HTML files.',
+    "--raw-dir",
+    default="raw",
+    help="Directory for raw HTML files.",
 )
 @click.option(
-    '--converted-dir',
-    default='.',
-    help='Directory for converted CSV files.',
+    "--converted-dir",
+    default=".",
+    help="Directory for converted CSV files.",
 )
 def download_mokelumne_cli(fname, raw_dir, converted_dir):
     """CLI for downloading and processing Mokelumne River flow data."""
-    
+
     download_mokelumne(fname, raw_dir, converted_dir)
 
 

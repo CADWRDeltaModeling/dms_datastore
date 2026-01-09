@@ -8,13 +8,14 @@ import urllib.parse
 import atexit
 import click
 
+
 class LocalCache:
     _instance = None
 
     @classmethod
     def instance(cls):
         if cls._instance is None:
-            cls._instance = dc.Cache('cache',size_limit=int(6e9))
+            cls._instance = dc.Cache("cache", size_limit=int(6e9))
             atexit.register(cls.close)
         return cls._instance
 
@@ -28,10 +29,13 @@ class LocalCache:
 def wrap_cache_value(data, func):
     return {"data": data, "fname": f"{func.__module__}.{func.__name__}"}
 
+
 def unwrap_cache_value(obj):
     if isinstance(obj, dict) and "data" in obj:
         return obj["data"]
     return obj
+
+
 def parse_cache_key(key):
     func_name, args_str = key.split("|", 1)
     args = dict(urllib.parse.parse_qsl(args_str))
@@ -42,19 +46,20 @@ def parse_cache_key(key):
     func_name, args_str = key.split("|", 1)
     args = dict(urllib.parse.parse_qsl(args_str))
     return func_name, args
+
 
 def cache_dataframe(key_args=None):
     """
     Decorator to cache function outputs based on selected keyword arguments.
 
     This decorator caches the output of functions to avoid repeated computation or retrieval
-    costs on the second or later invocation. The decorator uses a subset of the function's 
-    keyword arguments specified in the decorator by `key_args` as a cache key. 
+    costs on the second or later invocation. The decorator uses a subset of the function's
+    keyword arguments specified in the decorator by `key_args` as a cache key.
     If `key_args` is None, all keyword arguments are used. Only kwargs are used for caching
     so this impacts how the wrapped generating function is called. It leaves open the possiblity
     that the non-kwarg arguments can supply data ... flexible but a bit dangerous.
 
-    The library assumes (or is only tested for) the case where any single decorated function 
+    The library assumes (or is only tested for) the case where any single decorated function
     returns a dataframe with similar column structure and
     a time index. But you can cache multiple functions.
 
@@ -82,8 +87,11 @@ def cache_dataframe(key_args=None):
     ... def fetch_data(arg1, arg2, kwarg1=None, kwarg2=None):
     ...     # some data fetching logic
     ...     return arg1 + arg2 + (kwarg1 if kwarg1 else 0) + (kwarg2 if kwarg2 else 0)
-    """        
+    """
+
+
 import inspect
+
 
 def cache_dataframe(key_args=None):
     """
@@ -94,7 +102,10 @@ def cache_dataframe(key_args=None):
     key_args : list of str, optional
         Names of arguments to include in the cache key. If None, use all named arguments.
     """
+
+
 import inspect
+
 
 def cache_dataframe(key_args=None):
     """
@@ -105,6 +116,7 @@ def cache_dataframe(key_args=None):
     key_args : list of str, optional
         Names of arguments to include in the cache key. If None, use all named arguments.
     """
+
     def decorator(func):
         sig = inspect.signature(func)
         func_name = func.__name__
@@ -117,7 +129,9 @@ def cache_dataframe(key_args=None):
             all_args = bound.arguments  # ordered dict of all arguments
 
             # Filter to just those used in the cache key
-            key_dict = {k: v for k, v in all_args.items() if key_args is None or k in key_args}
+            key_dict = {
+                k: v for k, v in all_args.items() if key_args is None or k in key_args
+            }
 
             cache = LocalCache.instance()
             cache_key = generate_cache_key(func_name, **key_dict)
@@ -130,8 +144,8 @@ def cache_dataframe(key_args=None):
                 return result
 
         return wrapper
-    return decorator
 
+    return decorator
 
 
 def generate_cache_key(func_name, **kwargs):
@@ -161,12 +175,13 @@ def generate_cache_key(func_name, **kwargs):
     >>> key, params = generate_cache_key(example_function, param1=5, param2=10)
     >>> print(key)
     "example_function|param1=5&param2=10"
-    """        
+    """
     sorted_kwargs = {k: kwargs[k] for k in sorted(kwargs)}
     args_str = urllib.parse.urlencode(sorted_kwargs)
     key = f"{func_name}|{args_str}"
     return key
-    
+
+
 def retrieve_all_data(func_name):
     """
     Retrieves and concatenates all data related to a specific function from the cache.
@@ -192,11 +207,11 @@ def retrieve_all_data(func_name):
     --------
     >>> df = retrieve_all_data('get_dataframe1')
     >>> print(df.head())
-    """     
+    """
     cache = LocalCache.instance()
     dataframes = []
     for key in cache.iterkeys():
-        if key.startswith(func_name + '|'):
+        if key.startswith(func_name + "|"):
             df = cache[key].copy()
             _, args = parse_cache_key(key)
             # Extend the index with function arguments for each row
@@ -216,13 +231,11 @@ def retrieve_all_data(func_name):
 
             key_parts = [[args[k]] * len(df) for k in args]
             extended_index = pd.MultiIndex.from_arrays(
-                df_index_parts + key_parts,
-                names=index_names + list(args.keys())
+                df_index_parts + key_parts, names=index_names + list(args.keys())
             )
             df.set_index(extended_index, inplace=True)
             dataframes.append(df)
     return pd.concat(dataframes) if dataframes else pd.DataFrame()
-
 
 
 def load_cache_csv(file_path):
@@ -254,7 +267,8 @@ def load_cache_csv(file_path):
     >>> load_cache_csv('get_dataframe1.csv')
     # This will load data from 'get_dataframe1.csv' into the cache, reconstructing
     # the DataFrame structure and using it to populate the cache.
-    """    
+    """
+
     class DummyFunction:
         def __init__(self, name):
             self.__name__ = name
@@ -263,7 +277,7 @@ def load_cache_csv(file_path):
     cache = LocalCache.instance()
     header_map = {}
 
-    with open(file_path, 'r') as f:
+    with open(file_path, "r") as f:
         while True:
             pos = f.tell()
             line = f.readline()
@@ -276,8 +290,12 @@ def load_cache_csv(file_path):
 
     function_line = header_map.get("cached_function")
     keys_line = [s.strip() for s in header_map.get("keys", "").split(",") if s.strip()]
-    col_keys_line = [s.strip() for s in header_map.get("col_keys", "").split(",") if s.strip()]
-    index_names = [s.strip() for s in header_map.get("index_name", "").split(",") if s.strip()]
+    col_keys_line = [
+        s.strip() for s in header_map.get("col_keys", "").split(",") if s.strip()
+    ]
+    index_names = [
+        s.strip() for s in header_map.get("index_name", "").split(",") if s.strip()
+    ]
 
     # Load CSV body
     df = pd.read_csv(file_path, comment="#", header=0)
@@ -302,6 +320,7 @@ def load_cache_csv(file_path):
         wrapped = wrap_cache_value(group, DummyFunction(function_line))
         print("CACHE INSERT:", generate_cache_key(function_line, **kwargs))
         cache[generate_cache_key(function_line, **kwargs)] = wrapped
+
 
 def cache_to_csv(float_format=None):
     """
@@ -330,7 +349,7 @@ def cache_to_csv(float_format=None):
     >>> cache_to_csv()
     # This will create CSV files like `get_dataframe1.csv`, `get_dataframe2.csv`, etc.,
     # containing all cached data for these functions.
-    """       
+    """
     cache = LocalCache.instance()
     seen = set()
 
@@ -347,21 +366,22 @@ def cache_to_csv(float_format=None):
         index_name = all_data.index.names[0]
         keys = all_data.index.names[1:]
         file_path = f"{func_name}.csv"
-        
+
         # Determine which keys are retained in the data
         col_keys = [key for key in keys if key in all_data.columns]
-        with open(file_path, 'w') as f:
+        with open(file_path, "w") as f:
             f.write(f"# cached_function: {func_name}\n")
             f.write(f"# index_name: {', '.join(all_data.index.names)}\n")
             f.write(f"# keys: {', '.join(keys)}\n")
             if len(col_keys) > 0:
                 f.write(f"# col_keys: {', '.join(col_keys)}\n")
-        all_data.to_csv(file_path, mode='a', float_format=float_format)
+        all_data.to_csv(file_path, mode="a", float_format=float_format)
+
 
 def coerce_datetime_index(df):
     """
     Try to convert the index of a DataFrame to a DatetimeIndex if possible.
-    
+
     Parameters
     ----------
     df : pandas.DataFrame
@@ -379,15 +399,18 @@ def coerce_datetime_index(df):
             pass
     return df
 
+
 def caching(clear, to_csv, from_csv, delete, float_format):
     """Manage the local cache"""
-    
+
     if (to_csv and delete) or (to_csv and clear):
-        raise ValueError("to_csv and delete/clear are incompatible. dump to csv, check the result then delete")
-    
+        raise ValueError(
+            "to_csv and delete/clear are incompatible. dump to csv, check the result then delete"
+        )
+
     if (from_csv and delete) or (from_csv and clear) or (from_csv and to_csv):
-        raise ValueError("from_csv and delete/clear/to_csv are incompatible.")   
-        
+        raise ValueError("from_csv and delete/clear/to_csv are incompatible.")
+
     if clear:
         print("Clearing local cache.")
         LocalCache.instance().clear()
@@ -399,25 +422,41 @@ def caching(clear, to_csv, from_csv, delete, float_format):
         load_cache_csv(from_csv)
 
     if delete:
-        if os.path.exists('cache'):
+        if os.path.exists("cache"):
             shutil.rmtree("cache")
 
+
 @click.command()
-@click.option('--clear', is_flag=True, help="Clear local cache")
-@click.option('--delete', is_flag=True, help="(Alias for --clear)")
-@click.option('--to-csv', 'to_csv', is_flag=True, help="Flush current cache to CSV files (one per function)")
-@click.option('--float-format', 'float_format', default=None, help="Float format string for to_csv")
-@click.option('--from-csv', 'from_csv', default=None, help="Load cache from a previously saved CSV file")
+@click.option("--clear", is_flag=True, help="Clear local cache")
+@click.option("--delete", is_flag=True, help="(Alias for --clear)")
+@click.option(
+    "--to-csv",
+    "to_csv",
+    is_flag=True,
+    help="Flush current cache to CSV files (one per function)",
+)
+@click.option(
+    "--float-format",
+    "float_format",
+    default=None,
+    help="Float format string for to_csv",
+)
+@click.option(
+    "--from-csv",
+    "from_csv",
+    default=None,
+    help="Load cache from a previously saved CSV file",
+)
 @click.help_option("-h", "--help")
 def data_cache_cli(clear, to_csv, from_csv, delete, float_format):
     """CLI for managing the local cache."""
-    
+
     caching(clear, to_csv, from_csv, delete, float_format)
 
 
 if __name__ == "__main__":
     data_cache_cli()
-    
+
     # Main Example:
     # # Using the caching system example. No entry to here
     # df1 = get_dataframe1(string_arg="example1", int_arg=10)
@@ -430,7 +469,7 @@ if __name__ == "__main__":
     # cache_to_csv()
 
     # # Using the caching system
-        
+
     # df1 = get_dataframe1(string_arg="example1", int_arg=10)
     # df1b = get_dataframe1(string_arg="example1bb", int_arg=15)
     # df2 = get_dataframe2(string_arg="example2")

@@ -91,7 +91,7 @@ def write_ts_csv(
     format_version="dwr-dms-1.0",
     overwrite_conventions=False,
     block_size=1,
-    **kwargs
+    **kwargs,
 ):
     """Write time series to a csv file following a standard format
     Parameters:
@@ -157,7 +157,7 @@ def write_ts_csv(
                     header=True,
                     sep=",",
                     date_format="%Y-%m-%dT%H:%M:%S",
-                    **kwargs
+                    **kwargs,
                 )
     else:  # not chunk_years
         if isinstance(fpath, (str, bytes, os.PathLike)):

@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-""" Script to download NOAA water level data
-"""
+"""Script to download NOAA water level data"""
 import sys  # noqa
 import requests
 import bs4
@@ -110,7 +109,7 @@ def download_station_data(
             "param": "elev",
             "timezone": "LST",
             "source": "http://tidesandcurrents.noaa.gov/",
-        },    
+        },
         "water_level": {
             "agency": "noaa",
             "unit": "meters",
@@ -190,7 +189,9 @@ def download_station_data(
 
             datum = "NAVD"
             datum_str = (
-                f"&datum={datum}" if param in ("water_level", "hourly_height","predictions") else ""
+                f"&datum={datum}"
+                if param in ("water_level", "hourly_height", "predictions")
+                else ""
             )
             url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric{datum_str}&format=csv"
 
@@ -217,7 +218,9 @@ def download_station_data(
             if raw_table[0] == "\n":
                 datum = "STND"
                 datum_str = (
-                    f"&datum={datum}" if param in ("water_level", "hourly_height", "predictions") else ""
+                    f"&datum={datum}"
+                    if param in ("water_level", "hourly_height", "predictions")
+                    else ""
                 )
                 url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric&{datum_str}&format=csv"
                 # logger.info("Retrieving Station {}, from {} to {}...".format(agency_id, date_start, date_end))
@@ -306,9 +309,6 @@ def noaa_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                 logger.error(f"Exception occurred during download: {e}")
 
 
-
-
-
 def list_stations():
     """Show NOAA station ID's in our study area."""
     logger.info("Available stations:")
@@ -334,8 +334,20 @@ def assure_datetime(dtime, isend=False):
         return (
             dtm.datetime(dtime, 12, 31, 23, 59) if isend else dtm.datetime(dtime, 1, 1)
         )
-        
-def download_noaa(start, end, syear, eyear, param, stations, dest_dir, list_stations_flag, overwrite, stationfile):
+
+
+def download_noaa(
+    start,
+    end,
+    syear,
+    eyear,
+    param,
+    stations,
+    dest_dir,
+    list_stations_flag,
+    overwrite,
+    stationfile,
+):
     """Script to download NOAA 6 minute water level data"""
     if list_stations_flag:
         logger.info(
@@ -397,28 +409,72 @@ def download_noaa(start, end, syear, eyear, param, stations, dest_dir, list_stat
                     stage_stations.append(sid)
 
         return noaa_download(df, dest_dir, start, end, param, overwrite)
-    
+
+
 @click.command()
-@click.option('--start', default=None, help='First date to download')
-@click.option('--end', default=None, help='Last date to download, inclusive')
-@click.option('--syear', type=int, default=None, help='First year to download')
-@click.option('--eyear', type=int, default=None, help='Last year to download, inclusive to end of the year.')
-@click.option('--param', default=None, help='Product to download: water_level, predictions, water_temperature, conductivity.')
-@click.option('--stations', multiple=True, help='Id or name of one or more stations.')
-@click.option('--dest', 'dest_dir', default='noaa_download', help='Destination directory for downloaded files.')
-@click.option('--list', 'list_stations_flag', is_flag=True, help='List known station ids.')
-@click.option('--overwrite', is_flag=True, help='Overwrite existing files (if False they will be skipped, presumably for speed')
-@click.argument('stationfile', nargs=-1)
+@click.option("--start", default=None, help="First date to download")
+@click.option("--end", default=None, help="Last date to download, inclusive")
+@click.option("--syear", type=int, default=None, help="First year to download")
+@click.option(
+    "--eyear",
+    type=int,
+    default=None,
+    help="Last year to download, inclusive to end of the year.",
+)
+@click.option(
+    "--param",
+    default=None,
+    help="Product to download: water_level, predictions, water_temperature, conductivity.",
+)
+@click.option("--stations", multiple=True, help="Id or name of one or more stations.")
+@click.option(
+    "--dest",
+    "dest_dir",
+    default="noaa_download",
+    help="Destination directory for downloaded files.",
+)
+@click.option(
+    "--list", "list_stations_flag", is_flag=True, help="List known station ids."
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Overwrite existing files (if False they will be skipped, presumably for speed",
+)
+@click.argument("stationfile", nargs=-1)
 @click.help_option("-h", "--help")
-def download_noaa_cli(start, end, syear, eyear, param, stations, dest_dir, list_stations_flag, overwrite, stationfile):
+def download_noaa_cli(
+    start,
+    end,
+    syear,
+    eyear,
+    param,
+    stations,
+    dest_dir,
+    list_stations_flag,
+    overwrite,
+    stationfile,
+):
     """Command line interface to download NOAA water level data.
-    
+
     STATIONFILE: CSV-format station file(s).
-    
+
     example usage:
     dms download_noaa --start 2020-01-01 --end 2020-12-31 --param water_level --dest noaa_data stationlist.txt
     """
-    download_noaa(start, end, syear, eyear, param, stations, dest_dir, list_stations_flag, overwrite, stationfile)
+    download_noaa(
+        start,
+        end,
+        syear,
+        eyear,
+        param,
+        stations,
+        dest_dir,
+        list_stations_flag,
+        overwrite,
+        stationfile,
+    )
+
 
 if __name__ == "__main__":
     download_noaa_cli()

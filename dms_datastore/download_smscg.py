@@ -9,16 +9,26 @@ from vtools import ts_splice
 from csv import QUOTE_NONNUMERIC, QUOTE_MINIMAL
 
 
-def reconcile_archive_with_new(df_archive,df_new):
-    df_archive.index.name="datetime"
-    df_new.index.name="datetime"  # This should already be true, modulo case convention
-    
-    df_archive.columns = [x.lower().replace(" ","_") for x in df_archive.columns]
-    df_new.columns = [x.lower().replace(" ","_") for x in df_new.columns]
-    final_columns = ["flashboards","gate_1","gate_2","gate_3","action","remarks","user_remarks"]
+def reconcile_archive_with_new(df_archive, df_new):
+    df_archive.index.name = "datetime"
+    df_new.index.name = (
+        "datetime"  # This should already be true, modulo case convention
+    )
+
+    df_archive.columns = [x.lower().replace(" ", "_") for x in df_archive.columns]
+    df_new.columns = [x.lower().replace(" ", "_") for x in df_new.columns]
+    final_columns = [
+        "flashboards",
+        "gate_1",
+        "gate_2",
+        "gate_3",
+        "action",
+        "remarks",
+        "user_remarks",
+    ]
     df_archive = df_archive.reindex(columns=final_columns)
     df_new = df_new.reindex(columns=final_columns)
-    df_final = ts_splice((df_archive,df_new),transition="prefer_last")
+    df_final = ts_splice((df_archive, df_new), transition="prefer_last")
     cols = ["gate_1", "gate_2", "gate_3"]
 
     mapping = {
@@ -41,6 +51,7 @@ def reconcile_archive_with_new(df_archive,df_new):
 
     return df_final
 
+
 def download_and_parse_active_gate_log(raw_dir="raw"):
     """
     Download the Suisun Marsh Salinity Control Gates log from the California Natural Resources Agency
@@ -60,9 +71,8 @@ def download_and_parse_active_gate_log(raw_dir="raw"):
     df = df.sort_index()
     conv_dir = os.path.dirname(xlsfname).replace("/raw/", "/converted/")
     utils.ensure_dir(conv_dir)
-    #df.to_csv(os.path.join(raw_dir, fname.split(".")[0] + ".csv"))
+    # df.to_csv(os.path.join(raw_dir, fname.split(".")[0] + ".csv"))
     return df
-
 
 
 def download_and_parse_archived_pdf(base_dir="raw"):
@@ -92,8 +102,9 @@ def download_and_parse_archived_pdf(base_dir="raw"):
     # Save the DataFrame to CSV
     conv_dir = os.path.dirname(pdf_fname).replace("/raw/", "/converted/")
     utils.ensure_dir(conv_dir)
-    #df.to_csv(os.path.join(conv_dir, "histsmscgopnew.csv"), index=True)
+    # df.to_csv(os.path.join(conv_dir, "histsmscgopnew.csv"), index=True)
     return df
+
 
 def download_smscg(base_dir="smscg", outfile="dms_smscg_gate.csv"):
     """Download and parse Suisun Marsh Salinity Control Gates data."""
@@ -103,21 +114,37 @@ def download_smscg(base_dir="smscg", outfile="dms_smscg_gate.csv"):
     os.makedirs(convert_dir, exist_ok=True)
     df0 = download_and_parse_archived_pdf(raw_dir)
     df1 = download_and_parse_active_gate_log(raw_dir)
-    df_final = reconcile_archive_with_new(df0, df1)    
-    df_final["remarks"] = df_final["remarks"].str.replace("\n", " ", regex=False).str.replace("\r", " ", regex=False)
+    df_final = reconcile_archive_with_new(df0, df1)
+    df_final["remarks"] = (
+        df_final["remarks"]
+        .str.replace("\n", " ", regex=False)
+        .str.replace("\r", " ", regex=False)
+    )
     # Write CSV with only "remarks" and "user_remarks" quoted
-    #df_final = _quote_selected_columns(df_final, ["remarks", "user_remarks"])
+    # df_final = _quote_selected_columns(df_final, ["remarks", "user_remarks"])
     outfile = os.path.join(convert_dir, outfile)
-    df_final.to_csv(outfile, index=True, quoting=QUOTE_MINIMAL,date_format="%Y-%m-%dT%H:%M")
-    
+    df_final.to_csv(
+        outfile, index=True, quoting=QUOTE_MINIMAL, date_format="%Y-%m-%dT%H:%M"
+    )
+
+
 @click.command()
-@click.option("--base-dir", default="smscg", help="Base directory for downloading and converting files")
-@click.option("--outfile", default="dms_smscg_gate.csv", help="Output filename for the converted data")
+@click.option(
+    "--base-dir",
+    default="smscg",
+    help="Base directory for downloading and converting files",
+)
+@click.option(
+    "--outfile",
+    default="dms_smscg_gate.csv",
+    help="Output filename for the converted data",
+)
 def download_smscg_cli(base_dir, outfile):
     """
     CLI for downloading Suisun Marsh Salinity Control Gates data
     """
     download_smscg(base_dir, outfile)
+
 
 if __name__ == "__main__":
     download_smscg_cli()
