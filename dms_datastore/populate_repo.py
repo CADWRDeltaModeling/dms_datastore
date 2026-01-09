@@ -22,7 +22,7 @@ import os
 import shutil
 import re
 import traceback
-import argparse
+import click
 import concurrent.futures
 import pandas as pd
 from dms_datastore.process_station_variable import (
@@ -668,54 +668,43 @@ def populate_debug_ncro_rename(dest, agencies=None, varlist=None):
     logger.info("These agency queries failed")
 
 
-def create_arg_parser():
-    parser = argparse.ArgumentParser("Delete files contained in a list")
-
-    parser.add_argument(
-        "--dest",
-        dest="dest",
-        default=None,
-        help="Directory where files will be stored. ",
-    )
-    parser.add_argument(
-        "--agencies",
-        nargs="+",
-        default=None,
-        help="Agencies to download. If none, a default list is used",
-    )
-    parser.add_argument(
-        "--variables",
-        nargs="+",
-        default=None,
-        help="Variables to download. If none, a default list is used",
-    )
-    parser.add_argument(
-        "--partial",
-        dest="partial",
-        default=False,
-        action="store_true",
-        help="Partial update assuming existing files and only updating from 2020 onwards",
-    )
-    return parser
-
-
-def main():
+@click.command()
+@click.option(
+    '--dest',
+    required=True,
+    help='Directory where files will be stored.',
+)
+@click.option(
+    '--agencies',
+    multiple=True,
+    default=None,
+    help='Agencies to download. If none, a default list is used',
+)
+@click.option(
+    '--variables',
+    multiple=True,
+    default=None,
+    help='Variables to download. If none, a default list is used',
+)
+@click.option(
+    '--partial',
+    is_flag=True,
+    default=False,
+    help='Partial update assuming existing files and only updating from 2020 onwards',
+)
+def populate_main_cli(dest, agencies, variables, partial):
+    """Populate repository with data from various agencies."""
     if SAFEGUARD:
         return
 
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    dest = args.dest
-    varlist = args.variables
-    if dest is None:
-        raise ValueError("Destination directory must be specified")
-    agencies = args.agencies
-    logger.info(f"dest: {dest}, agencies: {agencies}, varlist:{varlist}")
-    populate_main(dest, agencies, varlist=varlist, partial_update=args.partial)
+    varlist = list(variables) if variables else None
+    agencies_list = list(agencies) if agencies else None
+    logger.info(f"dest: {dest}, agencies: {agencies_list}, varlist:{varlist}")
+    populate_main(dest, agencies_list, varlist=varlist, partial_update=partial)
 
 
 if __name__ == "__main__":
-    main()
+    populate_main_cli()
 
 
 # Additional: make sure we have woodbridge, yby,
