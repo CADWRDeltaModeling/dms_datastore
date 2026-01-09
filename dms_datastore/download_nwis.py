@@ -5,7 +5,7 @@
     For help/usage:
     python nwis_download.py --help
 """
-import argparse
+import click
 import sys
 import pandas as pd
 import traceback
@@ -41,47 +41,6 @@ def _quarantine_file(fname,quarantine_dir = "quarantine"):
     if not os.path.exists(quarantine_dir):
         os.makedirs("quarantine")
     shutil.move(fname,"quarantine")
-
-
-
-def create_arg_parser():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument(
-        "--dest",
-        dest="dest_dir",
-        default="nwis_download",
-        help="Destination directory for downloaded files.",
-    )
-    parser.add_argument(
-        "--start", required=True, help="Start time, format 2009-03-31 14:00"
-    )
-    parser.add_argument("--end", default=None, help="End time, format 2009-03-31 14:00")
-    parser.add_argument(
-        "--param",
-        default=None,
-        help='Parameter(s) to be downloaded, e.g. \
-    00065 = gage height (ft.), 00060 = streamflow (cu ft/sec) and 00010 = water temperature in degrees Celsius. \
-    See "http://help.waterdata.usgs.gov/codes-and-parameters/parameters" for complete listing. \
-    (if not specified, all the available parameters will be downloaded)',
-    )
-    parser.add_argument(
-        "--stations",
-        default=None,
-        nargs="*",
-        required=False,
-        help="Id or name of one or more stations.",
-    )
-    parser.add_argument("stationfile", nargs="*", help="CSV-format station file.")
-    parser.add_argument(
-        "--overwrite",
-        action="store_true",
-        default=False,
-        help="Overwrite existing files (if False they will be skipped, presumably for speed)",
-    )
-    return parser
-
-
 
 
 def parse_usgs_json(parseinput,outfile,report_empty=False):
@@ -411,23 +370,16 @@ def parse_start_year(txt):
                 return int(m.group(0)[0:4])
     return None
 
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    destdir = args.dest_dir
-    stationfile = args.stationfile
-    overwrite = args.overwrite
-    start = args.start
-    end = args.end
-    param = args.param
+def download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile):
+    """Download robot for NWIS (National Water Information System)."""
+    destdir = dest_dir
     stime = dt.datetime(*list(map(int, re.split(r"[^\d]", start))))
     if end:
         etime = dt.datetime(*list(map(int, re.split(r"[^\d]", end))))
     else:
         etime = dt.datetime.now()
 
-    stationfile = stationfile_or_stations(args.stationfile, args.stations)
+    stationfile = stationfile_or_stations(stationfile, stations)
     slookup = dstore_config.config_file("station_dbase")
     vlookup = dstore_config.config_file("variable_mappings")
     df = process_station_list(
@@ -440,6 +392,46 @@ def main():
     )
     nwis_download(df, destdir, stime, etime, param, overwrite)
 
+@click.command()
+@click.option(
+    '--dest',
+    'dest_dir',
+    default='nwis_download',
+    help='Destination directory for downloaded files.',
+)
+@click.option(
+    '--start',
+    required=True,
+    help='Start time, format 2009-03-31 14:00',
+)
+@click.option(
+    '--end',
+    default=None,
+    help='End time, format 2009-03-31 14:00',
+)
+@click.option(
+    '--param',
+    default=None,
+    help='Parameter(s) to be downloaded, e.g. 00065 = gage height (ft.), 00060 = streamflow (cu ft/sec) and 00010 = water temperature in degrees Celsius. See "http://help.waterdata.usgs.gov/codes-and-parameters/parameters" for complete listing. (if not specified, all the available parameters will be downloaded)',
+)
+@click.option(
+    '--stations',
+    multiple=True,
+    default=None,
+    help='Id or name of one or more stations.',
+)
+@click.option(
+    '--overwrite',
+    is_flag=True,
+    default=False,
+    help='Overwrite existing files (if False they will be skipped, presumably for speed)',
+)
+@click.argument('stationfile', nargs=-1)
+def download_nwis_cli(dest_dir, start, end, param, stations, overwrite, stationfile):
+    """CLI for downloading NWIS (National Water Information System)."""
+    
+    download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile)
+
 
 if __name__ == "__main__":
-    main()
+    download_nwis_cli()
