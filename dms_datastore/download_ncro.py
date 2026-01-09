@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-import argparse
+import click
 import ssl
 import requests
 import pandas as pd
@@ -279,51 +279,6 @@ def ncro_download(stations,dest_dir,start,end=None,param=None,overwrite=False):
                 logger.debug(f"Empty return")
           
  
-
-def create_arg_parser():
-    parser = argparse.ArgumentParser("Download NCRO data")
-   
-    parser.add_argument('--dest', dest = "dest_dir", default="ncro_download", help = 'Destination directory for downloaded files.')
-    parser.add_argument('--start',default=None,help = 'Start time, format 2009-03-31 14:00')    
-    parser.add_argument('--end',default = None,help = 'End time, format 2009-03-31 14:00')
-    parser.add_argument('--param',default = None, help = 'Parameter(s) to be downloaded.')
-    parser.add_argument('--stations', default=None, nargs="*", required=False,
-                        help='Id or name of one or more stations.')
-    parser.add_argument('stationfile',nargs="*", help = 'CSV-format station file.')
-    parser.add_argument('--overwrite', action="store_true", help =  
-    'Overwrite existing files (if False they will be skipped, presumably for speed)')
-    return parser
-
-
-
-
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    destdir = args.dest_dir
-    stationfile = args.stationfile
-    overwrite = args.overwrite
-    start = args.start
-    end = args.end
-    if start is None: 
-        stime = pd.Timestamp(2024,1,1)
-    else:
-        stime = dt.datetime(*list(map(int, re.split(r'[^\d]', start))))
-    if end is None:
-        etime = dt.datetime.now()
-    else:
-        etime = dt.datetime(*list(map(int, re.split(r'[^\d]', end))))
-    param = args.param
-
-    stationfile=stationfile_or_stations(args.stationfile,args.stations)
-    slookup = dstore_config.config_file("station_dbase")
-    vlookup = mapping_df
-    #vlookup = dstore_config.config_file("variable_mappings")            
-    df = process_station_list(stationfile,param=param,station_lookup=slookup,
-                                  agency_id_col="agency_id",param_lookup=vlookup,source='ncro')
-
-    ncro_download(df,destdir,stime,etime,overwrite=overwrite)  
-
 def test():
     destdir = "."
     overwrite = True
@@ -348,8 +303,36 @@ def test_read():
     ts = read_ts.read_ts(fname)
     print(ts)
 
+
+@click.command()
+@click.option('--dest', 'dest_dir', default='ncro_download', help='Destination directory for downloaded files.')
+@click.option('--start', default=None, help='Start time, format 2009-03-31 14:00')
+@click.option('--end', default=None, help='End time, format 2009-03-31 14:00')
+@click.option('--param', default=None, help='Parameter(s) to be downloaded.')
+@click.option('--stations', multiple=True, help='Id or name of one or more stations.')
+@click.argument('stationfile', nargs=-1)
+@click.option('--overwrite', is_flag=True, help='Overwrite existing files (if False they will be skipped, presumably for speed)')
+def download_ncro_cli(dest_dir, stationfile, overwrite, start, end, param, stations):
+    if start is None: 
+        stime = pd.Timestamp(2024,1,1)
+    else:
+        stime = dt.datetime(*list(map(int, re.split(r'[^\d]', start))))
+    if end is None:
+        etime = dt.datetime.now()
+    else:
+        etime = dt.datetime(*list(map(int, re.split(r'[^\d]', end))))
+
+    stationfile=stationfile_or_stations(list(stationfile) if stationfile else None, list(stations) if stations else None)
+    slookup = dstore_config.config_file("station_dbase")
+    vlookup = mapping_df
+    #vlookup = dstore_config.config_file("variable_mappings")            
+    df = process_station_list(stationfile,param=param,station_lookup=slookup,
+                                  agency_id_col="agency_id",param_lookup=vlookup,source='ncro')
+
+    ncro_download(df,dest_dir,stime,etime,overwrite=overwrite)  
+
 if __name__ == "__main__":
-    main()
+    download_ncro_cli()
     #test()
     #test_read()
     #df = load_inventory()
