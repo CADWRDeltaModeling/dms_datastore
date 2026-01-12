@@ -279,13 +279,7 @@ def download_station(
     else:
         # We know download code was success and file is big enough to test.
         # The length threshold is conservative so could still be empty or bogus
-        # Todo get rid of this
-        with open(f"temp_out_{attempt}_{int(param):05}.txt", "w") as fl:
-            fl.write(station_html)
-        if (
-            "No sites found matching" in station_html
-            or '"timeSeries":[]' in station_html
-        ):
+        if "No sites found matching" in station_html or "\"timeSeries\":[]" in station_html:
             found = False
             logger.debug(
                 f"Based on typical indicators, attempt yielded no data for vari {int(param):05}.txt"
