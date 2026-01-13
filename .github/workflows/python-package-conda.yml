@@ -35,21 +35,17 @@ jobs:
         git fetch --force --tags
         echo "Describe: $(git describe --tags --dirty --always || true)"
 
-        RAW_VERSION=$(python -m setuptools_scm)
-        echo "Raw setuptools_scm version: $RAW_VERSION"
+        RAW_VERSION="$(python -m setuptools_scm | tr -d '\r\n')"
+        PKG_VERSION="$(echo "$RAW_VERSION" | sed -E 's/\+g([0-9a-f]+)/.g\1/; s/-g([0-9a-f]+)/.g\1/')"
 
-        PKG_VERSION=$(echo "$RAW_VERSION" | sed -E 's/\+g([0-9a-f]+)/.g\1/; s/-g([0-9a-f]+)/.g\1/')
-        echo "Conda-safe version: $PKG_VERSION"
+
 
         if [ -z "$PKG_VERSION" ] || [ "$PKG_VERSION" = "0.0.0" ] || [ "$PKG_VERSION" = "None" ]; then
           echo "ERROR: Bad PKG_VERSION='$PKG_VERSION'"
           exit 1
         fi
 
-        cat > conda.recipe/variant.yaml <<EOF
-PKG_VERSION: $PKG_VERSION
-SCM_VERSION: $RAW_VERSION
-EOF
+        printf "PKG_VERSION: %s\nSCM_VERSION: %s\n" "$PKG_VERSION" "$RAW_VERSION" > conda.recipe/variant.yaml
 
         echo "PKG_VERSION: $PKG_VERSION" > conda.recipe/variant.yaml
         cat conda.recipe/variant.yaml
