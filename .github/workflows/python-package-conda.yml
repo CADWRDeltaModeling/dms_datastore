@@ -38,16 +38,14 @@ jobs:
         RAW_VERSION="$(python -m setuptools_scm | tr -d '\r\n')"
         PKG_VERSION="$(echo "$RAW_VERSION" | sed -E 's/\+g([0-9a-f]+)/.g\1/; s/-g([0-9a-f]+)/.g\1/')"
 
-
-
         if [ -z "$PKG_VERSION" ] || [ "$PKG_VERSION" = "0.0.0" ] || [ "$PKG_VERSION" = "None" ]; then
-          echo "ERROR: Bad PKG_VERSION='$PKG_VERSION'"
+          echo "ERROR: Bad PKG_VERSION='$PKG_VERSION' (RAW_VERSION='$RAW_VERSION')"
           exit 1
         fi
 
         printf "PKG_VERSION: %s\nSCM_VERSION: %s\n" "$PKG_VERSION" "$RAW_VERSION" > conda.recipe/variant.yaml
 
-        echo "PKG_VERSION: $PKG_VERSION" > conda.recipe/variant.yaml
+        echo "=== variant.yaml ==="
         cat conda.recipe/variant.yaml
 
         conda config --set anaconda_upload yes
