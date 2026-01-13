@@ -47,5 +47,5 @@ jobs:
         PKG_VERSION=$PKG_VERSION conda build -c cadwr-dms -c conda-forge --user cadwr-dms --token "$ANACONDA_CHANNEL_UPLOAD_TOKEN" conda.recipe
 
         conda deactivate
-        conda remove -n test_dms_datastore --all
+        conda remove -n test_dms_datastore --all -y
 

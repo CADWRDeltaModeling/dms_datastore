@@ -6,7 +6,7 @@ package:
   name: dms-datastore
   # Use the environment variable passed from the shell
   # Set via: export PKG_VERSION=$(python -m setuptools_scm)
-  version: {{ environ.get('PKG_VERSION') }}
+  version: {{ environ['PKG_VERSION'] }}
 
 source:
   path: ..
@@ -33,17 +33,13 @@ requirements:
     - python {{ pyproject['project']['requires-python'] }}
     - setuptools
     - setuptools-scm
-    {% for dep in pyproject['build-system']['requires'] %}
-    - {{ dep.lower() }}
-    {% endfor %}
+    - wheel
   host:
     - python {{ pyproject['project']['requires-python'] }}
     - pip
-    {% for dep in pyproject['build-system']['requires'] %}
-    - {{ dep.lower() }}
-    {% endfor %}
     - setuptools
     - setuptools-scm
+    - wheel
   run:
     - python {{ pyproject['project']['requires-python'] }}
     # dependencies are defined in pyproject.toml
