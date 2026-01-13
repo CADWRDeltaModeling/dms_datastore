@@ -28,9 +28,9 @@ jobs:
         source $CONDA/etc/profile.d/conda.sh
         conda activate test_dms_datastore
         pip install setuptools_scm
-        export PKG_VERSION=$(python -m setuptools_scm | sed 's/+/-/g')
+        PKG_VERSION=$(python -m setuptools_scm | sed 's/+/-/g')
         echo "Building version: $PKG_VERSION"
         conda config --set anaconda_upload yes
-        conda build -c cadwr-dms -c conda-forge --user cadwr-dms --token "$ANACONDA_CHANNEL_UPLOAD_TOKEN" conda.recipe
+        PKG_VERSION=$PKG_VERSION conda build -c cadwr-dms -c conda-forge --user cadwr-dms --token "$ANACONDA_CHANNEL_UPLOAD_TOKEN" conda.recipe
         conda activate
         conda remove -n test_dms_datastore --all
