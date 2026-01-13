@@ -6,7 +6,7 @@ package:
   name: dms-datastore
   # Use the environment variable passed from the shell
   # Set via: export PKG_VERSION=$(python -m setuptools_scm)
-  version: {{ environ.get('PKG_VERSION', '0.0.0') }}
+  version: {{ environ.get('PKG_VERSION') }}
 
 source:
   path: ..
