@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=68", "setuptools_scm[toml]>=6.2"]
+requires = ["setuptools>=68", "setuptools_scm[toml]>=6.2", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -24,6 +24,7 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
 ]
 
 dependencies = [
@@ -103,6 +104,7 @@ include = ["dms_datastore"]
 exclude = ["docsrc"]
 
 [tool.setuptools_scm]
+write_to = "dms_datastore/_version.py"
 
 [tool.setuptools.package-data]
 dms_datastore = [

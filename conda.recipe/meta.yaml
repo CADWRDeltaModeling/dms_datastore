@@ -1,11 +1,12 @@
-{# raw is for ignoring templating with cookiecutter, leaving it for use with conda-build -#}
-{% set pyproject = load_file_data('../pyproject.toml', from_recipe_dir=True) %}
-{% set project = pyproject['project'] %}
-{% set version = environ.get('PKG_VERSION') or environ.get('SETUPTOOLS_SCM_PRETEND_VERSION') or "0.0.0" %}
+{% set pyproject = load_file_data("../pyproject.toml", from_recipe_dir=True)  %}
+{% set python_version = pyproject['project']['requires-python'] %}
+{% set setup_data = load_setup_py_data() %}
 
 package:
   name: dms-datastore
-  version: {{ version }}
+  # Use the environment variable passed from the shell
+  # Set via: export PKG_VERSION=$(python -m setuptools_scm)
+  version: {{ environ.get('PKG_VERSION', '0.0.0') }}
 
 source:
   path: ..
@@ -18,11 +19,8 @@ build:
   script: {{ PYTHON }} -m pip install --no-deps --ignore-installed -vv .
   noarch: python
   number: 0
-  script_env:
-    - PKG_VERSION
-    - SETUPTOOLS_SCM_PRETEND_VERSION
   entry_points:
-    {% for name, reference in project['scripts'].items() %}
+    {% for name, reference in pyproject['project']['scripts'].items() %}
     - {{ name }} = {{ reference }}
     {% endfor %}
   #skip:           true
@@ -32,25 +30,24 @@ requirements:
   # if you need compilers, uncomment these
   #    read more at https://docs.conda.io/projects/conda-build/en/latest/resources/compiler-tools.html
   build:
-    - python {{ project['requires-python'] }}
+    - python {{ pyproject['project']['requires-python'] }}
     - setuptools
     - setuptools-scm
     {% for dep in pyproject['build-system']['requires'] %}
     - {{ dep.lower() }}
     {% endfor %}
   host:
-    - python {{ project['requires-python'] }}
+    - python {{ pyproject['project']['requires-python'] }}
     - pip
     {% for dep in pyproject['build-system']['requires'] %}
     - {{ dep.lower() }}
     {% endfor %}
     - setuptools
     - setuptools-scm
-    - versioneer
   run:
-    - python {{ project['requires-python'] }}
+    - python {{ pyproject['project']['requires-python'] }}
     # dependencies are defined in pyproject.toml
-    {% for dep in project.get('dependencies', []) %}
+    {% for dep in pyproject['project'].get('dependencies', []) %}
     - {{ dep.lower() }}
     {% endfor %}
 
