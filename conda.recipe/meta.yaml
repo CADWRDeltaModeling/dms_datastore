@@ -24,7 +24,7 @@ build:
   noarch: python
   number: 0
   script_env:
-    - SETUPTOOLS_SCM_PRETEND_VERSION={{ PKG_VERSION }}
+    - SETUPTOOLS_SCM_PRETEND_VERSION={{ SCM_VERSION }}
   entry_points:
     {% for name, reference in pyproject['project']['scripts'].items() %}
     - {{ name }} = {{ reference }}

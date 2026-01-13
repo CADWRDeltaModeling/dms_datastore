@@ -46,6 +46,11 @@ jobs:
           exit 1
         fi
 
+        cat > conda.recipe/variant.yaml <<EOF
+        PKG_VERSION: $PKG_VERSION
+        SCM_VERSION: $RAW_VERSION
+        EOF
+
         echo "PKG_VERSION: $PKG_VERSION" > conda.recipe/variant.yaml
         cat conda.recipe/variant.yaml
 
