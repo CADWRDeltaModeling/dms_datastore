@@ -45,7 +45,7 @@ data:
       name: file_search
       recursive_search: True
       file_pattern: "Discharge.ft^3_s.velq@*.EntireRecord.csv"
-      location:   "//cnrastore-bdo/Modeling_Data/repo_staging/dropbox/usgs_aquarius_request_2020/**"   # This could be understood as a default
+      location:   "//cnrastore-bdo/Modeling_Data/archive_repo/repo_staging/dropbox/usgs_aquarius_request_2020/**"   # This could be understood as a default
       reader: read_ts                                            # Names, pointers to code etc. To be fleshed out
     metadata:
       station_id: infer_from_agency_id
