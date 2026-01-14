@@ -231,7 +231,7 @@ def ncro_unit(header_text, param):
         "do": "mg/l",
     }
     # 860.00 - pH () " header_text comes in without comments \s\((\.?)\)
-    var = re.compile("[0-9\.]+\s-\s(.+)\((.*)\)")
+    var = re.compile(r"[0-9\.]+\s-\s(.+)\((.*)\)")
     parsing = False
     if header_text is None:
         # No choice but to guess based on probable units for the parameter
