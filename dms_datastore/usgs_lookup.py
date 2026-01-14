@@ -194,10 +194,10 @@ def main():
         textfile = open(filepath, "r")
 
         # Scan for variable identifier, name, and unit.
-        scan_id = re.compile("\# Time-series identifier:\s+(.*)")
-        scan_var = re.compile("\# Value parameter:\s+(.*)")
-        scan_unit = re.compile("\# Value units:\s+(.*)")
-        scan_csv_line = re.compile("\# CSV data starts at line\s+(\d*)")
+        scan_id = re.compile(r"\# Time-series identifier:\s+(.*)")
+        scan_var = re.compile(r"\# Value parameter:\s+(.*)")
+        scan_unit = re.compile(r"\# Value units:\s+(.*)")
+        scan_csv_line = re.compile(r"\# CSV data starts at line\s+(\d*)")
 
         found_id = []
         found_var = []
