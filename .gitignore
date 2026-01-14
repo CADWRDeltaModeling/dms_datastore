@@ -88,3 +88,5 @@ target/
 
 # pyenv python configuration file
 .python-version
+
+dms_datastore/_version.py
