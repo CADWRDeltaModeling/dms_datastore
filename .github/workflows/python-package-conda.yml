@@ -1,9 +1,6 @@
 name: Python Package using Conda
 
-on:
-  push:
-    tags:
-      - "v*"
+on: [push]
 
 jobs:
   build-linux:
@@ -51,9 +48,18 @@ jobs:
         echo "=== variant.yaml ==="
         cat conda.recipe/variant.yaml
 
-        conda config --set anaconda_upload yes
+        # Publish only on tags (still build/test on branch pushes)
+        if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+          echo "Tag push (${GITHUB_REF_NAME}); enabling upload."
+          conda config --set anaconda_upload yes
+          conda build -m conda.recipe/variant.yaml -c cadwr-dms -c conda-forge \
+            --user cadwr-dms --token "$ANACONDA_CHANNEL_UPLOAD_TOKEN" conda.recipe
+        else
+          echo "Branch push (${GITHUB_REF_NAME}); building without upload."
+          conda config --set anaconda_upload no
+          conda build -m conda.recipe/variant.yaml -c cadwr-dms -c conda-forge conda.recipe
+        fi
 
-        conda build -m conda.recipe/variant.yaml -c cadwr-dms -c conda-forge --user cadwr-dms --token "$ANACONDA_CHANNEL_UPLOAD_TOKEN" conda.recipe
 
         conda deactivate
         conda remove -n test_dms_datastore --all -y
