@@ -16,3 +16,7 @@ try:
 except ImportError:
     from setuptools_scm import get_version
     __version__ = get_version(root='..', relative_to=__file__)
+
+from dms_datastore.read_multi import read_ts_repo
+from dms_datastore.read_ts import *
+from dms_datastore.write_ts import write_ts_csv
