@@ -161,11 +161,7 @@ def inventory(program_name, program_id):
         dtype={"interval_id": int, "aggregate_id": int, "station_active": str},
         parse_dates=["start_date", "end_date"],
     )
-    # print("yo")
-    for id, row in results_df.loc[results_df.station_id >= 90, :].iterrows():
-        if "chl" in row.analyte_name.lower():
-            print("\n")
-            print(row)
+
     results_df = results_df.loc[results_df.interval_id != 4, :]  # Not "Visit"
     results_df = results_df.loc[
         results_df.aggregate_id <= 2, :
