@@ -12,7 +12,7 @@ from vtools.functions.merge import ts_merge, ts_splice
 from vtools.functions.unit_conversions import *
 
 
-__all__ = ["read_ts_repo", "ts_multifile_read", "infer_source_priority"]
+__all__ = ["read_ts_repo", "read_ts_repo", "ts_multifile_read", "infer_source_priority"]
 
 
 def infer_source_priority(station_id):

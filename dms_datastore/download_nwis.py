@@ -26,8 +26,11 @@ from dms_datastore.process_station_variable import (
     process_station_list,
     stationfile_or_stations,
 )
+from pathlib import Path
 from dms_datastore import dstore_config
-from .logging_config import logger
+from dms_datastore.logging_config import configure_logging, resolve_loglevel, LoggingConfig
+import logging
+logger = logging.getLogger(__name__)
 
 
 def convert_json_yaml(json_data):
@@ -120,7 +123,7 @@ def parse_usgs_json(parseinput, outfile, report_empty=False):
             # Create a DataFrame from the datetime, value, and qualifiers pairs
             values_df = pd.DataFrame(value_data["value"])
             if values_df.empty:
-                logger.warning(f"No data retrieved for subloc/method: {subloc}")
+                logger.debug(f"No data retrieved for subloc/method: {subloc}")
                 continue
 
             # Convert dateTime to pandas datetime format
@@ -316,7 +319,7 @@ def download_station(
             failures.append((station, paramname))
 
 
-def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=False):
+def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=False, max_workers=4):
     """Download robot for NWIS
     Requires a list of stations, destination directory and start/end date
     These dates are passed on to CDEC ... actual return dates can be
@@ -334,7 +337,7 @@ def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
     skips = []
     successes = set()
     # Use ThreadPoolExecutor
-    with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         # Schedule the download tasks and handle them asynchronously
         futures = []
         for ndx, row in stations.iterrows():
@@ -420,6 +423,7 @@ def download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile)
 
 
 @click.command()
+@click.help_option("-h", "--help")
 @click.option(
     "--dest",
     "dest_dir",
@@ -428,7 +432,7 @@ def download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile)
 )
 @click.option(
     "--start",
-    required=True,
+    required=None,
     help="Start time, format 2009-03-31 14:00",
 )
 @click.option(
@@ -453,10 +457,27 @@ def download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile)
     default=False,
     help="Overwrite existing files (if False they will be skipped, presumably for speed)",
 )
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs")
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
+@click.help_option("-h", "--help")
 @click.argument("stationfile", nargs=-1)
-def download_nwis_cli(dest_dir, start, end, param, stations, overwrite, stationfile):
+def download_nwis_cli(dest_dir, start, end, param, stations, overwrite, stationfile,logdir, debug, quiet):
     """CLI for downloading NWIS (National Water Information System)."""
-
+    
+    
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    configure_logging(
+            package_name="dms_datastore",
+            level=level,
+            console=console,
+            logdir=logdir,
+            logfile_prefix="download_nwis",  # per-CLI identity
+        
+    )    
     download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile)
 
 

@@ -20,7 +20,7 @@ import logging
 import click
 from functools import lru_cache
 
-logging.basicConfig(level=logging.ERROR)
+
 VARTYPES = [
     "Reference ETo   (in)   (mm)",
     "Precipitation   (in)   (mm)",
@@ -35,7 +35,9 @@ VARTYPES = [
 ]
 
 import paramiko
-
+from dms_datastore.logging_config import configure_logging, resolve_loglevel   
+import logging
+logger = logging.getLogger(__name__)
 
 class CIMIS:
     def __init__(self, base_dir=".", password="xxx"):

@@ -14,6 +14,9 @@ import concurrent
 import concurrent.futures
 import time
 import json
+from dms_datastore.logging_config import (
+    configure_logging,
+    resolve_loglevel)
 from dms_datastore import read_ts
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.process_station_variable import (
@@ -22,7 +25,9 @@ from dms_datastore.process_station_variable import (
 )
 
 from dms_datastore import dstore_config
-from dms_datastore.logging_config import logger
+from dms_datastore.logging_config import configure_logging, resolve_loglevel   
+import logging
+logger = logging.getLogger(__name__)
 
 
 # station_number,station_type,start_time,end_time,parameter,output_interval,download_link
@@ -88,7 +93,8 @@ def load_inventory():
     if (
         os.path.exists(inventoryfile)
         and (time.time() - os.stat(inventoryfile).st_mtime) < 6000.0
-    ):
+    ):  
+        logger.debug("reading existing inventory file " + inventoryfile)
         ncro_inventory = pd.read_csv(
             inventoryfile, header=0, sep=",", parse_dates=["start_time", "end_time"]
         )
@@ -108,12 +114,14 @@ def load_inventory():
     fio = io.StringIO(inventory_html)
     data = json.load(fio)
     sites = data["return"]["sites"]
-    sites_df = pd.DataFrame(sites)
+    sites_df = pd.DataFrame(sites)  # database of all NCRO sites
 
     dfs = []
     for id, row in dbase.iterrows():
         agency_id = row.agency_id
         origname = agency_id
+        # Looks for stations that have the same base code but with variations for program 
+        # like "Q" or "00" suffixes
         names = similar_ncro_station_names(origname)
 
         url2 = f"https://wdlhyd.water.ca.gov/hydstra/sites/{','.join(names)}/traces"
@@ -147,10 +155,11 @@ def load_inventory():
         df2["start_time"] = pd.to_datetime(df2.start_time)
         df2["end_time"] = pd.to_datetime(df2.end_time)
         dfs.append(df2)
-
+    logger.debug("Combining inventory data")   
     df_full = pd.concat(dfs, axis=0)
     df_full = df_full.reset_index(drop=True)
     df_full.index.name = "index"
+    logger.debug("Writing inventory file to " + inventoryfile)
     df_full.to_csv(inventoryfile)
     ncro_inventory = df_full
     return df_full
@@ -158,7 +167,6 @@ def load_inventory():
 
 def download_trace(tsrow, row, dest_dir, stime, etime):
     """Download time series trace associated with one request"""
-
     paramname = row.param
     site = tsrow.site
     trace = tsrow.trace
@@ -189,7 +197,7 @@ def download_trace(tsrow, row, dest_dir, stime, etime):
             station_html = response.text.replace("\r", "")
             break
         except Exception as e:
-            logger.info("Exception: " + str(e))
+            logger.debug("Exception: " + str(e))
             if attempt == max_attempt:
                 station_html = None
             else:
@@ -280,7 +288,7 @@ def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
     dbase = dstore_config.station_dbase()
 
     futures = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
         for ndx, row in stations.iterrows():
             agency_id = row.agency_id
             station = row.station_id
@@ -294,7 +302,7 @@ def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
             except:
                 etime = pd.Timestamp.now()
             found = False
-
+ 
             subinventory = inventory.loc[
                 (inventory.site.isin(similar_ncro_station_names(row.agency_id)))
                 & (inventory.param == param)
@@ -302,6 +310,12 @@ def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                 & (inventory.end_time >= stime),
                 :,
             ]
+
+            if subinventory.empty:
+                logger.info(
+                    f"Skipping station {station} agency_id {agency_id} param {param} -- no data in inventory for requested period"
+                )
+                continue
             for tsndx, tsrow in subinventory.iterrows():
                 site = tsrow.site
                 trace = tsrow.trace
@@ -314,7 +328,7 @@ def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                         )
                         continue
 
-                print(f"submitting {site} {trace}")
+                logger.debug(f"submitting {site} {trace}")
                 future = executor.submit(
                     download_trace, tsrow, row, dest_dir, stime, etime
                 )
@@ -356,12 +370,45 @@ def create_arg_parser():
         action="store_true",
         help="Overwrite existing files (if False they will be skipped, presumably for speed)",
     )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Disable console logging (file-only if --logdir is set)."
+    )    
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable DEBUG logging (overridden by --loglevel)."
+    ) 
+    parser.add_argument(
+        "--logdir",
+        type=Path,
+        help="Directory to write log files."
+    )
+
     return parser
 
 
 def main():
     parser = create_arg_parser()
     args = parser.parse_args()
+
+    level, console = resolve_loglevel(
+        debug=args.debug,
+        quiet=args.quiet,
+    )
+
+    configure_logging(
+            package_name="dms_datastore",
+            level=level,
+            console=console,
+            logdir=args.logdir,
+            logfile_prefix="download_ncros",  # per-CLI identity
+        
+    )
+
+
+    
     destdir = args.dest_dir
     stationfile = args.stationfile
     overwrite = args.overwrite
@@ -389,7 +436,6 @@ def main():
         param_lookup=vlookup,
         source="ncro",
     )
-
     ncro_download(df, destdir, stime, etime, overwrite=overwrite)
 
 
@@ -417,12 +463,6 @@ def test():
         )
         ncro_download(df, destdir, stime, etime, overwrite=overwrite)
 
-
-def test_read():
-    fname = "ncro_old_b95380_temp_2015_2024.csv"
-    fname = "ncro_orm_b95370_cla_*.csv"
-    ts = read_ts.read_ts(fname)
-    print(ts)
 
 
 if __name__ == "__main__":

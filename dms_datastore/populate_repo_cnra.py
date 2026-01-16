@@ -17,7 +17,7 @@ Need to add something for the daily stations and for O&M (Clifton Court, Banks)
 """
 SAFEGUARD = False
 import glob
-from dms_datastore.logging_config import logger
+
 import os
 import shutil
 import re
@@ -31,6 +31,10 @@ from dms_datastore.process_station_variable import (
     read_station_subloc,
     merge_station_subloc,
 )
+from dms_datastore.logging_config import configure_logging, resolve_loglevel   
+import logging
+logger = logging.getLogger(__name__)
+
 
 # if not SAFEGUARD:
 #    from schimpy.station import *

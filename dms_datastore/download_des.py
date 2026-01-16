@@ -21,8 +21,13 @@ from dms_datastore.process_station_variable import (
 )
 from dms_datastore import dstore_config
 import pandas as pd
-from dms_datastore.logging_config import logger
 
+from pathlib import Path
+from dms_datastore import dstore_config
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
+import logging
+logging.captureWarnings(True)
+logger = logging.getLogger(__name__)
 __all__ = ["des_download"]
 
 des_local_dir = os.path.split(__file__)[0]
@@ -485,10 +490,25 @@ def download_des(dest_dir, start, end, param, stations, overwrite, stationfile):
     is_flag=True,
     help="Overwrite existing files (if False they will be skipped, presumably for speed)",
 )
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs")
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
+@click.help_option("-h", "--help")
 @click.argument("stationfile", nargs=-1)
-def download_des_cli(dest_dir, start, end, param, stations, overwrite, stationfile):
+def download_des_cli(dest_dir, start, end, param, stations, overwrite, stationfile, logdir, debug, quiet):
     """CLI for downloading DES (DWR Environmental Services) data."""
-
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    configure_logging(
+            package_name="dms_datastore",
+            level=level,
+            console=console,
+            logdir=logdir,
+            logfile_prefix="download_des",  # per-CLI identity
+        
+    )   
     download_des(dest_dir, start, end, param, stations, overwrite, stationfile)
 
 

@@ -7,7 +7,6 @@ adapted from pyschism, original work of Linlin Cui.
 from datetime import datetime, timedelta
 import pathlib
 import tempfile
-import logging
 from time import time
 from typing import Union
 import os
@@ -21,9 +20,10 @@ from botocore.config import Config
 import numpy as np
 import pandas as pd
 import xarray as xr
-
-
 import pytz
+from dms_datastore.logging_config import configure_logging, resolve_loglevel   
+import logging
+logger = logging.getLogger(__name__)
 
 
 def localize_datetime(d):
@@ -53,8 +53,6 @@ def nearest_cycle(input_datetime=None, period=6, method="floor"):
         )
     )
 
-
-logger = logging.getLogger(__name__)
 
 
 class AWSGrib2Inventory:

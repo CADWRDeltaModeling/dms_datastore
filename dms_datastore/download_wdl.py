@@ -18,7 +18,9 @@ from dms_datastore.process_station_variable import (
     stationfile_or_stations,
 )
 from dms_datastore import dstore_config
-from .logging_config import logger
+from dms_datastore.logging_config import configure_logging, resolve_loglevel   
+import logging
+logger = logging.getLogger(__name__)
 
 items = {
     "flow": "FLOW_15-MINUTE",

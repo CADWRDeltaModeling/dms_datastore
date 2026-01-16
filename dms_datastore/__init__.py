@@ -20,3 +20,5 @@ except ImportError:
 from dms_datastore.read_multi import read_ts_repo
 from dms_datastore.read_ts import *
 from dms_datastore.write_ts import write_ts_csv
+import logging
+logging.getLogger(__name__).addHandler(logging.NullHandler())

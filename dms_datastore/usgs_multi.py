@@ -12,11 +12,14 @@ import click
 import yaml
 import numpy as np
 from dms_datastore.dstore_config import sublocation_df
-from dms_datastore.logging_config import logger
+from dms_datastore.logging_config import configure_logging
 from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
 from dms_datastore.filename import interpret_fname, meta_to_filename
-
+import logging
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
+logger = logging.getLogger(__name__)
+from pathlib import Path
 
 def _quarantine_file(fname, quarantine_dir="quarantine"):
     if not os.path.exists(quarantine_dir):
@@ -336,11 +339,27 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
 @click.command()
 @click.option("--pat", default="usgs*.csv", help="Pattern of files to process")
 @click.option("--fpath", default=".", help="Directory of files to process.")
-def usgs_multi_cli(pat, fpath):
+@click.option("--logdir", type=click.Path(path_type=Path), default=None)
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
+@click.help_option("-h", "--help")
+def usgs_multi_cli(pat, fpath, logdir=None, debug=False, quiet=False):
     """CLI for processing multivariate USGS files."""
     # recatalogs the unique series. If false an old catalog will be used, which is useful
     # for sequential debugging.
     rescan = True
+
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    configure_logging(
+          package_name="dms_datastore",
+          level=level,
+          console=console,
+          logdir=logdir,
+          logfile_prefix="usgs_multi"
+    )        
     process_multivariate_usgs(fpath=fpath, pat=pat, rescan=True)
 
 

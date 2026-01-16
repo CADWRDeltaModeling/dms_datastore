@@ -4,7 +4,9 @@
 import os
 import click
 import dms_datastore.dstore_config as dbconfig
-from .logging_config import logger
+from dms_datastore.logging_config import configure_logging, resolve_loglevel   
+import logging
+logger = logging.getLogger(__name__)
 
 
 def delete_from_filelist(filelist, dpath=None):

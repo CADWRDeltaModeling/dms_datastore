@@ -15,9 +15,8 @@ What are steps to update just realtime
 
 Need to add something for the daily stations and for O&M (Clifton Court, Banks)
 """
-SAFEGUARD = False
+
 import glob
-from dms_datastore.logging_config import logger
 import os
 import shutil
 import re
@@ -25,12 +24,16 @@ import traceback
 import click
 import concurrent.futures
 import pandas as pd
+from pathlib import Path
 from dms_datastore.process_station_variable import (
     process_station_list,
     stationfile_or_stations,
     read_station_subloc,
     merge_station_subloc,
 )
+from dms_datastore.logging_config import configure_logging, resolve_loglevel 
+import logging
+logger = logging.getLogger(__name__)
 
 # if not SAFEGUARD:
 #    from schimpy.station import *
@@ -40,7 +43,7 @@ from dms_datastore.read_ts import read_ts
 from dms_datastore.download_nwis import nwis_download, parse_start_year
 from dms_datastore.download_noaa import noaa_download
 from dms_datastore.download_cdec import cdec_download
-from dms_datastore.download_ncro2 import ncro_download, mapping_df
+from dms_datastore.download_ncro import ncro_download, mapping_df
 
 #    download_ncro_por,
 #    download_ncro_inventory,
@@ -91,8 +94,7 @@ def revise_filename_syears(pat, force=True, outfile="rename.txt"):
         Name of file to log failures
 
     """
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
+
     filelist = glob.glob(pat)
 
     renames = []
@@ -144,8 +146,7 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
 
     """
     return
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
+
     logger.info(f"Beginning revise_filename_syear_eyear for pattern: {pat}")
 
     filelist = glob.glob(pat)
@@ -250,8 +251,7 @@ def populate_repo(
     -------
 
     """
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
+
 
     # todo: This may limit usefulness for things like atmospheric
     slookup = dstore_config.config_file("station_dbase")
@@ -290,7 +290,6 @@ def populate_repo(
         agency_id_col=agency_id_col,
         source=source,
     )
-
     if maximize_subloc:
         stationlist["subloc"] = "default"
         if param not in ["flow", "elev"]:
@@ -310,8 +309,6 @@ def _write_renames(renames, outfile):
 
 
 def existing_stations(pat):
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
 
     allfiles = glob.glob(pat)
     existing = set()
@@ -324,8 +321,7 @@ def existing_stations(pat):
 
 
 def list_ncro_stations(dest):
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
+    """List stations available in dest for ncro realtime update"""
 
     allfiles = glob.glob(os.path.join(dest, "ncro_*.csv"))
 
@@ -345,8 +341,6 @@ def list_ncro_stations(dest):
 
 
 def populate_repo2(df, dest, start, overwrite=False, ignore_existing=None):
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
 
     """ Currently used by ncro realtime """
     slookup = dstore_config.config_file("station_dbase")
@@ -374,8 +368,6 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
     """Driver script that populates agencies in all_agencies with destination dest"""
     logger.info(f"dest: {dest} agencies: {all_agencies}")
     doneagency = []
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
 
     purge = False
     ignore_existing = None  # []
@@ -460,7 +452,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                         var,
                         dest,
                         pd.Timestamp(1980, 1, 1),
-                        pd.Timestamp(1999, 12, 31, 23, 59),
+                       pd.Timestamp(1999, 12, 31, 23, 59),
                         ignore_existing=ignore_existing,
                     )
                     logger.info(
@@ -504,8 +496,6 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
 
 
 def purge(dest):
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
 
     if purge:
         for pat in ["*.csv", "*.rdb"]:
@@ -515,9 +505,7 @@ def purge(dest):
 
 
 def populate_ncro_realtime(dest, realtime_start=pd.Timestamp(2021, 1, 1)):
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
-
+    """Populate recent NCRO data from CDEC for realtime updates """    
     # NCRO QAQC
     # dest = "//cnrastore-bdo/Modeling_Data/continuous_station_repo/raw/incoming/dwr_ncro"
     # ncro_download_por(dest)
@@ -529,8 +517,7 @@ def populate_ncro_realtime(dest, realtime_start=pd.Timestamp(2021, 1, 1)):
 
 
 def rationalize_time_partitions(pat):
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
+    
 
     allpaths = glob.glob(pat)
     repodir = os.path.split(allpaths[0])[0]
@@ -609,8 +596,7 @@ def ncro_only(dest):
 
 
 def populate_main(dest, agencies=None, varlist=None, partial_update=False):
-    if SAFEGUARD:
-        raise NotImplementedError("populate repo functions not ready to use")
+
 
     do_purge = False
     if not os.path.exists(dest):
@@ -706,11 +692,24 @@ def populate_debug_ncro_rename(dest, agencies=None, varlist=None):
     default=False,
     help="Partial update assuming existing files and only updating from 2020 onwards",
 )
-def populate_main_cli(dest, agencies, variables, partial):
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs")
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
+@click.help_option("-h", "--help")
+def populate_main_cli(dest, agencies, variables, partial, logdir, debug, quiet):
     """Populate repository with data from various agencies."""
-    if SAFEGUARD:
-        return
 
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    configure_logging(
+          package_name="dms_datastore",
+          level=level,
+          console=console,
+          logdir=logdir,
+          logfile_prefix="populate_repo"
+    )    
     varlist = list(variables) if variables else None
     agencies_list = list(agencies) if agencies else None
     logger.info(f"dest: {dest}, agencies: {agencies_list}, varlist:{varlist}")

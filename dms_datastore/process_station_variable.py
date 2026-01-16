@@ -70,7 +70,7 @@ def process_station_list(
 
     if isinstance(stationlist, str):
         station_df = pd.read_csv(stationlist, sep=",", comment="#", header=0)
-    elif isinstance(stationlist, list):
+    elif isinstance(stationlist, list) or isinstance(stationlist, tuple):
         station_df = pd.DataFrame(data={"id": stationlist})
     else:
         station_df = stationlist

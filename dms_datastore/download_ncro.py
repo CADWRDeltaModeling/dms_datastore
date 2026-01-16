@@ -14,6 +14,8 @@ import concurrent
 import concurrent.futures
 import time
 import json
+import concurrent
+import concurrent.futures
 from dms_datastore import read_ts
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.process_station_variable import (
@@ -22,10 +24,20 @@ from dms_datastore.process_station_variable import (
 )
 
 from dms_datastore import dstore_config
-from dms_datastore.logging_config import logger
+from pathlib import Path
+from dms_datastore.logging_config import configure_logging, resolve_loglevel 
+import logging
+logger = logging.getLogger(__name__)
 
+# REQUEST_CHUNK_YEARS controls the maximum span of an individual request.
+# If ALIGN_CHUNKS_TO_YEAR_MODULUS is True, chunk boundaries are aligned to
+# multiples of REQUEST_CHUNK_YEARS (e.g., 2010/2015/2020 for 5-year chunks).
+# -----------------------------------------------------------------------------
 
-# station_number,station_type,start_time,end_time,parameter,output_interval,download_link
+REQUEST_CHUNK_YEARS = 5
+ALIGN_CHUNKS_TO_YEAR_MODULUS = True
+RETAIN_INVENTORY_HOURS=24
+NCRO_MAX_WORKERS = 2  
 
 mappings = {
     "Water Temperature": "temp",
@@ -87,8 +99,9 @@ def load_inventory():
         return ncro_inventory
     if (
         os.path.exists(inventoryfile)
-        and (time.time() - os.stat(inventoryfile).st_mtime) < 6000.0
-    ):
+        and (time.time() - os.stat(inventoryfile).st_mtime)/3600. < RETAIN_INVENTORY_HOURS
+    ):  
+        logger.debug("reading existing inventory file " + inventoryfile)
         ncro_inventory = pd.read_csv(
             inventoryfile, header=0, sep=",", parse_dates=["start_time", "end_time"]
         )
@@ -108,12 +121,14 @@ def load_inventory():
     fio = io.StringIO(inventory_html)
     data = json.load(fio)
     sites = data["return"]["sites"]
-    sites_df = pd.DataFrame(sites)
+    sites_df = pd.DataFrame(sites)  # database of all NCRO sites
 
     dfs = []
     for id, row in dbase.iterrows():
         agency_id = row.agency_id
         origname = agency_id
+        # Looks for stations that have the same base code but with variations for program 
+        # like "Q" or "00" suffixes
         names = similar_ncro_station_names(origname)
 
         url2 = f"https://wdlhyd.water.ca.gov/hydstra/sites/{','.join(names)}/traces"
@@ -166,11 +181,11 @@ def download_trace(site, trace, stime, etime):
     while attempt < max_attempt:
         attempt = attempt + 1
         try:
-            if attempt > 16:
-                logger.info(f"{station_id} attempt {attempt}")
+            if attempt > 1:
+                logger.info(f"{url_trace} download attempt {attempt}")
                 if attempt > 16:
                     logger.info(fname)
-            logger.info(f"Submitting request to URL {url_trace} attempt {attempt}")
+            logger.debug(f"Submitting request to URL {url_trace} attempt {attempt}")
             # time1=time.time()
             streaming = False
             response = session.get(url_trace, stream=streaming, timeout=200)
@@ -184,8 +199,9 @@ def download_trace(site, trace, stime, etime):
             station_html = response.text.replace("\r", "")
             break
         except Exception as e:
-            logger.info("Exception: " + str(e))
+            logger.debug(f"Exception on attempt {attempt}: " + str(e))
             if attempt == max_attempt:
+                logger.warning("Failed all attempts to download trace for station   " + site + " trace " + trace)
                 return None
             else:
                 time.sleep(
@@ -247,6 +263,118 @@ def ncro_metadata(station_id, agency_id, site_details, trace_details, paramname)
     return meta
 
 
+def download_trace_chunked(site, trace, stime, etime):
+    """Download one site/trace by splitting into smaller requests.
+
+    Returns: (site, site_details, trace_details, df) or None.
+    """
+
+    dfs = []
+    site_details = None
+    trace_details = None
+
+    for cstart, cend in iter_time_chunks(stime, etime):
+        txt = download_trace(site, trace, cstart, cend)
+        if txt is None:
+            continue
+        parsed_site, parsed_site_details, parsed_trace_details, df = parse_json_to_series(txt)
+        site_details = parsed_site_details
+        trace_details = parsed_trace_details
+        dfs.append(df)
+
+    if not dfs:
+        return None
+
+    out = pd.concat(dfs, axis=0)
+    out = out[~out.index.duplicated(keep="last")]
+    out = out.sort_index()
+    return site, site_details, trace_details, out
+
+
+def iter_time_chunks(
+    stime,
+    etime,
+    chunk_years=REQUEST_CHUNK_YEARS,
+    align_to_modulus=ALIGN_CHUNKS_TO_YEAR_MODULUS,
+):
+    """Yield (chunk_start, chunk_end) windows covering [stime, etime].
+
+    - chunk_end is exclusive, except for the final chunk where it may equal etime.
+    - If align_to_modulus is True, boundaries fall on Jan 1 of years that are
+      multiples of chunk_years (e.g., 2010/2015/2020 for chunk_years=5).
+
+    NOTE: This is about request sizing, not resampling.
+    """
+
+    stime = pd.to_datetime(stime).to_pydatetime()
+    etime = pd.to_datetime(etime).to_pydatetime()
+    if etime <= stime:
+        return
+
+    cur = stime
+    while cur < etime:
+        if align_to_modulus:
+            next_mod_year = (cur.year // chunk_years + 1) * chunk_years
+            boundary = dt.datetime(next_mod_year, 1, 1)
+            if boundary <= cur:
+                boundary = dt.datetime(next_mod_year + chunk_years, 1, 1)
+            nxt = boundary
+        else:
+            nxt = (pd.Timestamp(cur) + pd.DateOffset(years=chunk_years)).to_pydatetime()
+
+        chunk_end = min(nxt, etime)
+        if chunk_end <= cur:
+            raise ValueError(f"Invalid chunk interval: start={cur!r} end={chunk_end!r}")
+        yield cur, chunk_end
+        cur = chunk_end
+
+ 
+def _download_one_trace_to_csv(
+    *,
+    station_id: str,
+    agency_id: str,
+    paramname: str,
+    site: str,
+    trace: str,
+    dest_dir: str,
+    stime,
+    etime,
+    overwrite: bool,
+):
+    """Worker: download one (site, trace) and write a CSV.
+
+    Parallel execution pattern is lifted from download2.py:
+      - submit many of these from ncro_download()
+      - then wait/harvest with as_completed().
+
+    Request-size mitigation is handled by download_trace_chunked(), which uses
+    REQUEST_CHUNK_YEARS / ALIGN_CHUNKS_TO_YEAR_MODULUS already defined in this file.
+    """
+    result = download_trace_chunked(site, trace, stime, etime)
+    if result is None:
+        logger.debug(f"Empty return for site {site} trace {trace}")
+        return None
+
+    site, site_details, trace_details, df = result
+    logger.debug("Chunked query produced trace")
+
+    fname = f"ncro_{station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
+    fpath = os.path.join(dest_dir, fname)
+    if os.path.exists(fpath) and not overwrite:
+        logger.info(f"Skipping existing file (use --overwrite to replace): {fpath}")
+        return None
+
+    meta = ncro_metadata(station_id, agency_id, site_details, trace_details, paramname)
+    write_ts_csv(
+        df,
+        fpath,
+        metadata=meta,
+        chunk_years=False,
+        format_version="dwr-ncro-json",
+    )
+    return fpath
+
+
 def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=False):
     """Download robot for NCRO
     Requires a list of stations, destination directory and start/end date
@@ -261,51 +389,74 @@ def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
     skips = []
     inventory = load_inventory()
     dbase = dstore_config.station_dbase()
+    
+    stime = pd.to_datetime(start)
+    try:
+        etime = pd.to_datetime(end)
+    except:
+        etime = pd.Timestamp.now()
+    
+    futures = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=NCRO_MAX_WORKERS) as executor:
+        for ndx, row in stations.iterrows():
+            agency_id = row.agency_id
+            station_id = row.station_id
+            param = row.src_var_id
+            paramname = row.param
 
-    for ndx, row in stations.iterrows():
-        agency_id = row.agency_id
-        station = row.station_id
-        param = row.src_var_id
-        paramname = row.param
-        subloc = row.subloc
+            subinventory = inventory.loc[
+                (inventory.site.isin(similar_ncro_station_names(row.agency_id)))
+                & (inventory.param == param)
+                & (inventory.start_time <= etime)
+                & (inventory.end_time >= stime),
+                :,
+            ]
+            logger.debug(
+                f"Found {len(subinventory)} matching traces for station {station_id} param {param}"
+            )
 
-        stime = pd.to_datetime(start)
-        try:
-            etime = pd.to_datetime(end)
-        except:
-            etime = pd.Timestamp.now()
-        found = False
-
-        subinventory = inventory.loc[
-            (inventory.site.isin(similar_ncro_station_names(row.agency_id)))
-            & (inventory.param == param)
-            & (inventory.start_time <= etime)
-            & (inventory.end_time >= stime),
-            :,
-        ]
-        for tsndx, tsrow in subinventory.iterrows():
-            site = tsrow.site
-            trace = tsrow.trace
-            txt = download_trace(site, trace, stime, etime)
-
-            if txt is not None:
-                logger.debug("Query produced trace")
-                site, site_details, trace_details, df = parse_json_to_series(txt)
-                fname = f"ncro_{row.station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
-                fpath = os.path.join(dest_dir, fname)
-                meta = ncro_metadata(
-                    row.station_id, agency_id, site_details, trace_details, paramname
+            if subinventory.empty:
+                logger.debug(
+                    f"Skipping station {station_id} agency_id {agency_id} param {param} -- no data in inventory for requested period"
                 )
-                write_ts_csv(
-                    df,
-                    fpath,
-                    metadata=meta,
-                    chunk_years=False,
-                    format_version="dwr-ncro-json",
-                )
+                continue
 
-            else:
-                logger.debug(f"Empty return")
+            for tsndx, tsrow in subinventory.iterrows():
+                site = tsrow.site
+                trace = tsrow.trace
+
+                # Keep the existing skip behavior (avoid submitting work if output exists)
+                proposed_fname = (
+                    f"ncro_{station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
+                )
+                proposed_path = os.path.join(dest_dir, proposed_fname)
+                if os.path.exists(proposed_path) and not overwrite:
+                    logger.info(f"Skipping existing file (use --overwrite to replace): {proposed_path}")
+                    continue
+
+                future = executor.submit(
+                    _download_one_trace_to_csv,
+                    station_id=station_id,
+                    agency_id=agency_id,
+                    paramname=paramname,
+                    site=site,
+                    trace=trace,
+                    dest_dir=dest_dir,
+                    stime=stime,
+                    etime=etime,
+                    overwrite=overwrite,
+                )
+                futures[future] = (station_id, site, trace)
+
+        for future in concurrent.futures.as_completed(futures):
+            station_id, site, trace = futures[future]
+            try:
+                _ = future.result()
+            except Exception as e:
+                logger.info(
+                    f"Exception occurred during download: station={station_id} site={site} trace={trace} err={e}"
+                )
+                failures.append((station_id, site, trace, str(e)))
 
 
 def test():
@@ -351,13 +502,32 @@ def test_read():
 @click.option("--end", default=None, help="End time, format 2009-03-31 14:00")
 @click.option("--param", default=None, help="Parameter(s) to be downloaded.")
 @click.option("--stations", multiple=True, help="Id or name of one or more stations.")
+@click.option("--logdir", type=click.Path(path_type=Path), default=None)
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
+@click.help_option("-h", "--help")
 @click.argument("stationfile", nargs=-1)
 @click.option(
     "--overwrite",
     is_flag=True,
     help="Overwrite existing files (if False they will be skipped, presumably for speed)",
 )
-def download_ncro_cli(dest_dir, stationfile, overwrite, start, end, param, stations):
+def download_ncro_cli(dest_dir, stationfile, overwrite, start, end, param, stations, logdir=None, debug=False, quiet=False):
+
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    logger.debug(f"Logging level set to {logging.getLevelName(level)} and console={console}")
+    print("__name__=", __name__)
+    configure_logging(
+          package_name="dms_datastore",
+          level=level,
+          console=not quiet,
+          logdir=logdir,
+          logfile_prefix="download_ncro"
+    )
+    logger.debug("Starting NCRO download")
     if start is None:
         stime = pd.Timestamp(2024, 1, 1)
     else:
@@ -387,8 +557,4 @@ def download_ncro_cli(dest_dir, stationfile, overwrite, start, end, param, stati
 
 if __name__ == "__main__":
     download_ncro_cli()
-    # test()
-    # test_read()
-    # df = load_inventory()
-    # print(df)
-    # download_ncro_period_record(df,dbase,dest="",variables=None)
+

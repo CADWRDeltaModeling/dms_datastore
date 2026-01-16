@@ -12,7 +12,11 @@ from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
 from dms_datastore.populate_repo import interpret_fname
 from dms_datastore.dstore_config import config_file, station_dbase
-from dms_datastore.logging_config import logger
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
+import logging
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 
 __all__ = [
@@ -555,14 +559,30 @@ def reformat_main(
     default=None,
     help='Agencies to process, in which case pattern should be omitted. If not specified, does ["usgs","des","cdec","noaa","ncro"].',
 )
-def reformat_cli(inpath, outpath, pattern, agencies):
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs")
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
+@click.help_option("-h", "--help")
+def reformat_cli(inpath, outpath, pattern, agencies, logdir=None, debug=False, quiet=False):
     """Reformat files from raw to standard format and add metadata."""
     in_dir = inpath
     out_dir = outpath
     agencies_list = list(agencies) if agencies else []
     pattern_list = list(pattern) if pattern else None
 
-    print(
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    configure_logging(
+          package_name="dms_datastore",
+          level=level,
+          console=console,
+          logdir=logdir,
+          logfile_prefix="reformat"
+    ) 
+
+    logger.info(
         f"in_dir={in_dir},out_dir={out_dir},agencies={agencies_list},pattern={pattern_list}"
     )
 
