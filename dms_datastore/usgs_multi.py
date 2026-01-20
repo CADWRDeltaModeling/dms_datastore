@@ -154,7 +154,7 @@ def usgs_multivariate(pat, outfile):
                     _ = iter(series)  # Test that the variable is iterable
                 except TypeError as te:
                     _quarantine_file(fname)
-                    logger.info(
+                    logger.warning(
                         f"Quarantined {fname} in usgs_multi. Scan resulted in a non iterable object"
                     )
                     continue
@@ -260,7 +260,7 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
         original_header = read_yaml_header(fn)
 
         ts = read_ts(fn)
-        logger.info(
+        logger.degug(
             f"Number of sublocation metadata entries for {station_id} {param} = {len(subdf)}"
         )
         vertical_non = [0, 0]  # for counting how many subloc are vertical or not
@@ -270,7 +270,7 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
         # then if one left it is default and if many use the average
         for index, row in subdf.iterrows():
             asubloc = row.asubloc[:]
-            logger.info(f"Isolating sublocation {asubloc[:]}")
+            logger.debug(f"Isolating sublocation {asubloc[:]}")
             if asubloc[:] in ["lower", "upper", "upward", "vertical"]:
                 # write out each sublocation as individual file
                 selector = (
@@ -301,7 +301,7 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
                 newfpath = os.path.join(tmpdir.name, newfname_f)  ## todo: hardwire
                 univariate.columns = ["value"]
                 univariate.name = "value"
-                logger.info(f"Writing to {newfpath}")
+                logger.debug(f"Writing to {newfpath}")
                 write_ts_csv(univariate, newfpath, original_header, chunk_years=True)
                 vertical_non[0] = vertical_non[0] + 1
                 ts = ts.drop([selector], axis=1)
@@ -317,7 +317,7 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
                 ts.columns = ["value"]
             else:
 
-                logger.info(
+                logger.debug(
                     f"Several sublocations for columns, averaging {fn} and labeling as value"
                 )
                 # Multivariate not collapsed, but we will add a 'value' column that aggregates and note this in metadata
