@@ -260,7 +260,7 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
         original_header = read_yaml_header(fn)
 
         ts = read_ts(fn)
-        logger.degug(
+        logger.debug(
             f"Number of sublocation metadata entries for {station_id} {param} = {len(subdf)}"
         )
         vertical_non = [0, 0]  # for counting how many subloc are vertical or not
