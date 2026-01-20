@@ -295,7 +295,7 @@ def download_cdec_cli(
 ):
     """CLI for downloading CDEC water data."""
 
-    download_cdec_cli(
+    download_cdec(
         dest_dir,
         id_col,
         param_col,
