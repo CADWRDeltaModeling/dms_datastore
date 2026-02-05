@@ -1180,7 +1180,7 @@ def read_noaa(
 
 # This reader must be last
 def read_last_resort_csv(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=False, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=False, nrows=None,**kwargs
 ):
     ts = csv_retrieve_ts(
         fpath_pattern,

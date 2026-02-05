@@ -696,7 +696,7 @@ def populate_debug_ncro_rename(dest, agencies=None, varlist=None):
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
 @click.help_option("-h", "--help")
-def populate_main_cli(dest, agencies, variables, partial, logdir, debug, quiet):
+def populate_main_cli(dest, agencies, variables, partial, logdir="logs", debug=False, quiet=False):
     """Populate repository with data from various agencies."""
 
     level, console = resolve_loglevel(
