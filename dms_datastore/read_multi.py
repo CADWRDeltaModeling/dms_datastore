@@ -103,8 +103,8 @@ def read_ts_repo(
     else:
         repository = dstore_config.config_file(repo)
 
-    start = pd.to_datetime(start)
-    end = pd.to_datetime(end)
+    start = pd.to_datetime(start) if start is not None else None
+    end = pd.to_datetime(end) if end is not None else None
 
     pats = []
     for src in src_priority:
@@ -214,8 +214,8 @@ def ts_multifile(
         Merged time series data, or a tuple of metadata and data if meta=True.
     """
 
-    start = pd.to_datetime(start)
-    end = pd.to_datetime(end)
+    start = pd.to_datetime(start) if start is not None else None
+    end = pd.to_datetime(end) if end is not None else None
 
     if not (isinstance(pats, list)):
         pats = [pats]
