@@ -165,6 +165,7 @@ def ncro_unit_json(header_text, param):
     }
 
     yml = parse_yaml_header(header_text)
+    unit = None
     if "agency_unit" in yml:
         agency_unit = yml["agency_unit"]
         if agency_unit.lower() == "misc":
@@ -177,8 +178,9 @@ def ncro_unit_json(header_text, param):
             )
     else:
         unit = param_defaults[param] if param in param_defaults else "unknown"
+    if unit is not None and unit != "unknown": 
+        return unit
 
-    # print("agency_unit ", agency_unit," ", unit)
 
     if agency_unit.lower() in unit_reformat:
         return unit_reformat[agency_unit.lower()]
