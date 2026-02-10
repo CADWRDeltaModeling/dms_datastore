@@ -109,6 +109,46 @@ Validate safe handling of user edits when data freshness is uncertain.
   are ignored and a warning is issued.
 - Repo values always remain authoritative.
 
+## STEP F — Backfill or supplemental data without taking priority
+
+**Scenario**
+
+An auxiliary data source (“special supply”, archive, or real-time feed) is used to
+backfill earlier history or fill gaps in the repo.
+This source is not considered more authoritative than the existing repo data.
+
+Typical examples:
+
+An archive covering 2007-01-01 to 2007-09-30, supplementing a modern web service that starts on 2007-10-01.
+
+A provisional real-time feed used to fill gaps, but never to override established values.
+
+**Intent**
+
+Demonstrate that lower-priority data can be merged to extend coverage
+without overriding existing repo values — and that this backfill persists
+across subsequent nightly updates.
+
+**Mechanism**
+
+This is done by running reconciliation with `prefer="repo"` meaning:
+
+  - Repo data remains authoritative where it exists.
+
+  - Staged data fills only gaps or periods outside the repo’s valid range.
+
+  - No temporal “first/last” logic is implied — preference is purely by source.
+
+**Expected behavior** 
+
+In final state:
+
+  - Early history from the supplemental source is prepended into the repo.
+
+  - Existing repo values are never overridden by the supplemental source.
+
+  - Later nightly updates using prefer="staged" do not remove or overwrite the backfilled history.
+
 ---
 
 ## Notes on interpretation
@@ -119,3 +159,23 @@ Validate safe handling of user edits when data freshness is uncertain.
   coercion.
 - Numeric formatting in the playground is chosen to make diffs easy
   to read; it does not change reconciliation semantics.
+
+## STEP G — Processed, unsharded update crossing an annual boundary
+
+**Scenario**
+
+A processed product is stored as a **single, unsharded file** that spans an
+annual boundary (for example, July–June).
+
+An update arrives that appends new data beyond the existing period of record.
+The update may also include revised values within the existing time range.
+
+**Intent**
+
+Exercise reconciliation of unsharded processed data where new timestamps
+should be added while existing repo values remain authoritative.
+
+**Mechanism**
+
+Reconciliation is run with:
+

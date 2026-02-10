@@ -23,6 +23,10 @@ import geopandas as gpd
 import numpy as np
 import seaborn as sns
 from shapely.geometry import Point
+import logging
+from pathlib import Path
+logger = logging.getLogger(__name__)
+
 
 # Todo: left join regions to station dbase and make this a local rather than global
 region_checkers = {}
@@ -40,7 +44,7 @@ def screener(
     plot_dest=None,  # directory or 'interactive' or None for no plots
 ):
     """Performs yaml-specified screening protocol on time series"""
-    print("screener", station_id, subloc, param)
+    logger.info(f"screening: station_id: {station_id}, subloc: {subloc}, param: {param}")
     # name = protocol['name']
     steps = protocol["steps"]
     full = None
@@ -49,7 +53,7 @@ def screener(
     for step in steps:
         method_name = step["method"]
         label = step["label"] if "label" in step else method_name
-        print("Performing:", label)
+        logger.debug("Performing step:", label)
         method = globals()[method_name]
 
         args = step["args"]
@@ -60,9 +64,7 @@ def screener(
                 args["subloc"] = subloc
             if args[key] == "param" and args[key] == "param":
                 args["param"] = param
-        print(station_id, subloc, param)
-        print("step:")
-        print(step)
+
         if len(ts_process.columns) > 1:
             if "value" in ts_process.columns:
                 ts_process = ts_process.value.to_frame()
@@ -84,14 +86,14 @@ def screener(
             full.columns = [label]
         else:
             full[label] = anomaly
-        print("step complete")
+        logger.debug("step complete")
 
     if do_plot:
-        print("plotting")
+        logger.debug("plotting")
         plot_anomalies(
             ts_process, full, plot_label, gap_fill_final=3, plot_dest=plot_dest
         )
-        print("plotting complete")
+        logger.debug("plotting complete")
     # This uses nullable integer so we can leave blank
     ts["user_flag"] = full.any(axis=1).astype(pd.Int64Dtype())  # This is nullable
     ts["user_flag"] = ts["user_flag"].mask(ts["user_flag"] == 0, other=pd.NA)
@@ -99,7 +101,7 @@ def screener(
         return ts, full
     else:
         return ts
-    print("time series screen complete")
+    logger.debug("time series screen complete")
 
 
 def plot_anomalies(
@@ -127,7 +129,7 @@ def plot_anomalies(
                     s=20 + 20 * ((nstep - i) / 2),
                 )
             except:
-                print(f"Problem time series: {subts}")
+                logger.debug(f"Problem time series: {subts}")
                 raise ValueError("Time series could not be plotted")
     ax0.legend()
     if plot_label is None:
@@ -154,7 +156,7 @@ def filter_inventory_(inventory, stations, params):
     if params is not None:
         if isinstance(params, str):
             params = [params]
-            print(f"params: {params}")
+            logger.debug(f"params: {params}")
         inventory = inventory.loc[
             inventory.index.get_level_values("param").isin(params), :
         ]
@@ -222,7 +224,7 @@ def auto_screen(
         if subloc is None:
             subloc = "default"
         if np.random.uniform() < 0.0:  # 0.95:
-            print(f"Randomly rejecting: {station_id} {subloc} {param}")
+            logger.debug(f"Randomly rejecting: {station_id} {subloc} {param}")
             continue
         filename = str(row.filename)
         station_info = station_db.loc[station_id, :]
@@ -235,18 +237,18 @@ def auto_screen(
         fetcher = custom_fetcher(agency)
         # these may be lists
         try:
-            # print(f"fetching {fpath},{station_id},{param}")
+            # logger.debug(f"fetching {fpath},{station_id},{param}")
             meta_ts = fetcher(fpath, station_id, param, subloc=subloc)
         except:
-            print("Read failed for ", fpath, station_id, param, subloc)
+            logger.warning("Read failed for ", fpath, station_id, param, subloc)
             meta_ts = None
 
         if meta_ts is None:
-            print(f"No data found for {station_id} {subloc} {param}")
+            logger.debug(f"No data found for {station_id} {subloc} {param}")
             failed_read.append((station_id, subloc, param))
-            print("Cumulative fails:")
+            logger.debug("Cumulative fails:")
             for fr in failed_read:
-                print(fr)
+                logger.debug(fr)
             continue
         metas, ts = meta_ts
         meta = metas[0]
@@ -279,9 +281,9 @@ def auto_screen(
         else:
             output_fname = f"{agency}_{station_id}_{row.agency_id}_{param}.csv"
         output_fpath = os.path.join(dest, output_fname)
-        print("start write")
+        logger.debug("start write")
         write_ts_csv(screened, output_fpath, meta, chunk_years=True)
-        print("end write")
+        logger.debug("end write")
 
 
 def update_steps(proto, x):
@@ -301,7 +303,7 @@ def update_steps(proto, x):
                 continue  # don't include
             newsteps.append(step)
         if len(omissions) > 0:
-            print(
+            logger.debug(
                 "Omissions listed but not found in inherited specification: ", omissions
             )
         finalsteps = []
@@ -325,7 +327,7 @@ def load_config(config_file):
         try:
             screen_config = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
-            print(exc)
+            logger.debug(exc)
             raise
     return screen_config
 
@@ -352,13 +354,13 @@ def context_config(screen_config, station_id, subloc, param):
     station_info = station_dbase()
 
     region_file = screen_config["regions"]["region_file"]
-    print("Region file: ", region_file)
+    logger.debug("Region file: ", region_file)
 
     if not (os.path.exists(region_file)):
         region_file = os.path.join(screen_config["config_dir"], region_file)
 
     # Search for applicable region
-    print("station_id: ", station_id, " subloc: ", subloc, " param: ", param)
+    logger.debug("station_id: ", station_id, " subloc: ", subloc, " param: ", param)
     x = station_info.loc[station_id, "x"]
     y = station_info.loc[station_id, "y"]
     region = spatial_config(region_file, x, y)
@@ -382,20 +384,20 @@ def context_config(screen_config, station_id, subloc, param):
         region_config = config["regions"][region_name]
         if param in region_config["params"]:
             update_region = region_config["params"][param]
-            print("region var\n", proto, "\n", update_region)
+            logger.debug("region var\n", proto, "\n", update_region)
             proto = update_steps(proto, update_region)
-            print("region var 2\n", proto, "\nafter\n", update_region)
+            logger.debug("region var 2\n", proto, "\nafter\n", update_region)
 
     # first priority: match station and variable
     station_config = None
     if station_id in config["stations"]:
-        print("Found station")
+        logger.debug("Found station")
         station_config = config["stations"][station_id]
         if param in station_config["params"]:
             update_station = station_config["params"][param]
-            print("station var\n", proto, "\nthen\n", update_station)
+            logger.debug("station var\n", proto, "\nthen\n", update_station)
             proto = update_steps(proto, update_station)
-            print("station var 2\n", proto, "\nafter\n", update_station)
+            logger.debug("station var 2\n", proto, "\nafter\n", update_station)
 
     return proto
 
@@ -559,8 +561,25 @@ def test_single(fname):  # not maintained
     default=None,
     help="Station id for starting or restarting the screening process.",
 )
-def auto_screen_cli(config, fpath, dest, stations, params, plot_dest, start_station):
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs")
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
+@click.help_option("-h", "--help")
+def auto_screen_cli(config, fpath, dest, stations, params, plot_dest, start_station,
+                    logdir=None, debug=False, quiet=False):
     """Auto-screen individual files or whole repos."""
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    configure_logging(
+          package_name="dms_datastore",
+          level=level,
+          console=console,
+          logdir=logdir,
+          logfile_prefix="auto_screen"
+    )     
+    
     repo = fpath
     stations_list = list(stations) if stations else None
     params_list = list(params) if params else None

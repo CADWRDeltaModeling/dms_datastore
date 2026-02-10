@@ -440,12 +440,17 @@ def setup_base(root: Path) -> Dict[str, Path]:
         - user_screened
     """
     dirs = {
-        "staging_formatted": root / "test_repos" / "staging" / "formatted",
-        "staging_screened": root / "test_repos" / "staging" / "screened",
-        "repo_formatted": root / "test_repos" / "repo" / "formatted",
-        "repo_screened": root / "test_repos" / "repo" / "screened",
-        "user_screened": root / "test_repos" / "user" / "screened",
+    "staging_formatted": root / "test_repos" / "staging" / "formatted",
+    "staging_screened": root / "test_repos" / "staging" / "screened",
+    "repo_formatted": root / "test_repos" / "repo" / "formatted",
+    "repo_screened": root / "test_repos" / "repo" / "screened",
+    "user_screened": root / "test_repos" / "user" / "screened",
+
+    # NEW:
+    "staging_processed": root / "test_repos" / "staging" / "processed",
+    "repo_processed": root / "test_repos" / "repo" / "processed",
     }
+
     # Create all required directories in the hierarchy
     for d in dirs.values():
         d.mkdir(parents=True, exist_ok=True)
@@ -493,6 +498,17 @@ def setup_base(root: Path) -> Dict[str, Path]:
     screened_staged.loc[ix[10], "user_flag"] = pd.NA
     screened_staged.loc[ix[30], "user_flag"] = pd.NA
     write_sharded(screened_staged, dirs["staging_screened"] / fname_sc, meta_sc)
+
+    # --- Processed (unsharded), crosses annual boundary
+    # A single file spanning across year boundary (no _YYYY suffix), so it becomes "__single__"
+    fname_p = "cdec_proc_foo_123_flow_processed.csv"
+    proc = make_formatted_series("2024-07-01", "2025-06-30", seed=7)
+    meta_p = "station_id: foo\nparam: flow\nunit: ft^3/s\ntier: processed\nnote: unsharded-cross-year\n"
+
+    # Write unsharded (chunk_years=False) to repo and staging; initially identical
+    write_ts_csv(proc, str(dirs["repo_processed"] / fname_p), metadata=meta_p, chunk_years=False, float_format=FFMT)
+    write_ts_csv(proc, str(dirs["staging_processed"] / fname_p), metadata=meta_p, chunk_years=False, float_format=FFMT)
+
 
     return dirs
 
@@ -804,6 +820,115 @@ def step_user_checkout_and_bad_merge_warning(dirs: Dict[str, Path]) -> None:
     show_repo_changes(arch, root / "test_repos" / "repo")
 
 
+def step_backfill_lower_priority_archive(dirs: Dict[str, Path]) -> None:
+    """Demonstrate backfilling earlier history from a lower-priority source.
+
+    This simulates finding an archive (or auxiliary feed) that extends the POR,
+    but should not override the repo where the repo already has values.
+
+    Uses update_repo(..., prefer="repo") to keep repo as authoritative and only
+    fill gaps / earlier history.
+    """
+    print(
+        "\nSTEP F) Supplement with lower priority archive or realtime data: prefer='repo'"
+    )
+
+    # --- Mutate STAGING: create an "archive" series that extends earlier than the repo
+    # The base setup has foo flow from 2009-2015. We'll fabricate a 2007-2008 archive.
+    fname = "cdec_foo_123_flow.csv"
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\nnote: special-supply-archive\n"
+
+    early = make_formatted_series("2007-01-01", "2008-12-31", seed=99)
+    write_sharded(early, dirs["staging_formatted"] / fname, meta)
+
+    # --- Archive repo BEFORE applying reconcile (same pattern as steps A–E)
+    arch = archive_repo(dirs, "F_backfill_lower_priority_archive")
+
+    # --- Plan then apply
+    actions = update_repo(
+        str(dirs["staging_formatted"]),
+        str(dirs["repo_formatted"]),
+        prefer="repo",
+        now=NOW,
+        plan=True,
+    )
+    for a in actions:
+        print("  ", a)
+
+    actions_apply = update_repo(
+        str(dirs["staging_formatted"]),
+        str(dirs["repo_formatted"]),
+        prefer="repo",
+        now=NOW,
+        plan=False,
+    )
+    print(f"Applied {len(actions_apply)} actions.")
+
+    # --- Show repo diffs AFTER apply (same as steps A–E)
+    root = _root_from_dirs(dirs)
+    show_repo_changes(arch, root / "test_repos" / "repo")
+
+    # Optional: show a representative shard head if you want something concrete on screen
+    # (this mirrors what STEP B does)
+    # e.g., show_head(dirs["repo_formatted"] / "cdec_foo_123_flow_2007.csv")
+
+
+def step_processed_unsharded_append_repo_priority(dirs: Dict[str, Path]) -> None:
+    """Processed/unsharded file update: append new data but keep existing repo values.
+
+    This simulates adding new timestamps to a single-file processed product while
+    ensuring the existing repo record remains authoritative on overlaps.
+    """
+    print(
+        '\nSTEP G) Processed unsharded append, prioritize what was there: prefer="repo"'
+    )
+
+    sp = dirs["staging_processed"] / "cdec_proc_foo_123_flow_processed.csv"
+    rp = dirs["repo_processed"] / sp.name
+
+    # Mutate staging: append new dates AND deliberately tweak an overlapping value
+    sdf = read_data_section(sp)
+
+    # 1) tweak overlap (should NOT override repo when prefer="repo")
+    sdf.iloc[-3:, 0] = sdf.iloc[-3:, 0] + 123.0
+
+    # 2) append new timestamps (should be added)
+    tail_start = (sdf.index.max() + pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    tail = make_formatted_series(tail_start, "2025-07-31", seed=77)  # new month
+    sdf2 = pd.concat([sdf, tail])
+
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\ntier: processed\nnote: appended-new-data\n"
+    write_ts_csv(sdf2, str(sp), metadata=meta, chunk_years=False, float_format=FFMT)
+
+    arch = archive_repo(dirs, "G_processed_unsharded_append_repo_priority")
+
+    # Plan/apply against processed dirs, with repo priority
+    actions = update_repo(
+        str(dirs["staging_processed"]),
+        str(dirs["repo_processed"]),
+        prefer="repo",
+        now=NOW,
+        plan=True,
+    )
+    for a in actions:
+        print("  ", a)
+
+    actions_apply = update_repo(
+        str(dirs["staging_processed"]),
+        str(dirs["repo_processed"]),
+        prefer="repo",
+        now=NOW,
+        plan=False,
+    )
+    print(f"Applied {len(actions_apply)} actions.")
+
+    # Show result: should have appended new dates; overlap should remain repo’s values
+    show_head(rp, n=8)
+
+    root = _root_from_dirs(dirs)
+    show_repo_changes(arch, root / "test_repos" / "repo")
+
+
 def main() -> None:
     """Run the complete reconciliation workflow demonstration.
 
@@ -844,7 +969,8 @@ def main() -> None:
     step_old_history_change_triggers_escalation(dirs)
     step_screened_autoscreen_merge(dirs)
     step_user_checkout_and_bad_merge_warning(dirs)
-
+    step_backfill_lower_priority_archive(dirs)
+    step_processed_unsharded_append_repo_priority(dirs)
     print("\nDone. Inspect files under:", root / "test_repos")
 
 

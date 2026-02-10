@@ -43,7 +43,7 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
-
+from vtools import ts_merge
 from dms_datastore.inventory import to_wildcard
 from dms_datastore.read_ts import original_header
 
@@ -408,8 +408,8 @@ def _write_preserving_header(
 # -----------------------------
 
 
-def _list_csv_files(d: str) -> List[str]:
-    return sorted(glob(os.path.join(d, "*.csv")))
+def _list_csv_files(d: str, pattern: str = "*.csv") -> List[str]:
+    return sorted(glob(os.path.join(d, pattern)))
 
 
 def _index_by_series_and_shard(
@@ -441,60 +441,6 @@ def _index_by_series_and_shard(
         shard, _ = _parse_shard(base)
         out.setdefault(sid, {})[shard] = p
     return out
-
-
-# -----------------------------
-# Core merge logic (values)
-# -----------------------------
-
-
-def _merge_prefer(
-    repo: pd.DataFrame,
-    staged: pd.DataFrame,
-    *,
-    prefer: str,
-) -> pd.DataFrame:
-    """ Merge two DataFrames by time index, selecting overlap by preference.
-    Parameters
-    ----------
-    repo, staged : pandas.DataFrame
-        DataFrames representing the existing repo data and incoming staged data.
-        Columns must match exactly.
-    prefer : {'staged', 'repo'}
-        Which side's values win on timestamps present in both.
-
-    Returns
-    -------
-    merged : pandas.DataFrame
-        DataFrame on the union index with preferred values applied.
-
-    Raises
-    ------
-    ValueError
-        If columns do not match or ``prefer`` is invalid.
-
-    Notes
-    -----
-    This is the generic value reconciliation used for formatted/processed tiers
-    during splice operations.
-    """
-
-    if list(repo.columns) != list(staged.columns):
-        raise ValueError(
-            f"Column mismatch: repo={list(repo.columns)} staged={list(staged.columns)}"
-        )
-    idx = repo.index.union(staged.index)
-    r = repo.reindex(idx)
-    s = staged.reindex(idx)
-    if prefer == "staged":
-        out = r.copy()
-        out.loc[s.index, :] = out.loc[s.index, :].where(s.isna(), s)
-        return out
-    if prefer == "repo":
-        out = s.copy()
-        out.loc[r.index, :] = out.loc[r.index, :].where(r.isna(), r)
-        return out
-    raise ValueError("prefer must be 'staged' or 'repo'")
 
 
 # -----------------------------
@@ -703,6 +649,7 @@ def update_repo(
     staged_dir: str,
     repo_dir: str,
     *,
+    pattern: str = "*.csv",
     prefer: str = "staged",
     remove_source: bool = False,
     now: Optional[pd.Timestamp] = None,
@@ -774,9 +721,11 @@ def update_repo(
     if now is None:
         now = pd.Timestamp.now()
     this_year = int(now.year)
+    if prefer not in ["repo", "staged"]:
+        raise ValueError("prefer must be 'repo' or 'staged'")
 
-    staged_files = _list_csv_files(staged_dir)
-    repo_files = _list_csv_files(repo_dir)
+    staged_files = _list_csv_files(staged_dir, pattern=pattern)
+    repo_files = _list_csv_files(repo_dir, pattern="*")   # match all to detect deletions
     staged_map = _index_by_series_and_shard(staged_files, remove_source=remove_source)
     repo_map = _index_by_series_and_shard(repo_files, remove_source=remove_source)
 
@@ -902,7 +851,12 @@ def update_repo(
             head = original_header(a.repo_path)
             sdf = _read_csv_timeseries(a.staged_path)
             rdf = _read_csv_timeseries(a.repo_path)
-            merged = _merge_prefer(rdf, sdf, prefer=prefer)
+            if prefer == "repo":
+                merged = ts_merge([rdf, sdf], strict_priority=True)
+            elif prefer == "staged":
+                merged = ts_merge([sdf, rdf], strict_priority=True)
+            else:
+                raise ValueError("prefer must be 'repo' or 'staged'")
             _write_preserving_header(df=merged, dest_path=a.repo_path, header_text=head)
         else:
             raise ValueError(f"Unknown action {a.action}")
