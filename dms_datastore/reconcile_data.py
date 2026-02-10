@@ -46,6 +46,9 @@ import pandas as pd
 from vtools import ts_merge
 from dms_datastore.inventory import to_wildcard
 from dms_datastore.read_ts import original_header
+from dms_datastore.dstore_config import config_file
+
+
 
 __all__ = [
     "ReconcileAction",
@@ -724,6 +727,14 @@ def update_repo(
     if prefer not in ["repo", "staged"]:
         raise ValueError("prefer must be 'repo' or 'staged'")
 
+    if os.path.exists(repo_dir):
+        repo_dir = repo_dir
+    else:
+        repo_dir = dstore_config.config_file(repo_dir)
+        if not os.path.exists(repo_dir):
+            raise ValueError(f"Repo directory does not exist as a directory or as config entry that maps to directory: {repo_dir}")
+    
+        
     staged_files = _list_csv_files(staged_dir, pattern=pattern)
     repo_files = _list_csv_files(repo_dir, pattern="*")   # match all to detect deletions
     staged_map = _index_by_series_and_shard(staged_files, remove_source=remove_source)
