@@ -91,6 +91,7 @@ def write_ts_csv(
     format_version="dwr-dms-1.0",
     overwrite_conventions=False,
     block_size=1,
+    dtypes={"user_flag": "Int64"},
     **kwargs,
 ):
     """Write time series to a csv file following a standard format
@@ -111,6 +112,9 @@ def write_ts_csv(
     dms_data_format : str
     Version number of format. Defaults to current default format
 
+    dtypes : dict
+    Dictionary of datatypes to enforce, main use of which is to preserve user_flags as Int64 (nullable)
+
     **kwargs : other
     Other items that will be passed to write_csv
     """
@@ -123,6 +127,10 @@ def write_ts_csv(
         meta_header = f"# format: {format_version}\n# date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}\n"
     else:
         meta_header = prep_header(metadata, format_version)
+
+    for dtype_col, dtype in dtypes.items():
+        if dtype_col in ts.columns:
+            ts[dtype_col] = ts[dtype_col].astype(dtype)
 
     if chunk_years:
         bounds = chunk_bounds(ts, block_size=block_size)

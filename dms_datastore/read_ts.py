@@ -18,6 +18,7 @@ __all__ = [
     "parse_yaml_header",
     "read_ts",
     "read_vtide",
+    "read_flagged"
 ]
 
 
