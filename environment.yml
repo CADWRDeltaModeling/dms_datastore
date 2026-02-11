@@ -15,7 +15,8 @@ dependencies:
   - boto3 # for hrrr 
   - lxml # for pandas html parsing
   - paramiko # for sftp cimis requests
-  - tabula-py # for pdf parsing
+  - tabula-py>=2.9.0 # for pdf parsing
+  - jpype1
   - pandas>=2
   - numpy
   - cfgrib

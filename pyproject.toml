@@ -47,7 +47,8 @@ dependencies = [
     "diskcache",
     "pytest",
     "pytest-runner",
-    "tabula-py"
+    "tabula-py>=2.9.0",
+    "jpype1"
 ]
 
 [project.optional-dependencies]
