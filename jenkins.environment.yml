@@ -2,7 +2,7 @@ name: dms_datastore
 channels:
   - cadwr-dms
   - conda-forge
-#  - nodefaults # removing so that tabula-py can be installed from main as conda-forge version is too old
+# - nodefaults # removing so that tabula-py can be installed from main as conda-forge version is too old
 dependencies:
   - python=3.12
   - pip
@@ -15,8 +15,8 @@ dependencies:
   - boto3 # for hrrr 
   - lxml # for pandas html parsing
   - paramiko # for sftp cimis requests
-  - tabula-py>=2.9.0 # for pdf parsing
-  - jpype1
+  - defaults::tabula-py>=2.9.0 # for pdf parsing - explicitly from defaults/main channel
+  - defaults::jpype1
   - numpy
   - pandas>=2
   - cfgrib
