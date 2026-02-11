@@ -534,27 +534,24 @@ def download_cimis(hourly, existing_dir, download, partial):
 
 @click.command()
 @click.option(
-    "--hourly",
-    is_flag=True,
+    "--hourly/--daily",
     default=True,
-    help="Download hourly data (default is True)",
+    help="Download hourly data (default) or daily data",
 )
 @click.option("--existing-dir", default=None, help="Directory to merge new data into")
 @click.option(
-    "--download",
-    is_flag=True,
+    "--download/--no-download",
     default=True,
     help="Download data (default is True)",
 )
 @click.option(
-    "--partial",
-    is_flag=True,
+    "--partial/--full",
     default=False,
-    help="Set partial download to True if provided (default is False)",
+    help="Partial download (default is full download)",
 )
 def download_cimis_cli(hourly, existing_dir, download, partial):
     """
-    DCLI for downloading CIMIS data
+    CLI for downloading CIMIS data
     """
 
     download_cimis(hourly, existing_dir, download, partial)
