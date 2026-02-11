@@ -224,7 +224,7 @@ def download_station(
     stime = start.strftime("%Y-%m-%d")
     etime = end.strftime("%Y-%m-%d")
     found = False
-    station_query_base = f"http://nwis.waterservices.usgs.gov/nwis/iv/?sites={agency_id}&startDT={stime}&endDT={etime}&format=json"
+    station_query_base = f"https://nwis.waterservices.usgs.gov/nwis/iv/?sites={agency_id}&startDT={stime}&endDT={etime}&format=json"
     if param:
         station_query = station_query_base + f"&variable={int(param):05}"
         # station_query = station_query_base % (station,stime,etime,param)
