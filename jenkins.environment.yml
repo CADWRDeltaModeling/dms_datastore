@@ -2,7 +2,7 @@ name: dms_datastore
 channels:
   - cadwr-dms
   - conda-forge
-  - nodefaults
+#  - nodefaults # removing so that tabula-py can be installed from main as conda-forge version is too old
 dependencies:
   - python=3.12
   - pip
