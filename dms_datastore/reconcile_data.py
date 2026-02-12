@@ -46,7 +46,7 @@ import pandas as pd
 from vtools import ts_merge
 from dms_datastore.inventory import to_wildcard
 from dms_datastore.read_ts import original_header
-from dms_datastore.dstore_config import config_file
+from dms_datastore import dstore_config
 
 
 
@@ -654,6 +654,7 @@ def update_repo(
     *,
     pattern: str = "*.csv",
     prefer: str = "staged",
+    allow_new_series: bool = True,
     remove_source: bool = False,
     now: Optional[pd.Timestamp] = None,
     recent_years: int = 3,
@@ -677,17 +678,23 @@ def update_repo(
     prefer : {'staged', 'repo'}, default 'staged'
         Which side wins on overlapping timestamps when splicing staged and repo
         records.
+    allow_new_series : bool, default True
+        If False, require that at least one repo shard exists for each staged
+        series_id (namesake check). This helps catch naming mistakes. If True,
+        initialize series not yet present in the repo.
     remove_source : bool, default False
         If True, wildcard the source slot when building series identities.
     now : pandas.Timestamp, optional
         Reference timestamp used to compute shard ages for sampling. Defaults to
         ``Timestamp.now()``.
     recent_years : int, default 3
-        Window of most recent years that is always inspected. If an old shard
-        change is detected, these shards are also reconciled (escalation).
+        Shards with age (this_year - shard_end_year) strictly less than
+        ``recent_years`` are always inspected. Older shards may be inspected
+        probabilistically via ``p3``/``p10``.
     p10, p3 : float, default 0.05, 0.15
-        Deterministic sampling probabilities for inspecting shards older than 10
-        years and between 3 and 10 years old.
+        Deterministic sampling probabilities for inspecting older shards.
+        ``p3`` applies to shards with age in [recent_years, 10) years.
+        ``p10`` applies to shards with age >= 10 years.
     atol, rtol : float, default 0.0, 0.0
         Tolerances for parsed-data comparisons. If both are zero, comparisons are
         exact.
@@ -730,9 +737,11 @@ def update_repo(
     if os.path.exists(repo_dir):
         repo_dir = repo_dir
     else:
-        repo_dir = dstore_config.config_file(repo_dir)
-        if not os.path.exists(repo_dir):
-            raise ValueError(f"Repo directory does not exist as a directory or as config entry that maps to directory: {repo_dir}")
+        try: 
+            repo_dir = dstore_config.config_file(repo_dir)
+        except:
+            if not os.path.exists(repo_dir):
+                raise ValueError(f"Repo directory does not exist as a directory or as config entry that maps to directory: {repo_dir}")
     
         
     staged_files = _list_csv_files(staged_dir, pattern=pattern)
@@ -744,6 +753,12 @@ def update_repo(
 
     for series_id, staged_shards in staged_map.items():
         repo_shards = repo_map.get(series_id, {})
+
+        if not repo_shards and not allow_new_series:
+            raise ValueError(
+                f"No namesake series found in repo for series_id={series_id!r}. "
+                f"Set allow_new_series=True to initialize new series."
+            )
 
         # Determine which shards to inspect for "change detection" outside recent window
         changed_old = False
@@ -769,7 +784,7 @@ def update_repo(
                 inspect = True
             else:
                 age = this_year - end_year
-                if age <= recent_years:
+                if age < recent_years:
                     inspect = True
                 elif age > 10:
                     inspect = _stable_u01(f"{series_id}|{shard}|p10") < p10
@@ -916,6 +931,12 @@ def update_flagged_data(
 
     for series_id, staged_shards in staged_map.items():
         repo_shards = repo_map.get(series_id, {})
+
+        if not repo_shards and not allow_new_series:
+            raise ValueError(
+                f"No namesake series found in repo for series_id={series_id!r}. "
+                f"Set allow_new_series=True to initialize new series."
+            )
         for shard, spath in staged_shards.items():
             rpath = repo_shards.get(shard)
             dest = (
