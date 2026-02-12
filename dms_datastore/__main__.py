@@ -23,6 +23,8 @@ from dms_datastore.usgs_multi import usgs_multi_cli
 from dms_datastore.delete_from_filelist import delete_from_filelist_cli
 from dms_datastore.caching import data_cache_cli
 from dms_datastore.merge_files import merge_files_cli
+from dms_datastore.dropbox_data import dropbox_cli
+from dms_datastore.coarsen_file import coarsen_ts_cli
 
 
 @click.group(help="DMS CLI tools for data processing and extraction.")
@@ -57,6 +59,7 @@ cli.add_command(usgs_multi_cli, "usgs_multi")
 cli.add_command(delete_from_filelist_cli, "delete_from_filelist")
 cli.add_command(data_cache_cli, "data_cache")
 cli.add_command(merge_files_cli, "merge_files")
+cli.add_command(coarsen_ts_cli, "coarsen")
 
 if __name__ == "__main__":
     cli()
