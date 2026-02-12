@@ -8,6 +8,8 @@ import re
 import warnings  # temporary?
 import inspect
 from collections import defaultdict
+import os
+import fnmatch
 from vtools.functions.merge import *
 from vtools.data.vtime import days, minutes
 from dms_datastore.filename import extract_year_fname
@@ -180,7 +182,7 @@ def is_dms1_screen(fname):
 
 
 def read_dms1_screen(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     if selector is None:
         selector = "value"
@@ -202,6 +204,8 @@ def read_dms1_screen(
         dateformat=None,
         comment="#",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,
     )
     return ts
 
@@ -218,7 +222,7 @@ def is_dms1(fname):
 
 
 def read_dms1(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     ts = csv_retrieve_ts(
         fpath_pattern,
@@ -237,6 +241,8 @@ def read_dms1(
         dateformat=None,
         comment="#",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,
     )
     return ts
 
@@ -258,7 +264,7 @@ def is_ncro_cnra(fname):
 
 
 def read_ncro_json(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     """Based on Hydstra web service"""
 
@@ -270,6 +276,8 @@ def read_ncro_json(
         force_regular=True,
         nrows=None,
         variant="json",
+        freq=None,
+        **kwargs,
     )
     return ts
 
@@ -282,6 +290,8 @@ def read_ncro_hydstra(
     force_regular=True,
     nrows=None,
     variant="cnra",
+    freq=None,
+    **kwargs,
 ):
     """Based on Hydstra nightly dump to CNRA. If variant="json" comes from streaming web service"""
     if variant == "cnra":
@@ -313,6 +323,8 @@ def read_ncro_hydstra(
         dateformat=None,
         comment="#",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,
     )
     return ts
 
@@ -331,7 +343,7 @@ def is_des_std(fname):
 
 
 def read_des_std(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     # if selector is not None:
     #    raise ValueError(
@@ -355,6 +367,8 @@ def read_des_std(
         extra_na=[""],
         prefer_age="new",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,        
     )
     return ts
 
@@ -375,7 +389,7 @@ def is_des(fname):
 
 
 def read_des(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     # if selector is not None:
     #    raise ValueError(
@@ -400,6 +414,8 @@ def read_des(
         extra_na=[""],
         prefer_age="new",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,        
     )
     return ts
 
@@ -415,7 +431,7 @@ def is_cdec_csv2(fname):
 
 # STATION_ID,DURATION,SENSOR_NUMBER,SENSOR_TYPE,DATE TIME,OBS DATE,VALUE,DATA_FLAG,UNITS
 def read_cdec2(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     # if selector is not None:
     #    raise ValueError(
@@ -440,6 +456,8 @@ def read_cdec2(
         comment=None,
         prefer_age="new",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,        
     )
     return ts
 
@@ -454,7 +472,7 @@ def is_cdec_csv1(fname):
 
 
 def read_cdec1(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     # if selector is not None:
     #    raise ValueError(
@@ -488,6 +506,8 @@ def read_cdec1(
         comment=None,
         prefer_age="new",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,        
     )
     return ts
 
@@ -506,7 +526,7 @@ def is_wdl(fname):
 
 
 def read_wdl(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     # if selector is not None:
     #    raise ValueError(
@@ -531,6 +551,8 @@ def read_wdl(
         dateformat=None,
         comment=None,
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,        
     )
     return ts
 
@@ -543,7 +565,7 @@ def is_wdl2(fname):
 
 
 def read_wdl2(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     # if selector is not None:
     #    raise ValueError(
@@ -569,6 +591,8 @@ def read_wdl2(
         dateformat=None,
         comment=None,
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,        
     )
     return ts
 
@@ -582,7 +606,7 @@ def is_wdl3(fname):
 
 
 def read_wdl3(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     """Handles NCRO nightly dump"""
     # if selector is not None:
@@ -609,7 +633,9 @@ def read_wdl3(
             header=0,
             dateformat=None,
             comment=None,
-            nrows=nrows,
+            nrows=nrows, 
+            freq=freq if freq not in (None, "None") else "infer",
+            **kwargs,            
         )
     except pd.errors.ParserError as e:
         if "Too many columns" in str(e):
@@ -632,6 +658,8 @@ def read_wdl3(
                 dateformat=None,
                 comment=None,
                 nrows=nrows,
+                freq=freq if freq not in (None, "None") else "infer",
+                **kwargs,                
             )
 
     return ts
@@ -654,7 +682,7 @@ def usgs_data_columns_json1(fname):
 
 
 def read_usgs_json1(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     if selector is None:
         selector = usgs_data_columns_json1
@@ -800,7 +828,7 @@ def usgs_data_columns1(fname):
 
 
 def read_usgs1(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     TZCOL = "tz_cd"
     if selector is None:
@@ -862,6 +890,8 @@ def read_usgs1(
         comment="#",
         dtypes=dtypes,
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,        
     )
     f_orig = ts.index.freq
     # todo: hardwired from PST (though the intent is easily generalized)
@@ -914,7 +944,7 @@ def is_usgs1_daily(fname):
 
 
 def read_usgs1_daily(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     if selector is None:
         selector = usgs_data_columns1
@@ -954,6 +984,8 @@ def read_usgs1_daily(
         dateformat=None,
         comment="#",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,        
     )
 
     return ts
@@ -981,7 +1013,7 @@ def is_usgs2(fname):
 
 
 def read_usgs2(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     tzcol = "TZCD"
     if selector is None:
@@ -1011,6 +1043,8 @@ def read_usgs2(
         comment="#",
         dtypes=dtypes,
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,        
     )
     # todo: hardwired from PST (though the intent is easily generalized)
     # note there is some bugginess to this. See SO post:
@@ -1053,7 +1087,7 @@ def is_usgs_csv1(fname):
 
 
 def read_usgs_csv1(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     if selector is None:
         selector = "Value"
@@ -1092,6 +1126,8 @@ def read_usgs_csv1(
                 comment="#",
                 dtypes={"Value": float, "Approval Level": str, "Qualifiers": str},
                 nrows=nrows,
+                freq=freq if freq not in (None, "None") else "infer",
+                **kwargs,
             )
             return ts
         except IndexError as e:
@@ -1158,7 +1194,7 @@ def noaa_qaqc_selector(selector, fname):
 
 
 def read_noaa(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None
+    fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     ts = csv_retrieve_ts(
         fpath_pattern,
@@ -1175,14 +1211,18 @@ def read_noaa(
         sep=",",
         comment="#",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
+        **kwargs,
     )
     return ts
 
 
 # This reader must be last
 def read_last_resort_csv(
-    fpath_pattern, start=None, end=None, selector=None, force_regular=False, nrows=None,**kwargs
+    fpath_pattern, start=None, end=None, selector=None, force_regular=False, nrows=None,freq=None,**kwargs
 ):
+    # If caller provides column names for a raw/headerless CSV, default header=None
+    # unless the caller explicitly set header.
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -1193,10 +1233,11 @@ def read_last_resort_csv(
         qaqc_selector=None,
         parsedates=[0],
         indexcol=0,
-        header=0,
+        header=kwargs.pop("header", 0),
         sep=",",
         comment="#",
         nrows=nrows,
+        freq=freq if freq not in (None, "None") else "infer",
         **kwargs,
     )
     return ts
@@ -1207,7 +1248,7 @@ def vtide_date_parser(*args):
     return dtm.datetime.strptime(x, "%Y%m%dT%H%M")
 
 
-def read_vtide(fpath_pattern, start=None, end=None, selector=None, force_regular=False):
+def read_vtide(fpath_pattern, start=None, end=None, selector=None, force_regular=False, freq=None, **kwargs):
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -1234,6 +1275,7 @@ def read_ts(
     nrows=None,
     selector=None,
     hint=None,
+    freq=None,
     **kwargs,
 ):
     """Read a time series from a text file in various formats.
@@ -1295,35 +1337,26 @@ def read_ts(
             if hint not in reader.__name__:
                 continue
         try:
-            freq_in_kwargs = False
-            sig = inspect.signature(reader)
-            for param in sig.parameters.values():
-                if param.kind == inspect.Parameter.VAR_KEYWORD:
-                    if "freq" in kwargs:
-                        freq_in_kwargs = True
-                        freq = kwargs.get("freq")
+            # Avoid "multiple values for keyword argument 'freq'"
+            if "freq" in kwargs:
+                if freq is None:
+                    freq = kwargs.pop("freq")
+                else:
+                    kwargs.pop("freq")
 
-            if freq_in_kwargs == True:
-                if freq == "None" or freq == None:
-                    force_regular = False
-                ts = reader(
-                    fpath,
-                    start,
-                    end,
-                    selector,
-                    force_regular=force_regular,
-                    nrows=nrows,
-                    freq=freq,
-                )
-            else:
-                ts = reader(
-                    fpath,
-                    start,
-                    end,
-                    selector,
-                    force_regular=force_regular,
-                    nrows=nrows,
-                )
+            if freq in (None, "None"):
+                force_regular = False
+
+            ts = reader(
+                fpath,
+                start,
+                end,
+                selector,
+                force_regular=force_regular,
+                nrows=nrows,
+                freq=freq,
+                **kwargs,
+            )
             return ts
         except IOError as e:
             if str(e).startswith("No match"):
@@ -1473,9 +1506,16 @@ def csv_retrieve_ts(
     nrows=None,
     **kwargs,
 ):
-    import os
-    import fnmatch
-    import glob
+    # Allow caller to provide additional NA tokens via kwargs (e.g. "(null)").
+    # We cannot pass na_values directly to pd.read_csv because this function
+    # already supplies na_values=extra_na. Instead, merge them here.
+    user_na = kwargs.pop("na_values", None)
+    if user_na is not None:
+        if isinstance(user_na, str):
+            user_na = [user_na]
+        else:
+            user_na = list(user_na)
+        extra_na = list(extra_na) + user_na
 
     fdir, fpat = path_pattern(fpath_pattern)
 
@@ -1634,7 +1674,10 @@ def csv_retrieve_ts(
             tsm.append(dset)
         else:
             tsm.append(dset[selector])
-    big_ts = ts_merge(tsm)  # pd.concat(tsm)
+    if len(tsm) >= 2:
+        big_ts = ts_splice(tsm, transition="prefer_last",names=tsm[0].columns if selector is not None else tsm[0].columns) 
+    else:
+        big_ts = tsm[0]
     if force_regular:
         if freq == "infer":
             f = infer_freq_robust(big_ts.index)
