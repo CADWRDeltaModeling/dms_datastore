@@ -1338,15 +1338,14 @@ def read_ts(
                 continue
         try:
             # Avoid "multiple values for keyword argument 'freq'"
-            if "freq" in kwargs:
-                if freq is None:
-                    freq = kwargs.pop("freq")
-                else:
-                    kwargs.pop("freq")
-
-            if freq in (None, "None"):
-                force_regular = False
-
+            if "freq" in kwargs and freq is not None:
+                raise ValueError("freq must be None if passed in kwargs to avoid conflict")
+            if force_regular: 
+                if  freq in (None, "None"): freq = "infer"
+            else:                
+                if freq not in ["None", None]:
+                    raise ValueError("freq must be None or 'None' if force_regular is False")
+                freq = None # convert from text
             ts = reader(
                 fpath,
                 start,
@@ -1519,8 +1518,8 @@ def csv_retrieve_ts(
 
     fdir, fpat = path_pattern(fpath_pattern)
 
-    if not fdir:
-        fdir = "."
+    #if not fdir:
+    #    fdir = "."
     matches = []
     # for root, dirnames, filenames in os.walk(fdir):
     #    for filename in fnmatch.filter(filenames, fpat):
