@@ -11,7 +11,7 @@ from collections import defaultdict
 import os
 import fnmatch
 from vtools.functions.merge import *
-from vtools.data.vtime import days, minutes
+from vtools.data.vtime import days, minutes, hours, months, seconds, years, to_timedelta
 from dms_datastore.filename import extract_year_fname
 
 __all__ = [
@@ -1341,7 +1341,7 @@ def read_ts(
             if "freq" in kwargs and freq is not None:
                 raise ValueError("freq must be None if passed in kwargs to avoid conflict")
             if force_regular: 
-                if  freq in (None, "None"): freq = "infer"
+                if  freq in (None, "None","none"): freq = "infer"
             else:                
                 if freq not in ["None", None]:
                     raise ValueError("freq must be None or 'None' if force_regular is False")
@@ -1433,7 +1433,6 @@ def infer_freq_robust(
     index, preferred=["h", "15min", "6min", "10min", "h", "d"], **kwargs
 ):
     index = index.round("1min")
-
     if len(index) < 8:
         # not enough to quibble, use the 8 points
         f = pd.infer_freq(index)
@@ -1452,8 +1451,9 @@ def infer_freq_robust(
             f = pd.infer_freq(index[0:7])
         if f is None:
             for p in preferred:
-                freq = pd.tseries.frequencies.to_offset(p)
+                freq = to_timedelta(p)
                 tester = index.round(p)
+
                 diff = (index - tester) < (freq / 5)
                 frac = diff.mean()
                 if frac > 0.98:

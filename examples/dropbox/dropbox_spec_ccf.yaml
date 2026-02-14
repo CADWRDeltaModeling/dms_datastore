@@ -9,7 +9,7 @@ data:
   - name: ccfb
     skip: False
     collect:
-      file_pattern: "CC_Gate_Positions*2024*.csv"
+      file_pattern: "CC_Gate_Positions*.csv"
       wildcard: time_overlap    # time_sharded | time_overlap | data | none. 
             # If time_sharded, indicates non-overlapping timestamps that uses year chunking. 
             # If time_overlap, indicates wildcards are ordered by date 20250531(lexicographic must = chronological)
@@ -27,7 +27,7 @@ data:
          transition: prefer_first
       selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
     transforms:
-      - name: dst_tz      # SCADA is delivered local time. Often this is not needed from better data sources
+      - name: dst_st      # SCADA is delivered local time. Often this is not needed from better data sources
         args:
           src_tz: US/Pacific
           target_tz: ${target_tz}
@@ -55,10 +55,10 @@ data:
     output:
       staging_dir: ./drop_staging/formatted
       write_args:
-        float_format: "%0.3f"   # optional, fallback = 0.6f
+        float_format: "%0.3f"
         chunk_years: False
       repo_dir: ./fake_repo/formatted
-      merge_priority: staged
+      merge_priority: staged      # reconcile
       allow_new_series: true
       inspection:
         recent_years: 3
