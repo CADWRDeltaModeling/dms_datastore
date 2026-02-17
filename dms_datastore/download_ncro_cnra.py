@@ -47,15 +47,10 @@ def download_ncro_inventory(dest, cache=True):
         logger.info(f"Downloading inventory for NCRO attempt #{attempt}")
         try:
             response = session.get(
-                url, verify=False, stream=True, headers={"User-Agent": "Mozilla/6.0"}
+                url, verify=False, headers={"User-Agent": "Mozilla/6.0"}
             )
             response.raise_for_status()
-            for chunk in response.iter_lines(chunk_size=1024):  # Iterate over lines
-                if chunk:  # Filter out keep-alive new chunks
-                    inventory_html += chunk.decode("utf-8") + "\n"
-
-            # response.encoding = 'UTF-8'
-            # inventory_html = response.content.decode('utf-8')
+            inventory_html = response.text
             fio = io.StringIO(inventory_html)
 
             idf = pd.read_csv(

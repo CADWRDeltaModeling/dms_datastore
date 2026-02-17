@@ -239,23 +239,20 @@ def download_station(
         else:
             station_query = station_query_base
     logger.info(f"USGS Query for ({station},{paramname}): {station_query}")
-    max_attempt = 10
+    max_attempt = 3
     session = requests.Session()
     station_html = ""
     found = False
     for attempt in range(1, (max_attempt + 1)):
-        logger.debug(f"attempt: {attempt} variable {int(param):05}")
+        logger.debug(f"attempt: {attempt} variable {int(param):05}, {station}, {agency_id}")
         try:
             response = session.get(
                 station_query,
-                stream=True,
                 headers={"User-Agent": "Mozilla/6.0"},
-                timeout=15,
+                timeout=75,
             )
             response.raise_for_status()
-            for chunk in response.iter_lines(chunk_size=4096):  # Iterate over lines
-                if chunk:  # Filter out keep-alive new chunks
-                    station_html += chunk.decode() + "\n"
+            station_html = response.text
             logger.debug("Request successful, got text")
             break
         except Exception as e:
