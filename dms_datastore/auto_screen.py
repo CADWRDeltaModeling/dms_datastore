@@ -9,6 +9,7 @@ import yaml
 import copy
 import pandas as pd
 import matplotlib.pyplot as plt
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
 from dms_datastore.read_ts import *
 from vtools.functions.error_detect import *
 from vtools.data.timeseries import to_dataframe
@@ -133,7 +134,7 @@ def plot_anomalies(
                 raise ValueError("Time series could not be plotted")
     ax0.legend()
     if plot_label is None:
-        plot_label = f"Station: {station_id} Subloc: {subloc} Param {param}"
+        plot_label = f"Station: ??? Subloc: ??? Param ???"
     ax0.set_title(plot_label)
     ts_masked = ts.mask(mask).interpolate(limit=gap_fill_final)
     ax1.plot(ts_masked.index, ts_masked.value)
