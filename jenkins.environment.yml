@@ -16,14 +16,17 @@ dependencies:
   - lxml # for pandas html parsing
   - paramiko # for sftp cimis requests
   - numpy
-  - pandas>=2
+  - pandas>=2,<3
   - cfgrib
+  - pyarrow
   - xarray
   - vtools3
   - pyyaml
   - gdal
   - pytz # a new hrrr dependency ?
   - pyshp # a new schimpy dependency ?
+  - libgdal
+  - rasterstats
   - schimpy # remove this!
   - eccodes
   - bokeh
