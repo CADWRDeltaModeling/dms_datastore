@@ -45,7 +45,9 @@ def screener(
     plot_dest=None,  # directory or 'interactive' or None for no plots
 ):
     """Performs yaml-specified screening protocol on time series"""
-    logger.info(f"screening: station_id: {station_id}, subloc: {subloc}, param: {param}")
+    logger.info(
+        f"screening: station_id: {station_id}, subloc: {subloc}, param: {param}"
+    )
     # name = protocol['name']
     steps = protocol["steps"]
     full = None
@@ -54,7 +56,7 @@ def screener(
     for step in steps:
         method_name = step["method"]
         label = step["label"] if "label" in step else method_name
-        logger.debug("Performing step:", label)
+        logger.debug(f"Performing step: {label}")
         method = globals()[method_name]
 
         args = step["args"]
@@ -241,7 +243,7 @@ def auto_screen(
             # logger.debug(f"fetching {fpath},{station_id},{param}")
             meta_ts = fetcher(fpath, station_id, param, subloc=subloc)
         except:
-            logger.warning("Read failed for ", fpath, station_id, param, subloc)
+            logger.warning(f"Read failed for {fpath}, {station_id}, {param}, {subloc}")
             meta_ts = None
 
         if meta_ts is None:
@@ -305,7 +307,7 @@ def update_steps(proto, x):
             newsteps.append(step)
         if len(omissions) > 0:
             logger.debug(
-                "Omissions listed but not found in inherited specification: ", omissions
+                f"Omissions listed but not found in inherited specification: {omissions}"
             )
         finalsteps = []
         for step in newsteps:
@@ -355,13 +357,13 @@ def context_config(screen_config, station_id, subloc, param):
     station_info = station_dbase()
 
     region_file = screen_config["regions"]["region_file"]
-    logger.debug("Region file: ", region_file)
+    logger.debug(f"Region file: {region_file}")
 
     if not (os.path.exists(region_file)):
         region_file = os.path.join(screen_config["config_dir"], region_file)
 
     # Search for applicable region
-    logger.debug("station_id: ", station_id, " subloc: ", subloc, " param: ", param)
+    logger.debug(f"station_id: {station_id}, subloc: {subloc}, param: {param}")
     x = station_info.loc[station_id, "x"]
     y = station_info.loc[station_id, "y"]
     region = spatial_config(region_file, x, y)
@@ -385,9 +387,9 @@ def context_config(screen_config, station_id, subloc, param):
         region_config = config["regions"][region_name]
         if param in region_config["params"]:
             update_region = region_config["params"][param]
-            logger.debug("region var\n", proto, "\n", update_region)
+            logger.debug(f"region var\n{proto}\n{update_region}")
             proto = update_steps(proto, update_region)
-            logger.debug("region var 2\n", proto, "\nafter\n", update_region)
+            logger.debug(f"region var 2\n{proto}\nafter\n{update_region}")
 
     # first priority: match station and variable
     station_config = None
@@ -396,9 +398,9 @@ def context_config(screen_config, station_id, subloc, param):
         station_config = config["stations"][station_id]
         if param in station_config["params"]:
             update_station = station_config["params"][param]
-            logger.debug("station var\n", proto, "\nthen\n", update_station)
+            logger.debug(f"station var\n{proto}\nthen\n{update_station}")
             proto = update_steps(proto, update_station)
-            logger.debug("station var 2\n", proto, "\nafter\n", update_station)
+            logger.debug(f"station var 2\n{proto}\nafter\n{update_station}")
 
     return proto
 
