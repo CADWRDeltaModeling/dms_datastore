@@ -597,11 +597,9 @@ def ncro_only(dest):
 
 def populate_main(dest, agencies=None, varlist=None, partial_update=False):
 
-
     do_purge = False
     if not os.path.exists(dest):
-        os.mkdir(dest)
-        logger.info(f"Directory {dest} created")
+        raise ValueError(f"Destination directory {os.path.abspath(dest)} does not exist. Please create it before running populate.")
     else:
         if do_purge:
             purge(dest)
@@ -649,8 +647,7 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
 def populate_debug_ncro_rename(dest, agencies=None, varlist=None):
     do_purge = False
     if not os.path.exists(dest):
-        os.mkdir(dest)
-        logger.info(f"Directory {dest} created")
+        raise ValueError(f"Destination directory {os.path.abspath(dest)} does not exist. Please create it before running populate.")
     else:
         if do_purge:
             purge(dest)

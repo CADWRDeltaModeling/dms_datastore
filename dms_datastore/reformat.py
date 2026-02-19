@@ -509,6 +509,8 @@ def reformat(inpath, outpath, pattern):
 def reformat_main(
     inpath="raw", outpath="formatted", agencies=["usgs", "des", "cdec", "noaa", "ncro"]
 ):
+    if not os.path.exists(outpath):
+        raise ValueError(f"Destination directory {os.path.abspath(outpath)} does not exist. Please create it before running reformat.")
     if not isinstance(agencies, list):
         agencies = [agencies]
     all_agencies = agencies
