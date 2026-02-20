@@ -16,7 +16,7 @@ dependencies:
   - lxml # for pandas html parsing
   - paramiko # for sftp cimis requests
   - numpy
-  - pandas>=2,<3
+  - pandas>=2
   - cfgrib
   - pyarrow
   - xarray
