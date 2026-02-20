@@ -297,4 +297,4 @@ rrcs,rrcs,Railroad Cut South,37.9395028,-121.5564612,626846.1491,4200085.169,,,,
 x2,x2,Daily X2 Calculation,37.83330,-122.41670,626846.1491,4200085.169,,cx2,,dayflow,,x,,Calculated X2
 ndoi,ndoi,Net Delta Outflow Index,37.83330,-122.41670,626846.1491,4200085.169,,cx2,,dayflow,,x,,
 odtw,B9537700,Old River Downstream of Tracy Wildlife,37.798111,-121.468861,634801.65,4184519.2,,B9537700,,dwr_ncro,,,x,Post-MSS moved from OAAD
-god2,11455740,Suisun Slough Near Benicia,-122.0813861,38.12379722,580516.9,4219949.17,,,,usgs,,,,DWR measures WQ at GOD
+god2,11455740,Suisun Slough Near Benicia,38.12379722,-122.0813861,580516.9,4219949.17,,,,usgs,,,,DWR measures WQ at GOD
