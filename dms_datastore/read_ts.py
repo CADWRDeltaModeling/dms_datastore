@@ -1526,7 +1526,6 @@ def csv_retrieve_ts(
     #        matches.append(os.path.join(root, filename))
     matches = glob.glob(fpath_pattern)
     matches.sort()
-
     if len(matches) == 0:
         raise IOError("No matches found for pattern: {}".format(fpat))
 
@@ -1673,8 +1672,9 @@ def csv_retrieve_ts(
             tsm.append(dset)
         else:
             tsm.append(dset[selector])
+
     if len(tsm) >= 2:
-        big_ts = ts_splice(tsm, transition="prefer_last",names=tsm[0].columns if selector is not None else tsm[0].columns) 
+        big_ts = ts_merge(tsm, strict_priority=True,names=tsm[0].columns if selector is not None else tsm[0].columns) 
     else:
         big_ts = tsm[0]
     if force_regular:
