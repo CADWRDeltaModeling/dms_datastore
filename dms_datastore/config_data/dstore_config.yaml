@@ -9,6 +9,9 @@ sublocations: station_subloc.csv
 file_deletion_list: non_15_min_files_checked.txt
 compare_excepts_formatted: compare_excepts_formatted.txt
 
+des_time_partition: des_rationalize_cfg.yaml
+
+
 repo: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
 screened: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
 processed: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed"

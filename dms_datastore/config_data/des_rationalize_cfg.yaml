@@ -1,0 +1,71 @@
+# YAML-driven time-partition rationalization for instrument files.
+#
+# Goal:
+#   For selected pools of files (matched by a glob pattern), enforce a canonical
+#   non-overlapping partition of time by slicing specific "include" files into
+#   left-closed/right-open windows [start_k, start_{k+1}) and deleting "omit" files.
+#
+# Notes:
+#   - All matching is done by exact basename equality within the pool.
+#   - Time windows are left-closed/right-open to avoid duplicates at boundaries.
+#   - This mode is intended to run *before* general "superset deletes subset" logic.
+
+rationalize:
+  - pattern: "des_mrz@upper*_ec_*.csv"
+    # pattern defines the pool: all files matched by this glob form one candidate set.
+    # If this pattern matches, the rule applies; if it matches nothing, that's an error.
+
+    include:
+      # include is ordered and defines the canonical partitioning plan.
+      #
+      # Each entry has:
+      #   fname: exact basename of a file in the pool (may include ${LAST})
+      #   start: ISO date (YYYY-MM-DD) or ${START}
+      #
+      # start values must be strictly increasing once resolved.
+
+      - fname: "des_mrz@upper_40_ec_1983_1999.csv"
+        start: "${START}"
+        # ${START} means "from the beginning of this file" (no lower time bound).
+        # Window becomes: [-inf, next_start)
+
+      - fname: "des_mrz@upper_40_ec_2000_2007.csv"
+        start: "2000-01-01"
+        # Window becomes: [2000-01-01, next_start)
+
+      - fname: "des_mrz@upper_40_ec_2004_2019.csv"
+        start: "2004-09-21"
+        # Example of intentionally re-partitioning an overlapping file:
+        # you keep only from 2006 onward, and exclude the boundary at next_start.
+
+      - fname: "des_mrz@upper_40_ec_2007_2009.csv"
+        start: "2007-10-01"
+        # Example of intentionally re-partitioning an overlapping file:
+        # you keep only from 2006 onward, and exclude the boundary at next_start.
+
+
+      - fname: "des_mrz@upper_40_ec_2004_2019.csv"
+        start: "2008-08-20"
+        # Example of a repeated file 
+
+
+      - fname: "des_mrz@upper_40_ec_2020_${LAST}.csv"
+        start: "2020-01-01"
+        # ${LAST} is resolved from the pool's max eyear (parsed from filenames),
+        # substituted into fname, and must then match exactly one pool file.
+        # Last window becomes: [2020-01-01, +inf)
+
+    omit:
+      # omit is optional but, if present, acts as a completeness assertion:
+      # include + omit must cover the entire pool (disjoint union).
+      #
+      # omit items are either explicit basenames or special tokens.
+
+      #- "des_mrz@upper_40_ec_2007_2009.csv"
+      #- "${SUPERSEDED}"
+      # ${SUPERSEDED} expands to all pool files that are strict subsets (by year span)
+      # of another pool file using the existing inclusive-year superset rule:
+      #   B supersedes A if B.syear <= A.syear and B.eyear >= A.eyear
+      #
+      # IMPORTANT: If any file would end up in both include and omit after expansion,
+      # that is an error. Be explicit instead.

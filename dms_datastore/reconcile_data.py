@@ -47,8 +47,8 @@ from vtools import ts_merge
 from dms_datastore.inventory import to_wildcard
 from dms_datastore.read_ts import original_header
 from dms_datastore import dstore_config
-
-
+import logging
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "ReconcileAction",
@@ -306,7 +306,26 @@ def _read_csv_timeseries(path: str) -> pd.DataFrame:
     if not isinstance(df.index, pd.DatetimeIndex):
         raise ValueError(f"Expected datetime index in {path}")
     if df.index.has_duplicates:
-        raise ValueError(f"Duplicate timestamps in {path}")
+
+        # Provide actionable detail while remaining fail-fast.
+        # Report up to N duplicate timestamp values with their multiplicities.
+        N = 25
+        vc = df.index.value_counts()
+        dups = vc[vc > 1].sort_index()
+
+        # Build a compact message; avoid dumping huge lists.
+        total_dup_rows = int((dups - 1).sum())  # extra rows beyond the first per timestamp
+        n_dup_keys = int(dups.shape[0])
+
+        preview = dups.iloc[:N]
+        preview_txt = ", ".join([f"{ts.isoformat()}×{int(cnt)}" for ts, cnt in preview.items()])
+        more = "" if n_dup_keys <= N else f" (+{n_dup_keys - N} more)"
+
+        raise ValueError(
+            "Duplicate timestamps in "
+            f"{path}: {n_dup_keys} duplicated timestamps, {total_dup_rows} extra rows. "
+            f"Examples: {preview_txt}{more}"
+        )
     return df
 
 
@@ -750,6 +769,9 @@ def update_repo(
     repo_map = _index_by_series_and_shard(repo_files, remove_source=remove_source)
 
     actions: List[ReconcileAction] = []
+    # Simple run-level counters (for logging / traceability)
+    n_candidates = 0  # number of staged shard files encountered
+    n_inspected = 0  # number of staged shard files inspected (after sampling)
 
     for series_id, staged_shards in staged_map.items():
         repo_shards = repo_map.get(series_id, {})
@@ -763,6 +785,7 @@ def update_repo(
         # Determine which shards to inspect for "change detection" outside recent window
         changed_old = False
         for shard, spath in staged_shards.items():
+            n_candidates += 1
             rpath = repo_shards.get(shard)
             if rpath is None:
                 # New shard/file
@@ -793,6 +816,7 @@ def update_repo(
 
             if not inspect:
                 continue
+            n_inspected += 1
 
             # Fast compare: data-section hash
             if _hash_data_section(spath) == _hash_data_section(rpath):
@@ -806,15 +830,44 @@ def update_repo(
                     f"Column mismatch for {series_id} shard {shard}: "
                     f"repo={list(rdf.columns)} staged={list(sdf.columns)}"
                 )
-            # Compare intersection window if indices differ (common for growing series)
+            # If one side has timestamps the other lacks, that is a meaningful change.
+            # (Typical case: staged has appended new data beyond repo.)
             common_idx = sdf.index.intersection(rdf.index)
+            has_new_timestamps = (len(common_idx) != len(sdf.index)) or (len(common_idx) != len(rdf.index))
+
             if len(common_idx) == 0:
                 different = True
+            elif has_new_timestamps:
+                different = True
             else:
+                # Same timestamps: compare values (possibly with tolerance)
                 different = not _values_equal(
                     sdf.loc[common_idx], rdf.loc[common_idx], atol=atol, rtol=rtol
                 )
             if different:
+                # More informative reason strings for plans/logs.
+                reason = "data_changed"
+                if len(common_idx) == 0:
+                    reason = "empty_overlap"
+                else:
+                    extra_in_staged = sdf.index.difference(rdf.index)
+                    extra_in_repo = rdf.index.difference(sdf.index)
+                    if len(extra_in_staged) > 0 or len(extra_in_repo) > 0:
+                        # classify pure append/prepend when overlap matches
+                        if len(extra_in_repo) == 0:
+                            # staged has additional timestamps only
+                            if extra_in_staged.min() > rdf.index.max():
+                                reason = "append_only"
+                            elif extra_in_staged.max() < rdf.index.min():
+                                reason = "prepend_only"
+                            else:
+                                reason = "index_mismatch"
+                        else:
+                            reason = "index_mismatch"
+                    else:
+                        # same timestamps; only value diffs can trigger 'different'
+                        reason = "overlap_values_changed"
+
                 if end_year is not None and (this_year - end_year) > recent_years:
                     changed_old = True
                 # Mark shard for update; actual writing happens below
@@ -823,36 +876,40 @@ def update_repo(
                         series_id=series_id,
                         shard=shard,
                         action="splice_write",
-                        reason="data_changed",
+                        reason=reason,
                         staged_path=spath,
                         repo_path=rpath,
                     )
                 )
 
-        # If old history changed, escalate to reconciling the recent window (and itself).
+        # If old history changed, escalate to reconciling the entire series.
         if changed_old:
-            # Ensure all shards in recent window are reconciled.
+            # Ensure all shards are reconciled.
             for shard, spath in staged_shards.items():
-                _, end_year = _parse_shard(os.path.basename(spath))
-                if end_year is None or (this_year - end_year) <= recent_years:
-                    if shard not in {
-                        a.shard for a in actions if a.series_id == series_id
-                    }:
-                        actions.append(
-                            ReconcileAction(
-                                series_id=series_id,
-                                shard=shard,
-                                action="splice_write",
-                                reason="escalated_due_to_old_change",
-                                staged_path=spath,
-                                repo_path=repo_shards.get(shard),
-                            )
+                if shard not in {a.shard for a in actions if a.series_id == series_id}:
+                    actions.append(
+                        ReconcileAction(
+                            series_id=series_id,
+                            shard=shard,
+                            action="splice_write",
+                            reason="escalated_due_to_old_change",
+                            staged_path=spath,
+                            repo_path=repo_shards.get(shard),
                         )
+                    )
 
     if plan:
+        n_updates = len({(a.series_id, a.shard) for a in actions})
+        logger.info(
+            "update_repo plan: %d updates planned out of %d staged shard files (%d inspected)",
+            n_updates,
+            n_candidates,
+            n_inspected,
+        )        
         return actions
 
     # Execute actions
+    n_updates = len({(a.series_id, a.shard) for a in actions})
     for a in actions:
         if a.action == "write":
             # Preserve existing repo header if present; otherwise preserve staged header.
@@ -887,6 +944,12 @@ def update_repo(
         else:
             raise ValueError(f"Unknown action {a.action}")
 
+    logger.info(
+        "update_repo apply: %d updates executed out of %d staged shard files (%d inspected)",
+        n_updates,
+        n_candidates,
+        n_inspected,
+    )
     return actions
 
 

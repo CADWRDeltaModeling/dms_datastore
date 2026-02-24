@@ -1306,7 +1306,10 @@ def read_ts(
     Dataframe representing the series. If you want to squeeze univariate, need to do this on return
 
     """
+    
+    
     from os.path import split as op_split
+    fpath = str(fpath)
 
     readers = [
         read_usgs_json1,  # must precede dms
