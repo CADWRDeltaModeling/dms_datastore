@@ -106,7 +106,7 @@ def load_inventory():
             inventoryfile, header=0, sep=",", parse_dates=["start_time", "end_time"]
         )
         return ncro_inventory
-
+    logger.debug("NCRO Inventory: Starting to download inventory from NCRO")
     url = "https://wdlhyd.water.ca.gov/hydstra/sites"
 
     dbase = dstore_config.station_dbase()
@@ -122,7 +122,7 @@ def load_inventory():
     data = json.load(fio)
     sites = data["return"]["sites"]
     sites_df = pd.DataFrame(sites)  # database of all NCRO sites
-
+    logger.debug(f"NCRO Inventory: Retrieved list of {len(sites_df)} sites from NCRO")
     dfs = []
     for id, row in dbase.iterrows():
         agency_id = row.agency_id
@@ -145,7 +145,7 @@ def load_inventory():
         for site in data2["return"]["sites"]:
             if site is None or not "site" in site:
                 json.dump(f"examplebad_{origname}.json", data2)
-                logger.info("Bad file for {origname}")
+                logger.info(f"Bad file for {origname}")
                 continue
             else:
                 site_name = site["site"]
@@ -162,7 +162,7 @@ def load_inventory():
         df2["start_time"] = pd.to_datetime(df2.start_time)
         df2["end_time"] = pd.to_datetime(df2.end_time)
         dfs.append(df2)
-
+    logger.debug(f"NCRO Inventory: Finished downloading inventory from NCRO, found {len(dfs)} matching stations")
     df_full = pd.concat(dfs, axis=0)
     df_full = df_full.reset_index(drop=True)
     df_full.index.name = "index"
@@ -491,7 +491,12 @@ def test_read():
     print(ts)
 
 
-@click.command()
+@click.command(
+    help=(
+        "Download NCRO timeseries data for selected stations/parameters. "
+        "Use --inventory-only to refresh inventory metadata without downloading timeseries files."
+    )
+)
 @click.option(
     "--dest",
     "dest_dir",
@@ -505,6 +510,11 @@ def test_read():
 @click.option("--logdir", type=click.Path(path_type=Path), default=None)
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
+@click.option(
+    "--inventory-only",
+    is_flag=True,
+    help="Download/refresh NCRO inventory metadata only, then exit without downloading timeseries data.",
+)
 @click.help_option("-h", "--help")
 @click.argument("stationfile", nargs=-1)
 @click.option(
@@ -512,7 +522,19 @@ def test_read():
     is_flag=True,
     help="Overwrite existing files (if False they will be skipped, presumably for speed)",
 )
-def download_ncro_cli(dest_dir, stationfile, overwrite, start, end, param, stations, logdir=None, debug=False, quiet=False):
+def download_ncro_cli(
+    dest_dir,
+    stationfile,
+    overwrite,
+    start,
+    end,
+    param,
+    stations,
+    logdir=None,
+    debug=False,
+    quiet=False,
+    inventory_only=False,
+):
 
     level, console = resolve_loglevel(
         debug=debug,
@@ -528,6 +550,11 @@ def download_ncro_cli(dest_dir, stationfile, overwrite, start, end, param, stati
           logfile_prefix="download_ncro"
     )
     logger.debug("Starting NCRO download")
+    if inventory_only:
+        inventory = load_inventory()
+        logger.info(f"NCRO inventory download complete. Records: {len(inventory)}")
+        return
+
     if start is None:
         stime = pd.Timestamp(2024, 1, 1)
     else:
