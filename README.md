@@ -15,6 +15,7 @@ Delta Modeling Section Datastore provides tools for downloading and managing con
 - [Accessing Datastore Data](#accessing-datastore-data)
 - [Challenges and Exceptions](#challenges-and-exceptions)
 - [Installation](#installation)
+- [CLI Commands](#cli-commands)
 
 ## Overview
 
@@ -355,4 +356,41 @@ git clone https://github.com/CADWRDeltaModeling/dms_datastore
 conda env create -f environment.yml # should create a dms_datastore and pip install the package
 # alternatively, pip install -e . after running the above command if you want to develop the package
 conda activate dms_datastore
+```
+
+## CLI Commands
+
+The complete command reference (all commands, help invocations, and workflow examples) is in [README-commands.md](README-commands.md).
+
+Use that document when you need full option coverage for each CLI.
+
+### CLI Cheat Sheet
+
+Replace placeholder paths like `<raw_dir>`, `<staging_dir>`, and `<repo_dir>` with paths for your environment.
+
+```bash
+# 1) Full command list
+dms --help
+
+# 2) Typical repository-build pipeline
+populate_repo --dest <raw_dir>
+reformat --inpath <raw_dir> --outpath <formatted_dir>
+usgs_multi --fpath <formatted_dir>
+inventory --repo <formatted_dir>
+auto_screen --fpath <formatted_dir> --dest <screened_dir>
+
+# 3) NCRO inventory-only refresh
+download_ncro --inventory-only
+
+# 4) Compare staging vs repo
+compare_directories --base <repo_raw_dir> --compare <staging_raw_dir> --outfile compare_raw.txt
+
+# 5) Plan/apply repo updates
+update_repo <staging_formatted_dir> <repo_formatted_dir> --plan --out-actions update_plan.csv
+update_repo <staging_formatted_dir> <repo_formatted_dir> --apply
+update_flagged_data <staging_screened_dir> <repo_screened_dir> --plan --out-actions flagged_plan.csv
+update_flagged_data <staging_screened_dir> <repo_screened_dir> --apply
+
+# 6) Dropbox workflow
+dropbox --input dms_datastore/config_data/dropbox_spec.yaml
 ```
