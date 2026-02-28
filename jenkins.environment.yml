@@ -41,6 +41,7 @@ dependencies:
   - pyparsing
   - kiwisolver
   - diskcache
+  - httpx
   - dms-datastore
   - pip:
     - tabula-py>=2.9.0  # installed via pip to avoid conda channel conflicts (conda-forge is outdated)

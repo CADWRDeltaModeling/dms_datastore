@@ -37,6 +37,7 @@ dependencies:
   - pyparsing
   - kiwisolver
   - diskcache
+  - httpx
   - pytest
   - pytest-runner
 #- pip:
