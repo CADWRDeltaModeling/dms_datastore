@@ -33,6 +33,7 @@ dependencies = [
     "beautifulsoup4",
     "tqdm",
     "requests",
+    "httpx",
     "boto3",
     "lxml",
     "openpyxl",

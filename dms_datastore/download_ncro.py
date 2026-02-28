@@ -1,7 +1,8 @@
 #!/usr/bin/env python
+import asyncio
 import click
 import ssl
-import requests
+import httpx
 import pandas as pd
 import re
 import zipfile
@@ -10,12 +11,8 @@ import io
 import string
 import datetime as dt
 import numpy as np
-import concurrent
-import concurrent.futures
 import time
 import json
-import concurrent
-import concurrent.futures
 from dms_datastore import read_ts
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.process_station_variable import (
@@ -112,14 +109,10 @@ def load_inventory():
     dbase = dstore_config.station_dbase()
     dbase = dbase.loc[dbase["agency"].str.contains("ncro"), :]
 
-    session = requests.Session()
-    response = session.get(
-        url
-    )  # ,verify=False, stream=False,headers={'User-Agent': 'Mozilla/6.0'})
-    response.encoding = "UTF-8"
-    inventory_html = response.content.decode("utf-8")
-    fio = io.StringIO(inventory_html)
-    data = json.load(fio)
+    with httpx.Client(timeout=60.0) as client:
+        response = client.get(url)
+        response.raise_for_status()
+        data = response.json()
     sites = data["return"]["sites"]
     sites_df = pd.DataFrame(sites)  # database of all NCRO sites
     logger.debug(f"NCRO Inventory: Retrieved list of {len(sites_df)} sites from NCRO")
@@ -132,13 +125,10 @@ def load_inventory():
         names = similar_ncro_station_names(origname)
 
         url2 = f"https://wdlhyd.water.ca.gov/hydstra/sites/{','.join(names)}/traces"
-        response = session.get(
-            url2
-        )  # ,verify=False, stream=False,headers={'User-Agent': 'Mozilla/6.0'})
-        response.encoding = "UTF-8"
-        inventory_html = response.content.decode("utf-8")
-        fio2 = io.StringIO(inventory_html)
-        data2 = json.load(fio2)
+        with httpx.Client(timeout=60.0) as client:
+            response = client.get(url2)
+            response.raise_for_status()
+            data2 = response.json()
 
         # Flatten the JSON
         flattened_data = []
@@ -171,11 +161,10 @@ def load_inventory():
     return df_full
 
 
-def download_trace(site, trace, stime, etime):
+async def _async_download_trace(client, site, trace, stime, etime):
     """Download time series trace associated with one request"""
     url_trace = f"https://wdlhyd.water.ca.gov/hydstra/sites/{site}/traces/{trace}/points?start-time={stime.strftime('%Y%m%d%H%M%S')}&end-time={etime.strftime('%Y%m%d%H%M%S')}"
     max_attempt = 4
-    session = requests.Session()
 
     attempt = 0
     while attempt < max_attempt:
@@ -188,7 +177,7 @@ def download_trace(site, trace, stime, etime):
             logger.debug(f"Submitting request to URL {url_trace} attempt {attempt}")
             # time1=time.time()
             streaming = False
-            response = session.get(url_trace, stream=streaming, timeout=200)
+            response = await client.get(url_trace, timeout=200.0)
             response.raise_for_status()
             if streaming:
                 pass
@@ -204,7 +193,7 @@ def download_trace(site, trace, stime, etime):
                 logger.warning("Failed all attempts to download trace for station   " + site + " trace " + trace)
                 return None
             else:
-                time.sleep(
+                await asyncio.sleep(
                     1
                 )  # Wait one second more second each time to clear any short term bad stuff
     return station_html
@@ -263,7 +252,7 @@ def ncro_metadata(station_id, agency_id, site_details, trace_details, paramname)
     return meta
 
 
-def download_trace_chunked(site, trace, stime, etime):
+async def _async_download_trace_chunked(client, site, trace, stime, etime):
     """Download one site/trace by splitting into smaller requests.
 
     Returns: (site, site_details, trace_details, df) or None.
@@ -274,7 +263,7 @@ def download_trace_chunked(site, trace, stime, etime):
     trace_details = None
 
     for cstart, cend in iter_time_chunks(stime, etime):
-        txt = download_trace(site, trace, cstart, cend)
+        txt = await _async_download_trace(client, site, trace, cstart, cend)
         if txt is None:
             continue
         parsed_site, parsed_site_details, parsed_trace_details, df = parse_json_to_series(txt)
@@ -329,8 +318,10 @@ def iter_time_chunks(
         cur = chunk_end
 
  
-def _download_one_trace_to_csv(
+async def _async_download_one_trace_to_csv(
     *,
+    client,
+    semaphore,
     station_id: str,
     agency_id: str,
     paramname: str,
@@ -350,54 +341,48 @@ def _download_one_trace_to_csv(
     Request-size mitigation is handled by download_trace_chunked(), which uses
     REQUEST_CHUNK_YEARS / ALIGN_CHUNKS_TO_YEAR_MODULUS already defined in this file.
     """
-    result = download_trace_chunked(site, trace, stime, etime)
-    if result is None:
-        logger.debug(f"Empty return for site {site} trace {trace}")
-        return None
+    async with semaphore:
+        result = await _async_download_trace_chunked(client, site, trace, stime, etime)
+        if result is None:
+            logger.debug(f"Empty return for site {site} trace {trace}")
+            return None
 
-    site, site_details, trace_details, df = result
-    logger.debug("Chunked query produced trace")
+        site, site_details, trace_details, df = result
+        logger.debug("Chunked query produced trace")
 
-    fname = f"ncro_{station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
-    fpath = os.path.join(dest_dir, fname)
-    if os.path.exists(fpath) and not overwrite:
-        logger.info(f"Skipping existing file (use --overwrite to replace): {fpath}")
-        return None
+        fname = f"ncro_{station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
+        fpath = os.path.join(dest_dir, fname)
+        if os.path.exists(fpath) and not overwrite:
+            logger.info(f"Skipping existing file (use --overwrite to replace): {fpath}")
+            return None
 
-    meta = ncro_metadata(station_id, agency_id, site_details, trace_details, paramname)
-    write_ts_csv(
-        df,
-        fpath,
-        metadata=meta,
-        chunk_years=False,
-        format_version="dwr-ncro-json",
-    )
-    return fpath
+        meta = ncro_metadata(station_id, agency_id, site_details, trace_details, paramname)
+        write_ts_csv(
+            df,
+            fpath,
+            metadata=meta,
+            chunk_years=False,
+            format_version="dwr-ncro-json",
+        )
+        return fpath
 
 
-def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=False):
-    """Download robot for NCRO
-    Requires a list of stations, destination directory and start/end date
-    """
-
-    if end == None:
-        end = dt.datetime.now()
-    if not os.path.exists(dest_dir):
-        os.mkdir(dest_dir)
-
+async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite):
     failures = []
-    skips = []
     inventory = load_inventory()
-    dbase = dstore_config.station_dbase()
-    
-    stime = pd.to_datetime(start)
-    try:
-        etime = pd.to_datetime(end)
-    except:
-        etime = pd.Timestamp.now()
-    
-    futures = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=NCRO_MAX_WORKERS) as executor:
+    _ = dstore_config.station_dbase()
+
+    timeout = httpx.Timeout(200.0, connect=30.0)
+    limits = httpx.Limits(
+        max_connections=NCRO_MAX_WORKERS,
+        max_keepalive_connections=NCRO_MAX_WORKERS,
+    )
+    semaphore = asyncio.Semaphore(NCRO_MAX_WORKERS)
+
+    tasks = []
+    task_meta = []
+
+    async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
         for ndx, row in stations.iterrows():
             agency_id = row.agency_id
             station_id = row.station_id
@@ -425,7 +410,6 @@ def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                 site = tsrow.site
                 trace = tsrow.trace
 
-                # Keep the existing skip behavior (avoid submitting work if output exists)
                 proposed_fname = (
                     f"ncro_{station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
                 )
@@ -434,29 +418,63 @@ def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                     logger.info(f"Skipping existing file (use --overwrite to replace): {proposed_path}")
                     continue
 
-                future = executor.submit(
-                    _download_one_trace_to_csv,
-                    station_id=station_id,
-                    agency_id=agency_id,
-                    paramname=paramname,
-                    site=site,
-                    trace=trace,
-                    dest_dir=dest_dir,
-                    stime=stime,
-                    etime=etime,
-                    overwrite=overwrite,
+                task = asyncio.create_task(
+                    _async_download_one_trace_to_csv(
+                        client=client,
+                        semaphore=semaphore,
+                        station_id=station_id,
+                        agency_id=agency_id,
+                        paramname=paramname,
+                        site=site,
+                        trace=trace,
+                        dest_dir=dest_dir,
+                        stime=stime,
+                        etime=etime,
+                        overwrite=overwrite,
+                    )
                 )
-                futures[future] = (station_id, site, trace)
+                tasks.append(task)
+                task_meta.append((station_id, site, trace))
 
-        for future in concurrent.futures.as_completed(futures):
-            station_id, site, trace = futures[future]
-            try:
-                _ = future.result()
-            except Exception as e:
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for (station_id, site, trace), result in zip(task_meta, results):
+            if isinstance(result, Exception):
                 logger.info(
-                    f"Exception occurred during download: station={station_id} site={site} trace={trace} err={e}"
+                    f"Exception occurred during download: station={station_id} site={site} trace={trace} err={result}"
                 )
-                failures.append((station_id, site, trace, str(e)))
+                failures.append((station_id, site, trace, str(result)))
+
+    return failures
+
+
+def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=False):
+    """Download robot for NCRO
+    Requires a list of stations, destination directory and start/end date
+    """
+
+    if end == None:
+        end = dt.datetime.now()
+    if not os.path.exists(dest_dir):
+        os.mkdir(dest_dir)
+
+    failures = []
+    
+    stime = pd.to_datetime(start)
+    try:
+        etime = pd.to_datetime(end)
+    except:
+        etime = pd.Timestamp.now()
+
+    failures = asyncio.run(
+        _ncro_download_async(
+            stations=stations,
+            dest_dir=dest_dir,
+            stime=stime,
+            etime=etime,
+            overwrite=overwrite,
+        )
+    )
+    return failures
 
 
 def test():
