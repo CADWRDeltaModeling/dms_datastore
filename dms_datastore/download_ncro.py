@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 REQUEST_CHUNK_YEARS = 5
 ALIGN_CHUNKS_TO_YEAR_MODULUS = True
 RETAIN_INVENTORY_HOURS=24
-NCRO_MAX_WORKERS = 4  
+NCRO_MAX_WORKERS = 2  
 
 mappings = {
     "Water Temperature": "temp",
