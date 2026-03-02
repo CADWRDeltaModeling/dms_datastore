@@ -34,7 +34,8 @@ logger = logging.getLogger(__name__)
 REQUEST_CHUNK_YEARS = 5
 ALIGN_CHUNKS_TO_YEAR_MODULUS = True
 RETAIN_INVENTORY_HOURS=24
-NCRO_MAX_WORKERS = 2  
+NCRO_MAX_WORKERS = 4
+NCRO_HTTP_TIMEOUT = 60.0  # seconds; increase if inventory downloads time out
 
 mappings = {
     "Water Temperature": "temp",
@@ -109,10 +110,14 @@ def load_inventory():
     dbase = dstore_config.station_dbase()
     dbase = dbase.loc[dbase["agency"].str.contains("ncro"), :]
 
-    with httpx.Client(timeout=60.0) as client:
-        response = client.get(url)
-        response.raise_for_status()
-        data = response.json()
+    with httpx.Client(timeout=NCRO_HTTP_TIMEOUT) as client:
+        try:
+            response = client.get(url)
+            response.raise_for_status()
+            data = response.json()
+        except httpx.ReadTimeout:
+            logger.error(f"NCRO Inventory: Read timeout fetching site list from {url}")
+            raise
     sites = data["return"]["sites"]
     sites_df = pd.DataFrame(sites)  # database of all NCRO sites
     logger.debug(f"NCRO Inventory: Retrieved list of {len(sites_df)} sites from NCRO")
@@ -125,10 +130,14 @@ def load_inventory():
         names = similar_ncro_station_names(origname)
 
         url2 = f"https://wdlhyd.water.ca.gov/hydstra/sites/{','.join(names)}/traces"
-        with httpx.Client(timeout=60.0) as client:
-            response = client.get(url2)
-            response.raise_for_status()
-            data2 = response.json()
+        with httpx.Client(timeout=NCRO_HTTP_TIMEOUT) as client:
+            try:
+                response = client.get(url2)
+                response.raise_for_status()
+                data2 = response.json()
+            except httpx.ReadTimeout:
+                logger.error(f"NCRO Inventory: Read timeout fetching traces for station {origname} from {url2}")
+                raise
 
         # Flatten the JSON
         flattened_data = []
@@ -190,7 +199,9 @@ async def _async_download_trace(client, site, trace, stime, etime):
         except Exception as e:
             logger.debug(f"Exception on attempt {attempt}: " + str(e))
             if attempt == max_attempt:
-                logger.warning("Failed all attempts to download trace for station   " + site + " trace " + trace)
+                logger.warning(
+                    f"Failed all attempts to download trace for station {site} trace {trace} url {url_trace}: {e}"
+                )
                 return None
             else:
                 await asyncio.sleep(
