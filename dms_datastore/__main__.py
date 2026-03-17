@@ -28,6 +28,7 @@ from dms_datastore.coarsen_file import coarsen_ts_cli
 from dms_datastore.update_repo import update_repo
 from dms_datastore.update_flagged_data import update_flagged_data
 from dms_datastore.rationalize_time_partitions import rationalize_time_partitions_cli
+from dms_datastore.spot_check import spot_check_cli
 
 
 @click.group(help="DMS CLI tools for data processing and extraction.")

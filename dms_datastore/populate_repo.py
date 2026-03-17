@@ -44,6 +44,7 @@ from dms_datastore.download_nwis import nwis_download, parse_start_year
 from dms_datastore.download_noaa import noaa_download
 from dms_datastore.download_cdec import cdec_download
 from dms_datastore.download_ncro import ncro_download, mapping_df
+from dms_datastore.rationalize_time_partitions import rationalize_time_partitions
 
 #    download_ncro_por,
 #    download_ncro_inventory,
@@ -57,8 +58,7 @@ __all__ = [
     "revise_filename_syear_eyear",
     "populate_repo",
     "populate_ncro_realtime",
-    "populate_ncro_repo",
-    "rationalize_time_partitions",
+    "populate_ncro_repo"
 ]
 
 # number of data to read in search of start date or multivariate
@@ -516,73 +516,6 @@ def populate_ncro_realtime(dest, realtime_start=pd.Timestamp(2021, 1, 1)):
     populate_repo2(ncrodf, dest, realtime_start, overwrite=True)
 
 
-def rationalize_time_partitions(pat):
-    
-
-    allpaths = glob.glob(pat)
-    repodir = os.path.split(allpaths[0])[0]
-    allfiles = [os.path.split(x)[1] for x in allpaths]
-    allmeta = []
-    already_checked = set()
-    for fname in allfiles:
-        fname_meta = interpret_fname(fname)
-        allmeta.append(fname_meta)
-    for meta in allmeta:
-        if meta["filename"] in already_checked:
-            continue
-        near_misses = []
-        for meta2 in allmeta:
-            if meta == meta2:
-                continue
-            same_series = (
-                (meta["agency"] == meta2["agency"])
-                and (meta["param"] == meta2["param"])
-                and (
-                    meta["station_id"] == meta2["station_id"]
-                    and meta["subloc"] == meta2["subloc"]
-                )
-            )
-            if same_series:
-                already_checked.add(meta2["filename"])
-                near_misses.append(meta2)
-
-        already_checked.add(meta["filename"])
-        if len(near_misses) > 0:
-            near_misses.append(meta)
-            # logger.info(f"Main series: {meta['filename']}")
-            superseded = []
-            for i, meta in enumerate(near_misses):
-                # logger.info(meta)
-                issuperseded = False
-
-                superseding = []
-                for meta2 in near_misses:
-                    if meta == meta2:
-                        continue
-                    superseded_thisfile = (
-                        meta2["syear"] <= meta["syear"]
-                        and meta2["eyear"] >= meta["eyear"]
-                    )
-                    issuperseded |= superseded_thisfile
-                    if superseded_thisfile:
-                        superseding.append(
-                            meta2
-                        )  # this file is a superset of the one being checked
-                if issuperseded:
-                    fnamesuper = meta["filename"]
-                    logger.info(f"superseded: {fnamesuper} superseded by:")
-                    for sf in superseding:
-                        info_fname = sf["filename"]
-                        logger.info(f"  {info_fname}")
-                    os.remove(os.path.join(repodir, fnamesuper))
-                    superseded.append(fnamesuper)
-
-        else:
-            logger.info(f"Main series: {meta['filename']} had no similar file names")
-    logger.info("Superseded files:")
-    for sup in superseded:
-        logger.info(sup)
-
 
 def populate_ncro_repo(dest, variables):
     download_ncro_por(dest, variables)  # period of record for NCRO QA QC'd
@@ -636,7 +569,14 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
 
     # A fixup mostly for DES, addresses overlapping years of  same variable
     if do_des:
-        rationalize_time_partitions(os.path.join(dest, "des*"))
+        spec = dstore_config.config_file("des_rationalize_time_spec")
+        rationalize_time_partitions(
+            "des*_*.csv",
+            yaml_path=spec,
+            root_dir=dest,
+            dry_run=False,
+            warn_on_remaining_overlap=True,
+        )
 
     if do_ncro:
         revise_filename_syear_eyear(os.path.join(dest, f"ncro_*.csv"))
