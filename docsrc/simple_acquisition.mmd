@@ -1,0 +1,13 @@
+
+
+sequenceDiagram
+    participant SG as Sources
+    participant LAD as Local Aquire Dir 
+    participant LS as Local Staging
+    participant RF as Repo Formatted
+
+SG->>LAD: scripts
+LAD->>LS: dropbox (staging)
+LS->>RF: dropbox (reconcile)
+
+

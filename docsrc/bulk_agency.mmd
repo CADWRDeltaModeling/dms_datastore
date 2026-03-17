@@ -1,0 +1,15 @@
+
+
+sequenceDiagram
+    participant AWS as Agency Web Services
+    participant SR as Staging Raw
+    participant SF as Staging Formatted
+    participant SS as Staging Screened
+    participant RF as Repo Formatted
+    participant RS as Repo Screened
+    
+    AWS->>SR: populate_repo
+    SR->>SF: reformat
+    SF->>RF: update_repo
+    RF->>SS: autoscreen
+    SS->>RS: update_flagged_data
