@@ -1,0 +1,73 @@
+
+config:       
+  REPO:: repo_home
+ 
+min_count_ref:         # Ideally these can be overridden using omegaconf
+  raw: ${REPO}/continuous/raw
+  formatted: ${REPO}/continuous/raw
+  screened: ${REPO}/continuous/raw
+
+groups: 
+  - name: des
+    pattern: des_*.csv
+    n_count_fract: 0.90
+    check_files:
+      - name: des_mrz@upper_40_elev_*
+        years:
+          - 1991
+          - 2005
+          - 2012
+          - 2019
+          - 2020
+          - 2022
+          - ${PREV_YEAR}
+          - ${CURRENT_YEAR}
+      - name: des_mrz@lower_40_ec_*    # If wildcard, years or year bracket assumed
+        years:
+          - 2005    # Shard with this year (either _2005 or 2005_2007) 
+          - 2012
+          - 2019
+          - 2020
+          - 2022
+  - name: ncro
+    pattern: ncro_*.csv
+    check_files:
+      - name: ncro_bac_*_ec_*
+        years:
+          - 1991
+          - 2004
+          - 2012
+          - 2019
+          - 2020
+          - 2022
+      - name: cdec_bac_*_ec_*   # CDEC is used for the real-time tail of NCRO data (they may be changing this). 
+        min_count_ref:
+          raw: 3                 # Actual numbers allowed
+          formatted: 20
+        years:
+          - ${CURRENT_YEAR}
+          - ${PREV_YEAR}
+  - name: usbr_cdec
+    pattern: cdec_*.csv
+    min_count_ref:
+    check_files: # Fill in with mission critical files that have agency usbr_cdec
+    min_count_ref: 
+        raw: 129
+        formatted: 300
+  - name: usbr
+    pattern: usbr_*.csv
+    n_count_fract: 90 # Would it get this no matter what?
+  - name: dwr_cdec
+    pattern: cdec_*.csv
+    min_count_ref:
+    comment: Covers initial downloads from cdec. 
+  - name: dwr
+    pattern: dwr_*.csv
+    min_count_ref:
+    comment: Only the screened tier produces files marked "dwr_*"
+  - name: usgs
+    pattern: usgs_*.csv
+    n_count_fract: 0.90
+  - name: noaa
+    pattern: noaa_*.csv
+    n_count_fract: 0.96
