@@ -59,3 +59,28 @@ def test_write_ts_csv_stringio_with_metadata(sample_ts):
     assert "station_id: ABC" in contents
     assert "units: ft" in contents
     assert "value" in contents
+
+
+def test_write_ts_csv_stringio_series():
+    s = pd.Series(
+        [1.1, 2.2, 3.3, 4.4, 5.5],
+        index=pd.date_range("2020-01-01", periods=5, freq="h", name="datetime"),
+        name="value",
+    )
+    buf = io.StringIO()
+    write_ts_csv(s, buf)
+
+    contents = buf.getvalue()
+    assert "# format: dwr-dms-1.0" in contents
+    assert "datetime" in contents
+    assert "value" in contents
+
+    buf.seek(0)
+    lines = [line for line in buf if not line.startswith("#")]
+    roundtrip = pd.read_csv(
+        io.StringIO("".join(lines)),
+        index_col="datetime",
+        parse_dates=True,
+    )
+    assert list(roundtrip.index) == list(s.index)
+    assert list(roundtrip["value"]) == list(s.values)

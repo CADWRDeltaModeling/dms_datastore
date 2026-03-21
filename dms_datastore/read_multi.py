@@ -3,7 +3,6 @@
 
 import os
 import pandas as pd
-import matplotlib.pyplot as plt
 from dms_datastore.read_ts import read_ts, read_yaml_header
 from dms_datastore import dstore_config
 from dms_datastore.filename import *
@@ -371,25 +370,4 @@ def ts_multifile_read(
     return full
 
 
-if __name__ == "__main__":
-    # NCRO example
 
-    dirname = "//cnrastore-bdo/Modeling_Data/continuous_station_repo_beta/formatted_1yr"
-    rpats = ["ncro_gle_b9532000_temp*.csv", "cdec_gle*temp*.csv"]
-    pats = [os.path.join(dirname, p) for p in rpats]
-    ts = ts_multifile(pats)
-    print(ts)
-    ts.plot()
-    plt.show()
-
-    # Example for USGS
-    # usgs_list = ['lib','ucs','srv','dsj','dws','sdi','fpt','lps','mld','sjj','sjg']
-    # for nseries in usgs_list:
-    #    print(nseries)
-    #
-    #    dirname = "//cnrastore-bdo/Modeling_Data/continuous_station_repo/raw/"
-    #    pat = os.path.join(dirname,f"usgs_{nseries}_*turbidity_*.rdb")
-    #    ts = ts_multifile_read(pat,column_name=nseries)
-    #    print(ts)
-    #    ts.plot()
-    #    plt.show()

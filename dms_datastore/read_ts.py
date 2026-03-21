@@ -1248,21 +1248,75 @@ def vtide_date_parser(*args):
     return dtm.datetime.strptime(x, "%Y%m%dT%H%M")
 
 
-def read_vtide(fpath_pattern, start=None, end=None, selector=None, force_regular=False, freq=None, **kwargs):
-    ts = csv_retrieve_ts(
-        fpath_pattern,
-        start,
-        end,
-        force_regular,
-        selector=selector,
-        format_compatible_fn=lambda x: True,
-        qaqc_selector=None,
-        parsedates=[0, 1],
-        indexcol=0,
-        header=None,
-        sep=r"\\s+",
-        comment="#",
+def read_vtide_file(path, comment="#", sep=r"\s+", header=None, **kwargs):
+    """Read a single no-header vtide text file with fixed date/time columns."""
+    dset = pd.read_csv(
+        path,
+        sep=sep,
+        header=header,
+        comment=comment,
+        dtype={0: str, 1: str},
+        **kwargs,
     )
+
+    if dset.shape[1] < 2:
+        raise ValueError(f"Vtide file {path} must contain at least date/time columns")
+
+    date_part = dset[0].astype(str).str.strip()
+    time_part = dset[1].astype(str).str.strip()
+
+    if not time_part.str.contains(":").all():
+        time_part = time_part.str.zfill(4).str.replace(r"^(\d{2})(\d{2})$", r"\1:\2", regex=True)
+
+    dt_str = date_part + "T" + time_part
+
+    try:
+        idx = pd.to_datetime(dt_str, format="%Y%m%dT%H%M", errors="raise")
+    except ValueError:
+        try:
+            idx = pd.to_datetime(dt_str, format="%Y-%m-%dT%H:%M", errors="raise")
+        except ValueError:
+            idx = pd.to_datetime(dt_str, errors="raise")
+
+    dset.index = idx
+    dset.index.name = "datetime"
+    dset = dset.drop(columns=[0, 1])
+
+    return dset
+
+
+def read_vtide(fpath_pattern, start=None, end=None, selector=None, force_regular=False, freq=None, **kwargs):
+    contains_glob = any(ch in fpath_pattern for ch in "*?[]")
+
+    if contains_glob:
+        ts = csv_retrieve_ts(
+            fpath_pattern,
+            start,
+            end,
+            force_regular,
+            selector=selector,
+            format_compatible_fn=lambda x: True,
+            qaqc_selector=None,
+            parsedates=None,
+            indexcol=None,
+            header=None,
+            sep=r"\s+",
+            comment="#",
+            **kwargs,
+        )
+
+        if ts is not None and isinstance(ts, pd.DataFrame) and 0 in ts.columns and 1 in ts.columns:
+            dt_str = ts[0].astype(str).str.strip() + "T" + ts[1].astype(str).str.zfill(4).str.strip()
+            ts.index = pd.to_datetime(dt_str, format="%Y%m%dT%H%M", errors="raise")
+            ts.index.name = "datetime"
+            ts = ts.drop(columns=[0, 1])
+
+        return ts
+
+    ts = read_vtide_file(fpath_pattern, **kwargs)
+
+    if selector is not None:
+        ts = ts[selector] if isinstance(selector, (list, tuple)) else ts[[selector]]
 
     return ts
 
