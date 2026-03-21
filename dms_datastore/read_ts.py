@@ -168,22 +168,22 @@ def read_yaml_header(fpath):
 def is_dms1_screen(fname):
     if not fname.endswith(".csv"):
         return False
-    pattern = re.compile(r"#\s?format\s?:\s?dwr-dms-1.0")
+    pattern = re.compile(r"format\s?:\s?dwr-dms-1.0")
+    MAX_SCAN_LINE = 150
     with open(fname, "r") as f:
-        line = f.readline()
-        if pattern.match(line) is None:
+        line = f.readline().strip()
+        if pattern.search(line) is None:
             return False
-        for i in range(150):
+        for i in range(MAX_SCAN_LINE):
             otherline = f.readline()
-
-            if "screen:" in otherline:
+            if "user_flag" in otherline:
                 return True
     return False
 
 
 def read_dms1_screen(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
-):
+):  
     if selector is None:
         selector = "value"
     ts = csv_retrieve_ts(
@@ -1140,9 +1140,11 @@ def read_usgs_csv1(
 
 
 def is_noaa_file(fname):
-    MAX_SCAN_LINE = 14
+    MAX_SCAN_LINE = 120
     with open(fname, "r") as f:
         for i, line in enumerate(f):
+            if "format: dwr" in line.lower(): 
+                return False
             if i > MAX_SCAN_LINE:
                 return False
             linelower = line.lower()
@@ -1154,13 +1156,13 @@ def is_noaa_file(fname):
 
 
 def noaa_data_column(fname):
-    MAX_SCAN_LINE = 60
+    MAX_SCAN_LINE = 120
     with open(fname, "r") as f:
         reading_cols = False
         for i, line in enumerate(f):
             if i > MAX_SCAN_LINE:
                 raise ValueError(
-                    "Could not determine data columns within MAX_SCAN lines"
+                    "Could not determine data columns within MAX_SCAN lines in file: {}".format(fname)
                 )
             if not line.startswith("#"):
                 parts = [p.strip() for p in line.split(",")]

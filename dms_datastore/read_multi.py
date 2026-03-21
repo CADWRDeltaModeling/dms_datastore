@@ -283,6 +283,7 @@ def ts_multifile(
         else:
             if force_regular:
                 tss = [x.asfreq(commonfreq) for x in tss]
+            
             patfull = ts_merge(tss)
             total_series = total_series + len(tss)
             if commonfreq is not None:
