@@ -47,6 +47,7 @@ from vtools import ts_merge
 from dms_datastore.inventory import to_wildcard
 from dms_datastore.read_ts import original_header
 from dms_datastore import dstore_config
+from dms_datastore.read_ts import read_ts, read_flagged
 import logging
 logger = logging.getLogger(__name__)
 
@@ -267,66 +268,6 @@ def _stable_u01(key: str) -> float:
     u = int.from_bytes(digest[:8], "big", signed=False)
     return u / float(2**64)
 
-
-def _read_csv_timeseries(path: str) -> pd.DataFrame:
-    """ Read a dms-datastore CSV file into a DataFrame.
-
-    Parameters
-    ----------
-    path : str
-        Path to a CSV file with a commented YAML-like header and a ``datetime``
-        column.
-
-    Returns
-    -------
-    df : pandas.DataFrame
-        DataFrame indexed by a ``DatetimeIndex``.
-
-    Raises
-    ------
-    ValueError
-        If the file does not produce a DatetimeIndex or contains duplicate
-        timestamps.
-
-    Notes
-    -----
-    This reader forces ``dtype={'user_flag': str}`` so that screened flag columns do
-    not become floats due to NA inference. Normalization to nullable Int64 is
-    performed separately by :func:`_normalize_flag`.
-    """
-
-
-    df = pd.read_csv(
-        path,
-        comment="#",
-        parse_dates=["datetime"],
-        index_col="datetime",
-        dtype={"user_flag": str},
-    )
-    if not isinstance(df.index, pd.DatetimeIndex):
-        raise ValueError(f"Expected datetime index in {path}")
-    if df.index.has_duplicates:
-
-        # Provide actionable detail while remaining fail-fast.
-        # Report up to N duplicate timestamp values with their multiplicities.
-        N = 25
-        vc = df.index.value_counts()
-        dups = vc[vc > 1].sort_index()
-
-        # Build a compact message; avoid dumping huge lists.
-        total_dup_rows = int((dups - 1).sum())  # extra rows beyond the first per timestamp
-        n_dup_keys = int(dups.shape[0])
-
-        preview = dups.iloc[:N]
-        preview_txt = ", ".join([f"{ts.isoformat()}×{int(cnt)}" for ts, cnt in preview.items()])
-        more = "" if n_dup_keys <= N else f" (+{n_dup_keys - N} more)"
-
-        raise ValueError(
-            "Duplicate timestamps in "
-            f"{path}: {n_dup_keys} duplicated timestamps, {total_dup_rows} extra rows. "
-            f"Examples: {preview_txt}{more}"
-        )
-    return df
 
 
 def _values_equal(
@@ -617,7 +558,9 @@ def _merge_screened_flags(
 
     # For equal-value timestamps: keep repo value to reduce churn, and merge flags.
     if equal.any():
-        out.loc[equal, "value"] = rv.loc[equal, "value"]
+        vals = rv.loc[equal, "value"]
+        if not vals.isna().all():
+            out.loc[equal, "value"] = vals
 
         rf = rflag.loc[equal]
         sf = sflag.loc[equal]
@@ -823,8 +766,8 @@ def update_repo(
                 continue
 
             # Parsed compare to ignore harmless numeric/formatting differences
-            sdf = _read_csv_timeseries(spath)
-            rdf = _read_csv_timeseries(rpath)
+            sdf = read_ts(spath,force_regular=True)
+            rdf = read_ts(rpath,force_regular=True)
             if list(sdf.columns) != list(rdf.columns):
                 raise ValueError(
                     f"Column mismatch for {series_id} shard {shard}: "
@@ -928,7 +871,7 @@ def update_repo(
             if a.repo_path is None or (not os.path.exists(a.repo_path)):
                 dest = os.path.join(repo_dir, os.path.basename(a.staged_path))
                 head = original_header(a.staged_path)
-                df = _read_csv_timeseries(a.staged_path)
+                df = read_ts(a.staged_path)
                 _write_preserving_header(df=df, dest_path=dest, header_text=head)
                 continue
             head = original_header(a.repo_path)
@@ -995,11 +938,7 @@ def update_flagged_data(
     for series_id, staged_shards in staged_map.items():
         repo_shards = repo_map.get(series_id, {})
 
-        if not repo_shards and not allow_new_series:
-            raise ValueError(
-                f"No namesake series found in repo for series_id={series_id!r}. "
-                f"Set allow_new_series=True to initialize new series."
-            )
+
         for shard, spath in staged_shards.items():
             rpath = repo_shards.get(shard)
             dest = (
@@ -1025,8 +964,8 @@ def update_flagged_data(
             if _hash_data_section(spath) == _hash_data_section(rpath):
                 continue
 
-            sdf = _read_csv_timeseries(spath)
-            rdf = _read_csv_timeseries(rpath)
+            sdf = read_flagged(spath, apply_flags=False, return_flags=True)
+            rdf = read_flagged(rpath, apply_flags=False, return_flags=True)
             merged = _merge_screened_flags(
                 rdf,
                 sdf,
@@ -1073,11 +1012,11 @@ def update_flagged_data(
         )
 
         if a.reason == "missing_in_repo":
-            df = _read_csv_timeseries(a.staged_path)
+            df = read_flagged(a.staged_path, apply_flags=False, return_flags=True)
         else:
-            sdf = _read_csv_timeseries(a.staged_path)
+            sdf = read_flagged(a.staged_path, apply_flags=False, return_flags=True)
             rdf = (
-                _read_csv_timeseries(a.repo_path)
+                read_flagged(a.repo_path, apply_flags=False, return_flags=True)
                 if os.path.exists(a.repo_path)
                 else sdf.iloc[0:0]
             )
