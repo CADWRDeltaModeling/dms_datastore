@@ -10,28 +10,81 @@ def extract_year_fname(fname):
     yr = int(re1.match(fname).group(1))
     return yr
 
+def interpret_fname(fname, repo=None):
+    """Convert filename to metadata dictionary.
 
-def interpret_fname(fname):
-    """Convert filename to metadata dictionary
-    The filename follows convention [agency/source]_[station_id]_[agency_id]@[subloc]_[param]_[syear]_[eyear].csv
-    or for single year sharded data just [year] rather than [syear]_[eyear]
+    Legacy convention:
+        source_station[@subloc]_agency_id_param[_... ]_year.csv
+        source_station[@subloc]_agency_id_param[_... ]_syear_eyear.csv
 
-    This routine is complementary in functionality to meta_to_filename.
+    Processed convention (narrow first patch):
+        source_station[@subloc]_param.csv
+        source_station[@subloc]_param_year.csv
+        source_station[@subloc]_param_syear_eyear.csv
 
-    Parameters
-    ----------
-    fname : str
-        File name to be interpreted
-
-    Returns
-    -------
-    fname : str Dictionary of metadata gleaned from filename
-
-
+    For processed, param may contain a modifier via '@', e.g. elev@harmonic.
     """
-
     fname = os.path.split(fname)[1]
-    meta = {}
+    meta = {"filename": fname}
+
+    # -------------------------
+    # processed short-form path
+    # -------------------------
+    if repo == "processed":
+        stem, ext = os.path.splitext(fname)
+        if not ext:
+            raise ValueError(f"Naming convention not matched for {fname}")
+
+        parts = stem.split("_")
+        if len(parts) < 3:
+            raise ValueError(f"Naming convention not matched for {fname}")
+
+        meta["agency"] = parts[0]
+
+        station_token = parts[1]
+        if "@" in station_token:
+            station_id, subloc = station_token.split("@", 1)
+        else:
+            station_id, subloc = station_token, None
+
+        meta["station_id"] = station_id
+        meta["subloc"] = subloc
+
+        # processed does not require agency_id in the filename
+        meta["agency_id"] = None
+
+        # Allowed forms:
+        #   src_station_param
+        #   src_station_param_YYYY
+        #   src_station_param_YYYY_YYYY
+        if len(parts) == 3:
+            param_token = parts[2]
+        elif len(parts) == 4 and parts[3].isdigit() and len(parts[3]) == 4:
+            param_token = parts[2]
+            meta["year"] = parts[3]
+        elif (
+            len(parts) == 5
+            and parts[3].isdigit() and len(parts[3]) == 4
+            and parts[4].isdigit() and len(parts[4]) == 4
+        ):
+            param_token = parts[2]
+            meta["syear"] = parts[3]
+            meta["eyear"] = parts[4]
+        else:
+            raise ValueError(f"Naming convention not matched for {fname}")
+
+        if "@" in param_token:
+            param, modifier = param_token.split("@", 1)
+            meta["param"] = param
+            meta["modifier"] = modifier
+        else:
+            meta["param"] = param_token
+
+        return meta
+
+    # -------------------------
+    # legacy/default path
+    # -------------------------
     datere = re.compile(
         r"([a-z0-9]+)_([a-z0-9@]+)_([a-z0-9]+)_([a-z0-9]+).*_(\d{4})_(\d{4})(?:\..{3})"
     )
@@ -44,6 +97,7 @@ def interpret_fname(fname):
         single_date = True
     else:
         single_date = False
+
     if m is not None:
         meta["filename"] = m.group(0)
         meta["agency"] = m.group(1)
@@ -63,8 +117,8 @@ def interpret_fname(fname):
             meta["syear"] = m.group(5)
             meta["eyear"] = m.group(6)
         return meta
-    else:
-        raise ValueError(f"Naming convention not matched for {fname}")
+
+    raise ValueError(f"Naming convention not matched for {fname}")
 
 
 def meta_to_filename(meta):

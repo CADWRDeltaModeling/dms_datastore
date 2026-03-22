@@ -16,7 +16,6 @@ from vtools.data.timeseries import to_dataframe
 from vtools.data.gap import *
 from dms_datastore.read_multi import *
 from dms_datastore.dstore_config import *
-from dms_datastore.filename import interpret_fname
 from dms_datastore.inventory import *
 from dms_datastore.write_ts import *
 from schimpy.station import *
