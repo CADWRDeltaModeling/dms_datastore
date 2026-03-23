@@ -45,7 +45,7 @@ import numpy as np
 import pandas as pd
 from vtools import ts_merge
 from dms_datastore.inventory import to_wildcard
-from dms_datastore.read_ts import original_header
+from dms_datastore.read_ts import extract_commented_header
 from dms_datastore import dstore_config
 from dms_datastore.read_ts import read_ts, read_flagged
 import logging
@@ -859,9 +859,9 @@ def update_repo(
             if a.repo_path is None:
                 raise ValueError("Internal error: repo_path is None")
             if os.path.exists(a.repo_path):
-                head = original_header(a.repo_path)
+                head = extract_commented_header(a.repo_path)
             else:
-                head = original_header(a.staged_path) if a.staged_path else ""
+                head = extract_commented_header(a.staged_path) if a.staged_path else ""
             df = _read_csv_timeseries(a.staged_path)  # type: ignore[arg-type]
             _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head)
         elif a.action == "splice_write":
@@ -870,14 +870,14 @@ def update_repo(
             # If repo missing, treat as write
             if a.repo_path is None or (not os.path.exists(a.repo_path)):
                 dest = os.path.join(repo_dir, os.path.basename(a.staged_path))
-                head = original_header(a.staged_path)
+                head = extract_commented_header(a.staged_path)
                 df = read_ts(a.staged_path)
                 _write_preserving_header(df=df, dest_path=dest, header_text=head)
                 continue
-            head = original_header(a.repo_path)
+            head = extract_commented_header(a.repo_path)
             sdf = _read_csv_timeseries(a.staged_path)
             rdf = _read_csv_timeseries(a.repo_path)
-            if prefer == "repo":
+            if prefer == "repo": 
                 merged = ts_merge([rdf, sdf], strict_priority=True)
             elif prefer == "staged":
                 merged = ts_merge([sdf, rdf], strict_priority=True)
@@ -1006,9 +1006,9 @@ def update_flagged_data(
         if a.staged_path is None or a.repo_path is None:
             raise ValueError("Internal error: missing paths in action")
         head = (
-            original_header(a.repo_path)
+            extract_commented_header(a.repo_path)
             if os.path.exists(a.repo_path)
-            else original_header(a.staged_path)
+            else extract_commented_header(a.staged_path)
         )
 
         if a.reason == "missing_in_repo":

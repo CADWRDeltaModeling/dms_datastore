@@ -17,13 +17,14 @@ Key guarantees for YAML-driven mode:
   - If renaming is enabled, both syear and eyear in filenames are updated to match
     the actual sliced data span (min.year..max.year), regardless of month/day.
   - Read/write are idempotent w.r.t. formatting by preserving the original header
-    text (commented YAML block) via read_ts.original_header and write_ts.write_ts_csv.
+    text (commented YAML block) via read_ts.extract_commented_header and write_ts.write_ts_csv.
 """
 
 from __future__ import annotations
 
 import os
 import glob
+import fnmatch
 import logging
 from pathlib import Path
 from typing import Dict, List, Tuple, Optional, Any
@@ -32,9 +33,9 @@ import yaml
 import pandas as pd
 
 # Toolkit functions (no new readers/writers invented here)
-from .filename import interpret_fname
-from .read_ts import read_ts, original_header
-from .write_ts import write_ts_csv
+from dms_datastore.filename import interpret_fname
+from dms_datastore.read_ts import read_ts, extract_commented_header
+from dms_datastore.write_ts import write_ts_csv
 
 logger = logging.getLogger(__name__)
 
@@ -103,7 +104,7 @@ def rationalize_time_partitions(
     -------
     None
     """
-    import fnmatch
+
 
     root_dir_p = Path(root_dir) if root_dir is not None else None
 
@@ -125,7 +126,7 @@ def rationalize_time_partitions(
     if not yaml_path_p.exists():
         # Allow project-style config lookup (optional; no-op if not available)
         try:
-            from dms_datastore.dstore_config import config_file  # type: ignore
+            from dms_datastore.dstore_config import config_file
         except Exception:
             config_file = None  # type: ignore
 
@@ -403,7 +404,7 @@ def _apply_rule(
     for i, (fname, start_ts) in enumerate(include_entries):
         next_start = include_entries[i + 1][1] if i + 1 < len(include_entries) else None
 
-        header_str = original_header(str(fname))
+        header_str = extract_commented_header(str(fname))
         df = read_ts(str(fname), force_regular=False, freq=None)
 
         idx = df.index

@@ -40,7 +40,7 @@ def block_uncomment(txt):
     return "\n".join(split)
 
 
-def prep_header(metadata, format_version):
+def prep_header(metadata, format_version="dwr-dms-1.0"):
     """Prepares metadata in the form of a string or yaml data structure for inclusion
     Prep includes making sure that the lines are commented and start with the format: line
     """
@@ -70,14 +70,9 @@ def prep_header(metadata, format_version):
             metadata = [x.replace("# #", "#") for x in metadata]
         header = "\n".join(metadata)
     else:  # yaml
-        if "format" in metadata:
-            del metadata["format"]
-        if "original_header" in metadata:
-            metadata["original_header"] = block_uncomment(metadata["original_header"])
-        header_no_comment = yaml.dump(metadata)
+        meta = metadata.copy()
+        header_no_comment = yaml.dump(meta, sort_keys=False)
         header = block_comment(header_no_comment)
-        if not "format" in metadata:
-            header = f"# format: {format_version}\n" + header
     if not header.endswith("\n"):
         header = header + "\n"
     return header
@@ -131,7 +126,7 @@ def write_ts_csv(
     if metadata is None:
         meta_header = f"# format: {format_version}\n# date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}\n"
     else:
-        meta_header = prep_header(metadata, format_version)
+        meta_header = prep_header(metadata, format_version="dwr-dms-1.0")
 
     for dtype_col, dtype in dtypes.items():
         if dtype_col in ts.columns:

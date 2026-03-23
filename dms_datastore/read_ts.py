@@ -15,7 +15,7 @@ from vtools.data.vtime import days, minutes, hours, months, seconds, years, to_t
 from dms_datastore.filename import extract_year_fname
 
 __all__ = [
-    "original_header",
+    "extract_commented_header",
     "read_yaml_header",
     "parse_yaml_header",
     "read_ts",
@@ -112,7 +112,7 @@ def read_flagged(
         return df.loc[start:end]
 
 
-def original_header(fpath, comment="#"):
+def extract_commented_header(fpath, comment="#"):
     """Scrapes the header from a file assuming all the lines at the top are the header
 
     Parameters
@@ -127,25 +127,131 @@ def original_header(fpath, comment="#"):
     -------
     Header as single string, possibly with embedded end lines
     """
-    original_head = []
-    with open(fpath, "r") as infile:
-        for line in infile:
+    lines = []
+    with open(fpath) as f:
+        for line in f:
             if line.startswith(comment):
-                original_head.append(line.strip().replace("#", "#  "))
+                lines.append(line)
             else:
-                allheader = original_head
                 break
-    return "\n".join(original_head) if len(original_head) > 0 else ""
 
+    return "".join(lines)
 
-def parse_yaml_header(header):
-    if isinstance(header, str):
-        header = "\n".join([x.replace("#", "") for x in header.split("\n")])
-    try:
-        yamlhead = yaml.safe_load(header)
-    except:
-        raise ValueError(f"Failure reading header in file {fpath}")
-    return yamlhead
+def parse_yaml_header(text, comment="#", strict_indent=True):
+    """
+    Parse a commented YAML header block into a metadata dictionary.
+
+    This function converts a leading block of comment-prefixed lines (e.g.,
+    lines beginning with ``# ``) into valid YAML and parses it into a
+    dictionary. It is intended for use with DWR DMS-style headers, where
+    metadata is stored as commented YAML at the top of a file.
+
+    The parser enforces a canonical header format by default, requiring that
+    top-level YAML keys are not indented. This ensures that headers are
+    consistent and round-trippable. A relaxed mode is available to allow
+    parsing of certain legacy or malformed headers (e.g., uniformly indented
+    headers), which can then be rewritten in canonical form.
+
+    Parameters
+    ----------
+    text : str
+        The commented header text, typically obtained from
+        ``extract_commented_header``. Each line is expected to begin with the
+        comment prefix followed by a space (e.g., ``"# key: value"``).
+
+    comment : str, optional
+        The comment prefix used in the header. Default is ``"#"``. Only lines
+        beginning with ``comment + " "`` or blank comment lines are accepted.
+
+    strict_indent : bool, optional
+        If True (default), enforce that the first non-blank YAML line is not
+        indented. This ensures that top-level keys are left-aligned and that
+        the header conforms to the canonical format.
+
+        If False, allow indentation of the first non-blank line. This can be
+        used to parse legacy headers where all lines have been uniformly
+        shifted (e.g., due to accidental insertion of extra spaces). Such
+        headers may still parse as valid YAML and can be normalized by
+        re-serializing with ``prep_header``.
+
+    Returns
+    -------
+    dict
+        Parsed metadata as a dictionary. Keys are expected to be strings.
+        Values may be nested structures depending on the YAML content.
+
+    Raises
+    ------
+    ValueError
+        If any line does not conform to the expected comment format, if the
+        header cannot be parsed as YAML, if the result is not a mapping, or if
+        strict indentation rules are violated when ``strict_indent=True``.
+
+    Notes
+    -----
+    This function is intentionally strict by default. It does not attempt to
+    repair malformed headers or perform heuristic normalization. Instead,
+    malformed headers should be handled explicitly by calling this function
+    with ``strict_indent=False`` and then rewriting the header using a
+    canonical serializer (e.g., ``prep_header``).
+
+    The combination of strict parsing and canonical serialization supports
+    round-trip consistency:
+
+    ``parse -> serialize -> parse``
+
+    should yield identical metadata for well-formed headers.
+
+    Examples
+    --------
+    Parse a canonical header::
+
+        header = "# format: dwr-dms-1.0\\n# param: ec\\n"
+        meta = parse_yaml_header(header)
+        assert meta["format"] == "dwr-dms-1.0"
+
+    Parse a legacy indented header by relaxing indentation rules::
+
+        header = "#   format: dwr-dms-1.0\\n#   param: ec\\n"
+        meta = parse_yaml_header(header, strict_indent=False)
+
+    """    
+    lines = text.splitlines(keepends=False)
+    yaml_lines = []
+
+    for line in lines:
+        if line.startswith(f"{comment} "):
+            yaml_lines.append(line[len(comment) + 1:])
+        elif line.strip() == comment:
+            yaml_lines.append("")  # blank line
+        else:
+            raise ValueError(f"Malformed header line: {line!r}")
+ 
+    if strict_indent:
+        # Reject headers whose first nonblank YAML line is indented.
+        # This catches uniformly shifted top-level keys such as:
+        #   "  format: dwr-dms-1.0"
+        for i, line in enumerate(yaml_lines, start=1):
+            if not line.strip():
+                continue
+            if line.startswith(" "):
+                raise ValueError(
+                    f"Malformed header: top-level YAML keys must not be indented; "
+                    f"offending line {i}: {line!r}"
+                )
+            break
+
+    yaml_text = "\n".join(yaml_lines)
+    data = yaml.safe_load(yaml_text)
+
+    if not isinstance(data, dict):
+        raise ValueError("Header did not parse to a mapping")
+
+    for k, v in data.items():
+        if not isinstance(k, str):
+            raise ValueError(f"Non-string key: {k}")
+
+    return data
 
 
 def read_yaml_header(fpath):
@@ -161,7 +267,7 @@ def read_yaml_header(fpath):
     Nested yaml data structure (lists and dicts)
 
     """
-    header = original_header(fpath)
+    header = extract_commented_header(fpath)
     return parse_yaml_header(header)
 
 

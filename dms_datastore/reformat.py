@@ -337,7 +337,7 @@ def infer_internal_meta_for_file(fpath):
     meta_out["crs_note"] = (
         "Reported lat-lon are agency provided. Projected coordinates may have been revised based on additional information."
     )
-    original_hdr = original_header(fpath, "#")
+    original_hdr = extract_commented_header(fpath, "#")
     if meta_out["source"] == "ncro" and len(original_hdr) == 0:
         original_hdr = ncro_header(fpath)
     if source == "cdec":
