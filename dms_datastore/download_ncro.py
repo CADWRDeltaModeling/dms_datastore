@@ -13,6 +13,8 @@ import datetime as dt
 import numpy as np
 import time
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dms_datastore import read_ts
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.process_station_variable import (
@@ -33,9 +35,13 @@ logger = logging.getLogger(__name__)
 
 REQUEST_CHUNK_YEARS = 5
 ALIGN_CHUNKS_TO_YEAR_MODULUS = True
-RETAIN_INVENTORY_HOURS=24
+RETAIN_INVENTORY_DAYS = 14
 NCRO_MAX_WORKERS = 4
 NCRO_HTTP_TIMEOUT = 60.0  # seconds; increase if inventory downloads time out
+INVENTORY_MAX_WORKERS = 6
+INVENTORY_MAX_ATTEMPTS = 8
+NCRO_MIN_EXPECTED_ENTRIES = 515
+NCRO_MAX_FAILED_UPDATES = 7
 
 mappings = {
     "Water Temperature": "temp",
@@ -90,84 +96,256 @@ inventory_dir = os.path.split(__file__)[0]
 inventoryfile = os.path.join(inventory_dir, "ncro_inventory_full.csv")
 
 
-def load_inventory():
-    global ncro_inventory, inventoryfile
+def _inventory_header_defaults():
+    return {"last_update": None, "failed_updates": 0}
 
-    if ncro_inventory is not None:
-        return ncro_inventory
-    if (
-        os.path.exists(inventoryfile)
-        and (time.time() - os.stat(inventoryfile).st_mtime)/3600. < RETAIN_INVENTORY_HOURS
-    ):  
-        logger.debug("reading existing inventory file " + inventoryfile)
-        ncro_inventory = pd.read_csv(
-            inventoryfile, header=0, sep=",", parse_dates=["start_time", "end_time"]
-        )
-        return ncro_inventory
+
+def _parse_inventory_header(path):
+    meta = _inventory_header_defaults()
+    if not os.path.exists(path):
+        return meta
+
+    with open(path, "r", encoding="utf-8") as fobj:
+        for line in fobj:
+            if not line.startswith("#"):
+                break
+            payload = line[1:].strip()
+            if ":" not in payload:
+                continue
+            key, value = payload.split(":", 1)
+            key = key.strip()
+            value = value.strip()
+            if key == "last_update" and value:
+                meta["last_update"] = pd.to_datetime(value).date()
+            elif key == "failed_updates" and value:
+                meta["failed_updates"] = int(value)
+
+    if meta["last_update"] is None:
+        meta["last_update"] = dt.date.fromtimestamp(os.stat(path).st_mtime)
+
+    return meta
+
+
+def _read_inventory_file(path):
+    meta = _parse_inventory_header(path)
+    df = pd.read_csv(path, comment="#", parse_dates=["start_time", "end_time"])
+    unnamed = [col for col in df.columns if str(col).startswith("Unnamed:")]
+    if unnamed:
+        df = df.drop(columns=unnamed)
+    if "index" in df.columns:
+        df = df.drop(columns=["index"])
+    return df, meta
+
+
+def _write_inventory_file(df, path, *, last_update, failed_updates):
+    df = df.drop_duplicates()
+    df = df.sort_values(by=["site", "trace", "start_time", "end_time"]).reset_index(drop=True)
+    with open(path, "w", encoding="utf-8", newline="") as fobj:
+        if last_update is not None:
+            fobj.write(f"# last_update: {last_update:%Y-%m-%d}\n")
+        else:
+            fobj.write("# last_update: \n")
+        fobj.write(f"# failed_updates: {int(failed_updates)}\n")
+        df.to_csv(fobj, index=False)
+
+
+def _inventory_is_reliable(df):
+    return df is not None and len(df) >= NCRO_MIN_EXPECTED_ENTRIES
+
+
+def _inventory_refresh_needed(inventory_prev, meta_prev, force_update):
+    if force_update:
+        return True
+    if inventory_prev is None:
+        return True
+    if not _inventory_is_reliable(inventory_prev):
+        return True
+
+    last_update = meta_prev.get("last_update")
+    if last_update is None:
+        return True
+
+    age_days = (dt.date.today() - last_update).days
+    return age_days >= RETAIN_INVENTORY_DAYS
+
+
+def _is_retryable_inventory_exception(exc):
+    if isinstance(exc, (httpx.ReadTimeout, httpx.RemoteProtocolError, httpx.ConnectError)):
+        return True
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        return status == 429 or 500 <= status < 600
+    if isinstance(exc, httpx.TransportError):
+        return True
+    return False
+
+
+def _flatten_inventory_payload(origname, data2):
+    flattened_data = []
+    for site in data2["return"]["sites"]:
+        if site is None or "site" not in site:
+            logger.debug(f"Bad file for {origname}")
+            continue
+        site_name = site["site"]
+        for trace in site["traces"]:
+            trace_data = trace.copy()
+            trace_data["site"] = site_name
+            flattened_data.append(trace_data)
+
+    df2 = pd.DataFrame(flattened_data)
+    if df2.empty:
+        return df2
+
+    df2 = df2.loc[df2["trace"].str.endswith("RAW"), :].copy()
+    if df2.empty:
+        return df2
+
+    df2["start_time"] = pd.to_datetime(df2["start_time"])
+    df2["end_time"] = pd.to_datetime(df2["end_time"])
+    return df2
+
+
+def _fetch_inventory_for_station(agency_id, abort_event):
+    origname = agency_id
+    names = similar_ncro_station_names(origname)
+    url = f"https://wdlhyd.water.ca.gov/hydstra/sites/{','.join(names)}/traces"
+
+    for attempt in range(1, INVENTORY_MAX_ATTEMPTS + 1):
+        if abort_event.is_set():
+            return None
+        try:
+            with httpx.Client(timeout=NCRO_HTTP_TIMEOUT) as client:
+                response = client.get(url)
+                response.raise_for_status()
+                data2 = response.json()
+            return _flatten_inventory_payload(origname, data2)
+        except Exception as exc:
+            if not _is_retryable_inventory_exception(exc) or attempt == INVENTORY_MAX_ATTEMPTS:
+                logger.warning(f"NCRO Inventory: failed for agency_id {origname}: {exc}")
+                raise
+
+            sleep_time = min(2 ** (attempt - 1), 20.0)
+            logger.debug(
+                f"NCRO Inventory: retry {attempt}/{INVENTORY_MAX_ATTEMPTS} for agency_id "
+                f"{origname} after error: {exc}; sleeping {sleep_time:.1f}s"
+            )
+            if abort_event.wait(sleep_time):
+                return None
+
+
+def _download_inventory_from_server():
     logger.debug("NCRO Inventory: Starting to download inventory from NCRO")
-    url = "https://wdlhyd.water.ca.gov/hydstra/sites"
 
     dbase = dstore_config.station_dbase()
     dbase = dbase.loc[dbase["agency"].str.contains("ncro"), :]
+    agency_ids = list(dict.fromkeys(dbase["agency_id"].tolist()))
 
-    with httpx.Client(timeout=NCRO_HTTP_TIMEOUT) as client:
-        try:
-            response = client.get(url)
-            response.raise_for_status()
-            data = response.json()
-        except httpx.ReadTimeout:
-            logger.error(f"NCRO Inventory: Read timeout fetching site list from {url}")
-            raise
-    sites = data["return"]["sites"]
-    sites_df = pd.DataFrame(sites)  # database of all NCRO sites
-    logger.debug(f"NCRO Inventory: Retrieved list of {len(sites_df)} sites from NCRO")
+    abort_event = threading.Event()
     dfs = []
-    for id, row in dbase.iterrows():
-        agency_id = row.agency_id
-        origname = agency_id
-        # Looks for stations that have the same base code but with variations for program 
-        # like "Q" or "00" suffixes
-        names = similar_ncro_station_names(origname)
+    failures = []
 
-        url2 = f"https://wdlhyd.water.ca.gov/hydstra/sites/{','.join(names)}/traces"
-        with httpx.Client(timeout=NCRO_HTTP_TIMEOUT) as client:
+    with ThreadPoolExecutor(max_workers=INVENTORY_MAX_WORKERS) as executor:
+        future_to_agency = {
+            executor.submit(_fetch_inventory_for_station, agency_id, abort_event): agency_id
+            for agency_id in agency_ids
+        }
+
+        for future in as_completed(future_to_agency):
+            agency_id = future_to_agency[future]
             try:
-                response = client.get(url2)
-                response.raise_for_status()
-                data2 = response.json()
-            except httpx.ReadTimeout:
-                logger.error(f"NCRO Inventory: Read timeout fetching traces for station {origname} from {url2}")
-                raise
+                df2 = future.result()
+            except Exception as exc:
+                failures.append((agency_id, str(exc)))
+                abort_event.set()
+                for other_future in future_to_agency:
+                    other_future.cancel()
+                break
 
-        # Flatten the JSON
-        flattened_data = []
-        for site in data2["return"]["sites"]:
-            if site is None or not "site" in site:
-                json.dump(f"examplebad_{origname}.json", data2)
-                logger.info(f"Bad file for {origname}")
-                continue
-            else:
-                site_name = site["site"]
-            for trace in site["traces"]:
-                trace_data = trace.copy()  # Avoid modifying the original JSON
-                trace_data["site"] = site_name
-                flattened_data.append(trace_data)
+            if df2 is not None and not df2.empty:
+                dfs.append(df2)
 
-        df2 = pd.DataFrame(flattened_data)
-        if df2.empty:
-            continue
+    if failures:
+        raise RuntimeError(
+            "NCRO Inventory refresh failed for "
+            + ", ".join(f"{agency_id} ({err})" for agency_id, err in failures)
+        )
 
-        df2 = df2.loc[df2["trace"].str.endswith("RAW"), :]
-        df2["start_time"] = pd.to_datetime(df2.start_time)
-        df2["end_time"] = pd.to_datetime(df2.end_time)
-        dfs.append(df2)
-    logger.debug(f"NCRO Inventory: Finished downloading inventory from NCRO, found {len(dfs)} matching stations")
-    df_full = pd.concat(dfs, axis=0)
-    df_full = df_full.reset_index(drop=True)
-    df_full.index.name = "index"
-    df_full.to_csv(inventoryfile)
-    ncro_inventory = df_full
+    if not dfs:
+        raise RuntimeError("NCRO Inventory refresh returned no inventory records")
+
+    df_full = pd.concat(dfs, axis=0, ignore_index=True)
+    df_full = df_full.drop_duplicates()
+    df_full = df_full.sort_values(by=["site", "trace", "start_time", "end_time"]).reset_index(drop=True)
     return df_full
+
+
+def _handle_failed_inventory_refresh(inventory_prev, meta_prev, reason):
+    reliable_prev = _inventory_is_reliable(inventory_prev)
+    previous_failed_updates = int(meta_prev.get("failed_updates", 0))
+    new_failed_updates = previous_failed_updates + 1
+
+    if reliable_prev and new_failed_updates <= NCRO_MAX_FAILED_UPDATES:
+        _write_inventory_file(
+            inventory_prev,
+            inventoryfile,
+            last_update=meta_prev.get("last_update"),
+            failed_updates=new_failed_updates,
+        )
+        logger.error(
+            f"NCRO Inventory: refresh failed ({reason}). Retaining previous inventory "
+            f"and incrementing failed_updates to {new_failed_updates}."
+        )
+        return inventory_prev
+
+    if reliable_prev:
+        raise RuntimeError(
+            f"NCRO Inventory: refresh failed ({reason}) and failed_updates would exceed "
+            f"the limit of {NCRO_MAX_FAILED_UPDATES}."
+        )
+
+    raise RuntimeError(
+        f"NCRO Inventory: refresh failed ({reason}) and no reliable prior inventory exists."
+    )
+
+
+def load_inventory(force_update=False):
+    global ncro_inventory, inventoryfile
+
+    if ncro_inventory is not None and not force_update:
+        return ncro_inventory
+
+    inventory_prev = None
+    meta_prev = _inventory_header_defaults()
+    if os.path.exists(inventoryfile):
+        logger.debug("reading existing inventory file " + inventoryfile)
+        inventory_prev, meta_prev = _read_inventory_file(inventoryfile)
+
+    if not _inventory_refresh_needed(inventory_prev, meta_prev, force_update):
+        ncro_inventory = inventory_prev
+        return ncro_inventory
+
+    try:
+        inventory_new = _download_inventory_from_server()
+    except Exception as exc:
+        ncro_inventory = _handle_failed_inventory_refresh(inventory_prev, meta_prev, str(exc))
+        return ncro_inventory
+
+    if len(inventory_new) < NCRO_MIN_EXPECTED_ENTRIES:
+        reason = (
+            f"download completed but only returned {len(inventory_new)} entries; "
+            f"minimum expected is {NCRO_MIN_EXPECTED_ENTRIES}"
+        )
+        ncro_inventory = _handle_failed_inventory_refresh(inventory_prev, meta_prev, reason)
+        return ncro_inventory
+
+    _write_inventory_file(
+        inventory_new,
+        inventoryfile,
+        last_update=dt.date.today(),
+        failed_updates=0,
+    )
+    ncro_inventory = inventory_new
+    return ncro_inventory
 
 
 async def _async_download_trace(client, site, trace, stime, etime):
@@ -180,9 +358,9 @@ async def _async_download_trace(client, site, trace, stime, etime):
         attempt = attempt + 1
         try:
             if attempt > 1:
-                logger.info(f"{url_trace} download attempt {attempt}")
+                logger.debug(f"{url_trace} download attempt {attempt}")
                 if attempt > 16:
-                    logger.info(fname)
+                    logger.debug(fname)
             logger.debug(f"Submitting request to URL {url_trace} attempt {attempt}")
             # time1=time.time()
             streaming = False
@@ -378,9 +556,9 @@ async def _async_download_one_trace_to_csv(
         return fpath
 
 
-async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite):
+async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, update_inventory=False):
     failures = []
-    inventory = load_inventory()
+    inventory = load_inventory(force_update=update_inventory)
     _ = dstore_config.station_dbase()
 
     timeout = httpx.Timeout(200.0, connect=30.0)
@@ -396,6 +574,7 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite):
     async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
         for ndx, row in stations.iterrows():
             agency_id = row.agency_id
+            station_id = row.station_id
             station_id = row.station_id
             param = row.src_var_id
             paramname = row.param
@@ -458,7 +637,7 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite):
     return failures
 
 
-def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=False):
+def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=False, update_inventory=False):
     """Download robot for NCRO
     Requires a list of stations, destination directory and start/end date
     """
@@ -483,6 +662,7 @@ def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
             stime=stime,
             etime=etime,
             overwrite=overwrite,
+            update_inventory=update_inventory,
         )
     )
     return failures
@@ -510,6 +690,7 @@ def test():
             param_lookup=vlookup,
             source="ncro",
         )
+        print(df)
         ncro_download(df, destdir, stime, etime, overwrite=overwrite)
 
 
@@ -544,6 +725,11 @@ def test_read():
     is_flag=True,
     help="Download/refresh NCRO inventory metadata only, then exit without downloading timeseries data.",
 )
+@click.option(
+    "--update-inventory",
+    is_flag=True,
+    help="Force an NCRO inventory refresh attempt even if the cached inventory is still fresh.",
+)
 @click.help_option("-h", "--help")
 @click.argument("stationfile", nargs=-1)
 @click.option(
@@ -563,6 +749,7 @@ def download_ncro_cli(
     debug=False,
     quiet=False,
     inventory_only=False,
+    update_inventory=False,
 ):
 
     level, console = resolve_loglevel(
@@ -570,7 +757,7 @@ def download_ncro_cli(
         quiet=quiet,
     )
     logger.debug(f"Logging level set to {logging.getLevelName(level)} and console={console}")
-    print("__name__=", __name__)
+
     configure_logging(
           package_name="dms_datastore",
           level=level,
@@ -580,8 +767,8 @@ def download_ncro_cli(
     )
     logger.debug("Starting NCRO download")
     if inventory_only:
-        inventory = load_inventory()
-        logger.info(f"NCRO inventory download complete. Records: {len(inventory)}")
+        inventory = load_inventory(force_update=update_inventory)
+        logger.debug(f"NCRO inventory download complete. Records: {len(inventory)}")
         return
 
     if start is None:
@@ -608,7 +795,7 @@ def download_ncro_cli(
         source="ncro",
     )
 
-    ncro_download(df, dest_dir, stime, etime, overwrite=overwrite)
+    ncro_download(df, dest_dir, stime, etime, overwrite=overwrite, update_inventory=update_inventory)
 
 
 if __name__ == "__main__":

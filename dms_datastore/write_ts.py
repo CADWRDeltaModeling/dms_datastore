@@ -7,6 +7,14 @@ import os
 
 __all__ = ["write_ts_csv"]
 
+def _validate_metadata_format(metadata, format_version):
+    if "format" not in metadata:
+        raise ValueError("Metadata dict must contain 'format'")
+    if format_version is not None and metadata["format"] != format_version:
+        raise ValueError(
+            f"format_version={format_version!r} does not match "
+            f"metadata['format']={metadata['format']!r}"
+        )
 
 def chunk_bounds(ts, block_size):
     firstyr = ts.first_valid_index().year
@@ -123,10 +131,34 @@ def write_ts_csv(
         # warnings.warn("Index will be renamed datetime in file according to specification. Copy made")
         ts = ts.copy()
         ts.index.name = "datetime"
+
     if metadata is None:
-        meta_header = f"# format: {format_version}\n# date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}\n"
+        meta_header = (
+            f"# format: {format_version}\n"
+            f"# date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}\n"
+        )
+
+    elif isinstance(metadata, dict):
+        if "format" in metadata:
+            if format_version is not None and metadata["format"] != format_version:
+                raise ValueError(
+                    f"format_version={format_version!r} does not match "
+                    f"metadata['format']={metadata['format']!r}"
+                )
+            meta = metadata.copy()
+        else:
+            if format_version is None:
+                raise ValueError(
+                    "Metadata dict must contain 'format' when format_version is None"
+                )
+            meta = {"format": format_version}
+            meta.update(metadata)
+
+        meta_header = prep_header(meta)
+
     else:
-        meta_header = prep_header(metadata, format_version="dwr-dms-1.0")
+        # string-like metadata path
+        meta_header = prep_header(metadata, format_version=format_version)
 
     for dtype_col, dtype in dtypes.items():
         if dtype_col in ts.columns:
