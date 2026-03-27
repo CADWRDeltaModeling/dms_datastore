@@ -2,6 +2,12 @@ from dms_datastore.reformat import *
 from dms_datastore.read_ts import *
 from dms_datastore.download_nwis import *
 from dms_datastore.usgs_multi import *
+from dms_datastore.process_station_variable import (
+    attach_agency_id,
+    attach_src_var_id,
+    normalize_station_request,
+    stationfile_or_stations,
+)
 
 
 def test_nwis_download():
@@ -10,17 +16,15 @@ def test_nwis_download():
     start = pd.Timestamp(2020, 1, 1)
     param = "flow"
     overwrite = True
-    stationfile = stationfile_or_stations(None, stations)
-    slookup = dstore_config.config_file("station_dbase")
-    vlookup = dstore_config.config_file("variable_mappings")
-    df = process_station_list(
-        stationfile,
+    station_input = stationfile_or_stations(None, stations)
+    df = normalize_station_request(
+        stationlist=station_input,
         param=param,
-        station_lookup=slookup,
-        agency_id_col="agency_id",
-        param_lookup=vlookup,
-        source="usgs",
+        default_subloc=None,
     )
+    df = attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id")
+    vlookup = dstore_config.config_file("variable_mappings")
+    df = attach_src_var_id(df, vlookup, source="usgs")
     nwis_download(df, dest_dir, start, end=None, param=None, overwrite=False)
 
 
