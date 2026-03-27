@@ -271,15 +271,16 @@ def populate_repo(
 
     df = df.reset_index()
     if ignore_existing is not None:
-        df = df[~df["id"].isin(ignore_existing)]
+        df = df[~df["station_id"].isin(ignore_existing)]
 
     dest_dir = dest
     source = "cdec" if agency in ["dwr", "usbr"] else agency
     agency_id_col = "cdec_id" if source == "cdec" else "agency_id"
 
-    df = df[["id", "subloc"]]
+    df = df[["station_id", "subloc"]]
     stationlist = process_station_list(
         df,
+        id_col="station_id",
         param=param,
         param_lookup=vlookup,
         station_lookup=slookup,
@@ -350,12 +351,13 @@ def populate_repo2(df, dest, start, overwrite=False, ignore_existing=None):
     df["subloc"] = "default"
 
     if ignore_existing is not None:
-        df = df[~df["id"].isin(ignore_existing)]
+        df = df[~df["station_id"].isin(ignore_existing)]
 
     source = "cdec"
     agency_id_col = "agency_id_from_file"
     stationlist = process_station_list(
         df,
+        id_col="station_id",
         param_lookup=vlookup,
         station_lookup=slookup,
         agency_id_col=agency_id_col,

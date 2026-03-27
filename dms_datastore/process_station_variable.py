@@ -1,29 +1,489 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+process_station_variable
+========================
+
+Utilities for normalizing and enriching station/variable requests prior to
+data retrieval.
+
+This module decomposes what was historically a single "process station-variable"
+step into explicit, testable stages:
+
+1. normalize_station_request
+   Parse user inputs (CLI strings, CSV rows) into a canonical dataframe with:
+   - station_id
+   - subloc (optional but explicit when required)
+   - param
+
+2. attach_agency_id
+   Resolve each station_id to an agency_id using the repository registry
+   (typically the "continuous" repo inventory).
+
+3. attach_src_var_id
+   Map (agency_id, param) → src_var_id using a configurable mapping.
+   This mapping is intentionally *non-unique* and may collapse multiple
+   source-specific variables (e.g., "StreamFlow", "ReservoirDischarge")
+   into a single logical parameter ("flow").
+
+Design principles
+-----------------
+- Fail fast on malformed or ambiguous input.
+- Avoid implicit defaults when they can hide real distinctions.
+- Treat sublocation ("subloc") as first-class where applicable.
+- Keep lookup logic simple and explicit rather than "magical".
+
+Notes on sublocation handling
+----------------------------
+Sublocation is suppressed only when it is truly non-applicable or
+unambiguous. If a station supports multiple sublocations, leaving it
+unspecified is considered an error or an incomplete request.
+
+This avoids silently collapsing distinct data streams into a single,
+ambiguous output.
+"""
+import os
+from collections.abc import Mapping
 
 import pandas as pd
-import os
+from dms_datastore import dstore_config
+
+_MAPPING_CACHE = {}
+
+
+_UNSPECIFIED_SUBLOC = {"", "nan", "none", "null"}
 
 
 def stationfile_or_stations(stationfile, stations):
-    """Process stationfile arguments and station arguments
-    Delivers the one that will be used in process_station_list
-    including sanity checks both aren't given"""
+    """
+    Resolve mutually exclusive station input forms.
 
-    # this works for None or empty lists of strings
+    Parameters
+    ----------
+    stationfile : sequence of str or None
+        Click-style positional stationfile input. At most one file is allowed.
+    stations : sequence of str or None
+        Explicit station arguments, typically from a CLI option.
+
+    Returns
+    -------
+    str or sequence of str
+        The selected station input. A file path is returned unchanged if a
+        station file is used; otherwise the explicit station list is returned.
+
+    Raises
+    ------
+    ValueError
+        If neither input is provided, if both are provided, if more than one
+        station file is given, or if the supplied station file does not exist.
+
+    Notes
+    -----
+    This is a small input-selection helper. It does not parse station syntax
+    or perform any lookup work.
+    """
+
     if not (stations or stationfile):
         raise ValueError("Either station or stationfile required")
     if stations and stationfile:
         raise ValueError("Station and stationfile inputs are mutually exclusive")
-    if stationfile:  # stationfile provided, stations not
+    if stationfile:
         if len(stationfile) > 1:
             raise ValueError("Only one stationfile may be input")
         stationfile = stationfile[0]
         if not os.path.exists(stationfile):
             raise ValueError(f"File does not exist: {stationfile}")
         return stationfile
+    return stations
+
+
+def _split_station_and_subloc(value):
+    if pd.isna(value):
+        return "", None
+    text = str(value).replace("'", "").strip().lower()
+    if "@" in text:
+        station_id, subloc = text.split("@", 1)
+        subloc = subloc.strip().lower()
+        if subloc in _UNSPECIFIED_SUBLOC:
+            subloc = None
+        return station_id.strip(), subloc
+    return text, None
+
+
+
+def _normalize_subloc_value(value):
+    if pd.isna(value):
+        return None
+    text = str(value).strip().lower()
+    if text in _UNSPECIFIED_SUBLOC:
+        return None
+    return text
+
+
+
+def normalize_station_request(
+    station=None,
+    stationlist=None,
+    stationframe=None,
+    param=None,
+    default_subloc=None,
+):
+    """
+    Normalize accepted request inputs to a canonical dataframe.
+
+    Parameters
+    ----------
+    station : str, optional
+        Single station specification. A station may include an inline
+        sublocation suffix such as ``"mrz@upper"``.
+    stationlist : str or sequence, optional
+        Either a CSV path or a list-like collection of station specifications.
+    stationframe : pandas.DataFrame, optional
+        Pre-built request dataframe. Must contain ``station_id`` or a column
+        that can be renamed to it.
+    param : str, optional
+        Parameter to broadcast onto rows that do not already provide ``param``.
+    default_subloc : str or None, optional
+        Default sublocation value to use for rows whose sublocation remains
+        unspecified after parsing.
+
+    Returns
+    -------
+    pandas.DataFrame
+        DataFrame with columns ``station_id``, ``param``, and ``subloc``.
+
+    Raises
+    ------
+    ValueError
+        If not exactly one of ``station``, ``stationlist``, or ``stationframe``
+        is provided, or if the normalized request lacks required fields.
+
+    Notes
+    -----
+    This function only parses and standardizes request structure. It does not
+    consult registries or variable mappings.
+    """
+
+    provided = sum(x is not None for x in (station, stationlist, stationframe))
+    if provided != 1:
+        raise ValueError(
+            "Exactly one of station, stationlist, or stationframe must be provided"
+        )
+
+    if station is not None:
+        df = pd.DataFrame({"station_id": [station]})
+    elif stationlist is not None:
+        if isinstance(stationlist, str):
+            df = pd.read_csv(stationlist, sep=",", comment="#", header=0)
+        elif isinstance(stationlist, (list, tuple, pd.Index, pd.Series)):
+            df = pd.DataFrame({"station_id": list(stationlist)})
+        else:
+            raise ValueError("stationlist must be a path, list-like, or tuple")
     else:
-        return stations
+        if not isinstance(stationframe, pd.DataFrame):
+            raise ValueError("stationframe must be a pandas DataFrame")
+        df = stationframe.copy()
+
+    rename_map = {}
+    if "id" in df.columns and "station_id" not in df.columns:
+        rename_map["id"] = "station_id"
+    if "param_col" in df.columns and "param" not in df.columns:
+        rename_map["param_col"] = "param"
+    if rename_map:
+        df = df.rename(columns=rename_map)
+
+    if "station_id" not in df.columns:
+        raise ValueError("Request must contain a station_id column")
+
+    parsed = df["station_id"].apply(_split_station_and_subloc)
+    parsed_df = pd.DataFrame(parsed.tolist(), columns=["station_id", "_parsed_subloc"], index=df.index)
+    df["station_id"] = parsed_df["station_id"]
+
+    if "subloc" in df.columns:
+        df["subloc"] = df["subloc"].apply(_normalize_subloc_value)
+        missing_subloc = df["subloc"].isna()
+        df.loc[missing_subloc, "subloc"] = parsed_df.loc[missing_subloc, "_parsed_subloc"]
+    else:
+        df["subloc"] = parsed_df["_parsed_subloc"]
+
+    if default_subloc is not None:
+        df["subloc"] = df["subloc"].fillna(default_subloc)
+
+    if param is not None:
+        if "param" in df.columns:
+            missing = df["param"].isna() | (df["param"].astype(str).str.strip() == "")
+            df.loc[missing, "param"] = param
+        else:
+            df["param"] = param
+
+    if "param" not in df.columns:
+        raise ValueError("Request must contain param or param must be provided")
+
+    df["station_id"] = (
+        df["station_id"].astype(str).str.replace("'", "", regex=True).str.strip().str.lower()
+    )
+    df["param"] = df["param"].astype(str).str.strip()
+    if "subloc" in df.columns:
+        df["subloc"] = df["subloc"].apply(_normalize_subloc_value)
+
+    return df[["station_id", "param", "subloc"]]
+
+
+
+def _load_mapping(mapping):
+    if isinstance(mapping, pd.DataFrame):
+        return mapping.copy()
+
+    if isinstance(mapping, Mapping):
+        rows = []
+        for param, src in mapping.items():
+            if isinstance(src, (list, tuple, set)):
+                for one in src:
+                    rows.append({"param": param, "src_var_id": one})
+            else:
+                rows.append({"param": param, "src_var_id": src})
+        return pd.DataFrame(rows)
+
+    if isinstance(mapping, str):
+        cache_key = os.path.abspath(mapping)
+        if cache_key not in _MAPPING_CACHE:
+            _MAPPING_CACHE[cache_key] = pd.read_csv(
+                mapping,
+                sep=",",
+                comment="#",
+                header=0,
+                dtype=str,
+            )
+        return _MAPPING_CACHE[cache_key].copy()
+
+    raise ValueError("mapping must be a DataFrame, mapping object, or CSV path")
+
+
+
+def attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id", registry_df=None):
+    """
+    Attach source-facing station identifiers from a registry.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Request dataframe containing ``station_id``.
+    repo_name : str, default "formatted"
+        Repository name used to resolve the configured registry and key column
+        when ``registry_df`` is not supplied.
+    agency_id_col : str, default "agency_id"
+        Name of the registry column that should be copied into the canonical
+        output column ``agency_id``.
+    registry_df : pandas.DataFrame, optional
+        Explicit registry table to use instead of reading from configuration.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Copy of the request dataframe with registry columns merged in and with
+        canonical column ``agency_id`` attached.
+
+    Raises
+    ------
+    ValueError
+        If the configured key column is missing, if ``agency_id_col`` is not
+        present in the registry, or if one or more requested stations cannot be
+        resolved.
+
+    Notes
+    -----
+    The request side always uses ``station_id`` as the canonical project
+    identifier. The registry key may differ and is renamed internally when
+    needed.
+    """   
+    if registry_df is None:
+        repo_cfg = dstore_config.repo_config(repo_name)
+        registry_name = repo_cfg["registry"]
+        key_column = repo_cfg["key_column"]
+        registry = dstore_config.registry_df(registry_name, key_column=key_column).copy()
+    else:
+        registry = registry_df.copy()
+        key_column = "station_id" if "station_id" in registry.columns else repo_name
+
+    if registry.index.name == key_column:
+        registry = registry.reset_index(drop=(key_column in registry.columns))
+
+    if key_column != "station_id":
+        if key_column not in registry.columns:
+            raise ValueError(f"Registry key column {key_column!r} not found")
+        registry = registry.rename(columns={key_column: "station_id"})
+
+    merged = df.merge(registry, on="station_id", how="left", suffixes=("", "_registry"))
+
+    if agency_id_col not in merged.columns:
+        raise ValueError(f"Requested agency id column {agency_id_col!r} not found in registry")
+
+    missing = merged[agency_id_col].isna() | (merged[agency_id_col].astype(str).str.strip() == "")
+    if missing.any():
+        missing_ids = sorted(merged.loc[missing, "station_id"].dropna().unique().tolist())
+        raise ValueError(f"Unable to resolve {agency_id_col!r} for stations: {missing_ids}")
+
+    merged["agency_id"] = merged[agency_id_col].astype(str).str.replace("'", "", regex=True)
+    return merged
+
+
+
+def attach_subloc(df, subloc_lookup=None, default_subloc="default"):
+    """
+    Attach or expand sublocation values.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Request dataframe containing ``station_id`` and optionally ``subloc``.
+    subloc_lookup : pandas.DataFrame or str or None, optional
+        Sublication lookup table or CSV path. If omitted, the configured
+        sublocation table is read via ``dstore_config``.
+    default_subloc : str, default "default"
+        Sublication label assigned when a station has no listed sublocations
+        and the incoming request leaves sublocation unspecified.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Request dataframe with explicit ``subloc`` values. Rows with
+        unspecified sublocation are expanded when the lookup lists multiple
+        sublocations for a station.
+
+    Raises
+    ------
+    ValueError
+        If ``station_id`` is absent from the input dataframe.
+
+    Notes
+    -----
+    This function preserves explicit sublocation requests and only expands
+    rows whose sublocation is unspecified.
+    """
+
+    if "station_id" not in df.columns:
+        raise ValueError("df must contain station_id before attach_subloc")
+    if "subloc" not in df.columns:
+        df = df.copy()
+        df["subloc"] = None
+
+    if subloc_lookup is None:
+        subloc_df = dstore_config.sublocation_df().copy()
+    elif isinstance(subloc_lookup, pd.DataFrame):
+        subloc_df = subloc_lookup.copy()
+    else:
+        subloc_df = pd.read_csv(
+            subloc_lookup,
+            sep=",",
+            comment="#",
+            header=0,
+            dtype={"station_id": str, "subloc": str},
+        )
+
+    subloc_df = subloc_df.copy()
+    subloc_df["station_id"] = subloc_df["station_id"].astype(str).str.replace("'", "", regex=True).str.strip().str.lower()
+    subloc_df["subloc"] = subloc_df["subloc"].apply(_normalize_subloc_value)
+    subloc_df = subloc_df.loc[subloc_df["subloc"].notna(), ["station_id", "subloc"]].drop_duplicates()
+
+    subloc_map = (
+        subloc_df.groupby("station_id")["subloc"].apply(list).to_dict()
+        if not subloc_df.empty else {}
+    )
+
+    rows = []
+    for _, row in df.iterrows():
+        rec = row.to_dict()
+        station_id = rec["station_id"]
+        requested_subloc = _normalize_subloc_value(rec.get("subloc"))
+        if requested_subloc is None:
+            known_sublocs = subloc_map.get(station_id, [])
+            if known_sublocs:
+                for subloc in known_sublocs:
+                    out = rec.copy()
+                    out["subloc"] = subloc
+                    rows.append(out)
+            else:
+                out = rec.copy()
+                out["subloc"] = default_subloc
+                rows.append(out)
+        else:
+            rec["subloc"] = requested_subloc
+            rows.append(rec)
+
+    return pd.DataFrame(rows).drop_duplicates().reset_index(drop=True)
+
+
+
+def attach_src_var_id(df, mapping, source=None):
+    """
+    Attach source-facing variable identifiers from a parameter mapping.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Request dataframe containing ``param``.
+    mapping : collections.abc.Mapping or pandas.DataFrame or str
+        Mapping source. Accepted forms are:
+        - mapping-like object from project parameter name to source variable id
+        - dataframe containing ``param`` and ``src_var_id`` or ``var_name``
+        - CSV path to such a table
+    source : str, optional
+        Source selector used to filter mapping rows when the mapping contains
+        a ``src_name`` column.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Request dataframe with ``src_var_id`` attached.
+
+    Raises
+    ------
+    ValueError
+        If the mapping lacks the columns required to resolve ``src_var_id``.
+
+    Notes
+    -----
+    Mapping is intentionally allowed to be non-unique. A single request row
+    may expand to multiple rows when multiple source variables correspond to
+    the same project parameter.
+    """
+
+    if "param" not in df.columns:
+        raise ValueError("df must contain param before attach_src_var_id")
+
+    map_df = _load_mapping(mapping)
+    map_df.columns = [str(c).strip() for c in map_df.columns]
+
+    rename_map = {}
+    if "var_name" in map_df.columns and "param" not in map_df.columns:
+        rename_map["var_name"] = "param"
+    if rename_map:
+        map_df = map_df.rename(columns=rename_map)
+
+    if source is not None and "src_name" in map_df.columns:
+        map_df = map_df.loc[map_df["src_name"] == source, :].copy()
+
+    if "param" not in map_df.columns:
+        raise ValueError("mapping must contain param or var_name column")
+
+    if "src_var_id" not in map_df.columns:
+        if set(map_df.columns) == {"param"}:
+            map_df["src_var_id"] = map_df["param"]
+        else:
+            raise ValueError("mapping must contain src_var_id column")
+
+    map_df["param"] = map_df["param"].astype(str).str.strip()
+    map_df["src_var_id"] = map_df["src_var_id"].astype(str).str.strip()
+
+    keep_cols = [
+        c
+        for c in map_df.columns
+        if c in ["param", "src_var_id", "src_var_name", "src_name", "comment"]
+    ]
+    merged = df.merge(map_df[keep_cols].drop_duplicates(), on="param", how="left")
+    merged["src_var_id"] = merged["src_var_id"].fillna(merged["param"])
+    return merged
+
 
 
 def process_station_list(
@@ -39,172 +499,161 @@ def process_station_list(
     param_lookup=None,
     source="cdec",
 ):
-    """Process a csv list of station
+    """Legacy compatibility wrapper for processing station/parameter inputs into fully resolved requests. Don't use.
+
+    This is the high-level orchestration function that applies:
+    1. normalization
+    2. agency_id attachment
+    3. src_var_id attachment
 
     Parameters
-    stationlist : str
-    List of strings of station ids or name of csv file containing the list of request info (id,subloc,param)
+    ----------
+    stations : str or list or pandas.DataFrame
+        Station specification (see normalize_station_request).
 
-    id_col : str
-    Name of column containing station id. This is expected to be the agency id unless station_lookup is provided
+    params : str or list of str, optional
+        Parameter(s) to associate with stations.
 
-    subloc_col : str
-    Addional location or program name needed to identify the data stream. An example of location might be upper and lower sensor. An example of program having its own instrument would be the bgc (biogeochemistry) program for USGS in the Bay-Delta.
+    registry_df : pandas.DataFrame
+        Station registry used to resolve agency_id.
 
-    param_col : str
-    Name of column containing the parameter for the query. This is expected to be an agency code/name unless station_lookup is provided. If param is provided, this should be None.
+    src_var_map : dict or pandas.DataFrame or str
+        Mapping used to resolve src_var_id.
 
-    param : str
-    Requested parameter. Should be an agency code unless param_lookup is given. This will be used for every station.
+    Returns
+    -------
+    pandas.DataFrame
+        Fully resolved dataframe with:
+        - station_id
+        - subloc
+        - param
+        - agency_id
+        - src_var_id
 
-    param_lookup: str
-    Lookup file containing columns "variable_name" and "agency_variable_name"
+    Raises
+    ------
+    ValueError
+        If any stage fails due to ambiguity or missing data.
 
-    station_lookup
-    Lookup file containing "id" and "agency_id" columns.
-
+    Notes
+    -----
+    - This function enforces strict, fail-fast behavior.
+    - Sublocation completeness is expected before downstream use;
+      ambiguous or missing sublocations should be resolved prior
+      to calling data retrieval routines.
     """
-
     if param_col is not None and param is not None:
         raise ValueError("Cannot use both param_col and param arguments")
 
     if isinstance(stationlist, str):
         station_df = pd.read_csv(stationlist, sep=",", comment="#", header=0)
-    elif isinstance(stationlist, list) or isinstance(stationlist, tuple):
-        station_df = pd.DataFrame(data={"id": stationlist})
+    elif isinstance(stationlist, (list, tuple, pd.Index, pd.Series)):
+        station_df = pd.DataFrame({id_col: list(stationlist)})
     else:
-        station_df = stationlist
+        station_df = stationlist.copy()
 
-    # Rename the parameter column as param to standardize
-    # If there is no param column, create one and populate all its rows with param.
-    if param is not None:  # only one parameter, append as column
+    if param is not None:
         station_df["param"] = param
-    else:
-        if param_col is not None:
-            station_df.rename(columns={param_col: "param"})
+    elif param_col is not None and param_col in station_df.columns:
+        station_df = station_df.rename(columns={param_col: "param"})
 
-    if not "subloc" in station_df.columns:
-        station_df["subloc"] = subloc
-    else:
-        station_df["subloc"] = station_df.subloc.astype(str)
+    if subloc_col is not None and subloc_col in station_df.columns and "subloc" not in station_df.columns:
+        station_df = station_df.rename(columns={subloc_col: "subloc"})
 
-    if station_lookup:
-        slookup = pd.read_csv(
-            station_lookup, sep=",", comment="#", header=0, index_col=id_col
-        )
-        station_df["station_id"] = station_df[id_col].str.lower()
-        station_df.set_index(id_col, drop=True, inplace=True)
-        if "agency" in slookup.columns and "agency" in station_df.columns:
-            slookup.rename(columns={"agency": "agency_station_db"}, inplace=True)
-        station_df = station_df.merge(slookup, on="id", how="left")
-        station_df.loc[station_df.subloc.isin(["nan", ""]), "subloc"] = "default"
-        station_df["agency_id"] = station_df[agency_id_col]
-        no_agency_id = (
-            station_df.agency_id.isin(["nan", ""]) | station_df.agency_id.isnull()
-        )
-        station_df.loc[no_agency_id, "agency_id"] = station_df.loc[
-            no_agency_id, "station_id"
-        ]
-    else:
-        station_df["agency_id"] = station_df["id"]
-    # Some ids are prepended with ' in order to deal with Excel silent coersion.
-    station_df["agency_id"] = (
-        station_df["agency_id"].astype(str).str.replace("'", "", regex=True)
+    if id_col in station_df.columns and "station_id" not in station_df.columns:
+        station_df = station_df.rename(columns={id_col: "station_id"})
+
+    station_df = normalize_station_request(
+        stationframe=station_df,
+        param=param,
+        default_subloc=None,
     )
+    station_df = attach_subloc(station_df, subloc_lookup=subloc_lookup, default_subloc=subloc)
 
-    # Replace parameters with lookup values from station_lookup. Failure will leave as-is, in case of mix.
+    if station_lookup is not None:
+        registry = pd.read_csv(station_lookup, sep=",", comment="#", header=0, dtype=str)
+        registry.columns = [str(c).strip() for c in registry.columns]
+        if id_col in registry.columns and "station_id" not in registry.columns:
+            registry = registry.rename(columns={id_col: "station_id"})
+        station_df = attach_agency_id(
+            station_df,
+            agency_id_col=agency_id_col,
+            registry_df=registry,
+        )
+    else:
+        station_df["agency_id"] = station_df["station_id"]
+
     if param_lookup is not None:
-        if isinstance(param_lookup, str):
-            vlookup = pd.read_csv(
-                param_lookup,
-                sep=",",
-                comment="#",
-                header=0,
-                usecols=["var_name", "src_var_id", "src_name"],
-                dtype=str,
-            )
-        else:
-            vlookup = param_lookup
-        vlookup = vlookup.loc[vlookup.src_name == source, :]
-        vlookup.rename(columns={"var_name": "param"}, inplace=True)
-        station_df = station_df.merge(vlookup, on="param", how="left")
-        station_df = station_df.fillna(value={"src_var_id": station_df.param})
+        station_df = attach_src_var_id(station_df, param_lookup, source=source)
+    elif "src_var_id" not in station_df.columns:
+        station_df["src_var_id"] = station_df["param"]
 
-    station_df = station_df.rename(columns={"id": "station_id"})
-    # Any nans in the agency_id indicate a lookup failure. As a backup assume the agency_id was already provided in the id column
-    station_df["agency_id"] = station_df["agency_id"].fillna(station_df.station_id)
+    return station_df
 
-    return station_df  # [["station_id","agency_id","subloc","param","src_var_id"]]
 
 
 def read_station_subloc(fpath):
-    """Read a BayDeltaSCHISM station_sublocs.csv  file into a pandas DataFrame
-
-      The BayDelta SCHISM format has a header and uses "," as the delimiter and has these columns:
-      id,subloc,z
-
-      The id is the station id, which is the key that joins this file to the station database. 'subloc' is a label that describes
-      the sublocation or subloc and z is the actual elevation of the instrument
-
-      Example might be:
-      id,subloc,z
-      12345,upper,-0.5
-
-      Other columns are allowed, but this will commonly merged with the station database file so we avoid column names like 'name' that might collide
+    """
+    Read a station-sublocation table.
 
     Parameters
     ----------
-    fpath : fname
-       Path to input station.in style file
+    fpath : str or path-like
+        Path to a CSV file with columns including ``station_id``, ``subloc``, and ``z``.
 
     Returns
     -------
-    Result : DataFrame
-        DataFrame with hierarchical index (id,subloc) and data column z
+    pandas.DataFrame
+        Dataframe indexed by ``station_id`` and ``subloc`` with column ``z``.
 
+    Notes
+    -----
+    The returned structure is suitable for merging with a station database via
+    ``merge_station_subloc``.
     """
 
-    df = pd.read_csv(fpath, sep=",", header=0, index_col=["id", "subloc"], comment="#")
+    df = pd.read_csv(fpath, sep=",", header=0, index_col=["station_id", "subloc"], comment="#")
     df["z"] = df.z
     return df[["z"]]
 
 
+
 def merge_station_subloc(station_dbase, station_subloc, default_z):
-    """Merge BayDeltaSCHISM station database with subloc file, producing the union of all stations and sublocs including a default entry for stations with no subloc entry
+    """
+    Merge a station database with a station-sublocation table.
 
     Parameters
     ----------
-    station_dbase : DataFrame
-       This should be the input that has only the station id as an index and includes other metadata like x,y,
-
-    station_subloc : DataFrame
-       This should have (id,subloc) as an index
+    station_dbase : pandas.DataFrame
+        Station database keyed by station identifier.
+    station_subloc : pandas.DataFrame
+        Sublication table indexed by ``station_id`` and ``subloc``.
+    default_z : float
+        Default elevation assigned to stations with no explicit sublocation
+        entry.
 
     Returns
     -------
-    Result : DataFrame
-        DataFrame that links the information.
+    pandas.DataFrame
+        Combined dataframe indexed by ``station_id`` and ``subloc``.
 
+    Notes
+    -----
+    Stations without explicit sublocation entries receive a synthesized
+    ``default`` sublocation row.
     """
 
-    merged = station_dbase.reset_index().merge(
-        station_subloc.reset_index(), left_on="id", right_on="id", how="left"
-    )
+
+    base = station_dbase.reset_index().copy()
+    sub = station_subloc.reset_index().copy()
+
+    if "station_id" not in base.columns:
+        raise ValueError("station_dbase must contain 'station_id'")
+
+    if "station_id" not in sub.columns:
+        raise ValueError("station_subloc must contain 'station_id'")
+
+    merged = base.merge(sub, on="station_id", how="left")
     merged.fillna({"subloc": "default", "z": default_z}, inplace=True)
-    merged.set_index(["id", "subloc"], inplace=True)
-
+    merged.set_index(["station_id", "subloc"], inplace=True)
     return merged
-
-
-if __name__ == "__main__":
-    slookup = "d:/delta/BayDeltaSCHISM/data/stations_utm_new.csv"
-    vlookup = "D:/Delta/data_tools/dms_data_tools/dms_data_tools/variable_mappings.csv"
-    df = process_station_list(
-        "slist.csv",
-        param="ec",
-        station_lookup=slookup,
-        agency_id_col="cdec_id",
-        param_lookup=vlookup,
-    )
-    print("\n")
-    print(df)

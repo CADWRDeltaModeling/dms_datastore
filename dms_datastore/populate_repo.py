@@ -26,17 +26,12 @@ import concurrent.futures
 import pandas as pd
 from pathlib import Path
 from dms_datastore.process_station_variable import (
-    process_station_list,
-    stationfile_or_stations,
+    attach_agency_id,
+    attach_src_var_id,
+    normalize_station_request,
     read_station_subloc,
     merge_station_subloc,
 )
-from dms_datastore.logging_config import configure_logging, resolve_loglevel 
-import logging
-logger = logging.getLogger(__name__)
-
-# if not SAFEGUARD:
-#    from schimpy.station import *
 from dms_datastore import dstore_config
 from dms_datastore.filename import interpret_fname, meta_to_filename
 from dms_datastore.read_ts import read_ts
@@ -45,6 +40,12 @@ from dms_datastore.download_noaa import noaa_download
 from dms_datastore.download_cdec import cdec_download
 from dms_datastore.download_ncro import ncro_download, mapping_df
 from dms_datastore.rationalize_time_partitions import rationalize_time_partitions
+from dms_datastore.logging_config import configure_logging, resolve_loglevel 
+import logging
+logger = logging.getLogger(__name__)
+
+
+
 
 #    download_ncro_por,
 #    download_ncro_inventory,
@@ -251,7 +252,7 @@ def populate_repo(
     -------
 
     """
-
+    maximize_subloc = False
 
     # todo: This may limit usefulness for things like atmospheric
     slookup = dstore_config.config_file("station_dbase")
@@ -270,26 +271,26 @@ def populate_repo(
     dfsub = read_station_subloc(subloclookup)
     df = merge_station_subloc(df, dfsub, default_z=-0.5)
 
-    # This will be used to try upper and lower regardless of whether they are listed
-    maximize_subloc = False
-
     df = df.reset_index()
+
     if ignore_existing is not None:
-        df = df[~df["id"].isin(ignore_existing)]
+        df = df[~df["station_id"].isin(ignore_existing)]
 
     dest_dir = dest
     source = "cdec" if agency in ["dwr", "usbr"] else agency
     agency_id_col = "cdec_id" if source == "cdec" else "agency_id"
 
-    df = df[["id", "subloc"]]
-    stationlist = process_station_list(
-        df,
+    df = df[["station_id", "subloc"]]
+
+    stationlist = normalize_station_request(
+        stationframe=df,
         param=param,
-        param_lookup=vlookup,
-        station_lookup=slookup,
-        agency_id_col=agency_id_col,
-        source=source,
+        default_subloc="default",
     )
+    # repo_name = "formatted" is for pointing to station_dbase.csv -- nothing particular to formatted other than
+    # using the right list. 
+    stationlist = attach_agency_id(stationlist, repo_name="formatted", agency_id_col=agency_id_col)
+    stationlist = attach_src_var_id(stationlist, vlookup, source=source)
     if maximize_subloc:
         stationlist["subloc"] = "default"
         if param not in ["flow", "elev"]:
@@ -353,13 +354,9 @@ def populate_repo2(df, dest, start, overwrite=False, ignore_existing=None):
 
     source = "cdec"
     agency_id_col = "agency_id_from_file"
-    stationlist = process_station_list(
-        df,
-        param_lookup=vlookup,
-        station_lookup=slookup,
-        agency_id_col=agency_id_col,
-        source=source,
-    )
+    stationlist = normalize_station_request(stationframe=df, default_subloc="default")
+    stationlist = attach_agency_id(stationlist, repo="formatted", agency_id_col=agency_id_col)
+    stationlist = attach_src_var_id(stationlist, vlookup, source=source)
     end = None
     downloaders["cdec"](stationlist, dest, start, end, overwrite)
 

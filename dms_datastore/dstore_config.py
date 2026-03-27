@@ -7,10 +7,12 @@ __all__ = [
     "configuration",
     "get_config",
     "config_file",
+    "coerce_repo_config",
     "repo_config",
     "repo_root",
     "repo_names",
     "registry_df",
+    "repo_registry",
     "source_priority_group",
 ]
 
@@ -55,7 +57,36 @@ def _resolve_config_path(fname_or_path):
     )
 
 
-def station_dbase(dbase_name=None):
+    
+def coerce_repo_config(repo=None, repo_cfg=None):
+    if repo_cfg is not None:
+        return repo_cfg
+    if repo is None:
+        raise ValueError("repo must be provided")
+    return repo_config(repo)
+
+
+def repo_root(repo=None, repo_cfg=None):
+    cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
+    return cfg["root"]
+
+
+def repo_registry(repo=None, repo_cfg=None):
+    cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
+    print(cfg)
+    registry_name = cfg.get("registry")
+    key_column = cfg.get("key_column", "id")
+    if registry_name is None:
+        raise ValueError(f"Repo {cfg['name']!r} has no named registry")
+    return registry_df(registry_name, key_column=key_column)   
+    
+def station_dbase():
+    """legacy. will disappear"""
+    
+    return repo_registry("formatted")
+
+    
+def blah():
     global station_dbase_cache
     if station_dbase_cache is None:
         if dbase_name is None:
@@ -89,13 +120,13 @@ def sublocation_df(dbase_name=None):
             sep=",",
             comment="#",
             header=0,
-            dtype={"id": str, "subloc": str, "z": float, "comment": str},
+            dtype={"station_id": str, "subloc": str, "z": float, "comment": str},
         )
-        dup = db.duplicated(subset=["id", "subloc"], keep="first")
+        dup = db.duplicated(subset=["station_id", "subloc"], keep="first")
         if dup.sum(axis=0) > 0:
             print("Duplicates in subloc table")
             print(db[dup])
-            raise ValueError("Station database has duplicate id keys. See above")
+            raise ValueError("Station database has duplicate station_id keys. See above")
         subloc_cache = db
     return subloc_cache
 
@@ -123,67 +154,42 @@ def config_file(label):
 def repo_names():
     return list(config.get("repos", {}).keys())
 
-
-def repo_config(repo_name=None):
-    """
-    Return normalized repo configuration.
-
-    If repo_name is None, fall back to legacy top-level 'repo'.
-    If repo_name is an existing path, return an ad hoc repo config.
-    """
+def repo_config(repo_name):
     global _repo_cache
 
     if repo_name is None:
-        repo_name = "repo"
-
-    if os.path.exists(str(repo_name)):
-        return {
-            "name": str(repo_name),
-            "root": str(repo_name),
-            "registry": None,
-            "key_column": "id",
-            "source_priority_mode": "none",
-            "filename_templates": [],
-            "parse": {"style": "legacy"},
-        }
+        raise ValueError("repo name must be provided explicitly")
 
     repos = config.get("repos", {})
+    if repo_name not in repos:
+        raise ValueError(f"Unknown configured repo name: {repo_name}")
 
-    if repo_name in repos:
-        if _repo_cache is None:
-            _repo_cache = {}
-        if repo_name in _repo_cache:
-            return _repo_cache[repo_name]
+    if _repo_cache is None:
+        _repo_cache = {}
 
-        spec = dict(repos[repo_name])
-        spec["name"] = repo_name
-        spec["root"] = _resolve_config_path(spec["root"]) if not os.path.exists(spec["root"]) else spec["root"]
-        spec.setdefault("key_column", "id")
-        spec.setdefault("filename_templates", [])
-        spec.setdefault("source_priority_mode", "none")
-        spec.setdefault("parse", {"style": "legacy"})
-        _repo_cache[repo_name] = spec
-        return spec
+    if repo_name in _repo_cache:
+        return _repo_cache[repo_name]
 
-    # compatibility with old top-level entries like screened / processed / repo
-    if repo_name in config:
-        root = config_file(repo_name)
-        return {
-            "name": repo_name,
-            "root": root,
-            "registry": "continuous",
-            "key_column": "id",
-            "source_priority_mode": "by_registry_column",
-            "source_priority_column": "agency",
-            "filename_templates": [],
-            "parse": {"style": "legacy"},
-        }
+    spec = dict(repos[repo_name])
+    spec["name"] = repo_name
+    spec["root"] = (
+        _resolve_config_path(spec["root"])
+        if not os.path.exists(spec["root"])
+        else spec["root"]
+    )
+    spec.setdefault("key_column", "id")
+    spec.setdefault("source_priority_mode", "none")
+    spec.setdefault("parse", {"style": "legacy"})
+    spec.setdefault("search", {"use_source_slot": True, "shard_style": "auto"})
 
-    raise ValueError(f"Unknown repo name: {repo_name}")
+    templates = spec.get("filename_templates", [])
+    if not templates:
+        raise ValueError(
+            f"Configured repo {repo_name!r} must define filename_templates"
+        )
 
-
-def repo_root(repo_name=None):
-    return repo_config(repo_name)["root"]
+    _repo_cache[repo_name] = spec
+    return spec
 
 
 def registry_df(registry_name, key_column="id"):
@@ -203,20 +209,42 @@ def registry_df(registry_name, key_column="id"):
         raise ValueError(f"Registry not found: {registry_name}")
 
     reg_path = _resolve_config_path(registries[registry_name])
-    df = pd.read_csv(reg_path, sep=",", comment="#", header=0, dtype=str)
-    if key_column not in df.columns:
+    if not os.path.exists(reg_path):
+        raise ValueError(f"Registry file not found: {reg_path}")
+
+
+    db = pd.read_csv(
+      reg_path,
+      sep=",",
+      comment="#",
+      header=0,
+      dtype={"agency_id": str},
+    )
+    if db is None or db.empty:
+        raise ValueError(f"Registry {registry_name} is empty or could not be read")
+
+
+    db.columns = db.columns.str.replace("'", "", regex=True).str.strip()
+
+    if key_column not in db.columns:
         raise ValueError(
             f"Registry {registry_name} is missing key column {key_column}"
         )
-    df[key_column] = df[key_column].str.replace("'", "", regex=True)
-    dup = df[key_column].duplicated()
+
+    db[key_column] = db[key_column].astype(str).str.replace("'", "", regex=True).str.strip()
+    print(db)
+
+    if "agency_id" in db.columns:
+        db["agency_id"] = db["agency_id"].astype(str).str.replace("'", "", regex=True).str.strip()
+
+    dup = db[key_column].duplicated()
     if dup.any():
-        raise ValueError(
-            f"Registry {registry_name} has duplicate {key_column} values"
-        )
-    df = df.set_index(key_column, drop=False)
-    _registry_cache[registry_name] = df
-    return df
+        print("Duplicates")
+        print(db.loc[dup, [key_column]])
+        raise ValueError(f"Registry {registry_name} has duplicate {key_column} keys")
+
+    db = db.set_index(key_column, drop=False)
+    return db
 
 
 def source_priority_group(name):

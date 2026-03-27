@@ -1,0 +1,53 @@
+import pandas as pd
+from dms_datastore import read_multi
+
+def test_read_ts_repo_builds_expected_patterns(monkeypatch, tmp_path):
+    root = tmp_path / "processed"
+    root.mkdir()
+
+    fake_repo_cfg = {
+        "name": "processed",
+        "root": str(root),
+        "filename_templates": [
+            "{source}_{key@subloc}_{param@modifier}_{year}.csv"
+        ],
+        "parse": {"style": "template"},
+        "source_priority_mode": "none",
+        "search": {"use_source_slot": True, "shard_style": "auto"},
+    }
+
+    monkeypatch.setattr(
+        read_multi.dstore_config,
+        "repo_config",
+        lambda repo: fake_repo_cfg,
+    )
+
+    seen = {}
+
+    def fake_ts_multifile(pats, **kwargs):
+        seen["pats"] = pats
+        seen["kwargs"] = kwargs
+        return "SENTINEL"
+
+    monkeypatch.setattr(read_multi, "ts_multifile", fake_ts_multifile)
+
+    out = read_multi.read_ts_repo(
+        "jer",
+        "ec",
+        subloc="upper",
+        repo="processed",
+        src_priority=["schism"],
+        modifier="daily",
+        start="2024-01-01",
+        end="2024-12-31",
+        meta=True,
+    )
+
+    assert out == "SENTINEL"
+    assert seen["pats"] == [
+        str(root / "schism_jer@upper_ec@daily_*.csv")
+    ]
+    assert seen["kwargs"]["repo"] == "processed"
+    assert seen["kwargs"]["meta"] is True
+    assert seen["kwargs"]["start"] == pd.Timestamp("2024-01-01")
+    assert seen["kwargs"]["end"] == pd.Timestamp("2024-12-31")

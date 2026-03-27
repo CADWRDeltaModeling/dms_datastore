@@ -16,7 +16,9 @@ import ssl
 import requests
 import io
 from dms_datastore.process_station_variable import (
-    process_station_list,
+    attach_agency_id,
+    attach_src_var_id,
+    normalize_station_request,
     stationfile_or_stations,
 )
 from dms_datastore import dstore_config
@@ -421,13 +423,6 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
             logger.info(failure)
 
 
-def process_station_list2(file):
-    stations = []
-    f = open(file, "r")
-    all_lines = f.readlines()
-    f.close()
-    stations = [x.strip().split(",")[0] for x in all_lines if not x.startswith("#")]
-    return stations
 
 
 def download_des(dest_dir, start, end, param, stations, overwrite, stationfile):
@@ -442,18 +437,21 @@ def download_des(dest_dir, start, end, param, stations, overwrite, stationfile):
     else:
         etime = dt.datetime(*list(map(int, re.split(r"[^\d]", end))))
 
-    stationfile = stationfile_or_stations(stationfile, stations)
-    slookup = dstore_config.config_file("station_dbase")
-    vlookup = dstore_config.config_file("variable_mappings")
-    df = process_station_list(
-        stationfile,
+    station_input = stationfile_or_stations(stationfile, stations)
+    if isinstance(station_input, str):
+        req = pd.read_csv(station_input, sep=",", comment="#", header=0)
+    else:
+        req = station_input
+
+    df = normalize_station_request(
+        stationframe=req if isinstance(req, pd.DataFrame) else None,
+        stationlist=req if not isinstance(req, pd.DataFrame) else None,
         param=param,
-        station_lookup=slookup,
-        agency_id_col="agency_id",
-        param_lookup=vlookup,
-        source="dwr_des",
-        subloc="all",
+        default_subloc="all",
     )
+    df = attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id")
+    vlookup = dstore_config.config_file("variable_mappings")
+    df = attach_src_var_id(df, vlookup, source="dwr_des")
     des_download(df, destdir, stime, etime, overwrite=overwrite)
 
 

@@ -6,12 +6,35 @@ import glob
 import pandas as pd
 from dms_datastore.read_ts import read_ts, read_yaml_header
 from dms_datastore import dstore_config
-from dms_datastore.filename import *
+from dms_datastore.filename import build_repo_globs, interpret_fname
 from vtools.functions.merge import ts_merge, ts_splice
 from vtools.functions.unit_conversions import *
 
 __all__ = ["read_ts_repo", "read_ts_repo", "ts_multifile_read", "infer_source_priority"]
 
+def resolve_repo_sources(repo_cfg, key, src_priority):
+    """
+    Resolve which source values should be substituted into repo templates.
+
+    This is search policy, not naming policy.
+    """
+    search_cfg = repo_cfg.get("search", {})
+    use_source_slot = search_cfg.get("use_source_slot", True)
+
+    if not use_source_slot:
+        return [""]
+
+    if src_priority == "infer":
+        inferred = infer_source_priority_repo(key, repo_cfg)
+        return inferred if inferred else ["*"]
+
+    if src_priority is None or src_priority == "*":
+        return ["*"]
+
+    if isinstance(src_priority, str):
+        return [src_priority]
+
+    return list(src_priority)
 
 def infer_source_priority(station_id):
     """
@@ -59,125 +82,12 @@ def infer_source_priority_repo(key, repo_cfg):
     )
 
 
-def _render_template_to_glob(template, values):
-    """
-    Narrow first-pass expansion of repo filename templates to glob patterns.
-
-    Supports:
-      {source}
-      {key}
-      {key@subloc}
-      {param}
-      {param@modifier}
-      {agency_id}
-      {year}
-      {syear}
-      {eyear}
-    """
-    out = template
-
-    # source
-    out = out.replace("{source}", values.get("source", "*"))
-
-    # key / key@subloc
-    key = values["key"]
-    subloc = values.get("subloc")
-    if "{key@subloc}" in out:
-        if "@" in key:
-            out = out.replace("{key@subloc}", key)
-        elif subloc is not None and subloc != "default":
-            out = out.replace("{key@subloc}", f"{key}@{subloc}")
-        else:
-            out = out.replace("{key@subloc}", key)
-    out = out.replace("{key}", key)
-
-    # param / param@modifier
-    param = values["param"]
-    modifier = values.get("modifier")
-    if "{param@modifier}" in out:
-        if modifier is None:
-            out = out.replace("{param@modifier}", param)
-        else:
-            out = out.replace("{param@modifier}", f"{param}@{modifier}")
-    out = out.replace("{param}", param)
-
-    # agency id
-    out = out.replace("{agency_id}", values.get("agency_id", "*"))
-
-    # year tokens become wildcards for discovery unless explicitly provided
-    out = out.replace("{year}", values.get("year", "*"))
-    out = out.replace("{syear}", values.get("syear", "*"))
-    out = out.replace("{eyear}", values.get("eyear", "*"))
-
-    return out
-
-
-def build_repo_patterns(
-    repo_cfg,
-    key,
-    variable,
-    subloc=None,
-    modifier=None,
-    src_priority="infer",
-):
-    templates = repo_cfg.get("filename_templates", [])
-    if not templates:
-        # legacy fallback
-        sources = src_priority if isinstance(src_priority, list) else ["*"]
-        pats = []
-        for src in sources:
-            pats.append(f"{src}_{key}_*_{variable}_*.*")
-        return pats
-
-    search_cfg = repo_cfg.get("search", {})
-    use_source_slot = search_cfg.get("use_source_slot", True)
-
-    if src_priority == "infer":
-        if repo_cfg.get("name") == "processed":
-            # important behavior change: discover broadly in processed
-            sources = ["*"] if use_source_slot else [""]
-        else:
-            inferred = infer_source_priority_repo(key, repo_cfg)
-            sources = inferred if inferred else (["*"] if use_source_slot else [""])
-    elif src_priority is None or src_priority == "*":
-        sources = ["*"] if use_source_slot else [""]
-    elif isinstance(src_priority, str):
-        sources = [src_priority]
-    else:
-        sources = list(src_priority)
-
-    values = {
-        "key": key,
-        "subloc": subloc,
-        "param": variable,
-        "modifier": modifier,
-        "agency_id": "*",
-        "year": "*",
-        "syear": "*",
-        "eyear": "*",
-    }
-
-    pats = []
-    for src in sources:
-        values["source"] = src
-        for tmpl in templates:
-            pats.append(_render_template_to_glob(tmpl, values))
-
-    # preserve order, drop duplicates
-    out = []
-    seen = set()
-    for p in pats:
-        if p not in seen:
-            seen.add(p)
-            out.append(p)
-    return out
 
 
 def fahren2cel(ts):
     tsout = fahrenheit_to_celsius(ts)
     tsout = tsout.round(2)
     return tsout
-
 
 def read_ts_repo(
     station_id,
@@ -193,14 +103,40 @@ def read_ts_repo(
 ):
     """
     Read time series data from a configured repository.
+
+    Parameters
+    ----------
+    station_id : str
+        Logical key/station identifier.
+    variable : str
+        Parameter/variable name.
+    subloc : str or None, optional
+        Sublocation name. Mutually exclusive with station_id shorthand using '@'.
+    repo : str
+        Required repo name or explicit repo path.
+    src_priority : str, list[str], or None, optional
+        Source resolution policy.
+    start, end : datetime-like, optional
+        Requested time window.
+    meta : bool, default=False
+        If True, return metadata and data.
+    force_regular : bool, default=False
+        Passed through to read_ts.
+    modifier : str or None, optional
+        Optional parameter modifier used by template repos such as processed.
+
+    Returns
+    -------
+    pandas.DataFrame or tuple
     """
+    if repo is None:
+        raise ValueError("repo must be provided explicitly to read_ts_repo")
+
     if subloc is not None:
         if "@" in station_id:
             raise ValueError("@ short hand and subloc are mutually exclusive")
-        else:
-            station_id = (
-                station_id + "@" + subloc if subloc != "default" else station_id
-            )
+        if subloc != "default":
+            station_id = f"{station_id}@{subloc}"
 
     repo_cfg = dstore_config.repo_config(repo)
     repository = repo_cfg["root"]
@@ -208,13 +144,19 @@ def read_ts_repo(
     start = pd.to_datetime(start) if start is not None else None
     end = pd.to_datetime(end) if end is not None else None
 
-    rel_pats = build_repo_patterns(
-        repo_cfg=repo_cfg,
+    sources = resolve_repo_sources(repo_cfg, station_id, src_priority)
+
+    rel_pats = build_repo_globs(
+        repo_cfg,
         key=station_id,
-        variable=variable,
+        param=variable,
         subloc=subloc,
         modifier=modifier,
-        src_priority=src_priority,
+        sources=sources,
+        agency_id="*",
+        year="*",
+        syear="*",
+        eyear="*",
     )
     pats = [os.path.join(repository, p) for p in rel_pats]
 

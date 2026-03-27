@@ -134,7 +134,7 @@ def usgs_multivariate(pat, outfile):
             subloc_df = sublocation_df()
             station_id = meta["station_id"]
             param = meta["param"]
-            known_multi = (subloc_df["id"] == station_id).any()
+            known_multi = (subloc_df["station_id"] == station_id).any()
             random_check = (
                 np.random.choice(2, 1, [0.9, 0.1])[0] == 1
             )  # Small chance we will check the file.
@@ -296,7 +296,7 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
                     "multivariate file separated, mention of other series omitted in this file may appear in original header"
                 )
                 meta["subloc"] = asubloc
-                newfname = meta_to_filename(meta)
+                newfname = newfname = meta_to_filename(meta, repo="formatted")
                 work_dir, newfname_f = os.path.split(newfname)
                 newfpath = os.path.join(tmpdir.name, newfname_f)  ## todo: hardwire
                 univariate.columns = ["value"]

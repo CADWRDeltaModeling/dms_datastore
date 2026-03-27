@@ -9,8 +9,11 @@ import re
 import os
 import click
 import concurrent.futures
+import pandas as pd
 from dms_datastore.process_station_variable import (
-    process_station_list,
+    attach_agency_id,
+    attach_src_var_id,
+    normalize_station_request,
     stationfile_or_stations,
 )
 from dms_datastore import dstore_config
@@ -361,17 +364,21 @@ def download_noaa(
         )
         return
     else:
-        stationfile = stationfile_or_stations(stationfile, stations)
-        slookup = dstore_config.config_file("station_dbase")
-        vlookup = dstore_config.config_file("variable_mappings")
-        df = process_station_list(
-            stationfile,
+        station_input = stationfile_or_stations(stationfile, stations)
+        if isinstance(station_input, str):
+            req = pd.read_csv(station_input, sep=",", comment="#", header=0)
+        else:
+            req = station_input
+
+        df = normalize_station_request(
+            stationframe=req if isinstance(req, pd.DataFrame) else None,
+            stationlist=req if not isinstance(req, pd.DataFrame) else None,
             param=param,
-            station_lookup=slookup,
-            agency_id_col="agency_id",
-            param_lookup=vlookup,
-            source="noaa",
+            default_subloc=None,  # NOAA has no sublocations
         )
+        df = attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id")
+        vlookup = dstore_config.config_file("variable_mappings")
+        df = attach_src_var_id(df, vlookup, source="noaa")
 
         if start:
             start = dtm.datetime(*list(map(int, re.split(r"[^\d]", start))))
