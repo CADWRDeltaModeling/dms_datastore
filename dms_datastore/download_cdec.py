@@ -18,8 +18,11 @@ import numpy as np
 import pandas as pd
 import concurrent.futures
 from dms_datastore.process_station_variable import (
-    process_station_list,
     stationfile_or_stations,
+    normalize_station_request,
+    attach_subloc,
+    attach_agency_id,
+    attach_src_var_id,
 )
 from dms_datastore import dstore_config
 from dms_datastore.logging_config import configure_logging, resolve_loglevel   
@@ -121,15 +124,21 @@ def cdec_download(
     # This is a small hardwired section to cull ec values
     # from the wrong sublocation/program
     # CDEC uses a different variable code for each
-    subloc_inconsist = (stations.subloc.isin(["default", "nan", "upper", "top"])) & (
-        stations.src_var_id.isin([92, 102])
+    bottom_codes = {"92", "102"}
+
+    stations = stations.copy()
+    stations["src_var_id"] = stations["src_var_id"].astype(str).str.strip()
+
+    subloc_inconsist = (
+        stations.subloc.isin(["default", "nan", "upper", "top"])
+        & stations.src_var_id.isin(bottom_codes)
     )
     stations = stations.loc[~subloc_inconsist, :]
-    subloc_inconsist = stations.subloc.isin(
-        ["lower", "bot", "bottom"]
-    ) & ~stations.src_var_id.isin(
-        [92, 102]
-    )  # at present, only EC has bottom sensor listed
+
+    subloc_inconsist = (
+        stations.subloc.isin(["lower", "bot", "bottom"])
+        & ~stations.src_var_id.isin(bottom_codes)
+    )
     stations = stations.loc[~subloc_inconsist, :]
     for index, row in stations.iterrows():
         download_station_data(
@@ -170,20 +179,7 @@ def cdec_download(
             logger.info(failure)
 
 
-def process_station_list2(file, cdec_ndx, param_ndx=None):
-    stations = []
-    variables = [] if param_ndx else None
-    for line in open(file, "r"):
-        if not line or line.startswith("#") or len(line) < (param_ndx + 1):
-            continue
-        elements = line.strip().split(",")
-        cdec_id = elements[cdec_ndx]
-        param = elements[param_ndx] if param_ndx else None
-        if len(cdec_id.strip()) == 3:
-            stations.append(cdec_id)
-            if param_ndx:
-                variables.append(param)
-    return stations, variables
+
 
 
 def download_cdec(
@@ -212,17 +208,26 @@ def download_cdec(
     if param_column is None and param is None:
         param_column = "param"
 
-    stationfile = stationfile_or_stations(stationfile, stations)
-    slookup = dstore_config.config_file("station_dbase")
+    request = stationfile_or_stations(stationfile, stations)
+
+    if isinstance(request, str):
+        req_df = pd.read_csv(request, sep=",", comment="#", header=0)
+        df = normalize_station_request(
+            stationframe=req_df,
+            param=param,
+            default_subloc=None,
+        )
+    else:
+        df = normalize_station_request(
+            stationlist=request,
+            param=param,
+            default_subloc=None,
+        )
+
+    df = attach_subloc(df, default_subloc="default")
+    df = attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id")
     vlookup = dstore_config.config_file("variable_mappings")
-    df = process_station_list(
-        stationfile,
-        param=param,
-        station_lookup=slookup,
-        agency_id_col="agency_id",
-        param_lookup=vlookup,
-        source="cdec",
-    )
+    df = attach_src_var_id(df, vlookup, source="cdec")
 
     # stations,variables = process_station_list(stationfile,cdec_column,param_column)
     # if not variables: variables = [param]*len(stations)

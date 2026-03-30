@@ -1,32 +1,96 @@
-
-
-
-station_dbase : station_dbase.csv
+station_dbase: station_dbase.csv
 variable_mappings: variable_mappings.csv
 variable_definitions: variables.csv
 sublocations: station_subloc.csv
 
 file_deletion_list: non_15_min_files_checked.txt
 compare_excepts_formatted: compare_excepts_formatted.txt
-
 des_rationalize_time_spec: des_rationalize_cfg.yaml
 
 repo_base: "//cnrastore-bdo/Modeling_Data/repo"
+
+# legacy aliases kept for compatibility
 repo: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
 screened: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
 processed: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed"
 
-source_priority:
-  ncro: ['ncro','cdec']
-  dwr_ncro: ['ncro']
-  des: ['des']
-  dwr_des: ['des']
-  usgs: ['usgs']
-  noaa: ['noaa']
-  usbr: ['usbr','cdec']
-  dwr_om: ['cdec']
-  dwr: ['dwr','cdec']
-  ebmud: ['usgs','ebmud','cdec']
-  
+# global priorities can remain as named groups
+source_priority_groups:
+  ncro: ["ncro", "cdec"]
+  dwr_ncro: ["ncro"]
+  des: ["des"]
+  dwr_des: ["des"]
+  usgs: ["usgs"]
+  noaa: ["noaa"]
+  usbr: ["usbr", "cdec"]
+  dwr_om: ["cdec"]
+  dwr: ["dwr", "cdec"]
+  ebmud: ["usgs", "ebmud", "cdec"]
+  processed_default: ["dms", "noaa", "usgs", "cdec"]
+  structures_default: ["dms"]
+
+# registry files available to repos
+registries:
+  continuous: station_dbase.csv
+  processed: processed_series.csv
+  structures: structures.csv
+
+repos:
+  formatted:
+    root: "//cnrastore-bdo/Modeling_Data/repo/continuous/formatted"
+    registry: continuous
+    key_column: station_id
+    source_priority_mode: by_registry_column
+    source_priority_column: agency
+    filename_templates:
+      - "{source}_{key@subloc}_{agency_id}_{param}_{year}.csv"
+    search:
+      use_source_slot: true
+      shard_style: auto
+
+
+  screened:
+    root: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
+    registry: continuous
+    key_column: station_id
+    source_priority_mode: by_registry_column
+    source_priority_column: agency
+    filename_templates:
+      - "{agency}_{key@subloc}_{agency_id}_{param}_{year}.csv"
+    search:
+      use_source_slot: true
+      shard_style: auto
+
+
+  processed:
+    root: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed"
+    registry: processed
+    key_column: station_id
+    source_priority_mode: repo_default
+    source_priority_group: processed_default
+    filename_templates:
+      - "{source}_{key@subloc}_{param@modifier}.csv"
+      - "{source}_{key@subloc}_{param@modifier}_{year}.csv"
+      - "{source}_{key@subloc}_{param}_{year}.csv"
+      - "{source}_{key@subloc}_{param}.csv"
+    search:
+      use_source_slot: true
+      shard_style: auto
+
+  structures:
+    root: "//cnrastore-bdo/Modeling_Data/repo/structures"
+    registry: structures
+    key_column: structure_id
+    source_priority_mode: repo_default
+    source_priority_group: structures_default
+    filename_templates:
+      - "{source}_{key}_{param}.csv"
+      - "{source}_{key}_{param}_{year}.csv"
+    search:
+      use_source_slot: true
+      shard_style: auto
+    parse:
+      style: template
+
 screen_config_v20230126: screen_config_v20230126.yaml
 screen_config: screen_config_v20230126.yaml

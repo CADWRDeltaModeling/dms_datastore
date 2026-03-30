@@ -16,9 +16,9 @@ from vtools.data.timeseries import to_dataframe
 from vtools.data.gap import *
 from dms_datastore.read_multi import *
 from dms_datastore.dstore_config import *
-from dms_datastore.filename import interpret_fname
 from dms_datastore.inventory import *
 from dms_datastore.write_ts import *
+from dms_datastore.filename import meta_to_filename
 from schimpy.station import *
 import geopandas as gpd
 import numpy as np
@@ -149,22 +149,20 @@ def plot_anomalies(
     plt.close(fig)
 
 
+
+
 def filter_inventory_(inventory, stations, params):
     if stations is not None:
         if isinstance(stations, str):
             stations = [stations]
-        inventory = inventory.loc[
-            inventory.index.get_level_values("station_id").isin(stations), :
-        ]
+        inventory = inventory.loc[inventory["station_id"].isin(stations), :]
+
     if params is not None:
         if isinstance(params, str):
             params = [params]
-            logger.debug(f"params: {params}")
-        inventory = inventory.loc[
-            inventory.index.get_level_values("param").isin(params), :
-        ]
-    return inventory
+        inventory = inventory.loc[inventory["param"].isin(params), :]
 
+    return inventory
 
 def auto_screen(
     fpath="formatted",
@@ -209,29 +207,29 @@ def auto_screen(
 
     active = start_station is None
     station_db = station_dbase()
-    inventory = repo_data_inventory(fpath)
+
+    source_repo = "formatted"
+    actual_fpath = fpath if fpath is not None else repo_root(source_repo)
+    inventory = repo_data_inventory(repo="formatted",in_path=actual_fpath) # repo is the config repo, in_path is the data storage location
     inventory = filter_inventory_(inventory, stations, params)
     failed_read = []
 
     for index, row in inventory.iterrows():
-        station_id = index[0]
-        if not active:
-            if station_id == start_station:
-                active = True
-            else:
-                continue
-        subloc = index[1]
-        if type(subloc) == float:
+        station_id = row["station_id"]
+        subloc = row["subloc"]
+        param = row["param"]
+
+        if pd.isna(subloc) or subloc is None:
             subloc = "default"
-        param = index[2]
+
         if subloc is None:
             subloc = "default"
         if np.random.uniform() < 0.0:  # 0.95:
             logger.debug(f"Randomly rejecting: {station_id} {subloc} {param}")
             continue
-        filename = str(row.filename)
+
         station_info = station_db.loc[station_id, :]
-        agency = row.agency_dbase
+        agency = row["agency_registry"] if "agency_registry" in row.index else row["agency"]
         if agency.startswith("dwr_"):
             agency = agency[4:]  # todo: need to take care of des_ vs dwr_des etc
 
@@ -241,9 +239,11 @@ def auto_screen(
         # these may be lists
         try:
             # logger.debug(f"fetching {fpath},{station_id},{param}")
-            meta_ts = fetcher(fpath, station_id, param, subloc=subloc)
-        except:
-            logger.warning(f"Read failed for {fpath}, {station_id}, {param}, {subloc}")
+            meta_ts = fetcher(source_repo, station_id, param, subloc=subloc, data_path=actual_fpath)
+        except Exception as e:
+            logger.warning(f"Read failed for {actual_fpath}, {station_id}, {param}, {subloc}, storage loc = {actual_fpath}")
+            logger.exception(e)
+            print(e)
             meta_ts = None
 
         if meta_ts is None:
@@ -277,12 +277,23 @@ def auto_screen(
         if "value" in screened.columns:
             screened = screened[["value", "user_flag"]]
         meta["screen"] = proto
-        if subloc_actual and subloc_actual != "default":
-            output_fname = (
-                f"{agency}_{station_id}@{subloc_actual}_{row.agency_id}_{param}.csv"
-            )
-        else:
-            output_fname = f"{agency}_{station_id}_{row.agency_id}_{param}.csv"
+        
+        # Build output filename using configured naming spec for screened repo
+        output_meta = {
+            "agency": agency,
+            "station_id": station_id,
+            "subloc": subloc_actual if subloc_actual != "default" else None,
+            "param": param,
+            "agency_id": row.agency_id,
+        }
+        # Add year info if available from metadata
+        if "year" in meta:
+            output_meta["year"] = meta["year"]
+        elif "syear" in meta and "eyear" in meta:
+            output_meta["syear"] = meta["syear"]
+            output_meta["eyear"] = meta["eyear"]
+        
+        output_fname = meta_to_filename(output_meta, repo="screened",include_shard=False)
         output_fpath = os.path.join(dest, output_fname)
         logger.debug("start write")
         write_ts_csv(screened, output_fpath, meta, chunk_years=True)
@@ -480,24 +491,26 @@ def spatial_config(configfile, x, y):
     return checker.region_info(x, y)
 
 
-def ncro_fetcher(repo_path, station_id, param, subloc):
-    """Reads NCRO data, correctly folding together NCRO and CDEC by priority.
-    Celsius is converted to Farenheit
-    """
+def ncro_fetcher(repo, station_id, param, subloc, data_path=None):
     return read_ts_repo(
         station_id,
         param,
         subloc=subloc,
         src_priority=["ncro", "cdec"],
-        repo=repo_path,
+        repo=repo,
+        data_path=data_path,
         meta=True,
     )
 
-
-def general_fetcher(repo_path, station_id, param, subloc):
-    """Fetches from a well behaved and standard repo"""
-    return read_ts_repo(station_id, param, subloc=subloc, repo=repo_path, meta=True)
-
+def general_fetcher(repo, station_id, param, subloc, data_path=None):
+    return read_ts_repo(
+        station_id,
+        param,
+        subloc=subloc,
+        repo=repo,
+        data_path=data_path,
+        meta=True,
+    )
 
 def custom_fetcher(agency):
     if agency in ["ncro", "dwr_ncro"]:

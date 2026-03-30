@@ -690,15 +690,8 @@ def test():
             param_lookup=vlookup,
             source="ncro",
         )
-        print(df)
         ncro_download(df, destdir, stime, etime, overwrite=overwrite)
 
-
-def test_read():
-    fname = "ncro_old_b95380_temp_2015_2024.csv"
-    fname = "ncro_orm_b95370_cla_*.csv"
-    ts = read_ts.read_ts(fname)
-    print(ts)
 
 
 @click.command(

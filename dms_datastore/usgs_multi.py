@@ -29,7 +29,11 @@ def _quarantine_file(fname, quarantine_dir="quarantine"):
 
 def usgs_scan_series_json(fname):
     hdr = read_yaml_header(fname)
-    orig = yaml.safe_load(hdr["original_header"])
+
+    orig_txt = hdr["original_header"]
+    if orig_txt is None:
+        raise ValueError("No original_header present")
+    orig = parse_yaml_header(orig_txt)
     subs = orig["sublocations"]
     var = orig["variable_code"]
     series = [(str(s["subloc"]), var, s["method_description"]) for s in subs]
@@ -123,7 +127,7 @@ def usgs_multivariate(pat, outfile):
         files = glob.glob(pat)
         data = []
         for fname in files:
-            meta = interpret_fname(fname)
+            meta = interpret_fname(fname, repo="formatted")
             try:
                 ts = read_ts(fname, nrows=4000)
             except:
@@ -132,9 +136,10 @@ def usgs_multivariate(pat, outfile):
 
             multi_cols = ts.shape[1] > 1
             subloc_df = sublocation_df()
+
             station_id = meta["station_id"]
             param = meta["param"]
-            known_multi = (subloc_df["id"] == station_id).any()
+            known_multi = (subloc_df["station_id"] == station_id).any()
             random_check = (
                 np.random.choice(2, 1, [0.9, 0.1])[0] == 1
             )  # Small chance we will check the file.
@@ -215,7 +220,7 @@ def usgs_multivariate(pat, outfile):
     return df
 
 
-def process_multivariate_usgs(fpath, pat=None, rescan=True):
+def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan=True):
     """Identify and separate or combine multivariate USGS files.
     Separate sublocations if they are known (typically the vertical ones like upper/lower)
     Otherwise aggregates the columns and adds a value column containing their mean ignoring nans.
@@ -223,15 +228,16 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
     the one that is active
     """
     logger.info("Entering process_multivariate_usgs")
-
+    actual_fpath = data_path if data_path is not None else repo_root(repo)
     # todo: straighten out fpath and pat stuff
     tempfile.tempdir = "."
     tmpdir = tempfile.TemporaryDirectory()
 
     if pat is None:
-        pat = fpath + "/usgs*.csv"
+        pat = os.path.join(actual_fpath, "usgs*.csv")
     else:
-        pat = fpath + "/" + pat  # "/usgs*.csv"
+        pat = os.path.join(actual_fpath, pat)
+
 
     # This recreates or reuses  list of multivariate files. Being multivariate is something that has
     # to be assessed over the full period of record
@@ -246,7 +252,7 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
 
     for fn in filenames:
         direct, filepart = os.path.split(fn)
-        meta = interpret_fname(filepart)
+        meta = interpret_fname(filepart, repo="formatted")
         station_id = meta["station_id"]
         param = meta["param"]
         logger.info(f"Working on {fn}, {station_id}, {param}")
@@ -296,7 +302,7 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
                     "multivariate file separated, mention of other series omitted in this file may appear in original header"
                 )
                 meta["subloc"] = asubloc
-                newfname = meta_to_filename(meta)
+                newfname = newfname = meta_to_filename(meta, repo="formatted")
                 work_dir, newfname_f = os.path.split(newfname)
                 newfpath = os.path.join(tmpdir.name, newfname_f)  ## todo: hardwire
                 univariate.columns = ["value"]
@@ -331,19 +337,24 @@ def process_multivariate_usgs(fpath, pat=None, rescan=True):
     for fdname in set_of_deletions:
         logger.debug(f"Removing {fdname}")
         os.remove(fdname)
-    shutil.copytree(tmpdir.name, fpath, dirs_exist_ok=True)
+    shutil.copytree(tmpdir.name, actual_fpath, dirs_exist_ok=True)
     del tmpdir
     logger.info("Exiting process_multivariate_usgs")
 
 
 @click.command()
 @click.option("--pat", default="usgs*.csv", help="Pattern of files to process")
-@click.option("--fpath", default=".", help="Directory of files to process.")
+@click.option("--repo", default="formatted", help="Configured repo name for naming/parse rules.")
+@click.option(
+    "--data-path",
+    default=None,
+    help="Directory containing the files. Defaults to the configured root of --repo.",
+)
 @click.option("--logdir", type=click.Path(path_type=Path), default=None)
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
 @click.help_option("-h", "--help")
-def usgs_multi_cli(pat, fpath, logdir=None, debug=False, quiet=False):
+def usgs_multi_cli(pat, repo, data_path, logdir=None, debug=False, quiet=False):
     """CLI for processing multivariate USGS files."""
     # recatalogs the unique series. If false an old catalog will be used, which is useful
     # for sequential debugging.
@@ -360,7 +371,7 @@ def usgs_multi_cli(pat, fpath, logdir=None, debug=False, quiet=False):
           logdir=logdir,
           logfile_prefix="usgs_multi"
     )        
-    process_multivariate_usgs(fpath=fpath, pat=pat, rescan=True)
+    process_multivariate_usgs(repo=repo, data_path=data_path, pat=pat, rescan=True)
 
 
 if __name__ == "__main__":

@@ -1850,13 +1850,48 @@ def csv_retrieve_ts(
             f = pd.tseries.frequencies.to_offset(freq)
         if f is None:
             raise NotImplementedError("force_regular but could not discover freq")
-        # Round to neat times, which may cause duplicates or gaps
-        try:
-            big_ts.index = big_ts.index.round(f)
-        except:
-            pass
-        big_ts = big_ts.loc[~big_ts.index.duplicated(keep="first")]
-        # Now everything is on an expected timestamp, so subsample leaving uncovered times NaN
+
+        big_ts = big_ts.copy()
+
+        # keep original times for tie-breaking
+        orig_index = big_ts.index
+
+        # round to target grid
+        rounded = big_ts.index.round(f)
+
+        # absolute distance to rounded target
+        delta = (orig_index - rounded).asi8
+        abs_delta = pd.Index(delta).to_numpy()
+        abs_delta = np.abs(abs_delta)
+
+        valcol = big_ts.columns[0]
+
+        big_ts["_orig_time"] = orig_index
+        big_ts["_rounded_time"] = rounded
+        big_ts["_abs_delta"] = abs_delta
+        big_ts["_is_nan"] = big_ts[valcol].isna()
+
+        # sort so that best representative per rounded timestamp comes first:
+        #   1. non-NaN before NaN
+        #   2. smallest distance to target
+        #   3. earlier original time as stable tie-break
+        big_ts = big_ts.sort_values(
+            by=["_rounded_time", "_is_nan", "_abs_delta", "_orig_time"]
+        )
+
+        # keep best row per rounded timestamp
+        big_ts = big_ts.drop_duplicates(subset="_rounded_time", keep="first")
+
+        # replace index with rounded grid timestamp
+        big_ts.index = pd.DatetimeIndex(big_ts["_rounded_time"], name=big_ts.index.name)
+
+        # clean up helper columns
+        big_ts = big_ts.drop(columns=["_orig_time", "_rounded_time", "_abs_delta", "_is_nan"])
+
+        # optional: fail here if anything somehow still duplicated
+        if big_ts.index.has_duplicates:
+            raise ValueError("Duplicate timestamps remain after nearest-timestamp collapse")
+
         big_ts = big_ts.asfreq(f)
 
     else:

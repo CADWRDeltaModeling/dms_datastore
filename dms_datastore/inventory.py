@@ -5,303 +5,335 @@ import os
 import re
 import glob
 import click
-from functools import reduce
-from dms_datastore.filename import interpret_fname
-from dms_datastore.dstore_config import station_dbase
-from dms_datastore.read_ts import read_yaml_header
 import pandas as pd
+
+from dms_datastore.filename import interpret_fname
+from dms_datastore.dstore_config import coerce_repo_config, repo_registry
+from dms_datastore.read_ts import read_yaml_header
 
 __all__ = ["repo_file_inventory", "repo_data_inventory"]
 
 
 def to_wildcard(fname, remove_source=False):
-    """Convert filename to a wildcard for date.
-    If remove_source, the source slot will also be wildcard
     """
-    pat1 = r".*_(\d{4}_\d{4})\.\S{3}"
+    Convert a concrete filename into a year-wildcarded pattern.
+
+    If remove_source is True, also wildcard the leading source slot.
+    """
+    pat1 = r".*_(\d{4}_\d{4})\.\S{3}$"
     re1 = re.compile(pat1)
     if re1.match(fname):
-        out = fname[0:-13] + "*" + fname[-4:]
+        out = fname[:-13] + "*" + fname[-4:]
     else:
-        pat2 = r".*(_\d{4})\.\S{3}"
+        pat2 = r".*(_\d{4})\.\S{3}$"
         re2 = re.compile(pat2)
         if re2.match(fname):
-            out = fname[0:-8] + "*" + fname[-4:]
+            out = fname[:-8] + "*" + fname[-4:]
+        else:
+            raise ValueError(f"Filename does not match expected shard pattern: {fname}")
+
     if remove_source:
         outparts = out.split("_")
+        if not outparts:
+            raise ValueError(f"Could not split filename into source slots: {fname}")
         outparts[0] = "*"
         out = "_".join(outparts)
+
     return out
 
 
 def scrape_header_metadata(fname):
     yml = read_yaml_header(fname)
     if yml is None:
-        print(f"{fname} produced nan metadata")
         return None
     return yml["unit"] if "unit" in yml else None
 
 
-def repo_file_inventory(fpath, full=True, by="file_pattern"):
-    """Create a Pandas Dataframe containing all the unique time series in a directory
-    Currently assumes yearly sharding in time.
-
-    Parameters
-    ----------
-    fpath : str
-        Path to the repository being inventoried
-    full_parse : bool
-        Open the file and obtain metadata (unit) from the headers
-    by : ['file_pattern', 'data']
-        For file_pattern, there is one entry per unique filename except for the years which
-        are pivoted to the min_year and max_year column. If 'data', the data source is
-        converted to a wildcard and the entries describe the unique series in the data base,
-        which depends on station, sublocation and variable.
-
-    Returns
-    -------
-    Inventory dataframe
-
-    """
-    if by != "file_pattern":
-        raise NotImplementedError("Only by=file_pattern is implemented")
-    station_db = station_dbase()
-    allfiles = glob.glob(os.path.join(fpath, "*_*.rdb")) + glob.glob(
-        os.path.join(fpath, "*_*.csv")
+def _inventory_files(root):
+    return glob.glob(os.path.join(root, "*_*.rdb")) + glob.glob(
+        os.path.join(root, "*_*.csv")
     )
-    # Dictionary with station_id,agency_id,variable,,start,end, etc
-    allmeta = [interpret_fname(fname) for fname in allfiles]
+
+
+def _parse_inventory_meta(allfiles, repo_cfg=None):
+    return [interpret_fname(fname, repo_cfg=repo_cfg) for fname in allfiles]
+
+
+def series_id_from_meta(meta, remove_source=False):
+    """
+    Construct a stable logical series identifier from parsed metadata.
+
+    For file inventory, include source.
+    For data inventory, omit source.
+    """
+    parts = []
+
+    if not remove_source:
+        parts.append(str(meta["agency"]))
+
+    parts.append(str(meta["station_id"]))
+
+    subloc = meta.get("subloc")
+    if subloc not in (None, "default"):
+        parts.append(str(subloc))
+
+    parts.append(str(meta["param"]))
+
+    modifier = meta.get("modifier")
+    if modifier is not None:
+        parts.append(str(modifier))
+
+    return "|".join(parts)
+
+
+def _drop_inventory_noise(df):
+    return df.drop(
+        columns=[
+            "notes",
+            "stage",
+            "flow",
+            "quality",
+            "wdl_id",
+            "cdec_id",
+            "d1641_id",
+            "original_filename",
+        ],
+        errors="ignore",
+    )
+
+
+def repo_file_inventory(repo=None, *, repo_cfg=None, in_path=None):
+    """
+    Inventory of source-bearing file families in a configured repo.
+
+    Key/index semantics:
+        file_pattern is the grouping key.
+        series_id is a dependent logical identifier.
+    """
+    repo_cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
+    root = in_path if in_path is not None else repo_cfg["root"]
+    registry = repo_registry(repo_cfg=repo_cfg)
+
+    allfiles = _inventory_files(root)
+    allmeta = _parse_inventory_meta(allfiles, repo_cfg=repo_cfg)
     metadf = pd.DataFrame(allmeta)
     if metadf.empty:
         raise ValueError("Empty inventory")
-    metadf["original_filename"] = metadf[
-        "filename"
-    ]  # preserves the entire filename so first file can be parsed
-    metadf["filename"] = metadf.apply(lambda x: to_wildcard(x.filename), axis=1)
-    double_year_format = "syear" in metadf.columns
-    if "syear" in metadf.columns:
-        # double year (other_data_2000_2024.csv) format
-        # this was a quick patch and not sure that the groupby is needed
-        grouped_meta = metadf.groupby(["filename"]).agg(
-            {
-                "station_id": "first",
-                "subloc": "first",
-                "param": "first",
-                "agency": "first",
-                "agency_id": ["first"],
-                "syear": ["min"],
-                "eyear": ["max"],
-                "original_filename": [
-                    "first"
-                ],  # the first file will be used to scrape metadata then dropped
-            }
-        )
 
-    else:
-        grouped_meta = metadf.groupby(["filename"]).agg(
-            {
-                "station_id": "first",
-                "subloc": "first",
-                "param": "first",
-                "agency": "first",
-                "agency_id": ["first"],
-                "year": ["min", "max"],
-                "original_filename": [
-                    "first"
-                ],  # the first file will be used to scrape metadata then dropped
-            }
-        )
-    grouped_meta.columns = [
-        "station_id",
-        "subloc",
-        "param",
-        "source",
-        "agency_id",
-        "min_year",
-        "max_year",
-        "original_filename",
-    ]
-
-    metastat = grouped_meta.join(
-        station_db, on="station_id", rsuffix="_dbase", how="left"
+    metadf["original_filename"] = metadf["filename"]
+    metadf["file_pattern"] = metadf["filename"].map(
+        lambda x: to_wildcard(x, remove_source=False)
+    )
+    metadf["series_id"] = metadf.apply(
+        lambda row: series_id_from_meta(row, remove_source=False),
+        axis=1,
     )
 
-    metastat.rename(mapper={"lat": "agency_lat", "lon": "agency_lon"}, axis="columns")
-    print(metastat[["original_filename"]])
-    if double_year_format:
-        metastat["unit"] = None
+    keep_cols = ["station_id", "subloc", "param", "agency", "agency_id", "series_id"]
+    if "modifier" in metadf.columns:
+        keep_cols.append("modifier")
+
+    agg = {col: "first" for col in keep_cols}
+    agg["original_filename"] = "first"
+
+    if "syear" in metadf.columns and "eyear" in metadf.columns:
+        agg["syear"] = "min"
+        agg["eyear"] = "max"
+    elif "year" in metadf.columns:
+        agg["year"] = ["min", "max"]
     else:
+        raise ValueError("No year columns found in parsed inventory metadata")
+
+    grouped = metadf.groupby("file_pattern", dropna=False).agg(agg)
+
+    grouped.columns = [
+        col if isinstance(col, str) else "_".join(str(x) for x in col if x)
+        for col in grouped.columns
+    ]
+    grouped.columns = [
+    c[:-6] if isinstance(c, str) and c.endswith("_first") else c
+    for c in grouped.columns
+       ]
+
+    rename_map = {
+        "agency": "source",
+        "year_min": "min_year",
+        "year_max": "max_year",
+        "syear": "min_year",
+        "eyear": "max_year",
+    }
+    grouped = grouped.rename(columns=rename_map)
+
+    join_key = repo_cfg.get("key_column", "id")
+
+    if join_key not in grouped.columns:
+        if join_key == "id" and "station_id" in grouped.columns:
+            grouped[join_key] = grouped["station_id"]
+        else:
+            raise ValueError(
+                f"Cannot join registry: grouped inventory missing key column {join_key!r}"
+            )
+
+    metastat = grouped.join(
+        registry,
+        on=join_key,
+        rsuffix="_registry",
+        how="left",
+    )
+
+    if "year" in metadf.columns and "syear" not in metadf.columns:
         metastat["unit"] = metastat.apply(
-            lambda x: scrape_header_metadata(os.path.join(fpath, x.original_filename)),
+            lambda x: scrape_header_metadata(os.path.join(root, x.original_filename)),
             axis=1,
         )
-    metastat.drop(
-        labels=[
-            "notes",
-            "stage",
-            "flow",
-            "quality",
-            "wdl_id",
-            "cdec_id",
-            "d1641_id",
-            "original_filename",
-        ],
-        axis=1,
-        inplace=True,
-    )
+    else:
+        metastat["unit"] = None
 
+    metastat = _drop_inventory_noise(metastat)
     return metastat
 
 
-def prioritize_source(
-    x, y, priorities=["ncro", "usgs", "aquarius", "ccwd", "cdec", "ebmud"]
-):
-    yndx = priorities.index(y) if y in priorities else 100000
-    xndx = priorities.index(x) if x in priorities else 100000
-    return y if yndx < xndx else x
-
-
-def repo_data_inventory(fpath, full=True, by="file_pattern"):
-    """Create a Pandas Dataframe containing all the unique time series in a directory
-    Currently assumes yearly sharding in time.
-
-    Parameters
-    ----------
-    fpath : str
-        Path to the repository being inventoried
-    full_parse : bool
-        Open the file and obtain metadata (unit) from the headers
-    by : ['file_pattern', 'data']
-        For file_pattern, there is one entry per unique filename except for the years which
-        are pivoted to the min_year and max_year column. If 'data', the data source is
-        converted to a wildcard and the entries describe the unique series in the data base,
-        which depends on station, sublocation and variable.
-
-    Returns
-    -------
-    Inventory dataframe
-
+def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None):
     """
-    if by != "file_pattern":
-        raise NotImplementedError("Only by=file_pattern is implemented")
-    station_db = station_dbase()
-    allfiles = glob.glob(os.path.join(fpath, "*_*.rdb")) + glob.glob(
-        os.path.join(fpath, "*_*.csv")
-    )
-    # Dictionary with station_id,agency_id,variable,,start,end, etc
-    allmeta = [interpret_fname(fname) for fname in allfiles]
+    Inventory of logical datasets in a configured repo.
+
+    Key/index semantics:
+        series_id is the grouping key.
+        file_pattern is a dependent wildcard pattern for downstream tools.
+    """
+    repo_cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
+    root = in_path if in_path is not None else repo_cfg["root"]
+    registry = repo_registry(repo_cfg=repo_cfg)
+
+    allfiles = _inventory_files(root)
+    allmeta = _parse_inventory_meta(allfiles, repo_cfg=repo_cfg)
     metadf = pd.DataFrame(allmeta)
-    metadf["original_filename"] = metadf.filename
-    metadf["filename"] = metadf.apply(
-        lambda x: to_wildcard(x.filename, remove_source=True), axis=1
+
+    if metadf.empty:
+        raise ValueError("Empty inventory")
+
+    metadf["original_filename"] = metadf["filename"]
+    metadf["file_pattern"] = metadf["filename"].map(
+        lambda x: to_wildcard(x, remove_source=True)
     )
-    metadf["source"] = metadf["agency"]
-
-    metadf.loc[:, "agency"] = station_db.loc[metadf.station_id, "agency"].to_numpy()
-    double_year_format = "syear" in metadf.columns
-
-    # meta2 = metadf.groupby(["station_id","subloc","param"]).first()
-    if double_year_format:
-        # todo: is a groupby necessary for double year format? are there duplicates?
-        grouped_meta = metadf.groupby(
-            ["station_id", "subloc", "param"], dropna=False
-        ).agg(
-            {
-                "agency": ["first"],
-                "agency_id": ["first"],
-                "syear": ["min"],
-                "eyear": ["max"],
-                "filename": ["first"],
-                "original_filename": [
-                    "first"
-                ],  # this will be used to scrape metadata then dropped
-            }
+    join_key = repo_cfg.get("key_column", "station_id")
+    if "agency" not in metadf.columns:
+        # Reset index if key_column is both an index and a column to avoid ambiguity in merge
+        if registry.index.name == join_key:
+            registry = registry.reset_index(drop=True)
+        metadf = metadf.merge(
+            registry[[join_key, "agency"]],
+            left_on=join_key,
+            right_on=join_key,
+            how="left",
         )
+        
+        
+    metadf["series_id"] = metadf.apply(
+        lambda row: series_id_from_meta(row, remove_source=True),
+        axis=1,
+    )
+
+    group_cols = ["series_id"]
+
+    agg = {
+        "station_id": "first",
+        "subloc": "first",
+        "param": "first",
+        "agency": "first",
+        "agency_id": "first",
+        "source": "first",
+        "file_pattern": "first",
+        "original_filename": "first",
+    }
+    if "modifier" in metadf.columns:
+        agg["modifier"] = "first"
+
+    if "syear" in metadf.columns and "eyear" in metadf.columns:
+        agg["syear"] = "min"
+        agg["eyear"] = "max"
+    elif "year" in metadf.columns:
+        agg["year"] = ["min", "max"]
     else:
-        grouped_meta = metadf.groupby(
-            ["station_id", "subloc", "param"], dropna=False
-        ).agg(
-            {
-                "agency": ["first"],
-                "agency_id": ["first"],
-                "year": ["min", "max"],
-                "filename": ["first"],
-                "original_filename": [
-                    "first"
-                ],  # this will be used to scrape metadata then dropped
-            }
-        )
+        raise ValueError("No year columns found in parsed inventory metadata")
 
-    grouped_meta.columns = [
-        "agency",
-        "agency_id",
-        "min_year",
-        "max_year",
-        "filename",
-        "original_filename",
+    grouped = metadf.groupby(group_cols, dropna=False).agg(agg)
+
+    grouped.columns = [
+        col if isinstance(col, str) else "_".join(str(x) for x in col if x)
+        for col in grouped.columns
     ]
-    metastat = grouped_meta.join(
-        station_db, on="station_id", rsuffix="_dbase", how="left"
-    )
 
-    metastat.rename(mapper={"lat": "agency_lat", "lon": "agency_lon"}, axis="columns")
-    if double_year_format:
-        metastat["unit"] = None
+    grouped.columns = [
+      c[:-6] if isinstance(c, str) and c.endswith("_first") else c
+      for c in grouped.columns
+    ]
+
+    rename_map = {
+        "year_min": "min_year",
+        "year_max": "max_year",
+        "syear": "min_year",
+        "eyear": "max_year",
+    }
+    grouped = grouped.rename(columns=rename_map)
+    join_key = repo_cfg.get("key_column", "id")
+
+    if join_key not in grouped.columns:
+        if join_key == "id" and "station_id" in grouped.columns:
+            grouped[join_key] = grouped["station_id"]
+        else:
+            raise ValueError(
+                f"Cannot join registry: grouped inventory missing key column {join_key!r}"
+            )
+
+    grouped[join_key] = grouped[join_key].astype(str).str.strip()
+
+    # normalize registry side again, right here, before join
+    if registry.index.name != join_key:
+        if join_key not in registry.columns:
+            raise ValueError(
+                f"Registry missing join key column {join_key!r}; "
+                f"columns are {registry.columns.tolist()}"
+            )
+        registry = registry.copy()
+        registry[join_key] = registry[join_key].astype(str).str.strip()
+        registry = registry.set_index(join_key, drop=False)
     else:
+        registry = registry.copy()
+        registry.index = registry.index.astype(str)
+        if join_key in registry.columns:
+            registry[join_key] = registry[join_key].astype(str).str.strip()
+
+    metastat = grouped.join(
+        registry,
+        on=join_key,
+        rsuffix="_registry",
+        how="left",
+    )
+    if "year" in metadf.columns and "syear" not in metadf.columns:
         metastat["unit"] = metastat.apply(
-            lambda x: scrape_header_metadata(os.path.join(fpath, x.original_filename)),
+            lambda x: scrape_header_metadata(os.path.join(root, x.original_filename)),
             axis=1,
         )
-    metastat.drop(
-        labels=[
-            "notes",
-            "stage",
-            "flow",
-            "quality",
-            "wdl_id",
-            "cdec_id",
-            "d1641_id",
-            "original_filename",
-        ],
-        axis=1,
-        inplace=True,
-    )
+    else:
+        metastat["unit"] = None
 
+    metastat = _drop_inventory_noise(metastat)
     return metastat
 
 
-def inventory(repo, out_files, out_data, out_obslinks):
-    """Create inventory files, including a file inventory, a data inventory and an obs-links file."""
+def inventory(repo, out_files=None, out_data=None, in_path=None):
     nowstr = pd.Timestamp.now().strftime("%Y%m%d")
-    # inventory based on describing every file
+
     if out_files is None:
         out_files = f"./inventory_files_{repo}_{nowstr}.csv"
-    inv = repo_file_inventory(repo)
+    inv = repo_file_inventory(repo, in_path=in_path)
     inv.to_csv(out_files)
-    # inventory based on describing unique datasets
-    # this may be bigger/smaller than the number of files based because of:
-    #     multivariate data in files that are/aren't split into multiple streams
-    #     data from the same instrument gathered from multiple sources,
-    #        such as period of record and real time multivariate data in files
+
     if out_data is None:
         out_data = f"./inventory_datasets_{repo}_{nowstr}.csv"
-    inv2 = repo_data_inventory(repo)
+    inv2 = repo_data_inventory(repo, in_path=in_path)
     inv2.to_csv(out_data)
-    db_obs = inv2.copy()
-    db_obs["vdatum"] = "NAVD88"  # todo: hardwire, not always true
-    db_obs["datum_adj"] = (
-        0.0  # todo: hardwire, not always true, should be incorporated in station_dbase
-    )
-    db_obs["source"] = db_obs["agency"]  # move agency to source
-    db_obs["agency"] = db_obs["agency_dbase"]
-    db_obs.reset_index(inplace=True)
-    db_obs["variable"] = db_obs.param
-    # param is the variable in the file, variable is the model variable being associated with the data
-    db_obs.loc[db_obs.param == "ec", "variable"] = "salt"
-    db_obs["subloc"] = db_obs.subloc.fillna("default")
-    if out_obslinks is None:
-        out_obslinks = f"./obs_links_{repo}_{nowstr}.csv"
-    db_obs.to_csv(out_obslinks, sep=",", index=False)
 
 
 @click.command()
@@ -309,29 +341,26 @@ def inventory(repo, out_files, out_data, out_obslinks):
     "--repo",
     type=str,
     required=True,
-    help="Directory to be catalogued",
+    help="Configured repo name to inventory at least for configuration. If in-path is not provided, the cofigured root dir of repo also will be used as scan directory.",
+)
+@click.option(
+    "--in-path",
+    default=None,
+    help="Optional directory to scan instead of the configured repo root.",
 )
 @click.option(
     "--out-files",
     default=None,
-    help="Output path for file inventory. Default is file_inventory_{todaydate}.csv",
+    help="Output path for file inventory.",
 )
 @click.option(
     "--out-data",
     default=None,
-    help="Output path for data inventory. Default is file_inventory_{todaydate}.csv",
+    help="Output path for data inventory.",
 )
-@click.option(
-    "--out-obslinks",
-    default=None,
-    help="Output path for obslinks.csv file. Default is obs_links_{todaydate}.csv",
-)
-def inventory_cli(repo, out_files, out_data, out_obslinks):
-    """
-    CLI for creating inventory files for a data repository.
-    """
+def inventory_cli(repo, out_files, out_data, in_path):
+    inventory(repo, out_files, out_data, in_path)
 
-    inventory(repo, out_files, out_data, out_obslinks)
 
 
 if __name__ == "__main__":

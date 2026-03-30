@@ -33,7 +33,7 @@ import yaml
 import pandas as pd
 
 # Toolkit functions (no new readers/writers invented here)
-from dms_datastore.filename import interpret_fname
+from dms_datastore.filename import interpret_fname, naming_spec
 from dms_datastore.read_ts import read_ts, extract_commented_header
 from dms_datastore.write_ts import write_ts_csv
 
@@ -43,6 +43,10 @@ _START = "${START}"
 _LAST = "${LAST}"
 _SUPERSEDED = "${SUPERSEDED}"
 
+# Raw filename naming convention (as output by downloaders)
+RAW_NAMING = naming_spec(
+    templates=["{agency}_{key@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
+)
 
 # --------------------------------------------------------------------------------------
 # Legacy behavior (kept intact)
@@ -55,10 +59,10 @@ _SUPERSEDED = "${SUPERSEDED}"
 def rationalize_time_partitions(
     pat: str,
     *,
-    yaml_path: str | Path | None = None,
+    spec: str | Path,
     root_dir: str | Path | None = None,
     dry_run: bool = False,
-    warn_on_remaining_overlap: bool = True
+    warn_on_remaining_overlap: bool = True,
 ) -> None:
     """
     Rationalize time-partitioned instrument files with optional YAML overrides.
@@ -117,28 +121,27 @@ def rationalize_time_partitions(
     if not allpaths:
         raise ValueError(f"Pattern matched no files: {pat}")
 
-    if yaml_path is None:
-        # Legacy is already safe on broad patterns (it only compares within series)
+    ######
+    if spec is None:
+        raise ValueError(
+            "rationalize_time_partitions requires spec='generic' or a YAML config name/path"
+        )
+
+    if isinstance(spec, Path):
+        spec_path = spec
+    elif spec == "generic":
         _legacy_rationalize_time_partitions(pat)
         return
-    
-    yaml_path_p = Path(yaml_path)
-    if not yaml_path_p.exists():
-        # Allow project-style config lookup (optional; no-op if not available)
-        try:
-            from dms_datastore.dstore_config import config_file
-        except Exception:
-            config_file = None  # type: ignore
+    else:
+        spec_path = Path(spec)
 
-        if config_file is not None:
-            candidate = Path(config_file(str(yaml_path)))
-            if candidate.exists():
-                yaml_path_p = candidate
+    if not spec_path.exists():
+        from dms_datastore.dstore_config import config_file
+        candidate = Path(config_file(str(spec)))
+        if candidate.exists():
+            spec_path = candidate
 
-    if not yaml_path_p.exists():
-        raise ValueError(f"YAML rationalization config not found at {yaml_path_p}")
-
-    with yaml_path_p.open("r") as fp:
+    with spec_path.open("r") as fp:
         cfg = yaml.safe_load(fp)
 
     rules = cfg.get("rationalize", [])
@@ -148,7 +151,7 @@ def rationalize_time_partitions(
     # Group by series key (legacy behavior)
     groups: Dict[tuple, List[Path]] = {}
     for p in allpaths:
-        meta = interpret_fname(p.name)
+        meta = interpret_fname(p.name, naming=RAW_NAMING)
         key = (meta["agency"], meta["param"], meta["station_id"], meta["subloc"])
         groups.setdefault(key, []).append(p)
 
@@ -219,7 +222,7 @@ def _legacy_rationalize_time_partitions(pat: str) -> None:
     repodir = os.path.split(allpaths[0])[0]
     allfiles = [os.path.split(x)[1] for x in allpaths]
 
-    allmeta = [interpret_fname(fname) for fname in allfiles]
+    allmeta = [interpret_fname(fname, naming=RAW_NAMING) for fname in allfiles]
     already_checked = set()
     superseded = []
 
@@ -337,7 +340,7 @@ def _apply_rule(
     """
     pool_names = {p.name for p in pool}
     pool_by_name = {p.name: p for p in pool}
-    pool_meta: Dict[str, dict] = {p.name: interpret_fname(p.name) for p in pool}
+    pool_meta: Dict[str, dict] = {p.name: interpret_fname(p.name, naming=RAW_NAMING) for p in pool}
 
     include = rule.get("include")
     if not include or not isinstance(include, list):
@@ -405,7 +408,7 @@ def _apply_rule(
         next_start = include_entries[i + 1][1] if i + 1 < len(include_entries) else None
 
         header_str = extract_commented_header(str(fname))
-        df = read_ts(str(fname), force_regular=False, freq=None)
+        df = read_ts(str(fname), force_regular=True, freq=None)
 
         idx = df.index
         if not isinstance(idx, pd.DatetimeIndex):
@@ -591,7 +594,7 @@ def _warn_if_overlap(paths: List[Path]) -> None:
     """
     ranges: List[Tuple[str, pd.Timestamp, pd.Timestamp]] = []
     for p in paths:
-        df = read_ts(p, force_regular=False, freq=None)
+        df = read_ts(p, force_regular=True, freq=None)
         ranges.append((p.name, df.index.min(), df.index.max()))
 
     for i in range(len(ranges)):
@@ -616,7 +619,7 @@ def _legacy_supersession_paths(paths: List[Path], *, dry_run: bool) -> None:
     repodir = paths[0].parent
     allfiles = [p.name for p in paths]
 
-    allmeta = [interpret_fname(fname) for fname in allfiles]
+    allmeta = [interpret_fname(fname, naming=RAW_NAMING) for fname in allfiles]
     already_checked = set()
     superseded: List[str] = []
 
@@ -678,11 +681,10 @@ import click  # module-level import is fine; this is a CLI-facing module
 @click.command(context_settings=dict(help_option_names=["-h", "--help"]))
 @click.argument("pat", type=str)
 @click.option(
-    "--yaml",
-    "yaml_path",
-    type=click.Path(exists=False, dir_okay=False, path_type=Path),
-    default=None,
-    help="YAML rationalization config. If omitted, run legacy-only supersession logic.",
+    "--spec",
+    required=True,
+    type=str,
+    help="YAML config path/name, or the literal word 'generic'.",
 )
 @click.option(
     "--root-dir",
@@ -704,7 +706,7 @@ import click  # module-level import is fine; this is a CLI-facing module
 )
 def rationalize_time_partitions_cli(
     pat: str,
-    yaml_path: Path | None,
+    spec: str | None,
     root_dir: Path | None,
     dry_run: bool,
     no_warn_overlap: bool,
@@ -731,7 +733,7 @@ def rationalize_time_partitions_cli(
 
     rationalize_time_partitions(
         pat,
-        yaml_path=yaml_path,
+        spec=spec,
         root_dir=root_dir,
         dry_run=dry_run,
         warn_on_remaining_overlap=not no_warn_overlap,

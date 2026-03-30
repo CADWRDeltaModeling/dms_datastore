@@ -83,8 +83,11 @@ def test_ncro_download_writes_file_with_async_pipeline(monkeypatch, tmp_path):
             }
         ]
     )
-
-    monkeypatch.setattr(download_ncro, "load_inventory", lambda: inventory)
+    monkeypatch.setattr(
+        download_ncro,
+        "load_inventory",
+        lambda *args, **kwargs: inventory,
+    )
     monkeypatch.setattr(download_ncro.dstore_config, "station_dbase", lambda: pd.DataFrame())
 
     async def _fake_chunked(_client, site, trace, stime, etime):

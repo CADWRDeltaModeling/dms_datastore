@@ -2,45 +2,70 @@
 # -*- coding: utf-8 -*-
 
 import os
+import glob
 import pandas as pd
 from dms_datastore.read_ts import read_ts, read_yaml_header
 from dms_datastore import dstore_config
-from dms_datastore.filename import *
-import glob
+from dms_datastore.filename import build_repo_globs, interpret_fname
 from vtools.functions.merge import ts_merge, ts_splice
 from vtools.functions.unit_conversions import *
-
 
 __all__ = ["read_ts_repo", "read_ts_repo", "ts_multifile_read", "infer_source_priority"]
 
 
+
 def infer_source_priority(station_id):
     """
-    Infer the priority of data providers for a given station based on config file entries.
-
-    Parameters
-    ----------
-    station_id : str
-        The station identifier.
-
-    Returns
-    -------
-    list of str or None
-        A list of provider priorities if available, otherwise None.
+    Legacy observation-oriented priority inference.
     """
-    if "source_priority" not in dstore_config.config:
-        return None
-    priorities = dstore_config.config["source_priority"]
+    if "source_priority" in dstore_config.config:
+        priorities = dstore_config.config["source_priority"]
+    else:
+        priorities = dstore_config.config.get("source_priority_groups", {})
+
     db = dstore_config.station_dbase()
     agency = db.loc[station_id, "agency"]
     return priorities[agency] if agency in priorities else None
+
+
+def infer_source_priority_repo(key, repo_cfg):
+    mode = repo_cfg.get("source_priority_mode", "none")
+
+    if mode == "none":
+        return None
+
+    if mode == "repo_default":
+        group = repo_cfg.get("source_priority_group")
+        return dstore_config.source_priority_group(group)
+
+    if mode == "by_registry_column":
+        registry = dstore_config.registry_df(
+            repo_cfg.get("registry"),
+            key_column=repo_cfg.get("key_column", "id"),
+        )
+        bare_key = key.split("@")[0]
+        col = repo_cfg.get("source_priority_column", "agency")
+        if bare_key not in registry.index:
+            return None
+        priority_key = registry.loc[bare_key, col]
+        groups = dstore_config.config.get("source_priority_groups", {})
+        if priority_key in groups:
+            return groups[priority_key]
+        # compatibility with old flat source_priority
+        old_groups = dstore_config.config.get("source_priority", {})
+        return old_groups.get(priority_key)
+
+    raise ValueError(
+        f"Unsupported source_priority_mode {mode!r} for repo {repo_cfg.get('name')}"
+    )
+
+
 
 
 def fahren2cel(ts):
     tsout = fahrenheit_to_celsius(ts)
     tsout = tsout.round(2)
     return tsout
-
 
 def read_ts_repo(
     station_id,
@@ -52,65 +77,80 @@ def read_ts_repo(
     end=None,
     meta=False,
     force_regular=False,
+    modifier=None,
+    data_path=None
 ):
-    """Read time series data from a repository, prioritizing sources.
+    """
+    Read time series data from a configured repository.
 
     Parameters
     ----------
     station_id : str
-        Station ID as defined in the station database.
+        Logical key/station identifier.
     variable : str
-        Variable name as defined in the variable database.
-    subloc : str, optional
-        Sublocation identifier if applicable.
-    repo : str, optional
-        Name or path of the repository.
-    src_priority : str or list of str, optional, default="infer"
-        Source priority for data retrieval.
-    start : str, pandas.Timestamp, or None, optional
-        Start date for filtering data.
-    end : str, pandas.Timestamp, or None, optional
-        End date for filtering data.
-    meta : bool, optional
-        Whether to return metadata.
-    force_regular : bool, optional
-        Whether to enforce a regular time step.
+        Parameter/variable name.
+    subloc : str or None, optional
+        Sublocation name. Mutually exclusive with station_id shorthand using '@'.
+    repo : str
+        Required repo name or explicit repo path.
+    src_priority : str, list[str], or None, optional
+        Source resolution policy.
+    start, end : datetime-like, optional
+        Requested time window.
+    meta : bool, default=False
+        If True, return metadata and data.
+    force_regular : bool, default=False
+        Passed through to read_ts.
+    modifier : str or None, optional
+        Optional parameter modifier used by template repos such as processed.
+    data_path : str or None, optional
+        Optional path to stored files if using repo for config and alternate location for data.
 
     Returns
     -------
     pandas.DataFrame or tuple
-        Time series data, or a tuple of metadata and time series if meta=True.
     """
-    # Do this before adding the sublocation and creating the pattern
-    if src_priority == "infer":
-        src_priority = infer_source_priority(station_id)
-    if src_priority is None:
-        src_priority = "*"  # dstore_config.config("source_priority")
+    if repo is None:
+        raise ValueError("repo must be provided explicitly to read_ts_repo")
 
     if subloc is not None:
         if "@" in station_id:
             raise ValueError("@ short hand and subloc are mutually exclusive")
-        else:
-            station_id = (
-                station_id + "@" + subloc if subloc != "default" else station_id
-            )
+        if subloc != "default":
+            station_id = f"{station_id}@{subloc}"
 
-    if repo is None:
-        repository = dstore_config.config_file("repo")
-    elif os.path.exists(repo):
-        repository = repo
-    else:
-        repository = dstore_config.config_file(repo)
+    repo_cfg = dstore_config.repo_config(repo)
+    repository = data_path if data_path is not None else repo_cfg["root"]
+
 
     start = pd.to_datetime(start) if start is not None else None
     end = pd.to_datetime(end) if end is not None else None
 
-    pats = []
-    for src in src_priority:
-        pats.append(os.path.join(repository, f"{src}_{station_id}_*_{variable}_*.*"))
-    retval = ts_multifile(pats, meta=meta, start=start, end=end)
-    return retval
+    sources = resolve_repo_sources(repo_cfg, station_id, src_priority)
 
+    rel_pats = build_repo_globs(
+        repo_cfg,
+        key=station_id,
+        param=variable,
+        subloc=subloc,
+        modifier=modifier,
+        sources=sources,
+        agency_id="*",
+        year="*",
+        syear="*",
+        eyear="*",
+    )
+    pats = [os.path.join(repository, p) for p in rel_pats]
+
+    retval = ts_multifile(
+        pats,
+        meta=meta,
+        start=start,
+        end=end,
+        force_regular=force_regular,
+        repo=repo_cfg.get("name"),
+    )
+    return retval
 
 def detect_dms_unit(fname):
     """
@@ -186,6 +226,7 @@ def ts_multifile(
     end=None,
     meta=False,
     force_regular=True,
+    repo=None,
 ):
     """
     Read and merge/splice multiple time series files based on provided patterns.
@@ -251,10 +292,31 @@ def ts_multifile(
         commonfreq = None
         for tsfile in tsfiles:  # loop through files in pattern
             # read one by one, not by pattern/wildcard
-            metafname = interpret_fname(tsfile)
+            metafname = interpret_fname(tsfile, repo=repo)
             if filter_date(metafname, start, end):
                 continue
             ts = read_ts(tsfile, force_regular=force_regular)
+            dup_mask = ts.index.duplicated(keep=False)
+            if dup_mask.any():
+                dup_index = ts.index[dup_mask]
+                unique_dups = dup_index.unique()
+
+                first = unique_dups[0]
+                last = unique_dups[-1]
+
+                example_first = ts.loc[first]
+                example_last = ts.loc[last]
+
+                raise ValueError(
+                    f"Duplicate index detected in file {tsfile}\n"
+                    f"Duplicate timestamps: {len(unique_dups)} "
+                    f"(total duplicate rows: {dup_mask.sum()})\n"
+                    f"First duplicate: {first}\n"
+                    f"Last duplicate: {last}\n\n"
+                    f"Example at first duplicate:\n{example_first}\n\n"
+                    f"Example at last duplicate:\n{example_last}"
+                )
+            
             if ts.shape[1] > 1:  # not sure about why we do this here
                 if selector is not None:
                     ts = ts[selector].to_frame()
@@ -297,7 +359,7 @@ def ts_multifile(
             cfrq = f
         elif f < cfrq:
             cfrq = f
-
+    for ts in bigts: print(ts.columns)
     fullout = ts_splice(bigts, transition="prefer_first")
     if cfrq is not None:
         fullout = fullout.asfreq(cfrq)
@@ -341,6 +403,27 @@ def ts_multifile_read(
         tsfiles = glob.glob(fp)
         for tsfile in tsfiles:
             ts = read_ts(tsfile)
+            dup_mask = ts.index.duplicated(keep=False)
+            if dup_mask.any():
+                dup_index = ts.index[dup_mask]
+                unique_dups = dup_index.unique()
+
+                first = unique_dups[0]
+                last = unique_dups[-1]
+
+                example_first = ts.loc[first]
+                example_last = ts.loc[last]
+
+                raise ValueError(
+                    f"Duplicate index detected in file {tsfile}\n"
+                    f"Duplicate timestamps: {len(unique_dups)} "
+                    f"(total duplicate rows: {dup_mask.sum()})\n"
+                    f"First duplicate: {first}\n"
+                    f"Last duplicate: {last}\n\n"
+                    f"Example at first duplicate:\n{example_first}\n\n"
+                    f"Example at last duplicate:\n{example_last}"
+                )
+
             if ts.shape[1] > 1:
                 if selector is None:
                     ts = ts.mean(axis=1).to_frame()
