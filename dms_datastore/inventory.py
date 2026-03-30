@@ -204,6 +204,7 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None
     repo_cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
     root = in_path if in_path is not None else repo_cfg["root"]
     registry = repo_registry(repo_cfg=repo_cfg)
+    join_key = repo_cfg.get("key_column", "station_id")
 
     allfiles = _inventory_files(root)
     allmeta = _parse_inventory_meta(allfiles, repo_cfg=repo_cfg)
@@ -216,7 +217,6 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None
     metadf["file_pattern"] = metadf["filename"].map(
         lambda x: to_wildcard(x, remove_source=True)
     )
-    join_key = repo_cfg.get("key_column", "station_id")
     if "agency" not in metadf.columns:
         # Reset index if key_column is both an index and a column to avoid ambiguity in merge
         if registry.index.name == join_key:
@@ -276,7 +276,7 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None
         "eyear": "max_year",
     }
     grouped = grouped.rename(columns=rename_map)
-    join_key = repo_cfg.get("key_column", "id")
+
 
     if join_key not in grouped.columns:
         if join_key == "id" and "station_id" in grouped.columns:

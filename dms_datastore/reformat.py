@@ -68,8 +68,7 @@ variable_mappings = None
 RAW_NAMING = naming_spec(
     templates=["{agency}_{key@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
 )
-FORMATTED_NAMING = naming_spec(repo="formatted")
-FORMATTED_NAMING["parse"] = {"style": "template"}
+
 
 
 def _raw_source_from_meta(meta):
@@ -496,6 +495,7 @@ def reformat(inpath, outpath, pattern):
                 df.columns = ["value"]
 
             meta_for_name = dict(hdr_meta)
+            FORMATTED_NAMING = naming_spec(repo="formatted")
             newfname = os.path.join(
                 outpath,
                 meta_to_filename(
