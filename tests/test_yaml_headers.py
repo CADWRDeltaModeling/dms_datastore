@@ -23,7 +23,24 @@ def load_header_cases():
     cases = {}
     current_name = None
     current_lines = []
-    DATA_FILE = Path(__file__).parent.resolve() / "data" / "header_data.txt"
+    # This tedious way of doing things is to avoid some GiHub-side substitutions of $SRC that were not expanded
+    _candidates = [
+            Path("tests/data/header_data.txt"),
+            Path("data/header_data.txt"),
+            Path(__file__).parent.resolve() / "data" / "header_data.txt",
+        ]
+
+    for candidate in _candidates:
+        if candidate.is_file():
+            DATA_FILE = candidate
+            break
+    else:   # else with a for loop executes if the loop completes without hitting a break
+        raise FileNotFoundError(
+                "Could not find header_data.txt. Tried:\n" +
+                "\n".join(str(p) for p in _candidates)
+        )
+        
+            
     for line in DATA_FILE.read_text().splitlines(keepends=True):
         if line.startswith("!"):
             if current_name is not None:
@@ -37,14 +54,6 @@ def load_header_cases():
         cases[current_name] = "".join(current_lines)
 
     return cases
-
-from pathlib import Path
-print("DEBUG __file__ =", __file__)
-print("DEBUG parent    =", Path(__file__).parent)
-print("DEBUG resolved  =", Path(__file__).parent.resolve())
-DATA_FILE = Path(__file__).parent.resolve() / "data" / "header_data.txt"
-print("DEBUG DATA_FILE =", DATA_FILE)
-print("DEBUG exists    =", DATA_FILE.exists())
 
 
 CASES = load_header_cases()

@@ -16,8 +16,25 @@ def load_cases():
     cases = {}
     current_name = None
     current_lines = []
+    # This tedious way of doing things is to avoid some GiHub-side substitutions of $SRC that were not expanded
+    _candidates = [
+            Path("tests/data/header_data.txt"),
+            Path("data/header_data.txt"),
+            Path(__file__).parent.resolve() / "data" / "header_data.txt",
+        ]
 
-    for line in DATA_FILE.read_text(encoding="utf-8").splitlines(keepends=True):
+    for candidate in _candidates:
+        if candidate.is_file():
+            DATA_FILE = candidate
+            break
+    else:   # else with a for loop executes if the loop completes without hitting a break
+        raise FileNotFoundError(
+                "Could not find header_data.txt. Tried:\n" +
+                "\n".join(str(p) for p in _candidates)
+        )
+        
+            
+    for line in DATA_FILE.read_text().splitlines(keepends=True):
         if line.startswith("!"):
             if current_name is not None:
                 cases[current_name] = "".join(current_lines)
@@ -30,6 +47,7 @@ def load_cases():
         cases[current_name] = "".join(current_lines)
 
     return cases
+
 
 
 def split_header_and_body(text: str, comment: str = "#") -> tuple[str, str]:
