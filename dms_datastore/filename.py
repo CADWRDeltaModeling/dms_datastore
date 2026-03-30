@@ -3,38 +3,17 @@
 
 import os
 import re
-from pathlib import Path
 
 
 _TEMPLATE_TOKEN_RE = re.compile(r"\{([^{}]+)\}")
+_TOKEN_NAME_RE = re.compile(r"^[a-z0-9_@]+$")
 
-
-def naming_spec(repo=None, repo_cfg=None, templates=None, style=None):
-    """
-    Construct a minimal naming spec for filename parsing/rendering.
-
-    Parameters
-    ----------
-    repo : str, optional
-        Repo name understood by dstore_config.repo_config().
-    repo_cfg : dict, optional
-        Full repo configuration.
-    templates : str or list[str], optional
-        One or more filename templates.
-    style : str, optional
-        Parse style, typically "legacy" or "template".
-
-    Returns
-    -------
-    dict
-        Minimal naming spec with keys:
-          - filename_templates
-          - parse: {"style": ...}
-    """
+def naming_spec(repo=None, repo_cfg=None, templates=None):
     if repo_cfg is not None:
         return {
             "filename_templates": list(repo_cfg.get("filename_templates", [])),
-            "parse": dict(repo_cfg.get("parse", {"style": "legacy"})),
+            "key_column": repo_cfg.get("key_column", "station_id"),
+            "name": repo_cfg.get("name"),
         }
 
     if repo is not None:
@@ -42,7 +21,8 @@ def naming_spec(repo=None, repo_cfg=None, templates=None, style=None):
         rcfg = dstore_config.repo_config(repo)
         return {
             "filename_templates": list(rcfg.get("filename_templates", [])),
-            "parse": dict(rcfg.get("parse", {"style": "legacy"})),
+            "key_column": rcfg.get("key_column", "station_id"),
+            "name": rcfg.get("name"),
         }
 
     if templates is not None:
@@ -50,15 +30,15 @@ def naming_spec(repo=None, repo_cfg=None, templates=None, style=None):
             templates = [templates]
         return {
             "filename_templates": list(templates),
-            "parse": {"style": style or "template"},
+            "key_column": "station_id",
+            "name": None,
         }
 
     return {
         "filename_templates": [],
-        "parse": {"style": style or "legacy"},
+        "key_column": "station_id",
+        "name": None,
     }
-
-
 
 def extract_year_fname(fname):
     re1 = re.compile(r".*_(\d{4})(?:\..{3})")
@@ -69,77 +49,66 @@ def extract_year_fname(fname):
 def _station_key_from_parts(key, subloc):
     if "@" in key:
         return key
-    if subloc is not None and subloc != "default":
+    if subloc is not None and str(subloc).lower() not in ("default", "none", ""):
         return f"{key}@{subloc}"
     return key
 
 
 def _param_from_parts(param, modifier):
-    if modifier is None:
+    if modifier is None or str(modifier).lower() in ("default", "none", ""):
         return param
     return f"{param}@{modifier}"
 
 
+def _template_tokens(template):
+    tokens = [m.group(1) for m in _TEMPLATE_TOKEN_RE.finditer(template)]
+    for token in tokens:
+        if not _TOKEN_NAME_RE.match(token):
+            raise ValueError(f"Unsupported template token {token!r}")
+    return tokens
+
+
+def template_required_fields(template, *, key_column="station_id"):
+    required = []
+    for token in _template_tokens(template):
+        base = token.split("@", 1)[0]
+        if base == "key":
+            base = key_column
+        if base not in required:
+            required.append(base)
+    return required
+
+
 def _render_repo_template(template, values):
-    """
-    Render a configured repo filename template using literal values.
-
-    Supported placeholders
-    ----------------------
-    {source}
-    {key}
-    {key@subloc}
-    {param}
-    {param@modifier}
-    {agency_id}
-    {year}
-    {syear}
-    {eyear}
-
-    Notes
-    -----
-    This is used both for exact filename generation and wildcard discovery.
-    The caller decides whether values like year/source are literal strings or '*'.
-    """
     out = template
+    tokens = _template_tokens(template)
 
-    source = values.get("source")
-    if source is None:
-        raise ValueError("Missing required template value: source")
-    out = out.replace("{source}", source)
-
-    key = values.get("key")
-    if key is None:
-        raise ValueError("Missing required template value: key")
-    subloc = values.get("subloc")
-
-    if "{key@subloc}" in out:
-        out = out.replace("{key@subloc}", _station_key_from_parts(key, subloc))
-    out = out.replace("{key}", key)
-
-    param = values.get("param")
-    if param is None:
-        raise ValueError("Missing required template value: param")
-    modifier = values.get("modifier")
-
-    if "{param@modifier}" in out:
-        out = out.replace("{param@modifier}", _param_from_parts(param, modifier))
-    out = out.replace("{param}", param)
-
-    agency_id = values.get("agency_id")
-    if agency_id is None:
-        raise ValueError("Missing required template value: agency_id")
-    out = out.replace("{agency_id}", agency_id)
-
-    year = values.get("year")
-    syear = values.get("syear")
-    eyear = values.get("eyear")
-    if year is None or syear is None or eyear is None:
-        raise ValueError("Missing one of required year-like template values")
-
-    out = out.replace("{year}", year)
-    out = out.replace("{syear}", syear)
-    out = out.replace("{eyear}", eyear)
+    for token in tokens:
+        if token == "key":
+            val = values.get("key")
+            if val is None:
+                raise ValueError("Missing required template value: key")
+            out = out.replace("{key}", str(val))
+        elif token == "key@subloc":
+            key = values.get("key")
+            if key is None:
+                raise ValueError("Missing required template value: key")
+            out = out.replace("{key@subloc}", _station_key_from_parts(str(key), values.get("subloc")))
+        elif token == "param":
+            val = values.get("param")
+            if val is None:
+                raise ValueError("Missing required template value: param")
+            out = out.replace("{param}", str(val))
+        elif token == "param@modifier":
+            param = values.get("param")
+            if param is None:
+                raise ValueError("Missing required template value: param")
+            out = out.replace("{param@modifier}", _param_from_parts(str(param), values.get("modifier")))
+        else:
+            val = values.get(token)
+            if val is None:
+                raise ValueError(f"Missing required template value: {token}")
+            out = out.replace("{" + token + "}", str(val))
 
     return out
 
@@ -153,21 +122,14 @@ def build_repo_globs(
     modifier=None,
     sources=None,
     agency_id="*",
+    agency="*",
     year="*",
     syear="*",
     eyear="*",
 ):
-    """
-    Build repo-relative glob patterns from a repo configuration.
-
-    This function does not infer priorities or defaults beyond simple wildcard
-    defaults. It only converts structured query parts into repo-relative globs.
-    """
     templates = repo_cfg.get("filename_templates", [])
     if not templates:
-        raise ValueError(
-            f"Repo {repo_cfg.get('name')!r} has no filename_templates"
-        )
+        raise ValueError(f"Repo {repo_cfg.get('name')!r} has no filename_templates")
 
     if sources is None:
         sources = ["*"]
@@ -176,40 +138,31 @@ def build_repo_globs(
     else:
         sources = list(sources)
 
-    values = {
-        "key": key,
-        "subloc": subloc,
-        "param": param,
-        "modifier": modifier,
-        "agency_id": agency_id,
-        "year": year,
-        "syear": syear,
-        "eyear": eyear,
-    }
-
     out = []
     seen = set()
-
     for src in sources:
-        values["source"] = src
+        values = {
+            "source": src,
+            "agency": agency,
+            "key": key,
+            "subloc": subloc,
+            "param": param,
+            "modifier": modifier,
+            "agency_id": agency_id,
+            "year": year,
+            "syear": syear,
+            "eyear": eyear,
+        }
         for tmpl in templates:
             pat = _render_repo_template(tmpl, values)
             if pat not in seen:
                 out.append(pat)
                 seen.add(pat)
-
     return out
 
 
 def _interpret_fname_legacy(fname):
-    """
-    Legacy parser for filenames like
-
-        source_station@subloc_agencyid_param_2001.csv
-        source_station@subloc_agencyid_param_2001_2024.csv
-    """
     fname = os.path.split(fname)[1]
-
     datere = re.compile(
         r"([a-z0-9]+)_([a-z0-9@]+)_([a-z0-9]+)_([a-z0-9]+).*_(\d{4})_(\d{4})(?:\..{3})"
     )
@@ -251,18 +204,14 @@ def _interpret_fname_legacy(fname):
     return meta
 
 
-def _template_regex_from_template(template):
-    """
-    Convert a repo template into a regex with named groups.
-
-    This is intentionally narrow and only supports the current placeholder set.
-    """
+def _template_regex_from_template(template, *, key_column="station_id"):
     pieces = ["^"]
     last = 0
     token_map = {
-        "source": r"(?P<agency>[a-z0-9]+)",
-        "key": r"(?P<station_id>[a-z0-9]+)",
-        "key@subloc": r"(?P<station_full>[a-z0-9]+(?:@[a-z0-9]+)?)",
+        "source": r"(?P<source>[a-z0-9]+)",
+        "agency": r"(?P<agency>[a-z0-9]+)",
+        "key": rf"(?P<{key_column}>[a-z0-9]+)",
+        "key@subloc": rf"(?P<key_full>[a-z0-9]+(?:@[a-z0-9_]+)?)",
         "param": r"(?P<param>[a-z0-9]+)",
         "param@modifier": r"(?P<param_full>[a-z0-9]+(?:@[a-z0-9_]+)?)",
         "agency_id": r"(?P<agency_id>[a-z0-9]+)",
@@ -287,13 +236,14 @@ def _template_regex_from_template(template):
 def _interpret_fname_template(fname, repo_cfg):
     fname = os.path.split(fname)[1]
     templates = repo_cfg.get("filename_templates", [])
+    key_column = repo_cfg.get("key_column", "station_id")
     if not templates:
         raise ValueError(
             f"Repo {repo_cfg.get('name')!r} has no filename_templates for template parse"
         )
 
     for tmpl in templates:
-        rx = _template_regex_from_template(tmpl)
+        rx = _template_regex_from_template(tmpl, key_column=key_column)
         m = rx.match(fname)
         if m is None:
             continue
@@ -301,25 +251,27 @@ def _interpret_fname_template(fname, repo_cfg):
         gd = m.groupdict()
         meta = {"filename": fname}
 
-        if "agency" in gd and gd["agency"] is not None:
+        if gd.get("source") is not None:
+            meta["source"] = gd["source"]
+        if gd.get("agency") is not None:
             meta["agency"] = gd["agency"]
 
-        if "station_full" in gd and gd["station_full"] is not None:
-            station_full = gd["station_full"]
-            if "@" in station_full:
-                station_id, subloc = station_full.split("@", 1)
+        if gd.get("key_full") is not None:
+            key_full = gd["key_full"]
+            if "@" in key_full:
+                key_val, subloc = key_full.split("@", 1)
             else:
-                station_id, subloc = station_full, None
-            meta["station_id"] = station_id
+                key_val, subloc = key_full, None
+            meta[key_column] = key_val
             meta["subloc"] = subloc
-        elif "station_id" in gd and gd["station_id"] is not None:
-            meta["station_id"] = gd["station_id"]
+        elif gd.get(key_column) is not None:
+            meta[key_column] = gd[key_column]
             meta["subloc"] = None
 
-        if "agency_id" in gd and gd["agency_id"] is not None:
+        if gd.get("agency_id") is not None:
             meta["agency_id"] = gd["agency_id"]
 
-        if "param_full" in gd and gd["param_full"] is not None:
+        if gd.get("param_full") is not None:
             param_full = gd["param_full"]
             if "@" in param_full:
                 param, modifier = param_full.split("@", 1)
@@ -327,15 +279,12 @@ def _interpret_fname_template(fname, repo_cfg):
                 meta["modifier"] = modifier
             else:
                 meta["param"] = param_full
-        elif "param" in gd and gd["param"] is not None:
+        elif gd.get("param") is not None:
             meta["param"] = gd["param"]
 
-        if "year" in gd and gd["year"] is not None:
-            meta["year"] = gd["year"]
-        if "syear" in gd and gd["syear"] is not None:
-            meta["syear"] = gd["syear"]
-        if "eyear" in gd and gd["eyear"] is not None:
-            meta["eyear"] = gd["eyear"]
+        for ykey in ("year", "syear", "eyear"):
+            if gd.get(ykey) is not None:
+                meta[ykey] = gd[ykey]
 
         return meta
 
@@ -352,13 +301,7 @@ def _coerce_naming_spec(repo=None, repo_cfg=None, naming=None):
 
 def interpret_fname(fname, repo=None, repo_cfg=None, naming=None):
     spec = _coerce_naming_spec(repo=repo, repo_cfg=repo_cfg, naming=naming)
-    style = spec.get("parse", {}).get("style", "legacy")
-
-    if style == "legacy":
-        return _interpret_fname_legacy(fname)
-
-    if style == "template":
-        return _interpret_fname_template(fname, spec)
+    return _interpret_fname_template(fname, spec)
 
     raise ValueError(f"Unsupported parse style {style!r}")
 
@@ -390,54 +333,102 @@ def _meta_to_filename_legacy(meta):
     )
 
 
-def _meta_to_filename_template(meta, spec):
+def _template_score(template, meta, *, key_column="station_id"):
+    score = 0
+    for token in _template_tokens(template):
+        if token == "key@subloc":
+            score += 2 if meta.get("subloc") not in (None, "default", "none", "") else 1
+        elif token == "param@modifier":
+            score += 2 if meta.get("modifier") not in (None, "default", "none", "") else 1
+        elif token in ("year", "syear", "eyear", key_column, "source", "agency", "agency_id", "param"):
+            score += 1
+        else:
+            score += 1
+    return score
+
+
+def _meta_supports_template(meta, template, *, key_column="station_id"):
+    for token in _template_tokens(template):
+        if token == "key":
+            if meta.get(key_column) is None:
+                return False
+        elif token == "key@subloc":
+            if meta.get(key_column) is None:
+                return False
+        elif token == "param":
+            if meta.get("param") is None:
+                return False
+        elif token == "param@modifier":
+            if meta.get("param") is None:
+                return False
+        else:
+            if meta.get(token) is None:
+                return False
+    return True
+
+def meta_to_filename(
+    meta,
+    repo=None,
+    repo_cfg=None,
+    naming=None,
+    include_shard=True,
+):
+    spec = _coerce_naming_spec(repo=repo, repo_cfg=repo_cfg, naming=naming)
+    return _meta_to_filename_template(meta, spec, include_shard=include_shard)
+
+
+def _meta_to_filename_template(meta, spec, include_shard=True):
     templates = spec.get("filename_templates", [])
+    key_column = spec.get("key_column", "station_id")
     if not templates:
         raise ValueError("Naming spec has no filename_templates")
 
-    if "station_id" not in meta:
-        raise ValueError(f"station_id not in meta: {meta}")
-    if "agency" not in meta:
-        raise ValueError(f"agency not in meta: {meta}")
-    if "param" not in meta:
-        raise ValueError(f"param not in meta: {meta}")
+    template_pairs = []
+    for tmpl in templates:
+        effective = tmpl if include_shard else _drop_shard_tokens(tmpl)
+        template_pairs.append((tmpl, effective))
 
-    if "year" in meta:
-        candidate_templates = [t for t in templates if "{year}" in t]
-    elif "syear" in meta and "eyear" in meta:
-        candidate_templates = [
-            t for t in templates if "{syear}" in t and "{eyear}" in t
-        ]
-    else:
-        candidate_templates = templates
+    compatible = [
+        (orig, eff)
+        for (orig, eff) in template_pairs
+        if _meta_supports_template(meta, eff, key_column=key_column)
+    ]
+    if not compatible:
+        raise ValueError(f"No configured filename template is supported by metadata: {meta}")
+
+    orig_template, effective_template = max(
+        compatible,
+        key=lambda pair: (
+            _template_score(pair[1], meta, key_column=key_column),
+            len(_template_tokens(pair[1])),
+        ),
+    )
 
     values = {
-        "source": meta["agency"],
-        "key": meta["station_id"],
+        "source": meta.get("source"),
+        "agency": meta.get("agency"),
+        "key": meta.get(key_column),
         "subloc": meta.get("subloc"),
-        "param": meta["param"],
+        "param": meta.get("param"),
         "modifier": meta.get("modifier"),
-        "agency_id": str(meta.get("agency_id", "*")),
-        "year": str(meta.get("year", "*")),
-        "syear": str(meta.get("syear", "*")),
-        "eyear": str(meta.get("eyear", "*")),
+        "agency_id": meta.get("agency_id"),
+        "year": meta.get("year"),
+        "syear": meta.get("syear"),
+        "eyear": meta.get("eyear"),
     }
-    return _render_repo_template(candidate_templates[0], values)
+    return _render_repo_template(effective_template, values)
 
 
-def meta_to_filename(meta, repo=None, repo_cfg=None, naming=None):
-    spec = _coerce_naming_spec(repo=repo, repo_cfg=repo_cfg, naming=naming)
-    style = spec.get("parse", {}).get("style", "legacy")
-
-    if style == "legacy":
-        return _meta_to_filename_legacy(meta)
-    if style == "template":
-        return _meta_to_filename_template(meta, spec)
+def _drop_shard_tokens(template):
+    template = template.replace("_{syear}_{eyear}", "")
+    template = template.replace("_{year}", "")
+    return template
 
     raise ValueError(f"Unsupported parse style {style!r}")
-    
+
+
 def series_id_from_meta(row, remove_source=False):
-    parts = [row["station_id"], row.get("subloc"), row["param"]]
+    parts = [row.get("station_id"), row.get("subloc"), row.get("param")]
     if not remove_source:
-        parts.insert(0, row["agency"])
+        parts.insert(0, row.get("source", row.get("agency")))
     return "_".join(str(p) for p in parts if p is not None)

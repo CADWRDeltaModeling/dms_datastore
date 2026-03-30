@@ -49,27 +49,29 @@ A repo configuration should answer the following questions deterministically:
 - Which fields are optional, merged, or synthetic?
 - How do search and prioritization work when more than one file pattern could match?
 
+
 ### `key_column`
 
-`key_column` is the logical identity key used to join filenames and file-derived metadata to the registry. In current work this is often `station_id`, but the design should not hardcode that assumption outside the configuration.
+`key_column` is the logical identity key used to identify sites and is often the primary registry join key combining station databases with other items like sublocation tables. It identifies the registry entity (kind of like "station") to which a file belongs, but additional fields such as `subloc`, `param`, or `modifier` may still be needed to distinguish logical series within that entity.  This is all very abstract. In current work this key column is often `station_id`, and that column name is ubiquitous in the downloading and processing of continuous time series. However, library/client design should use the registry-named key, not hardcode that name, because for instance `structure_id`, may work better for hydraulic structures.
 
 This key governs:
 
 - inventory aggregation
-- registry joins
+- registry joins to other tables
 - lookup behavior in repo reads
 - consistency checks during reconciliation
 
 ### `filename_templates`
 
-`filename_templates` define the legal filesystem encodings of dataset identity. The important point is that the templates are not only for *writing* names; they must also be invertible enough for *reading* names.
-
+`filename_templates` map key pieces of metadata to filenames. Since filenames are unique, this is also a defacto form of dataset identity (although it may include extra things). The templates are not only for *writing* names based on metadata; they must also be invertible enough for *reading* names. Often 
+once the names are read they are joined to the registry database (e.g. station_dbase.csv) to get other data like georeferencing.
+ 
 That means a template should support two related operations:
 
 1. **Render** a filename from a logical metadata record.
 2. **Interpret** a filename back into its fields.
 
-If a template cannot be interpreted reliably, it is not a good repo template.
+If a template cannot be interpreted reliably, it is not a good repo template. The system is tested for round trips.
 
 ---
 

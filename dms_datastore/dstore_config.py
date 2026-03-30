@@ -73,7 +73,6 @@ def repo_root(repo=None, repo_cfg=None):
 
 def repo_registry(repo=None, repo_cfg=None):
     cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
-    print(cfg)
     registry_name = cfg.get("registry")
     key_column = cfg.get("key_column", "id")
     if registry_name is None:
@@ -179,8 +178,6 @@ def repo_config(repo_name):
     )
     spec.setdefault("key_column", "id")
     spec.setdefault("source_priority_mode", "none")
-    spec.setdefault("parse", {"style": "legacy"})
-    spec.setdefault("search", {"use_source_slot": True, "shard_style": "auto"})
 
     templates = spec.get("filename_templates", [])
     if not templates:
@@ -232,7 +229,7 @@ def registry_df(registry_name, key_column="id"):
         )
 
     db[key_column] = db[key_column].astype(str).str.replace("'", "", regex=True).str.strip()
-    print(db)
+   
 
     if "agency_id" in db.columns:
         db["agency_id"] = db["agency_id"].astype(str).str.replace("'", "", regex=True).str.strip()
@@ -244,6 +241,8 @@ def registry_df(registry_name, key_column="id"):
         raise ValueError(f"Registry {registry_name} has duplicate {key_column} keys")
 
     db = db.set_index(key_column, drop=False)
+    # Ensure index is string type for consistent merging
+    db.index = db.index.astype(str)
     return db
 
 

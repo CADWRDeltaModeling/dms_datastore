@@ -47,28 +47,25 @@ repos:
     search:
       use_source_slot: true
       shard_style: auto
-    parse:
-      style: legacy
+
 
   screened:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
     registry: continuous
-    key_column: id
+    key_column: station_id
     source_priority_mode: by_registry_column
     source_priority_column: agency
     filename_templates:
-      - "{source}_{key@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"
-      - "{source}_{key@subloc}_{agency_id}_{param}_{year}.csv"
+      - "{agency}_{key@subloc}_{agency_id}_{param}_{year}.csv"
     search:
       use_source_slot: true
       shard_style: auto
-    parse:
-      style: legacy
+
 
   processed:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed"
     registry: processed
-    key_column: id
+    key_column: station_id
     source_priority_mode: repo_default
     source_priority_group: processed_default
     filename_templates:
@@ -79,13 +76,11 @@ repos:
     search:
       use_source_slot: true
       shard_style: auto
-    parse:
-      style: template
 
   structures:
     root: "//cnrastore-bdo/Modeling_Data/repo/structures"
     registry: structures
-    key_column: id
+    key_column: structure_id
     source_priority_mode: repo_default
     source_priority_group: structures_default
     filename_templates:

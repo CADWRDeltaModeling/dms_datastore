@@ -12,29 +12,7 @@ from vtools.functions.unit_conversions import *
 
 __all__ = ["read_ts_repo", "read_ts_repo", "ts_multifile_read", "infer_source_priority"]
 
-def resolve_repo_sources(repo_cfg, key, src_priority):
-    """
-    Resolve which source values should be substituted into repo templates.
 
-    This is search policy, not naming policy.
-    """
-    search_cfg = repo_cfg.get("search", {})
-    use_source_slot = search_cfg.get("use_source_slot", True)
-
-    if not use_source_slot:
-        return [""]
-
-    if src_priority == "infer":
-        inferred = infer_source_priority_repo(key, repo_cfg)
-        return inferred if inferred else ["*"]
-
-    if src_priority is None or src_priority == "*":
-        return ["*"]
-
-    if isinstance(src_priority, str):
-        return [src_priority]
-
-    return list(src_priority)
 
 def infer_source_priority(station_id):
     """
@@ -100,6 +78,7 @@ def read_ts_repo(
     meta=False,
     force_regular=False,
     modifier=None,
+    data_path=None
 ):
     """
     Read time series data from a configured repository.
@@ -124,6 +103,8 @@ def read_ts_repo(
         Passed through to read_ts.
     modifier : str or None, optional
         Optional parameter modifier used by template repos such as processed.
+    data_path : str or None, optional
+        Optional path to stored files if using repo for config and alternate location for data.
 
     Returns
     -------
@@ -139,7 +120,8 @@ def read_ts_repo(
             station_id = f"{station_id}@{subloc}"
 
     repo_cfg = dstore_config.repo_config(repo)
-    repository = repo_cfg["root"]
+    repository = data_path if data_path is not None else repo_cfg["root"]
+
 
     start = pd.to_datetime(start) if start is not None else None
     end = pd.to_datetime(end) if end is not None else None
@@ -314,6 +296,27 @@ def ts_multifile(
             if filter_date(metafname, start, end):
                 continue
             ts = read_ts(tsfile, force_regular=force_regular)
+            dup_mask = ts.index.duplicated(keep=False)
+            if dup_mask.any():
+                dup_index = ts.index[dup_mask]
+                unique_dups = dup_index.unique()
+
+                first = unique_dups[0]
+                last = unique_dups[-1]
+
+                example_first = ts.loc[first]
+                example_last = ts.loc[last]
+
+                raise ValueError(
+                    f"Duplicate index detected in file {tsfile}\n"
+                    f"Duplicate timestamps: {len(unique_dups)} "
+                    f"(total duplicate rows: {dup_mask.sum()})\n"
+                    f"First duplicate: {first}\n"
+                    f"Last duplicate: {last}\n\n"
+                    f"Example at first duplicate:\n{example_first}\n\n"
+                    f"Example at last duplicate:\n{example_last}"
+                )
+            
             if ts.shape[1] > 1:  # not sure about why we do this here
                 if selector is not None:
                     ts = ts[selector].to_frame()
@@ -400,6 +403,27 @@ def ts_multifile_read(
         tsfiles = glob.glob(fp)
         for tsfile in tsfiles:
             ts = read_ts(tsfile)
+            dup_mask = ts.index.duplicated(keep=False)
+            if dup_mask.any():
+                dup_index = ts.index[dup_mask]
+                unique_dups = dup_index.unique()
+
+                first = unique_dups[0]
+                last = unique_dups[-1]
+
+                example_first = ts.loc[first]
+                example_last = ts.loc[last]
+
+                raise ValueError(
+                    f"Duplicate index detected in file {tsfile}\n"
+                    f"Duplicate timestamps: {len(unique_dups)} "
+                    f"(total duplicate rows: {dup_mask.sum()})\n"
+                    f"First duplicate: {first}\n"
+                    f"Last duplicate: {last}\n\n"
+                    f"Example at first duplicate:\n{example_first}\n\n"
+                    f"Example at last duplicate:\n{example_last}"
+                )
+
             if ts.shape[1] > 1:
                 if selector is None:
                     ts = ts.mean(axis=1).to_frame()

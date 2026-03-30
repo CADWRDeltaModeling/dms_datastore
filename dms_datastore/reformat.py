@@ -10,7 +10,7 @@ import click
 import pandas as pd
 from dms_datastore.read_ts import *
 from dms_datastore.write_ts import *
-from dms_datastore.populate_repo import interpret_fname
+from dms_datastore.filename import interpret_fname, meta_to_filename, naming_spec
 from dms_datastore.dstore_config import config_file, station_dbase
 from dms_datastore.logging_config import configure_logging, resolve_loglevel
 import logging
@@ -63,6 +63,18 @@ def test_block_size():
 
 
 variable_mappings = None
+
+
+RAW_NAMING = naming_spec(
+    templates=["{agency}_{key@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
+)
+FORMATTED_NAMING = naming_spec(repo="formatted")
+FORMATTED_NAMING["parse"] = {"style": "template"}
+
+
+def _raw_source_from_meta(meta):
+    return meta.get("source", meta.get("agency"))
+
 
 
 def infer_unit(fname, param, src):
@@ -315,20 +327,19 @@ def usgs_unit(header_text):
 def infer_internal_meta_for_file(fpath):
     slookup = station_dbase()
     fname = os.path.split(fpath)[1]
-    meta = interpret_fname(fname)
+    meta = interpret_fname(fname, naming=RAW_NAMING)
     station_id = meta["station_id"]
+    source = _raw_source_from_meta(meta)
+
     meta_out = {}
     meta_out["param"] = meta["param"]
-    source = meta["agency"]
     meta_out["agency"] = slookup.loc[station_id, "agency"]
     meta_out["source"] = source
     meta_out["station_id"] = station_id
-    station_name = slookup.loc[station_id, "name"]
-    meta_out["station_name"] = station_name
-    meta_out["sublocation"] = (
-        meta["subloc"] if meta["subloc"] is not None else "default"
-    )
+    meta_out["subloc"] = meta.get("subloc")
+    meta_out["sublocation"] = meta["subloc"] if meta.get("subloc") is not None else "default"
     meta_out["agency_id"] = meta["agency_id"]
+    meta_out["station_name"] = slookup.loc[station_id, "name"]
     meta_out["latitude"] = slookup.loc[station_id, "lat"]
     meta_out["longitude"] = slookup.loc[station_id, "lon"]
     meta_out["projection_x_coordinate"] = slookup.loc[station_id, "x"]
@@ -337,9 +348,11 @@ def infer_internal_meta_for_file(fpath):
     meta_out["crs_note"] = (
         "Reported lat-lon are agency provided. Projected coordinates may have been revised based on additional information."
     )
+
     original_hdr = extract_commented_header(fpath, "#")
     if meta_out["source"] == "ncro" and len(original_hdr) == 0:
         original_hdr = ncro_header(fpath)
+
     if source == "cdec":
         unit, agency_unit = cdec_unit(fpath)
         meta_out["unit"] = unit
@@ -347,23 +360,23 @@ def infer_internal_meta_for_file(fpath):
     elif source == "ncro":
         try:
             unit = ncro_unit(original_hdr, meta["param"])
-        except:
+        except Exception:
             unit = "Unknown"
         meta_out["unit"] = unit
     elif source == "usgs":
-        uunit = usgs_unit(original_hdr)
-        meta_out["unit"] = uunit
+        meta_out["unit"] = usgs_unit(original_hdr)
     elif source == "des":
         yml = read_yaml_header(fpath)
         try:
             meta_out["agency_unit"] = yml["agency_unit_name"]
             meta_out["unit"] = yml["unit"]
-        except:
+        except Exception:
             raise ValueError(
                 f"yaml could not be read for agency_unit and unit:\n{yml}\nFile:{fpath}"
             )
     elif source == "noaa":
         meta_out["unit"] = read_yaml_header(fpath)["unit"]
+
     meta_out["original_header"] = original_hdr
     return meta_out
 
@@ -465,7 +478,7 @@ def reformat(inpath, outpath, pattern):
         try:
             hdr_meta = infer_internal_meta_for_file(fpath)
             try:
-                df = read_ts(fpath, force_regular=False)
+                df = read_ts(fpath, force_regular=True)  # Argument?
             except:
                 print(f"Could not read file: {fpath}")
                 raise
@@ -482,8 +495,16 @@ def reformat(inpath, outpath, pattern):
             if not ("usgs_" in fpath and df.shape[1] > 1):
                 df.columns = ["value"]
 
-            newfname = os.path.join(outpath, os.path.split(fpath)[1])
-            newfname = newfname[:-14] + ".csv"
+            meta_for_name = dict(hdr_meta)
+            newfname = os.path.join(
+                outpath,
+                meta_to_filename(
+                    meta_for_name,
+                    naming=FORMATTED_NAMING,
+                    include_shard=False,
+                ),
+            )
+
             content = ""
             for item in hdr_meta:
                 if item == "original_header":

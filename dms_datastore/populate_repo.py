@@ -19,7 +19,6 @@ Need to add something for the daily stations and for O&M (Clifton Court, Banks)
 import glob
 import os
 import shutil
-import re
 import traceback
 import click
 import concurrent.futures
@@ -33,26 +32,18 @@ from dms_datastore.process_station_variable import (
     merge_station_subloc,
 )
 from dms_datastore import dstore_config
-from dms_datastore.filename import interpret_fname, meta_to_filename
+from dms_datastore.filename import interpret_fname, meta_to_filename, naming_spec
 from dms_datastore.read_ts import read_ts
-from dms_datastore.download_nwis import nwis_download, parse_start_year
+from dms_datastore.download_nwis import nwis_download
 from dms_datastore.download_noaa import noaa_download
 from dms_datastore.download_cdec import cdec_download
 from dms_datastore.download_ncro import ncro_download, mapping_df
 from dms_datastore.rationalize_time_partitions import rationalize_time_partitions
-from dms_datastore.logging_config import configure_logging, resolve_loglevel 
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
 import logging
 logger = logging.getLogger(__name__)
 
-
-
-
-#    download_ncro_por,
-#    download_ncro_inventory,
-#    station_dbase,
-# )
 from dms_datastore.download_des import des_download
-
 
 __all__ = [
     "revise_filename_syears",
@@ -62,8 +53,16 @@ __all__ = [
     "populate_ncro_repo"
 ]
 
-# number of data to read in search of start date or multivariate
 NSAMPLE_DATA = 200
+
+# Raw/incoming naming profile used only for parsing and renaming downloader outputs.
+# First slot is the acquisition/serving agency label used by the downloader output.
+RAW_NAMING = naming_spec(
+    templates=[
+        "{agency}_{key@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv",
+        "{agency}_{key@subloc}_{agency_id}_{param}_{year}.csv",
+    ]
+)
 
 downloaders = {
     "dwr_des": des_download,
@@ -82,86 +81,66 @@ def _quarantine_file(fname, quarantine_dir="quarantine"):
     shutil.copy(fname, "quarantine")
 
 
+def _raw_meta_from_fname(fname):
+    """Parse a downloader/raw filename with the raw naming profile."""
+    return interpret_fname(os.path.basename(fname), naming=RAW_NAMING)
+
+
+def _rename_with_meta(fname, new_meta, *, force=True):
+    """Render a new raw-style filename from metadata and rename on disk."""
+    direct = os.path.dirname(fname)
+    newbase = meta_to_filename(new_meta, naming=RAW_NAMING)
+    newname = os.path.join(direct, newbase)
+    if fname == newname:
+        return None
+    if force:
+        os.replace(fname, newname)
+    else:
+        os.rename(fname, newname)
+    return newname
+
+
 def revise_filename_syears(pat, force=True, outfile="rename.txt"):
-    """Revise start year of files matching pat to the first year of valid data
-
-    Parameters
-    ----------
-    pat : str
-        Pattern to match, may include wildcards (uses glob)
-    force : True
-        Force renaming
-    outfile : str
-        Name of file to log failures
-
-    """
-
+    """Revise start year of files matching pat to the first year of valid data."""
     filelist = glob.glob(pat)
 
     renames = []
     for fname in filelist:
-        direct, pat = os.path.split(fname)
-        head, ext = os.path.splitext(pat)
-        parts = head.split("_")
-        oldstart, oldend = parts[-2:]
+        meta = _raw_meta_from_fname(fname)
         ts = read_ts(fname, nrows=200, force_regular=False)
         if ts.first_valid_index() is None:
             raise ValueError(f"Issue obtaining start time from file: {fname}")
-            logger.info(f"Bad: {fname}")
-        else:
-            newstart = str(ts.first_valid_index().year)
-            newname = fname.replace(oldstart, newstart)
 
-            if fname != newname:
-                logger.info(f"Renaming {fname} to {newname}")
-                renames.append((fname, newname))
-                try:
-                    if force:
-                        os.replace(fname, newname)
-                    else:
-                        os.rename(fname, newname)
-                except:
-                    logger.info(
-                        "Rename failed because of permission or overwriting issue."
-                    )
-                    logger.info(
-                        "This can be harmless if the downloader handles clipping of the years in file names"
-                    )
-                    logger.info("Dumping list of renames so far to rename.txt")
-                    _write_renames(fname, "rename.txt")
-                    raise
+        newstart = str(ts.first_valid_index().year)
+        new_meta = dict(meta)
+        if "syear" in new_meta:
+            new_meta["syear"] = newstart
+        elif "year" in new_meta:
+            new_meta["year"] = newstart
+        else:
+            raise ValueError(f"No year-like field found in parsed raw filename: {fname}")
+
+        newname = _rename_with_meta(fname, new_meta, force=force)
+        if newname is not None:
+            logger.info(f"Renaming {fname} to {newname}")
+            renames.append((fname, newname))
+
     _write_renames(renames, outfile)
 
 
 def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
-    """Revise both the start year and end year of files matching pat to years of valid data
-
-    Parameters
-    ----------
-    pat : str
-        Pattern to match, may include wildcards (uses glob)
-    force : True
-        Force renaming
-    outfile : str
-        Name of file to log failures
-
-    """
-    return
-
+    """Revise start and end year of raw files to match valid data years."""
     logger.info(f"Beginning revise_filename_syear_eyear for pattern: {pat}")
 
     filelist = glob.glob(pat)
     bad = []
     renames = []
     for fname in filelist:
-        direct, pat = os.path.split(fname)
-        head, ext = os.path.splitext(pat)
-        parts = head.split("_")
-        oldstart, oldend = parts[-2:]
+        meta = _raw_meta_from_fname(fname)
         ts = None
         try:
             ts = read_ts(fname, force_regular=False)
-        except:
+        except Exception:
             file_size = os.path.getsize(fname)
             if file_size < 25000:
                 os.remove(fname)
@@ -170,54 +149,50 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
                     f"Small file {fname} caused read exception. Deleted during rename"
                 )
             else:
-                quarantine_file(fname, "quarantine")
+                _quarantine_file(fname, "quarantine")
                 bad.append(fname + " (not small, not deleted)")
                 logger.info(
                     f"non-small file {fname} caused read exception. Not deleted during rename"
                 )
             continue
+
         if ts is None:
             logger.info(f"File {fname} produced None during read")
             bad.append(fname + " returned None for time series")
             os.remove(fname)
-        elif ts.first_valid_index() is None:
+            continue
+
+        if ts.first_valid_index() is None:
             if ts.isnull().all(axis=None):
                 logger.info(f"All values are bad. Deleting file {fname}")
                 bad.append(fname + " (all bad, deleting)")
                 os.remove(fname)
-            else:
-                raise ValueError(f"Issue obtaining start time from file: {fname}")
-        elif not hasattr(ts.first_valid_index(), "year"):
+                continue
+            raise ValueError(f"Issue obtaining start time from file: {fname}")
+
+        if not hasattr(ts.first_valid_index(), "year"):
             logger.info(
                 f"Index in file {fname} not a time stamp: {ts.first_valid_index()}"
             )
             bad.append(fname + " (first index not a time stamp)")
             os.remove(fname)
-        else:
-            newstart = str(ts.first_valid_index().year)
-            newend = oldend if oldend == "9999" else str(ts.last_valid_index().year)
-            new_time_block = newstart + "_" + newend
-            old_time_block = oldstart + "_" + oldend
-            newname = fname.replace(old_time_block, new_time_block)
+            continue
 
-            if fname == newname:
-                logger.debug(f"Not renaming {fname}")
-            else:
-                logger.info(f"Renaming {fname} to {newname}")
-                renames.append((fname, newname))
-                try:
-                    if force:
-                        os.replace(fname, newname)
-                    else:
-                        os.rename(fname, newname)
-                except:
-                    logger.info(
-                        "Rename failed because of permission or overwriting issue. The force argment may be set to False. Dumping list of renames so far to rename.txt"
-                    )
-                    _write_renames(rename, "rename.txt")
-                    logger.info("Bad file info below:")
-                    logger.info(str(bad))
-                    raise
+        new_meta = dict(meta)
+        newstart = str(ts.first_valid_index().year)
+        if "year" in new_meta:
+            new_meta["year"] = newstart
+        else:
+            new_meta["syear"] = newstart
+            oldend = str(new_meta.get("eyear", "9999"))
+            new_meta["eyear"] = oldend if oldend == "9999" else str(ts.last_valid_index().year)
+
+        newname = _rename_with_meta(fname, new_meta, force=force)
+        if newname is None:
+            logger.debug(f"Not renaming {fname}")
+        else:
+            logger.info(f"Renaming {fname} to {newname}")
+            renames.append((fname, newname))
 
     _write_renames(renames, outfile)
     if len(bad) > 0:
@@ -230,35 +205,13 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
 def populate_repo(
     agency, param, dest, start, end, overwrite=False, ignore_existing=None
 ):
-    """Populate repository for the given agency/source and parameter
-
-    Parameters
-    ----------
-    agency : str
-        Agency to populate
-    param : str
-        Parameter to populate. Should be a variable on the variables.csv table
-    dest : str
-        Location to put files
-    start : int
-        year to start
-    end : int
-        year to end or 9999 to go to now
-    overwrite : bool
-        passed to downloading script
-    ignore_existing : list of existing files to ignore
-
-    Returns
-    -------
-
-    """
+    """Populate repository for the given agency/source and parameter."""
     maximize_subloc = False
 
-    # todo: This may limit usefulness for things like atmospheric
     slookup = dstore_config.config_file("station_dbase")
     if "ncro" in agency:
         vlookup = mapping_df
-        agency = "ncro"  # todo: this could be cleaned up throught library
+        agency = "ncro"
     else:
         vlookup = dstore_config.config_file("variable_mappings")
 
@@ -287,8 +240,6 @@ def populate_repo(
         param=param,
         default_subloc="default",
     )
-    # repo_name = "formatted" is for pointing to station_dbase.csv -- nothing particular to formatted other than
-    # using the right list. 
     stationlist = attach_agency_id(stationlist, repo_name="formatted", agency_id_col=agency_id_col)
     stationlist = attach_src_var_id(stationlist, vlookup, source=source)
     if maximize_subloc:
@@ -304,47 +255,39 @@ def populate_repo(
 
 
 def _write_renames(renames, outfile):
-    """Logger to write rename failures"""
     writedf = pd.DataFrame.from_records(renames, columns=["from", "to"])
     writedf.to_csv(outfile, sep=",", header=True)
 
 
 def existing_stations(pat):
-
     allfiles = glob.glob(pat)
     existing = set()
     for f in allfiles:
-        direct, fname = os.path.split(f)
-        parts = fname.split("_")
-        station_id = parts[1]
-        existing.add(station_id)
+        meta = _raw_meta_from_fname(f)
+        existing.add(meta["station_id"])
     return existing
 
 
 def list_ncro_stations(dest):
-    """List stations available in dest for ncro realtime update"""
-
+    """List stations available in dest for ncro realtime update."""
     allfiles = glob.glob(os.path.join(dest, "ncro_*.csv"))
 
-    def station_param(x):
-        parts = os.path.split(x)[1].split("_")
+    stationlist = []
+    for x in allfiles:
         try:
-            return (parts[1], parts[3], "cdec", parts[2])
-        except:
+            meta = _raw_meta_from_fname(x)
+            stationlist.append((meta["station_id"], meta["param"], "cdec", meta["agency_id"]))
+        except Exception:
             logger.info(x)
             raise ValueError(f"Unable to parse station and parameter from name {x}")
 
-    stationlist = [station_param(x) for x in allfiles]
-    df = pd.DataFrame(
+    return pd.DataFrame(
         data=stationlist, columns=["id", "param", "agency", "agency_id_from_file"]
     )
-    return df
 
 
 def populate_repo2(df, dest, start, overwrite=False, ignore_existing=None):
-
-    """ Currently used by ncro realtime """
-    slookup = dstore_config.config_file("station_dbase")
+    """Currently used by ncro realtime."""
     vlookup = dstore_config.config_file("variable_mappings")
     df["station_id"] = df["id"].str.replace("'", "")
     df["subloc"] = "default"
@@ -355,20 +298,18 @@ def populate_repo2(df, dest, start, overwrite=False, ignore_existing=None):
     source = "cdec"
     agency_id_col = "agency_id_from_file"
     stationlist = normalize_station_request(stationframe=df, default_subloc="default")
-    stationlist = attach_agency_id(stationlist, repo="formatted", agency_id_col=agency_id_col)
+    stationlist = attach_agency_id(stationlist, repo_name="formatted", agency_id_col=agency_id_col)
     stationlist = attach_src_var_id(stationlist, vlookup, source=source)
     end = None
     downloaders["cdec"](stationlist, dest, start, end, overwrite)
 
 
 def populate(dest, all_agencies=None, varlist=None, partial_update=False):
-    """Driver script that populates agencies in all_agencies with destination dest"""
     logger.info(f"dest: {dest} agencies: {all_agencies}")
     doneagency = []
 
     purge = False
-    ignore_existing = None  # []
-    current = pd.Timestamp.now()
+    ignore_existing = None
     if all_agencies is None:
         all_agencies = ["usgs", "dwr_des", "dwr_ncro", "usbr", "noaa", "dwr"]
 
@@ -378,9 +319,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
     for agency in all_agencies:
         if agency == "noaa":
             if varlist is None or len(varlist) == 0:
-                # "predictions" was removed because it can be done very
-                # occasionally, when tidal epochs/fits are revised
-                varlist = ["elev"]  # handled in next section
+                varlist = ["elev"]
         else:
             if varlist is None or len(varlist) == 0:
                 varlist = [
@@ -395,24 +334,10 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                     "ssc",
                 ]
 
-        # DES/DISE data from web services comes in by instrument, which can be phased in and out
-        # in an overlapping way over time. Some of the early instruments have a one hour time interval
-        # which introduces some complications mixing them in with faster collection later. It also causes
-        # time blocking to be really weird because the neat 20 year blocks we are hoping for get truncated
-        # as the new instruments come in and out of existence.
-        # These things happen in the mid 2000s (often 2007 ish).
-        # At the moment, I (Eli) tried to avoid this complication by consolidating the pre-2020 history.
-        # It looks like big files, and this is possible, but many will be truncated because of limited
-        # instrument lifetimes ... so 1980-2019 will come out as 1984-2007 or something like that.
         if agency == "dwr_des":
-
             for var in varlist:
-                logger.info(
-                    f"Calling populate_repo with agency {agency} variable: {var}"
-                )
+                logger.info(f"Calling populate_repo with agency {agency} variable: {var}")
                 if not partial_update:
-                    # Pulls in data in two 20 year blocks, which helps with query length limits
-                    # Pulls in data in two 20 year blocks, which helps with query length limits
                     populate_repo(
                         agency,
                         var,
@@ -433,9 +358,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                     agency, var, dest, pd.Timestamp(2020, 1, 1), None, overwrite=True
                 )
                 ext = "rdb" if agency == "usgs" else ".csv"
-                revise_filename_syear_eyear(
-                    os.path.join(dest, f"{agency}*_{var}_*.{ext}")
-                )
+                revise_filename_syear_eyear(os.path.join(dest, f"{agency}*_{var}_*.{ext}"))
                 logger.info(f"Done with agency {agency} variable: {var}")
 
         else:
@@ -449,7 +372,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                         var,
                         dest,
                         pd.Timestamp(1980, 1, 1),
-                       pd.Timestamp(1999, 12, 31, 23, 59),
+                        pd.Timestamp(1999, 12, 31, 23, 59),
                         ignore_existing=ignore_existing,
                     )
                     logger.info(
@@ -481,9 +404,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                     overwrite=True,
                 )
                 ext = "rdb" if agency == "usgs" else ".csv"
-                revise_filename_syear_eyear(
-                    os.path.join(dest, f"{agency}*_{var}_*.{ext}")
-                )
+                revise_filename_syear_eyear(os.path.join(dest, f"{agency}*_{var}_*.{ext}"))
                 logger.info(f"Done with agency {agency} variable: {var}")
         logger.info(f"Done with agency {agency} for all variables")
         doneagency.append(agency)
@@ -493,7 +414,6 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
 
 
 def purge(dest):
-
     if purge:
         for pat in ["*.csv", "*.rdb"]:
             allfiles = glob.glob(os.path.join(dest, pat))
@@ -502,12 +422,6 @@ def purge(dest):
 
 
 def populate_ncro_realtime(dest, realtime_start=pd.Timestamp(2021, 1, 1)):
-    """Populate recent NCRO data from CDEC for realtime updates """    
-    # NCRO QAQC
-    # dest = "//cnrastore-bdo/Modeling_Data/continuous_station_repo/raw/incoming/dwr_ncro"
-    # ncro_download_por(dest)
-
-    # NCRO recent from CDEC
     end = None
     ncrodf = list_ncro_stations(dest)
     populate_repo2(ncrodf, dest, realtime_start, overwrite=True)
@@ -515,8 +429,8 @@ def populate_ncro_realtime(dest, realtime_start=pd.Timestamp(2021, 1, 1)):
 
 
 def populate_ncro_repo(dest, variables):
-    download_ncro_por(dest, variables)  # period of record for NCRO QA QC'd
-    populate_ncro_realtime(dest)  # Recent NCRO
+    download_ncro_por(dest, variables)
+    populate_ncro_realtime(dest)
 
 
 def ncro_only(dest):
@@ -526,7 +440,6 @@ def ncro_only(dest):
 
 
 def populate_main(dest, agencies=None, varlist=None, partial_update=False):
-
     do_purge = False
     if not os.path.exists(dest):
         raise ValueError(f"Destination directory {os.path.abspath(dest)} does not exist. Please create it before running populate.")
@@ -546,30 +459,23 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
         future_to_agency = {
             executor.submit(populate, dest, agency, varlist, partial_update): agency
             for agency in all_agencies
-            # if (agency not in ["dwr_ncro", "ncro"])
         }
-        # if do_ncro:
-        #    future_to_agency[executor.submit(populate_ncro_repo, dest,varlist)] = "ncro"
 
     for future in concurrent.futures.as_completed(future_to_agency):
         agency = future_to_agency[future]
         try:
-            data = future.result()
+            future.result()
         except Exception as exc:
             failures.append(agency)
             trace = traceback.format_exc()
             logger.info(f"{agency} generated an exception: {exc} with trace:\n{trace}")
-        # This requires that CDEC already be done, though it coudl be split by variable
-        # with some work
         if "ncro" in agency:
             populate_ncro_realtime(dest)
 
-    # A fixup mostly for DES, addresses overlapping years of  same variable
-    if do_des:
-        spec = dstore_config.config_file("des_rationalize_time_spec")
+    if do_des:        
         rationalize_time_partitions(
             "des*_*.csv",
-            yaml_path=spec,
+            spec="des_rationalize_time_spec",
             root_dir=dest,
             dry_run=False,
             warn_on_remaining_overlap=True,
@@ -589,13 +495,11 @@ def populate_debug_ncro_rename(dest, agencies=None, varlist=None):
         if do_purge:
             purge(dest)
 
-    failures = []
     if agencies is None or len(agencies) == 0:
         all_agencies = ["usgs", "dwr_des", "usbr", "noaa", "dwr_ncro", "dwr"]
     else:
         all_agencies = agencies
     do_ncro = ("ncro" in all_agencies) or ("dwr_ncro" in all_agencies)
-    do_des = ("des" in all_agencies) or ("dwr_des" in all_agencies)
     if do_ncro:
         revise_filename_syear_eyear(os.path.join(dest, f"ncro_*.csv"))
     revise_filename_syear_eyear(os.path.join(dest, f"cdec_*.csv"))
@@ -643,7 +547,7 @@ def populate_main_cli(dest, agencies, variables, partial, logdir="logs", debug=F
           console=console,
           logdir=logdir,
           logfile_prefix="populate_repo"
-    )    
+    )
     varlist = list(variables) if variables else None
     agencies_list = list(agencies) if agencies else None
     logger.info(f"dest: {dest}, agencies: {agencies_list}, varlist:{varlist}")
@@ -652,6 +556,3 @@ def populate_main_cli(dest, agencies, variables, partial, logdir="logs", debug=F
 
 if __name__ == "__main__":
     populate_main_cli()
-
-
-# Additional: make sure we have woodbridge, yby,

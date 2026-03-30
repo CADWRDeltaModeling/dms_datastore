@@ -55,8 +55,8 @@ def _inventory_files(root):
     )
 
 
-def _parse_inventory_meta(allfiles):
-    return [interpret_fname(fname) for fname in allfiles]
+def _parse_inventory_meta(allfiles, repo_cfg=None):
+    return [interpret_fname(fname, repo_cfg=repo_cfg) for fname in allfiles]
 
 
 def series_id_from_meta(meta, remove_source=False):
@@ -115,7 +115,7 @@ def repo_file_inventory(repo=None, *, repo_cfg=None, in_path=None):
     registry = repo_registry(repo_cfg=repo_cfg)
 
     allfiles = _inventory_files(root)
-    allmeta = _parse_inventory_meta(allfiles)
+    allmeta = _parse_inventory_meta(allfiles, repo_cfg=repo_cfg)
     metadf = pd.DataFrame(allmeta)
     if metadf.empty:
         raise ValueError("Empty inventory")
@@ -193,7 +193,7 @@ def repo_file_inventory(repo=None, *, repo_cfg=None, in_path=None):
     return metastat
 
 
-def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None):
+def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None):
     """
     Inventory of logical datasets in a configured repo.
 
@@ -206,8 +206,9 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None):
     registry = repo_registry(repo_cfg=repo_cfg)
 
     allfiles = _inventory_files(root)
-    allmeta = _parse_inventory_meta(allfiles)
+    allmeta = _parse_inventory_meta(allfiles, repo_cfg=repo_cfg)
     metadf = pd.DataFrame(allmeta)
+
     if metadf.empty:
         raise ValueError("Empty inventory")
 
@@ -215,7 +216,19 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None):
     metadf["file_pattern"] = metadf["filename"].map(
         lambda x: to_wildcard(x, remove_source=True)
     )
-    metadf["source"] = metadf["agency"]
+    join_key = repo_cfg.get("key_column", "station_id")
+    if "agency" not in metadf.columns:
+        # Reset index if key_column is both an index and a column to avoid ambiguity in merge
+        if registry.index.name == join_key:
+            registry = registry.reset_index(drop=True)
+        metadf = metadf.merge(
+            registry[[join_key, "agency"]],
+            left_on=join_key,
+            right_on=join_key,
+            how="left",
+        )
+        
+        
     metadf["series_id"] = metadf.apply(
         lambda row: series_id_from_meta(row, remove_source=True),
         axis=1,
@@ -272,6 +285,24 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None):
             raise ValueError(
                 f"Cannot join registry: grouped inventory missing key column {join_key!r}"
             )
+
+    grouped[join_key] = grouped[join_key].astype(str).str.strip()
+
+    # normalize registry side again, right here, before join
+    if registry.index.name != join_key:
+        if join_key not in registry.columns:
+            raise ValueError(
+                f"Registry missing join key column {join_key!r}; "
+                f"columns are {registry.columns.tolist()}"
+            )
+        registry = registry.copy()
+        registry[join_key] = registry[join_key].astype(str).str.strip()
+        registry = registry.set_index(join_key, drop=False)
+    else:
+        registry = registry.copy()
+        registry.index = registry.index.astype(str)
+        if join_key in registry.columns:
+            registry[join_key] = registry[join_key].astype(str).str.strip()
 
     metastat = grouped.join(
         registry,
