@@ -9,7 +9,7 @@ from dms_datastore.read_ts import (
     read_yaml_header,
 )
 
-DATA_FILE = Path(__file__).parent / "data" / "header_data.txt"
+DATA_FILE = Path(__file__).parent.resolve() / "data" / "header_data.txt"
 
 
 def load_cases():

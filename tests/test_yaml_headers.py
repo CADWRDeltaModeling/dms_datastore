@@ -6,7 +6,7 @@ import pytest
 from dms_datastore.read_ts import parse_yaml_header
 from dms_datastore.write_ts import prep_header
 
-DATA_FILE = Path(__file__).parent / "data" / "header_data.txt"
+
 
 def leading_commented_header(text: str, comment: str = "#") -> str:
     # Use the same rule as extract_commented_header, but on an in-memory string
@@ -23,7 +23,7 @@ def load_header_cases():
     cases = {}
     current_name = None
     current_lines = []
-
+    DATA_FILE = Path(__file__).parent.resolve() / "data" / "header_data.txt"
     for line in DATA_FILE.read_text().splitlines(keepends=True):
         if line.startswith("!"):
             if current_name is not None:
