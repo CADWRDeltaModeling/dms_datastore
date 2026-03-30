@@ -38,6 +38,14 @@ def load_header_cases():
 
     return cases
 
+from pathlib import Path
+print("DEBUG __file__ =", __file__)
+print("DEBUG parent    =", Path(__file__).parent)
+print("DEBUG resolved  =", Path(__file__).parent.resolve())
+DATA_FILE = Path(__file__).parent.resolve() / "data" / "header_data.txt"
+print("DEBUG DATA_FILE =", DATA_FILE)
+print("DEBUG exists    =", DATA_FILE.exists())
+
 
 CASES = load_header_cases()
 
