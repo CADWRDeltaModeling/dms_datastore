@@ -25,7 +25,7 @@ registry: continuous
 key_column: station_id
 
 filename_templates:
-  - "{source}_{key@subloc}_{agency_id}_{param}_{year}.csv"
+  - "{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
 
 search:
   use_source_slot: true
@@ -98,7 +98,7 @@ we want to recover a metadata record such as:
 ```yaml
 source: usgs
 key: dsj
-subloc: default    # if encoded or inferred by the key@subloc rule
+subloc: default    # if encoded or inferred by the provider@subloc rule
 agency_id: 11313433
 param: ec
 year: 2020

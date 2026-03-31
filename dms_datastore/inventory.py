@@ -14,11 +14,11 @@ from dms_datastore.read_ts import read_yaml_header
 __all__ = ["repo_file_inventory", "repo_data_inventory"]
 
 
-def to_wildcard(fname, remove_source=False):
+def to_wildcard(fname, remove_provider=False):
     """
     Convert a concrete filename into a year-wildcarded pattern.
 
-    If remove_source is True, also wildcard the leading source slot.
+    If remove_provider is True, also wildcard the leading provider slot.
     """
     pat1 = r".*_(\d{4}_\d{4})\.\S{3}$"
     re1 = re.compile(pat1)
@@ -32,7 +32,7 @@ def to_wildcard(fname, remove_source=False):
         else:
             raise ValueError(f"Filename does not match expected shard pattern: {fname}")
 
-    if remove_source:
+    if remove_provider:
         outparts = out.split("_")
         if not outparts:
             raise ValueError(f"Could not split filename into source slots: {fname}")
@@ -58,33 +58,181 @@ def _inventory_files(root):
 def _parse_inventory_meta(allfiles, repo_cfg=None):
     return [interpret_fname(fname, repo_cfg=repo_cfg) for fname in allfiles]
 
-
-def series_id_from_meta(meta, remove_source=False):
+def series_id_from_meta(meta, repo_cfg=None, remove_provider=False):
     """
     Construct a stable logical series identifier from parsed metadata.
 
-    For file inventory, include source.
-    For data inventory, omit source.
+    Parameters
+    ----------
+    meta : dict
+        Parsed filename metadata
+    repo_cfg : dict or None
+        Repo configuration (defines provider_key, site_key)
+    remove_provider : bool
+        If True, omit provider from identity
+
+    Returns
+    -------
+    str
+        series_id
     """
+
+    # --- resolve keys ---
+    if repo_cfg is None:
+        provider_key = "agency"       # legacy fallback
+        site_key = "station_id"
+    else:
+        provider_key = repo_cfg["provider_key"]
+        site_key = repo_cfg["site_key"]
+
     parts = []
 
-    if not remove_source:
-        parts.append(str(meta["agency"]))
+    # --- provider ---
+    if not remove_provider:
+        provider_val = meta.get(provider_key)
+        if provider_val is None:
+            raise ValueError(
+                f"Missing provider field {provider_key!r} in metadata: {meta}"
+            )
+        parts.append(str(provider_val))
 
-    parts.append(str(meta["station_id"]))
+    # --- site ---
+    site_val = meta.get(site_key)
+    if site_val is None:
+        raise ValueError(
+            f"Missing site field {site_key!r} in metadata: {meta}"
+        )
+    parts.append(str(site_val))
 
+    # --- subloc ---
     subloc = meta.get("subloc")
     if subloc not in (None, "default"):
         parts.append(str(subloc))
 
-    parts.append(str(meta["param"]))
+    # --- param ---
+    param = meta.get("param")
+    if param is None:
+        raise ValueError(f"Missing param in metadata: {meta}")
+    parts.append(str(param))
 
+    # --- modifier ---
     modifier = meta.get("modifier")
     if modifier is not None:
         parts.append(str(modifier))
 
     return "|".join(parts)
 
+def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None):
+    """
+    Inventory of logical datasets in a configured repo.
+
+    Key/index semantics:
+        series_id is the grouping key.
+        file_pattern is a dependent wildcard pattern for downstream tools.
+    """
+    repo_cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
+    root = in_path if in_path is not None else repo_cfg["root"]
+    registry = repo_registry(repo_cfg=repo_cfg)
+
+    site_key = repo_cfg["site_key"]
+    provider_key = repo_cfg["provider_key"]
+
+    allfiles = _inventory_files(root)
+    allmeta = _parse_inventory_meta(allfiles, repo_cfg=repo_cfg)
+    metadf = pd.DataFrame(allmeta)
+
+    if metadf.empty:
+        raise ValueError("Empty inventory")
+
+    metadf["original_filename"] = metadf["filename"]
+    metadf["file_pattern"] = metadf["filename"].map(
+        lambda x: to_wildcard(x, remove_provider=True)
+    )
+
+    metadf["series_id"] = metadf.apply(
+        lambda row: series_id_from_meta(row, repo_cfg, remove_provider=True),
+        axis=1,
+    )
+
+    agg = {
+        site_key: "first",
+        "subloc": "first",
+        "param": "first",
+        provider_key: "first",
+        "file_pattern": "first",
+        "original_filename": "first",
+    }
+    if "agency_id" in metadf.columns:
+        agg["agency_id"] = "first"
+    if "modifier" in metadf.columns:
+        agg["modifier"] = "first"
+
+    if "syear" in metadf.columns and "eyear" in metadf.columns:
+        agg["syear"] = "min"
+        agg["eyear"] = "max"
+    elif "year" in metadf.columns:
+        agg["year"] = ["min", "max"]
+    else:
+        raise ValueError("No year columns found in parsed inventory metadata")
+
+    grouped = metadf.groupby(["series_id"], dropna=False).agg(agg)
+
+    grouped.columns = [
+        col if isinstance(col, str) else "_".join(str(x) for x in col if x)
+        for col in grouped.columns
+    ]
+    grouped.columns = [
+        c[:-6] if isinstance(c, str) and c.endswith("_first") else c
+        for c in grouped.columns
+    ]
+
+    rename_map = {
+        "year_min": "min_year",
+        "year_max": "max_year",
+        "syear": "min_year",
+        "eyear": "max_year",
+    }
+    grouped = grouped.rename(columns=rename_map)
+
+    if site_key not in grouped.columns:
+        raise ValueError(
+            f"Cannot join registry: grouped inventory missing site key {site_key!r}"
+        )
+
+    grouped[site_key] = grouped[site_key].astype(str).str.strip()
+
+    if registry.index.name != site_key:
+        if site_key not in registry.columns:
+            raise ValueError(
+                f"Registry missing join key column {site_key!r}; "
+                f"columns are {registry.columns.tolist()}"
+            )
+        registry = registry.copy()
+        registry[site_key] = registry[site_key].astype(str).str.strip()
+        registry = registry.set_index(site_key, drop=False)
+    else:
+        registry = registry.copy()
+        registry.index = registry.index.astype(str)
+        if site_key in registry.columns:
+            registry[site_key] = registry[site_key].astype(str).str.strip()
+
+    metastat = grouped.join(
+        registry,
+        on=site_key,
+        rsuffix="_registry",
+        how="left",
+    )
+
+    if "year" in metadf.columns and "syear" not in metadf.columns:
+        metastat["unit"] = metastat.apply(
+            lambda x: scrape_header_metadata(os.path.join(root, x.original_filename)),
+            axis=1,
+        )
+    else:
+        metastat["unit"] = None
+
+    metastat = _drop_inventory_noise(metastat)
+    return metastat
 
 def _drop_inventory_noise(df):
     return df.drop(
@@ -104,7 +252,7 @@ def _drop_inventory_noise(df):
 
 def repo_file_inventory(repo=None, *, repo_cfg=None, in_path=None):
     """
-    Inventory of source-bearing file families in a configured repo.
+    Inventory of provider-bearing file families in a configured repo.
 
     Key/index semantics:
         file_pattern is the grouping key.
@@ -114,6 +262,8 @@ def repo_file_inventory(repo=None, *, repo_cfg=None, in_path=None):
     root = in_path if in_path is not None else repo_cfg["root"]
     registry = repo_registry(repo_cfg=repo_cfg)
 
+    site_key = repo_cfg["site_key"]
+
     allfiles = _inventory_files(root)
     allmeta = _parse_inventory_meta(allfiles, repo_cfg=repo_cfg)
     metadf = pd.DataFrame(allmeta)
@@ -122,14 +272,16 @@ def repo_file_inventory(repo=None, *, repo_cfg=None, in_path=None):
 
     metadf["original_filename"] = metadf["filename"]
     metadf["file_pattern"] = metadf["filename"].map(
-        lambda x: to_wildcard(x, remove_source=False)
+        lambda x: to_wildcard(x, remove_provider=False)
     )
     metadf["series_id"] = metadf.apply(
-        lambda row: series_id_from_meta(row, remove_source=False),
+        lambda row: series_id_from_meta(row, repo_cfg=repo_cfg, remove_provider=False),
         axis=1,
     )
 
-    keep_cols = ["station_id", "subloc", "param", "agency", "agency_id", "series_id"]
+    keep_cols = [site_key, "subloc", "param", repo_cfg["provider_key"], "series_id"]
+    if "agency_id" in metadf.columns:
+        keep_cols.append("agency_id")
     if "modifier" in metadf.columns:
         keep_cols.append("modifier")
 
@@ -151,122 +303,8 @@ def repo_file_inventory(repo=None, *, repo_cfg=None, in_path=None):
         for col in grouped.columns
     ]
     grouped.columns = [
-    c[:-6] if isinstance(c, str) and c.endswith("_first") else c
-    for c in grouped.columns
-       ]
-
-    rename_map = {
-        "agency": "source",
-        "year_min": "min_year",
-        "year_max": "max_year",
-        "syear": "min_year",
-        "eyear": "max_year",
-    }
-    grouped = grouped.rename(columns=rename_map)
-
-    join_key = repo_cfg.get("key_column", "id")
-
-    if join_key not in grouped.columns:
-        if join_key == "id" and "station_id" in grouped.columns:
-            grouped[join_key] = grouped["station_id"]
-        else:
-            raise ValueError(
-                f"Cannot join registry: grouped inventory missing key column {join_key!r}"
-            )
-
-    metastat = grouped.join(
-        registry,
-        on=join_key,
-        rsuffix="_registry",
-        how="left",
-    )
-
-    if "year" in metadf.columns and "syear" not in metadf.columns:
-        metastat["unit"] = metastat.apply(
-            lambda x: scrape_header_metadata(os.path.join(root, x.original_filename)),
-            axis=1,
-        )
-    else:
-        metastat["unit"] = None
-
-    metastat = _drop_inventory_noise(metastat)
-    return metastat
-
-
-def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None):
-    """
-    Inventory of logical datasets in a configured repo.
-
-    Key/index semantics:
-        series_id is the grouping key.
-        file_pattern is a dependent wildcard pattern for downstream tools.
-    """
-    repo_cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
-    root = in_path if in_path is not None else repo_cfg["root"]
-    registry = repo_registry(repo_cfg=repo_cfg)
-    join_key = repo_cfg.get("key_column", "station_id")
-
-    allfiles = _inventory_files(root)
-    allmeta = _parse_inventory_meta(allfiles, repo_cfg=repo_cfg)
-    metadf = pd.DataFrame(allmeta)
-
-    if metadf.empty:
-        raise ValueError("Empty inventory")
-
-    metadf["original_filename"] = metadf["filename"]
-    metadf["file_pattern"] = metadf["filename"].map(
-        lambda x: to_wildcard(x, remove_source=True)
-    )
-    if "agency" not in metadf.columns:
-        # Reset index if key_column is both an index and a column to avoid ambiguity in merge
-        if registry.index.name == join_key:
-            registry = registry.reset_index(drop=True)
-        metadf = metadf.merge(
-            registry[[join_key, "agency"]],
-            left_on=join_key,
-            right_on=join_key,
-            how="left",
-        )
-        
-        
-    metadf["series_id"] = metadf.apply(
-        lambda row: series_id_from_meta(row, remove_source=True),
-        axis=1,
-    )
-
-    group_cols = ["series_id"]
-
-    agg = {
-        "station_id": "first",
-        "subloc": "first",
-        "param": "first",
-        "agency": "first",
-        "agency_id": "first",
-        "source": "first",
-        "file_pattern": "first",
-        "original_filename": "first",
-    }
-    if "modifier" in metadf.columns:
-        agg["modifier"] = "first"
-
-    if "syear" in metadf.columns and "eyear" in metadf.columns:
-        agg["syear"] = "min"
-        agg["eyear"] = "max"
-    elif "year" in metadf.columns:
-        agg["year"] = ["min", "max"]
-    else:
-        raise ValueError("No year columns found in parsed inventory metadata")
-
-    grouped = metadf.groupby(group_cols, dropna=False).agg(agg)
-
-    grouped.columns = [
-        col if isinstance(col, str) else "_".join(str(x) for x in col if x)
-        for col in grouped.columns
-    ]
-
-    grouped.columns = [
-      c[:-6] if isinstance(c, str) and c.endswith("_first") else c
-      for c in grouped.columns
+        c[:-6] if isinstance(c, str) and c.endswith("_first") else c
+        for c in grouped.columns
     ]
 
     rename_map = {
@@ -277,39 +315,18 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None
     }
     grouped = grouped.rename(columns=rename_map)
 
-
-    if join_key not in grouped.columns:
-        if join_key == "id" and "station_id" in grouped.columns:
-            grouped[join_key] = grouped["station_id"]
-        else:
-            raise ValueError(
-                f"Cannot join registry: grouped inventory missing key column {join_key!r}"
-            )
-
-    grouped[join_key] = grouped[join_key].astype(str).str.strip()
-
-    # normalize registry side again, right here, before join
-    if registry.index.name != join_key:
-        if join_key not in registry.columns:
-            raise ValueError(
-                f"Registry missing join key column {join_key!r}; "
-                f"columns are {registry.columns.tolist()}"
-            )
-        registry = registry.copy()
-        registry[join_key] = registry[join_key].astype(str).str.strip()
-        registry = registry.set_index(join_key, drop=False)
-    else:
-        registry = registry.copy()
-        registry.index = registry.index.astype(str)
-        if join_key in registry.columns:
-            registry[join_key] = registry[join_key].astype(str).str.strip()
+    if site_key not in grouped.columns:
+        raise ValueError(
+            f"Cannot join registry: grouped inventory missing site key {site_key!r}"
+        )
 
     metastat = grouped.join(
         registry,
-        on=join_key,
+        on=site_key,
         rsuffix="_registry",
         how="left",
     )
+
     if "year" in metadf.columns and "syear" not in metadf.columns:
         metastat["unit"] = metastat.apply(
             lambda x: scrape_header_metadata(os.path.join(root, x.original_filename)),

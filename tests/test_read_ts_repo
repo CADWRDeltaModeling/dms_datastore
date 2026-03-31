@@ -36,7 +36,7 @@ def test_read_ts_repo_builds_expected_patterns(monkeypatch, tmp_path):
         "ec",
         subloc="upper",
         repo="processed",
-        src_priority=["schism"],
+        provider_priority=["schism"],
         modifier="daily",
         start="2024-01-01",
         end="2024-12-31",

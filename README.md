@@ -267,7 +267,7 @@ data = read_ts_repo(station_id="mrz", variable="elev", subloc="upper").loc[
 data_with_meta = read_ts_repo(station_id="sjj", variable="flow", meta=True)
 
 # With custom source priority (overriding defaults from config)
-data = read_ts_repo(station_id="sjj", variable="flow", src_priority=["usgs", "cdec"])
+data = read_ts_repo(station_id="sjj", variable="flow", provider_priority=["usgs", "cdec"])
 
 # With custom repository location
 data = read_ts_repo(station_id="msd", variable="elev", repo="/path/to/custom/repo")
@@ -279,7 +279,7 @@ data = read_ts_repo(station_id="msd", variable="elev", repo="/path/to/custom/rep
 - **variable**: The variable name using standardized naming (e.g., "flow", "elev", "temp").
 - **subloc**: Optional sublocation identifier (e.g., "bottom", "upper", "bgc").
 - **repo**: Optional repository location. If None, uses the default from configuration.
-- **src_priority**: Source priority list. If "infer", derives from configuration based on station type.
+- **provider_priority**: Source priority list. If "infer", derives from configuration based on station type.
 - **meta**: If True, returns metadata along with the data.
 - **force_regular**: Force the returned time series to have regular time intervals.
 

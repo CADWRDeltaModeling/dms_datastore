@@ -1,5 +1,6 @@
 """
-YAML-driven and legacy rationalization of time-partitioned instrument files.
+YAML-driven and legacy rationalization of time-partitioned instrument files. This 
+operates solely on the RAW tier of repo and is mostly targetted at DES data
 
 Provides:
   - rationalize_time_partitions(pat): legacy filename-span-based supersession logic
@@ -45,7 +46,7 @@ _SUPERSEDED = "${SUPERSEDED}"
 
 # Raw filename naming convention (as output by downloaders)
 RAW_NAMING = naming_spec(
-    templates=["{agency}_{key@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
+    templates=["{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
 )
 
 # --------------------------------------------------------------------------------------

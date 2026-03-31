@@ -258,8 +258,6 @@ def _load_mapping(mapping):
 
     raise ValueError("mapping must be a DataFrame, mapping object, or CSV path")
 
-
-
 def attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id", registry_df=None):
     """
     Attach source-facing station identifiers from a registry.
@@ -269,7 +267,7 @@ def attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id", regis
     df : pandas.DataFrame
         Request dataframe containing ``station_id``.
     repo_name : str, default "formatted"
-        Repository name used to resolve the configured registry and key column
+        Repository name used to resolve the configured registry and site key
         when ``registry_df`` is not supplied.
     agency_id_col : str, default "agency_id"
         Name of the registry column that should be copied into the canonical
@@ -286,47 +284,44 @@ def attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id", regis
     Raises
     ------
     ValueError
-        If the configured key column is missing, if ``agency_id_col`` is not
+        If the configured site key is missing, if ``agency_id_col`` is not
         present in the registry, or if one or more requested stations cannot be
         resolved.
-
-    Notes
-    -----
-    The request side always uses ``station_id`` as the canonical project
-    identifier. The registry key may differ and is renamed internally when
-    needed.
-    """   
+    """
     if registry_df is None:
         repo_cfg = dstore_config.repo_config(repo_name)
         registry_name = repo_cfg["registry"]
-        key_column = repo_cfg["key_column"]
-        registry = dstore_config.registry_df(registry_name, key_column=key_column).copy()
+        site_key = repo_cfg["site_key"]
+        registry = dstore_config.registry_df(registry_name, key_column=site_key).copy()
     else:
         registry = registry_df.copy()
-        key_column = "station_id" if "station_id" in registry.columns else repo_name
+        site_key = "station_id" if "station_id" in registry.columns else repo_name
 
-    if registry.index.name == key_column:
-        registry = registry.reset_index(drop=(key_column in registry.columns))
+    if site_key not in registry.columns:
+        raise ValueError(f"Registry site key column {site_key!r} not found")
 
-    if key_column != "station_id":
-        if key_column not in registry.columns:
-            raise ValueError(f"Registry key column {key_column!r} not found")
-        registry = registry.rename(columns={key_column: "station_id"})
+    if registry.index.name == site_key:
+        registry = registry.reset_index(drop=(site_key in registry.columns))
+
+    if site_key != "station_id":
+        registry = registry.rename(columns={site_key: "station_id"})
 
     merged = df.merge(registry, on="station_id", how="left", suffixes=("", "_registry"))
 
     if agency_id_col not in merged.columns:
         raise ValueError(f"Requested agency id column {agency_id_col!r} not found in registry")
 
-    missing = merged[agency_id_col].isna() | (merged[agency_id_col].astype(str).str.strip() == "")
+    missing = merged[agency_id_col].isna() | (
+        merged[agency_id_col].astype(str).str.strip() == ""
+    )
     if missing.any():
         missing_ids = sorted(merged.loc[missing, "station_id"].dropna().unique().tolist())
         raise ValueError(f"Unable to resolve {agency_id_col!r} for stations: {missing_ids}")
 
-    merged["agency_id"] = merged[agency_id_col].astype(str).str.replace("'", "", regex=True)
+    merged["agency_id"] = (
+        merged[agency_id_col].astype(str).str.replace("'", "", regex=True)
+    )
     return merged
-
-
 
 def attach_subloc(df, subloc_lookup=None, default_subloc="default"):
     """

@@ -10,7 +10,7 @@ from dms_datastore.filename import build_repo_globs, interpret_fname
 from vtools.functions.merge import ts_merge, ts_splice
 from vtools.functions.unit_conversions import *
 
-__all__ = ["read_ts_repo", "read_ts_repo", "ts_multifile_read", "infer_source_priority"]
+__all__ = ["read_ts_repo", "ts_multifile_read", "resolve_providers_for_repo"]
 
 
 
@@ -28,38 +28,66 @@ def infer_source_priority(station_id):
     return priorities[agency] if agency in priorities else None
 
 
-def infer_source_priority_repo(key, repo_cfg):
-    mode = repo_cfg.get("source_priority_mode", "none")
+def resolve_providers_for_repo(key, repo_cfg, provider_priority="infer"):
+    """
+    Resolve candidate provider values for a repo request.
 
-    if mode == "none":
+    Parameters
+    ----------
+    key : str
+        Site identifier, possibly with @subloc suffix.
+    repo_cfg : dict
+        Configured repo spec.
+    provider_priority : "infer", None, str, list[str]
+        Explicit provider override or inference request.
+
+    Returns
+    -------
+    list[str] or None
+        Ordered candidate providers, or None to indicate no provider filtering.
+    """
+    if provider_priority != "infer":
+        if provider_priority is None:
+            return None
+        if isinstance(provider_priority, str):
+            return [provider_priority]
+        return list(provider_priority)
+
+    mode = repo_cfg["provider_resolution_mode"]
+
+    if mode == "assume_unique":
         return None
 
-    if mode == "repo_default":
-        group = repo_cfg.get("source_priority_group")
-        return dstore_config.source_priority_group(group)
+    if mode == "registry_column":
+        registry = dstore_config.repo_registry(repo_cfg=repo_cfg)
+        site_key = repo_cfg["site_key"]
+        bare_key = key.split("@", 1)[0]
 
-    if mode == "by_registry_column":
-        registry = dstore_config.registry_df(
-            repo_cfg.get("registry"),
-            key_column=repo_cfg.get("key_column", "id"),
-        )
-        bare_key = key.split("@")[0]
-        col = repo_cfg.get("source_priority_column", "agency")
         if bare_key not in registry.index:
             return None
-        priority_key = registry.loc[bare_key, col]
-        groups = dstore_config.config.get("source_priority_groups", {})
-        if priority_key in groups:
-            return groups[priority_key]
-        # compatibility with old flat source_priority
-        old_groups = dstore_config.config.get("source_priority", {})
-        return old_groups.get(priority_key)
+
+        col = repo_cfg["provider_resolution_column"]
+        if col not in registry.columns:
+            raise ValueError(
+                f"Registry for repo {repo_cfg.get('name')!r} "
+                f"is missing provider resolution column {col!r}"
+            )
+
+        resolution_key = registry.loc[bare_key, col]
+        order_map = repo_cfg.get("provider_resolution_order", {})
+
+        if resolution_key not in order_map:
+            return None
+
+        resolved = order_map[resolution_key]
+        if isinstance(resolved, str):
+            return [resolved]
+        return list(resolved)
 
     raise ValueError(
-        f"Unsupported source_priority_mode {mode!r} for repo {repo_cfg.get('name')}"
+        f"Unsupported provider_resolution_mode {mode!r} "
+        f"for repo {repo_cfg.get('name')!r}"
     )
-
-
 
 
 def fahren2cel(ts):
@@ -72,13 +100,13 @@ def read_ts_repo(
     variable,
     subloc=None,
     repo=None,
-    src_priority="infer",
+    provider_priority="infer",
     start=None,
     end=None,
     meta=False,
     force_regular=False,
     modifier=None,
-    data_path=None
+    data_path=None,
 ):
     """
     Read time series data from a configured repository.
@@ -122,11 +150,14 @@ def read_ts_repo(
     repo_cfg = dstore_config.repo_config(repo)
     repository = data_path if data_path is not None else repo_cfg["root"]
 
-
     start = pd.to_datetime(start) if start is not None else None
     end = pd.to_datetime(end) if end is not None else None
 
-    sources = resolve_repo_sources(repo_cfg, station_id, src_priority)
+    providers = resolve_providers_for_repo(
+        station_id,
+        repo_cfg,
+        provider_priority=provider_priority,
+    )
 
     rel_pats = build_repo_globs(
         repo_cfg,
@@ -134,7 +165,7 @@ def read_ts_repo(
         param=variable,
         subloc=subloc,
         modifier=modifier,
-        sources=sources,
+        providers=providers,
         agency_id="*",
         year="*",
         syear="*",

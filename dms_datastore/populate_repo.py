@@ -59,8 +59,8 @@ NSAMPLE_DATA = 200
 # First slot is the acquisition/serving agency label used by the downloader output.
 RAW_NAMING = naming_spec(
     templates=[
-        "{agency}_{key@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv",
-        "{agency}_{key@subloc}_{agency_id}_{param}_{year}.csv",
+        "{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv",
+        "{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv",
     ]
 )
 

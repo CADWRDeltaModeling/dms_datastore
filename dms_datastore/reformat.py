@@ -66,7 +66,7 @@ variable_mappings = None
 
 
 RAW_NAMING = naming_spec(
-    templates=["{agency}_{key@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
+    templates=["{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
 )
 
 

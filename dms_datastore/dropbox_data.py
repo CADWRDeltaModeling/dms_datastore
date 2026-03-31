@@ -7,6 +7,7 @@ from omegaconf import OmegaConf
 from dms_datastore.read_ts import read_ts, infer_freq_robust
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.dstore_config import station_dbase
+from dms_datastore.filename import meta_to_filename
 from dms_datastore.reconcile_data import update_repo
 import click
 from vtools import dst_st, ts_merge, ts_splice,ts_coarsen
@@ -327,7 +328,6 @@ def _check_metadata(meta):
 
 def get_data(spec):
 
-    dropbox_home = spec["dropbox_home"]
     always_skip = True
 
     for listing in spec["data"]:  # iterate over listings (Moke, Clifton Court, etc.)
@@ -338,14 +338,19 @@ def get_data(spec):
                 continue
 
         item = listing["collect"]
-        metadata = listing["metadata"]
-        # YAML uses per-item output.staging (write destination at this stage)
-        output = listing.get("output", {})
-        dest = output.get("staging_dir", None)
+        output = listing.get("output", {}) or {}
+        repo_name = output.get("repo_name", None)
+        if repo_name is None:
+            raise ValueError(f"{name}: missing required 'output.repo_name'")
+
+        staging_cfg = output.get("staging", {}) or {}
+        dest = staging_cfg.get("dir", None)
         if dest is None:
-            raise ValueError(f"{name}: missing required 'output.staging_dir'")
+            raise ValueError(f"{name}: missing required 'output.staging.dir'")
         if not os.path.exists(dest):
-            raise ValueError(f"output.staging_dir {dest} does not exist.")
+            raise ValueError(f"{name}: output.staging.dir does not exist: {dest}")
+
+        reconcile_cfg = output.get("reconcile", None)
 
         file_pattern = item["file_pattern"]
         location = item["location"]
@@ -373,6 +378,7 @@ def get_data(spec):
             raise ValueError(f"{name}: unknown reader '{item['reader']}'")
 
         selector = item.get("selector", None)
+        input_metadata = listing["metadata"]
         reader_args = item.get("reader_args", {}) or {}
         # transforms live at the listing level in the YAML (sibling to collect/metadata/output).
         # Also accept legacy key "transform" (singular) if present.
@@ -380,20 +386,19 @@ def get_data(spec):
         if transforms is None:
             transforms = listing.get("transform", []) or []
         transforms = transforms or []
-        print("transforms", transforms)
         splice_args = item.get("splice_args", {}) or {}
-        merge_args = item.get("merge_args", None)  # optional alternative combine mode
 
         # --- Read according to wildcard interpretation
         series_list = []
+        meta_source_path = None
 
         if wildcard == "time_shard":
             # vtools read_ts style: pass the glob directly
             fglob = collector.data_file_glob()
-            ts = reader(fglob, selector=selector, freq=metadata["freq"], **reader_args)
-
+            ts = reader(fglob, selector=selector, freq=input_metadata["freq"], **reader_args)
             ts = _maybe_rename_value_column(ts, splice_args)
             series_list = [ts]
+            meta_source_path = fglob
 
         elif wildcard == "time_overlap":
             # expand/sort/read each; then splice/merge
@@ -402,12 +407,12 @@ def get_data(spec):
                 raise ValueError(
                     f"{name}: glob matched no files: {collector.data_file_glob()}"
                 )
+            meta_source_path = allfiles[0]
             for fpath in allfiles:
                 ts = reader(
-                    fpath, selector=selector, freq=metadata["freq"], **reader_args
+                    fpath, selector=selector, freq=input_metadata["freq"], **reader_args
                 )
                 if not isinstance(ts.index, pd.DatetimeIndex):
-                    print(ts)
                     raise ValueError(
                         f"{name}: reader did not return DatetimeIndex for file {fpath}"
                     )
@@ -416,9 +421,16 @@ def get_data(spec):
 
         elif wildcard is None:
             # single file (no wildcard semantics)
-            fpath = collector.data_file_glob()
-            ts = reader(fpath, selector=selector, freq=metadata["freq"], **reader_args)
-            ts = _apply_transforms(ts, transforms)
+            fglob = collector.data_file_glob()
+            matched = sorted(glob.glob(fglob, recursive=collector.recursive))
+            if not matched:
+                raise ValueError(f"{name}: file pattern matched no files: {fglob}")
+            if len(matched) > 1:
+                raise ValueError(
+                    f"{name}: collect.wildcard omitted but pattern matched multiple files: {matched}"
+                )
+            meta_source_path = matched[0]
+            ts = reader(meta_source_path, selector=selector, freq=input_metadata["freq"], **reader_args)
             ts = _maybe_rename_value_column(ts, splice_args)
             series_list = [ts]
 
@@ -444,19 +456,17 @@ def get_data(spec):
                 raise ValueError(
                     f"{name}: merge_method must be 'ts_splice' or 'ts_merge', "
                     f"got '{merge_method}'"
-                ) 
+                )
 
-        print("Got here")
-        print(transforms)
         # Now apply transforms once, after combining
         ts = _apply_transforms(ts, transforms)
         inferring_meta = "metadata_infer" in listing
         if inferring_meta:
-            metadata = infer_meta(fpath, listing)
+            inferred_meta = infer_meta(meta_source_path, listing)
         else:
-            metadata = {}
+            inferred_meta = {}
 
-        meta_out = populate_meta(fpath, listing, metadata)
+        meta_out = populate_meta(meta_source_path, listing, inferred_meta)
 
         # infer frequency if requested
         if meta_out["freq"] == "infer":
@@ -465,38 +475,30 @@ def get_data(spec):
         # use "irregular" if None is specified
         if meta_out["freq"] is None or meta_out["freq"] == "None":
             meta_out["freq"] = "irregular"
-            metadata["freq"] = None  # Must reset.
+
         if "sublocation" not in meta_out or meta_out["sublocation"] is None:
-            meta_out["sublocation"] = "default"  # check not just "subloc"
+            meta_out["sublocation"] = "default"
 
-        fname_out = (
-            meta_out["source"]
-            + "_"
-            + meta_out["station_id"]
-            + "_"
-            + meta_out["agency_id"]
-            + "_"
-            + meta_out["param"]
-            + ".csv"
-        )
-
-        fname_out = os.path.join(dest, fname_out)
         _check_metadata(meta_out)
 
-        write_args = dict(output.get("write_args", {"float_format": "%.4f"}) or {})
+        fname_out = meta_to_filename(meta_out, repo=repo_name, include_shard=False)
+        fname_out = os.path.join(dest, fname_out)
+
+        write_args = dict(staging_cfg.get("write_args", {"float_format": "%.4f"}) or {})
         write_ts_csv(ts, fname_out, metadata=meta_out, **write_args)
 
-
-
-        update_repo(
-          staged_dir=output["staging_dir"],
-          repo_dir=output["repo_dir"],
-          prefer=output["merge_priority"],
-          allow_new_series=output["allow_new_series"],
-          recent_years=output["inspection"]["recent_years"],
-          p3=output["inspection"]["p3"],
-          p10=output["inspection"]["p10"],
-         )
+        if reconcile_cfg is not None:
+            inspection_cfg = reconcile_cfg.get("inspection", {}) or {}
+            repo_dir = reconcile_cfg.get("repo_data_dir", repo_name)
+            update_repo(
+                staged_dir=dest,
+                repo_dir=repo_dir,
+                prefer=reconcile_cfg.get("prefer", "staged"),
+                allow_new_series=reconcile_cfg.get("allow_new_series", True),
+                recent_years=inspection_cfg.get("recent_years", 3),
+                p3=inspection_cfg.get("p3", 0.15),
+                p10=inspection_cfg.get("p10", 0.05),
+            )
 
 def dropbox_data(spec_fname):
     spec = get_spec(spec_fname)

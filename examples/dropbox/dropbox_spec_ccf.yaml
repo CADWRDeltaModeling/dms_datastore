@@ -53,14 +53,17 @@ data:
       longitude: -121.55694
 
     output:
-      staging_dir: ./drop_staging/formatted
-      write_args:
-        float_format: "%0.3f"
-        chunk_years: False
-      repo_dir: ./fake_repo/formatted
-      merge_priority: staged      # reconcile
-      allow_new_series: true
-      inspection:
-        recent_years: 3
-        p3: 0.15
-        p10: 0.05      
+      repo_name: formatted
+      staging:
+        dir: ./drop_staging/formatted
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      reconcile:
+        repo_data_dir: ./fake_repo/formatted
+        prefer: staged
+        allow_new_series: true
+        inspection:
+          recent_years: 3
+          p3: 0.15
+          p10: 0.05      

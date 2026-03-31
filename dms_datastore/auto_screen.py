@@ -274,6 +274,7 @@ def auto_screen(
             plot_label,
             plot_dest=plot_dest,
         )
+        logger.debug(f"screening complete for {station_id} {subloc} {param}")
         if "value" in screened.columns:
             screened = screened[["value", "user_flag"]]
         meta["screen"] = proto
@@ -293,9 +294,10 @@ def auto_screen(
             output_meta["syear"] = meta["syear"]
             output_meta["eyear"] = meta["eyear"]
         
+        # Get output without shard so that chunk_years will not append one and have it be redundant
         output_fname = meta_to_filename(output_meta, repo="screened",include_shard=False)
         output_fpath = os.path.join(dest, output_fname)
-        logger.debug("start write")
+        logger.debug(f"start write for {output_fpath} with meta {meta}")
         write_ts_csv(screened, output_fpath, meta, chunk_years=True)
         logger.debug("end write")
 
@@ -496,7 +498,7 @@ def ncro_fetcher(repo, station_id, param, subloc, data_path=None):
         station_id,
         param,
         subloc=subloc,
-        src_priority=["ncro", "cdec"],
+        provider_priority=["ncro", "cdec"],
         repo=repo,
         data_path=data_path,
         meta=True,

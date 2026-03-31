@@ -74,10 +74,12 @@ def repo_root(repo=None, repo_cfg=None):
 def repo_registry(repo=None, repo_cfg=None):
     cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
     registry_name = cfg.get("registry")
-    key_column = cfg.get("key_column", "id")
+    site_key = cfg["site_key"]
+
+
     if registry_name is None:
         raise ValueError(f"Repo {cfg['name']!r} has no named registry")
-    return registry_df(registry_name, key_column=key_column)   
+    return registry_df(registry_name, key_column=site_key)   
     
 def station_dbase():
     """legacy. will disappear"""
@@ -152,7 +154,6 @@ def config_file(label):
 
 def repo_names():
     return list(config.get("repos", {}).keys())
-
 def repo_config(repo_name):
     global _repo_cache
 
@@ -170,14 +171,23 @@ def repo_config(repo_name):
         return _repo_cache[repo_name]
 
     spec = dict(repos[repo_name])
+
+    required = ["site_key", "provider_key", "provider_resolution_mode", "filename_templates"]
+    missing = [k for k in required if k not in spec]
+    if missing:
+        raise ValueError(f"Repo {repo_name!r} missing required keys: {missing}")
+
+    if ("file_key" in spec) != ("data_key" in spec):
+        raise ValueError(
+            f"Repo {repo_name!r} must define both file_key and data_key, or neither"
+        )
+
     spec["name"] = repo_name
     spec["root"] = (
         _resolve_config_path(spec["root"])
         if not os.path.exists(spec["root"])
         else spec["root"]
     )
-    spec.setdefault("key_column", "id")
-    spec.setdefault("source_priority_mode", "none")
 
     templates = spec.get("filename_templates", [])
     if not templates:

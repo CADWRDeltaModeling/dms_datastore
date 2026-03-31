@@ -3,12 +3,17 @@ from dms_datastore import inventory
 
 
 def test_repo_file_inventory_groups_by_file_pattern(monkeypatch):
-    repo_cfg = {"name": "formatted", "root": "/dummy"}
+    repo_cfg = {
+    "name": "formatted",
+    "root": "/dummy",
+    "site_key": "station_id",
+    "provider_key": "source",
+    }
 
     parsed = [
         {
             "filename": "usgs_anh@north_11303500_flow_2023.csv",
-            "agency": "usgs",
+            "source": "usgs",
             "station_id": "anh",
             "subloc": "north",
             "agency_id": "11303500",
@@ -17,7 +22,7 @@ def test_repo_file_inventory_groups_by_file_pattern(monkeypatch):
         },
         {
             "filename": "usgs_anh@north_11303500_flow_2024.csv",
-            "agency": "usgs",
+            "source": "usgs",
             "station_id": "anh",
             "subloc": "north",
             "agency_id": "11303500",
@@ -54,7 +59,12 @@ def test_repo_file_inventory_groups_by_file_pattern(monkeypatch):
 
 
 def test_repo_data_inventory_groups_by_series_id(monkeypatch):
-    repo_cfg = {"name": "formatted", "root": "/dummy"}
+    repo_cfg = {
+    "name": "formatted",
+    "root": "/dummy",
+    "site_key": "station_id",
+    "provider_key": "source",
+    }
 
     parsed = [
         {

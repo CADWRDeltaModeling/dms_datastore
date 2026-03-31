@@ -10,7 +10,7 @@ from dms_datastore.filename import (
 
 def test_interpret_fname_no_backend():
     spec = naming_spec(
-        templates="{source}_{key@subloc}_{agency_id}_{param}_{year}.csv",
+        templates="{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv",
     )
     meta = interpret_fname(
         "usgs_anh@north_11303500_flow_2024.csv",
@@ -25,7 +25,7 @@ def test_interpret_fname_no_backend():
 
 def test_interpret_fname_template_with_oneoff_naming_spec():
     spec = naming_spec(
-        templates="{source}_{key@subloc}_{param@modifier}_{year}.csv"
+        templates="{source}_{station_id@subloc}_{param@modifier}_{year}.csv"
     )
     meta = interpret_fname("model_jer@upper_ec@daily_2025.csv", naming=spec)
     assert meta["source"] == "model"
@@ -39,7 +39,7 @@ def test_interpret_fname_template_with_oneoff_naming_spec():
 
 def test_interpret_fname_template_with_agency_slot():
     spec = naming_spec(
-        templates="{agency}_{key@subloc}_{agency_id}_{param}_{year}.csv"
+        templates="{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
     )
     meta = interpret_fname("usbr_jer@upper_11303500_flow_2025.csv", naming=spec)
     assert meta["agency"] == "usbr"
@@ -49,14 +49,14 @@ def test_interpret_fname_template_with_agency_slot():
     assert meta["param"] == "flow"
     assert meta["year"] == "2025"
 
-
-
 def test_build_repo_globs_no_backend():
     repo_cfg = {
         "name": "processed",
+        "site_key": "station_id",
+        "provider_key": "processor",
         "filename_templates": [
-            "{source}_{key@subloc}_{param@modifier}_{year}.csv",
-            "{source}_{key@subloc}_{param}_{year}.csv",
+            "{processor}_{station_id@subloc}_{param@modifier}_{year}.csv",
+            "{processor}_{station_id@subloc}_{param}_{year}.csv",
         ],
     }
 
@@ -66,7 +66,7 @@ def test_build_repo_globs_no_backend():
         subloc="upper",
         param="ec",
         modifier="daily",
-        sources=["schism", "dsm2"],
+        providers=["schism", "dsm2"],
         year="2025",
     )
 
@@ -78,10 +78,9 @@ def test_build_repo_globs_no_backend():
     ]
 
 
-
 def test_meta_to_filename_template_round_trip_source():
     spec = naming_spec(
-        templates="{source}_{key@subloc}_{param@modifier}_{year}.csv"
+        templates="{source}_{station_id@subloc}_{param@modifier}_{year}.csv"
     )
     meta = {
         "source": "model",
@@ -106,7 +105,7 @@ def test_meta_to_filename_template_round_trip_source():
 
 def test_meta_to_filename_template_round_trip_agency():
     spec = naming_spec(
-        templates="{agency}_{key@subloc}_{agency_id}_{param}_{year}.csv"
+        templates="{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
     )
     meta = {
         "agency": "usbr",
@@ -131,7 +130,7 @@ def test_meta_to_filename_template_round_trip_agency():
 
 def test_meta_to_filename_omits_default_subloc_suffix():
     spec = naming_spec(
-        templates="{source}_{key@subloc}_{param}_{year}.csv"
+        templates="{source}_{station_id@subloc}_{param}_{year}.csv"
     )
     meta = {
         "source": "model",
@@ -151,7 +150,7 @@ def test_meta_to_filename_omits_default_subloc_suffix():
 
 def test_meta_to_filename_omits_missing_modifier_suffix():
     spec = naming_spec(
-        templates="{source}_{key@subloc}_{param@modifier}_{year}.csv"
+        templates="{source}_{station_id@subloc}_{param@modifier}_{year}.csv"
     )
     meta = {
         "source": "model",
@@ -172,8 +171,8 @@ def test_meta_to_filename_omits_missing_modifier_suffix():
 def test_meta_to_filename_prefers_richest_compatible_template_with_modifier():
     spec = naming_spec(
         templates=[
-            "{source}_{key@subloc}_{param}_{year}.csv",
-            "{source}_{key@subloc}_{param@modifier}_{year}.csv",
+            "{source}_{station_id@subloc}_{param}_{year}.csv",
+            "{source}_{station_id@subloc}_{param@modifier}_{year}.csv",
         ]
     )
     meta = {
@@ -193,8 +192,8 @@ def test_meta_to_filename_prefers_richest_compatible_template_with_modifier():
 def test_meta_to_filename_prefers_yearless_template_when_year_missing():
     spec = naming_spec(
         templates=[
-            "{source}_{key@subloc}_{param}_{year}.csv",
-            "{source}_{key@subloc}_{param}.csv",
+            "{source}_{station_id@subloc}_{param}_{year}.csv",
+            "{source}_{station_id@subloc}_{param}.csv",
         ]
     )
     meta = {
@@ -211,10 +210,10 @@ def test_meta_to_filename_prefers_yearless_template_when_year_missing():
 
 def test_raw_parse_and_formatted_render_keep_first_slot_semantics_distinct():
     raw_spec = naming_spec(
-        templates="{agency}_{key@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"
+        templates="{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"
     )
     formatted_spec = naming_spec(
-        templates="{source}_{key@subloc}_{agency_id}_{param}_{year}.csv"
+        templates="{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
     )
 
     raw_meta = interpret_fname(
@@ -234,3 +233,37 @@ def test_raw_parse_and_formatted_render_keep_first_slot_semantics_distinct():
     }
     formatted_fname = meta_to_filename(formatted_meta, naming=formatted_spec)
     assert formatted_fname == "cdec_jer@upper_11303500_flow_2025.csv"
+
+def test_interpret_fname_optional_subloc_literal_site_key():
+    spec = naming_spec(
+        templates="{processor}_{station_id@subloc}_{param}_{year}.csv"
+    )
+
+    meta = interpret_fname("model_jer_ec_2025.csv", naming=spec)
+
+    assert meta["processor"] == "model"
+    assert meta["station_id"] == "jer"
+    assert meta["subloc"] is None
+    assert meta["param"] == "ec"
+    assert meta["year"] == "2025"
+
+def test_meta_to_filename_omits_optional_subloc_literal_site_key():
+    spec = naming_spec(
+        repo_cfg={
+            "filename_templates": [
+                "{processor}_{station_id@subloc}_{param}_{year}.csv"
+            ],
+            "site_key": "station_id",
+            "provider_key": "processor",
+        }
+    )
+    meta = {
+        "processor": "model",
+        "station_id": "jer",
+        "param": "ec",
+        "year": "2025",
+    }
+
+    fname = meta_to_filename(meta, naming=spec)
+
+    assert fname == "model_jer_ec_2025.csv"

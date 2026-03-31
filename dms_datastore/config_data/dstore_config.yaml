@@ -9,26 +9,6 @@ des_rationalize_time_spec: des_rationalize_cfg.yaml
 
 repo_base: "//cnrastore-bdo/Modeling_Data/repo"
 
-# legacy aliases kept for compatibility
-repo: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
-screened: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
-processed: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed"
-
-# global priorities can remain as named groups
-source_priority_groups:
-  ncro: ["ncro", "cdec"]
-  dwr_ncro: ["ncro"]
-  des: ["des"]
-  dwr_des: ["des"]
-  usgs: ["usgs"]
-  noaa: ["noaa"]
-  usbr: ["usbr", "cdec"]
-  dwr_om: ["cdec"]
-  dwr: ["dwr", "cdec"]
-  ebmud: ["usgs", "ebmud", "cdec"]
-  processed_default: ["dms", "noaa", "usgs", "cdec"]
-  structures_default: ["dms"]
-
 # registry files available to repos
 registries:
   continuous: station_dbase.csv
@@ -38,59 +18,70 @@ registries:
 repos:
   formatted:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/formatted"
-    registry: continuous
-    key_column: station_id
-    source_priority_mode: by_registry_column
-    source_priority_column: agency
+    registry: continuous  # aliases the station data base that provides supplementary metadata like geolocation and agency
+    site_key: station_id  # registry and template use this term for the site's identifier (was "key")
+    provider_key: source  # provider is the agency mainly involved in delivering the data. 
+                          # Generic for "source" (datamart) "agency" (collecting agency) and
+#                         #  "processor" (group synthesizing, manipulating or filling data)
+    provider_resolution_mode: registry_column   # way of differentiating data that cover 
+                                                # the same logical data set from two providers
+    provider_resolution_column: agency          # consult the registry column
+    provider_resolution_order:                  
+      ncro: ["ncro", "cdec"]                    # ncro is prioritized over cdec
+      dwr_ncro: ["ncro"]
+      des: ["des"]
+      dwr_des: ["des"]
+      usgs: ["usgs"]
+      noaa: ["noaa"]
+      usbr: ["usbr", "cdec"]
+      dwr_om: ["cdec"]
+      dwr: ["dwr", "cdec"]
+      ebmud: ["usgs", "ebmud", "cdec"]
     filename_templates:
-      - "{source}_{key@subloc}_{agency_id}_{param}_{year}.csv"
-    search:
-      use_source_slot: true
-      shard_style: auto
+      - "{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
+    file_key: [source, station_id, subloc, param, shard]        # sufficient key to identify a file/wildcard group. 
+                                                                # shard is conceptual
+    data_key: [station_id, subloc, param, shard]                # sufficient to describe a stream/series of data
 
 
   screened:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
     registry: continuous
-    key_column: station_id
-    source_priority_mode: by_registry_column
-    source_priority_column: agency
+    site_key: station_id
+    provider_key: agency
+    provider_resolution_mode: assume_unique
     filename_templates:
-      - "{agency}_{key@subloc}_{agency_id}_{param}_{year}.csv"
-    search:
-      use_source_slot: true
-      shard_style: auto
+      - "{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
+    file_key: [agency, station_id, subloc, param, shard]
+    data_key: [station_id, subloc, param, shard]
+
 
 
   processed:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed"
     registry: processed
-    key_column: station_id
-    source_priority_mode: repo_default
-    source_priority_group: processed_default
+    site_key: station_id
+    provider_key: processor
+    provider_resolution: assume_unique
     filename_templates:
-      - "{source}_{key@subloc}_{param@modifier}.csv"
-      - "{source}_{key@subloc}_{param@modifier}_{year}.csv"
-      - "{source}_{key@subloc}_{param}_{year}.csv"
-      - "{source}_{key@subloc}_{param}.csv"
-    search:
-      use_source_slot: true
-      shard_style: auto
+      - "{processor}_{station_id@subloc}_{param@modifier}.csv"
+      - "{processor}_{station_id@subloc}_{param@modifier}_{year}.csv"
+      - "{processor}_{station_id@subloc}_{param}_{year}.csv"
+      - "{processor}_{station_id@subloc}_{param}.csv"
+    file_key: [processor, station_id, subloc, param, modifier, shard]
+    data_key: [station_id, subloc, param, modifier, shard]
+
 
   structures:
     root: "//cnrastore-bdo/Modeling_Data/repo/structures"
     registry: structures
-    key_column: structure_id
-    source_priority_mode: repo_default
-    source_priority_group: structures_default
+    site_key: structure_id
+    provider_key: processor
+    provider_resolution_mode: assume_unique
     filename_templates:
-      - "{source}_{key}_{param}.csv"
-      - "{source}_{key}_{param}_{year}.csv"
-    search:
-      use_source_slot: true
-      shard_style: auto
-    parse:
-      style: template
+      - "{processor}_{structure_id@subloc}_{param@modifier}.csv"
+      - "{processor}_{structure_id@subloc}_{param@modifier}_{year}.csv"
+
 
 screen_config_v20230126: screen_config_v20230126.yaml
 screen_config: screen_config_v20230126.yaml
