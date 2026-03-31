@@ -1,3 +1,4 @@
+import pytest
 from dms_datastore.reformat import *
 from dms_datastore.read_ts import *
 from dms_datastore.download_nwis import *
