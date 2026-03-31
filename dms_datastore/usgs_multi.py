@@ -123,16 +123,23 @@ def usgs_multivariate(pat, outfile):
         ("c24", "287159", "upward"),
     ]
 
+    logger.info("Start scanning phase looking for multivariate entries")
     with open(outfile, "w", encoding="utf-8") as out:
         files = glob.glob(pat)
+        nfiles = len(files)
         data = []
-        for fname in files:
+        for i,fname in enumerate(files,start=1):
             meta = interpret_fname(fname, repo="formatted")
             try:
                 ts = read_ts(fname, nrows=4000)
             except:
                 logger.warning(f"Failed to read file with read_ts(): {fname}")
                 continue
+
+            if i == 1 or i % 500 == 0 or i == nfiles:
+                logger.info(
+                    f"USGS scan progress: {i}/{nfiles} files, currently on {fname} ")
+
 
             multi_cols = ts.shape[1] > 1
             subloc_df = sublocation_df()
@@ -180,7 +187,7 @@ def usgs_multivariate(pat, outfile):
                         asubloc = "mid"
 
                     if random_check and not known_multi and asubloc != "default":
-                        logger.error(
+                        logger.warning(
                             f"Sublocation labeling was detected during spot check in station {station_id} param {param} but no listing in subloc table"
                         )
 
@@ -230,115 +237,115 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
     logger.info("Entering process_multivariate_usgs")
     actual_fpath = data_path if data_path is not None else repo_root(repo)
     # todo: straighten out fpath and pat stuff
-    tempfile.tempdir = "."
-    tmpdir = tempfile.TemporaryDirectory()
-
-    if pat is None:
-        pat = os.path.join(actual_fpath, "usgs*.csv")
-    else:
-        pat = os.path.join(actual_fpath, pat)
-
-
-    # This recreates or reuses  list of multivariate files. Being multivariate is something that has
-    # to be assessed over the full period of record
-    if rescan:
-        df = usgs_multivariate(pat, "usgs_subloc_meta_new.csv")
-    else:
-        df = pd.read_csv("usgs_subloc_meta.csv", header=0, dtype=str)
-    df.reset_index()
-    df.index.name = "id"
-    filenames = glob.glob(pat)
-    set_of_deletions = set()
-
-    for fn in filenames:
-        direct, filepart = os.path.split(fn)
-        meta = interpret_fname(filepart, repo="formatted")
-        station_id = meta["station_id"]
-        param = meta["param"]
-        logger.info(f"Working on {fn}, {station_id}, {param}")
-        subdf = df.loc[(df.station_id == station_id) & (df.param == param), :]
-        if subdf.empty:
-            logger.debug("No entry in table indicating multivariate content, skipping")
-            continue
-        # if len(subdf) == 1:
-        #    logger.info("Dataset with only one sublocation not expected for station_id {station_id}")
-
-        original_header = read_yaml_header(fn)
-
-        ts = read_ts(fn)
-        logger.debug(
-            f"Number of sublocation metadata entries for {station_id} {param} = {len(subdf)}"
-        )
-        vertical_non = [0, 0]  # for counting how many subloc are vertical or not
-
-        # first process all known sublocations that are meant to be kept intact,
-        # dropping them as processed
-        # then if one left it is default and if many use the average
-        for index, row in subdf.iterrows():
-            asubloc = row.asubloc[:]
-            logger.debug(f"Isolating sublocation {asubloc[:]}")
-            if asubloc[:] in ["lower", "upper", "upward", "vertical"]:
-                # write out each sublocation as individual file
-                selector = (
-                    "value"
-                    if len(ts.columns) == 1 and ts.columns[0] == "value"
-                    else f"{row.ts_id}_value"
-                )
-
-                try:
-                    univariate = ts[selector]
-                except:
-                    logger.warning(f"Selector failed: {selector} columns: {ts.columns}")
-                    continue
-
-                if univariate.first_valid_index() is None:
-                    ts = ts.drop([selector], axis=1)
-                    # empty for the file
-                    continue
-                original_header["agency_ts_id"] = row.ts_id
-                original_header["agency_var_id"] = row.var_id
-                original_header["sublocation"] = asubloc
-                original_header["subloc_comment"] = (
-                    "multivariate file separated, mention of other series omitted in this file may appear in original header"
-                )
-                meta["subloc"] = asubloc
-                newfname = newfname = meta_to_filename(meta, repo="formatted")
-                work_dir, newfname_f = os.path.split(newfname)
-                newfpath = os.path.join(tmpdir.name, newfname_f)  ## todo: hardwire
-                univariate.columns = ["value"]
-                univariate.name = "value"
-                logger.debug(f"Writing to {newfpath}")
-                write_ts_csv(univariate, newfpath, original_header, chunk_years=True)
-                vertical_non[0] = vertical_non[0] + 1
-                ts = ts.drop([selector], axis=1)
-
-        ncol = len(ts.columns)
-        if ncol == 0:
-            # No columns were left. Delete the original file as its contents have been parsed to other files
-            logger.debug(f"All columns recognized for {fn}")
-            set_of_deletions.add(fn)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        if pat is None:
+            pat = os.path.join(actual_fpath, "usgs*.csv")
         else:
-            if ncol == 1:
-                logger.debug(f"One column left for {fn}, renaming and documenting")
-                ts.columns = ["value"]
-            else:
+            pat = os.path.join(actual_fpath, pat)
 
-                logger.debug(
-                    f"Several sublocations for columns, averaging {fn} and labeling as value"
-                )
-                # Multivariate not collapsed, but we will add a 'value' column that aggregates and note this in metadata
-                ts["value"] = ts.mean(axis=1)
-                original_header["subloc_comment"] = "value averages sublocations"
-                original_header["agency_ts_id"] = subdf.ts_id.tolist()
-            if ts.first_valid_index() is None:
-                continue  # No more good data. bail
-            fpath_write = os.path.join(tmpdir.name, filepart)
-            write_ts_csv(ts, fpath_write, metadata=original_header, chunk_years=True)
-    for fdname in set_of_deletions:
-        logger.debug(f"Removing {fdname}")
-        os.remove(fdname)
-    shutil.copytree(tmpdir.name, actual_fpath, dirs_exist_ok=True)
-    del tmpdir
+        # This recreates or reuses  list of multivariate files. Being multivariate is something that has
+        # to be assessed over the full period of record
+        if rescan:
+            df = usgs_multivariate(pat, "usgs_subloc_meta_new.csv")
+        else:
+            df = pd.read_csv("usgs_subloc_meta.csv", header=0, dtype=str)
+        df.reset_index()
+        df.index.name = "id"
+        filenames = glob.glob(pat)
+        set_of_deletions = set()
+
+        logger.info("Begin usgs_multi consolidation and separation phase")
+        for i,fn in enumerate(filenames,start=1):
+            direct, filepart = os.path.split(fn)
+
+            
+            meta = interpret_fname(filepart, repo="formatted")
+            station_id = meta["station_id"]
+            param = meta["param"]
+            logger.info(f"Working on {fn}, {station_id}, {param}")
+            subdf = df.loc[(df.station_id == station_id) & (df.param == param), :]
+            if subdf.empty:
+                logger.debug("No entry in table indicating multivariate content, skipping")
+                continue
+            # if len(subdf) == 1:
+            #    logger.info("Dataset with only one sublocation not expected for station_id {station_id}")
+
+            original_header = read_yaml_header(fn)
+
+            ts = read_ts(fn)
+            logger.debug(
+                f"Number of sublocation metadata entries for {station_id} {param} = {len(subdf)}"
+            )
+            vertical_non = [0, 0]  # for counting how many subloc are vertical or not
+
+            # first process all known sublocations that are meant to be kept intact,
+            # dropping them as processed
+            # then if one left it is default and if many use the average
+            for index, row in subdf.iterrows():
+                asubloc = row.asubloc[:]
+                logger.debug(f"Isolating sublocation {asubloc[:]}")
+                if asubloc[:] in ["lower", "upper", "upward", "vertical"]:
+                    # write out each sublocation as individual file
+                    selector = (
+                        "value"
+                        if len(ts.columns) == 1 and ts.columns[0] == "value"
+                        else f"{row.ts_id}_value"
+                    )
+
+                    try:
+                        univariate = ts[selector]
+                    except:
+                        logger.debug(f"Selector failed: {selector} columns: {ts.columns}")
+                        continue
+
+                    if univariate.first_valid_index() is None:
+                        ts = ts.drop([selector], axis=1)
+                        # empty for the file
+                        continue
+                    original_header["agency_ts_id"] = row.ts_id
+                    original_header["agency_var_id"] = row.var_id
+                    original_header["sublocation"] = asubloc
+                    original_header["subloc_comment"] = (
+                        "multivariate file separated, mention of other series omitted in this file may appear in original header"
+                    )
+                    meta["subloc"] = asubloc
+                    newfname = newfname = meta_to_filename(meta, repo="formatted")
+                    work_dir, newfname_f = os.path.split(newfname)
+                    newfpath = os.path.join(tmpdir.name, newfname_f)  ## todo: hardwire
+                    univariate.columns = ["value"]
+                    univariate.name = "value"
+                    logger.debug(f"Writing to {newfpath}")
+                    write_ts_csv(univariate, newfpath, original_header, chunk_years=True)
+                    vertical_non[0] = vertical_non[0] + 1
+                    ts = ts.drop([selector], axis=1)
+
+            ncol = len(ts.columns)
+            if ncol == 0:
+                # No columns were left. Delete the original file as its contents have been parsed to other files
+                logger.debug(f"All columns recognized for {fn}")
+                set_of_deletions.add(fn)
+            else:
+                if ncol == 1:
+                    logger.debug(f"One column left for {fn}, renaming and documenting")
+                    ts.columns = ["value"]
+                else:
+
+                    logger.debug(
+                        f"Several sublocations for columns, averaging {fn} and labeling as value"
+                    )
+                    # Multivariate not collapsed, but we will add a 'value' column that aggregates and note this in metadata
+                    ts["value"] = ts.mean(axis=1)
+                    original_header["subloc_comment"] = "value averages sublocations"
+                    original_header["agency_ts_id"] = subdf.ts_id.tolist()
+                if ts.first_valid_index() is None:
+                    continue  # No more good data. bail
+                fpath_write = os.path.join(tmpdir.name, filepart)
+                write_ts_csv(ts, fpath_write, metadata=original_header, chunk_years=True)
+        for fdname in set_of_deletions:
+            logger.debug(f"Removing {fdname}")
+            os.remove(fdname)
+        shutil.copytree(tmpdir.name, actual_fpath, dirs_exist_ok=True)
+
     logger.info("Exiting process_multivariate_usgs")
 
 
@@ -346,7 +353,7 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
 @click.option("--pat", default="usgs*.csv", help="Pattern of files to process")
 @click.option("--repo", default="formatted", help="Configured repo name for naming/parse rules.")
 @click.option(
-    "--data-path",
+    "--fpath",
     default=None,
     help="Directory containing the files. Defaults to the configured root of --repo.",
 )
@@ -354,7 +361,7 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
 @click.help_option("-h", "--help")
-def usgs_multi_cli(pat, repo, data_path, logdir=None, debug=False, quiet=False):
+def usgs_multi_cli(pat, repo, fpath, logdir=None, debug=False, quiet=False):
     """CLI for processing multivariate USGS files."""
     # recatalogs the unique series. If false an old catalog will be used, which is useful
     # for sequential debugging.
@@ -371,7 +378,7 @@ def usgs_multi_cli(pat, repo, data_path, logdir=None, debug=False, quiet=False):
           logdir=logdir,
           logfile_prefix="usgs_multi"
     )        
-    process_multivariate_usgs(repo=repo, data_path=data_path, pat=pat, rescan=True)
+    process_multivariate_usgs(repo=repo, data_path=fpath, pat=pat, rescan=True)
 
 
 if __name__ == "__main__":
