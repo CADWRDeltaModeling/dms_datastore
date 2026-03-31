@@ -9,7 +9,6 @@ from dms_datastore.read_ts import (
     read_yaml_header,
 )
 
-DATA_FILE = Path(__file__).parent.resolve() / "data" / "header_data.txt"
 
 
 def load_cases():
@@ -18,9 +17,10 @@ def load_cases():
     current_lines = []
     # This tedious way of doing things is to avoid some GiHub-side substitutions of $SRC that were not expanded
     _candidates = [
+            Path(__file__).parent.resolve() / "data" / "header_data.txt",        
             Path("tests/data/header_data.txt"),
             Path("data/header_data.txt"),
-            Path(__file__).parent.resolve() / "data" / "header_data.txt",
+
         ]
 
     for candidate in _candidates:
