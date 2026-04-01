@@ -605,6 +605,66 @@ def _merge_screened_flags(
     return out
 
 
+def _read_csv_timeseries(path: str) -> pd.DataFrame:
+    """ Read a dms-datastore CSV file into a DataFrame.
+
+    Parameters
+    ----------
+    path : str
+        Path to a CSV file with a commented YAML-like header and a ``datetime``
+        column.
+
+    Returns
+    -------
+    df : pandas.DataFrame
+        DataFrame indexed by a ``DatetimeIndex``.
+
+    Raises
+    ------
+    ValueError
+        If the file does not produce a DatetimeIndex or contains duplicate
+        timestamps.
+
+    Notes
+    -----
+    This reader forces ``dtype={'user_flag': str}`` so that screened flag columns do
+    not become floats due to NA inference. Normalization to nullable Int64 is
+    performed separately by :func:`_normalize_flag`.
+    """
+
+
+    df = pd.read_csv(
+        path,
+        comment="#",
+        parse_dates=["datetime"],
+        index_col="datetime",
+        dtype={"user_flag": str},
+    )
+    if not isinstance(df.index, pd.DatetimeIndex):
+        raise ValueError(f"Expected datetime index in {path}")
+    if df.index.has_duplicates:
+
+        # Provide actionable detail while remaining fail-fast.
+        # Report up to N duplicate timestamp values with their multiplicities.
+        N = 25
+        vc = df.index.value_counts()
+        dups = vc[vc > 1].sort_index()
+
+        # Build a compact message; avoid dumping huge lists.
+        total_dup_rows = int((dups - 1).sum())  # extra rows beyond the first per timestamp
+        n_dup_keys = int(dups.shape[0])
+
+        preview = dups.iloc[:N]
+        preview_txt = ", ".join([f"{ts.isoformat()}×{int(cnt)}" for ts, cnt in preview.items()])
+        more = "" if n_dup_keys <= N else f" (+{n_dup_keys - N} more)"
+
+        raise ValueError(
+            "Duplicate timestamps in "
+            f"{path}: {n_dup_keys} duplicated timestamps, {total_dup_rows} extra rows. "
+            f"Examples: {preview_txt}{more}"
+        )
+    return df
+
 # -----------------------------
 # Public APIs
 # -----------------------------
