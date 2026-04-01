@@ -311,7 +311,7 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
                     meta["subloc"] = asubloc
                     newfname = newfname = meta_to_filename(meta, repo="formatted")
                     work_dir, newfname_f = os.path.split(newfname)
-                    newfpath = os.path.join(tmpdir.name, newfname_f)  ## todo: hardwire
+                    newfpath = os.path.join(tmpdir, newfname_f) 
                     univariate.columns = ["value"]
                     univariate.name = "value"
                     logger.debug(f"Writing to {newfpath}")
