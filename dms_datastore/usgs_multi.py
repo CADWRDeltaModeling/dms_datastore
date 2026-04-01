@@ -339,12 +339,12 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
                     original_header["agency_ts_id"] = subdf.ts_id.tolist()
                 if ts.first_valid_index() is None:
                     continue  # No more good data. bail
-                fpath_write = os.path.join(tmpdir.name, filepart)
+                fpath_write = os.path.join(tmpdir, filepart)
                 write_ts_csv(ts, fpath_write, metadata=original_header, chunk_years=True)
         for fdname in set_of_deletions:
             logger.debug(f"Removing {fdname}")
             os.remove(fdname)
-        shutil.copytree(tmpdir.name, actual_fpath, dirs_exist_ok=True)
+        shutil.copytree(tmpdir, actual_fpath, dirs_exist_ok=True)
 
     logger.info("Exiting process_multivariate_usgs")
 
