@@ -23,8 +23,9 @@ from pathlib import Path
 
 def _quarantine_file(fname, quarantine_dir="quarantine"):
     if not os.path.exists(quarantine_dir):
-        os.makedirs("quarantine")
-    shutil.copy(fname, "quarantine")
+        os.makedirs(quarantine_dir)
+    shutil.copy(fname, quarantine_dir)
+
 
 
 def usgs_scan_series_json(fname):
@@ -278,69 +279,110 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
             )
             vertical_non = [0, 0]  # for counting how many subloc are vertical or not
 
-            # first process all known sublocations that are meant to be kept intact,
-            # dropping them as processed
-            # then if one left it is default and if many use the average
+            # Partition every present source column into semantic sublocation groups,
+            # then reduce each group to a single univariate "value" series.
+            grouped_cols = {}
+
             for index, row in subdf.iterrows():
-                asubloc = row.asubloc[:]
-                logger.debug(f"Isolating sublocation {asubloc[:]}")
-                if asubloc[:] in ["lower", "upper", "upward", "vertical"]:
-                    # write out each sublocation as individual file
-                    selector = (
-                        "value"
-                        if len(ts.columns) == 1 and ts.columns[0] == "value"
-                        else f"{row.ts_id}_value"
+                ts_id = str(row.ts_id)
+                asubloc = str(row.asubloc)
+
+                selector = (
+                    "value"
+                    if len(ts.columns) == 1 and ts.columns[0] == "value"
+                    else f"{ts_id}_value"
+                )
+
+                if selector not in ts.columns:
+                    logger.debug(f"Selector failed: {selector} columns: {ts.columns}")
+                    continue
+
+                # Keep existing mapped/lookup semantics from the scan table.
+                # Only normalize empty/unknown labels to default here.
+                bucket = str(asubloc).strip().lower()
+                if bucket in ["", "nan", "none"]:
+                    bucket = "default"
+
+                grouped_cols.setdefault(bucket, []).append((selector, row))
+
+            written_any = False
+
+            for bucket, members in grouped_cols.items():
+                cols = [col for col, _ in members if col in ts.columns]
+                if not cols:
+                    continue
+
+                # Collapse this bucket to a single univariate series.
+                if len(cols) == 1:
+                    out = ts[[cols[0]]].copy()
+                else:
+                    out = ts[cols].mean(axis=1, skipna=True).to_frame()
+
+                out.columns = ["value"]
+
+                # Skip empty outputs
+                if not out["value"].notna().any():
+                    logger.debug(
+                        f"Grouped output for {station_id} {param} bucket {bucket} is all-NA; skipping"
+                    )
+                    continue
+
+                meta_out = dict(original_header)
+
+                ts_ids = [str(r.ts_id) for _, r in members]
+                var_ids = [str(r.var_id) for _, r in members]
+
+                if len(ts_ids) == 1:
+                    meta_out["agency_ts_id"] = ts_ids[0]
+                else:
+                    meta_out["agency_ts_id"] = ts_ids
+
+                if len(var_ids) == 1:
+                    meta_out["agency_var_id"] = var_ids[0]
+                else:
+                    meta_out["agency_var_id"] = var_ids
+
+                meta_out["sublocation"] = bucket
+
+                if len(cols) > 1:
+                    meta_out["subloc_comment"] = (
+                        f"value averages {len(cols)} source series assigned to sublocation {bucket}"
+                    )
+                else:
+                    meta_out["subloc_comment"] = (
+                        "multivariate file separated into sublocation outputs"
                     )
 
-                    try:
-                        univariate = ts[selector]
-                    except:
-                        logger.debug(f"Selector failed: {selector} columns: {ts.columns}")
-                        continue
+                meta_out["source_columns"] = cols
 
-                    if univariate.first_valid_index() is None:
-                        ts = ts.drop([selector], axis=1)
-                        # empty for the file
-                        continue
-                    original_header["agency_ts_id"] = row.ts_id
-                    original_header["agency_var_id"] = row.var_id
-                    original_header["sublocation"] = asubloc
-                    original_header["subloc_comment"] = (
-                        "multivariate file separated, mention of other series omitted in this file may appear in original header"
-                    )
-                    meta["subloc"] = asubloc
-                    newfname = newfname = meta_to_filename(meta, repo="formatted")
-                    work_dir, newfname_f = os.path.split(newfname)
-                    newfpath = os.path.join(tmpdir, newfname_f) 
-                    univariate.columns = ["value"]
-                    univariate.name = "value"
-                    logger.debug(f"Writing to {newfpath}")
-                    write_ts_csv(univariate, newfpath, original_header, chunk_years=True)
-                    vertical_non[0] = vertical_non[0] + 1
-                    ts = ts.drop([selector], axis=1)
+                meta_file = dict(meta)
+                if bucket == "default":
+                    meta_file.pop("subloc", None)
+                else:
+                    meta_file["subloc"] = bucket
 
-            ncol = len(ts.columns)
-            if ncol == 0:
-                # No columns were left. Delete the original file as its contents have been parsed to other files
-                logger.debug(f"All columns recognized for {fn}")
+                newfname = meta_to_filename(meta_file, repo="formatted")
+                work_dir, newfname_f = os.path.split(newfname)
+                newfpath = os.path.join(tmpdir, newfname_f)
+
+                logger.debug(
+                    f"Writing grouped output for {station_id} {param} bucket {bucket} "
+                    f"from columns {cols} to {newfpath}"
+                )
+                write_ts_csv(out, newfpath, meta_out, chunk_years=True)
+                written_any = True
+
+            if written_any:
+                logger.debug(
+                    f"Processed multivariate file {fn} into grouped outputs; marking original for deletion"
+                )
                 set_of_deletions.add(fn)
             else:
-                if ncol == 1:
-                    logger.debug(f"One column left for {fn}, renaming and documenting")
-                    ts.columns = ["value"]
-                else:
+                logger.warning(
+                    f"Quarantining {fn} in usgs_multi: no non-empty grouped outputs could be formed"
+                )
+                _quarantine_file(fn)
 
-                    logger.debug(
-                        f"Several sublocations for columns, averaging {fn} and labeling as value"
-                    )
-                    # Multivariate not collapsed, but we will add a 'value' column that aggregates and note this in metadata
-                    ts["value"] = ts.mean(axis=1)
-                    original_header["subloc_comment"] = "value averages sublocations"
-                    original_header["agency_ts_id"] = subdf.ts_id.tolist()
-                if ts.first_valid_index() is None:
-                    continue  # No more good data. bail
-                fpath_write = os.path.join(tmpdir, filepart)
-                write_ts_csv(ts, fpath_write, metadata=original_header, chunk_years=True)
         for fdname in set_of_deletions:
             logger.debug(f"Removing {fdname}")
             os.remove(fdname)

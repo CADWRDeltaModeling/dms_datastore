@@ -463,7 +463,6 @@ def download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile)
 @click.option("--logdir", type=click.Path(path_type=Path), default="logs")
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
-@click.help_option("-h", "--help")
 @click.argument("stationfile", nargs=-1)
 def download_nwis_cli(dest_dir, start, end, param, stations, overwrite, stationfile,logdir, debug, quiet):
     """CLI for downloading NWIS (National Water Information System)."""

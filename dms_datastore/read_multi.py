@@ -327,6 +327,9 @@ def ts_multifile(
             if filter_date(metafname, start, end):
                 continue
             ts = read_ts(tsfile, force_regular=force_regular)
+            print("tsfiles")
+            print(tsfile)
+            print("columns:",ts.columns)
             dup_mask = ts.index.duplicated(keep=False)
             if dup_mask.any():
                 dup_index = ts.index[dup_mask]
