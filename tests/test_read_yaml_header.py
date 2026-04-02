@@ -3,8 +3,6 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-pytestmark = pytest.mark.skip(reason="Temporarily disabled while fixing test data packaging in CI")
-
 from dms_datastore.read_ts import (
     extract_commented_header,
     parse_yaml_header,

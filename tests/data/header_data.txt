@@ -1,0 +1,75 @@
+!usgs dutch slough formatted example
+# format: dwr-dms-1.0
+# date_formatted: 2024-03-01T00:00:00
+# agency: usgs
+# station_id: dss
+# agency_id: '11335000'
+# param: flow
+# unit: cfs
+# subloc: default
+# original_header: Raw USGS provisional data disclaimer header from water.usgs.gov
+datetime,value,user_flag
+2020-01-01 00:00,100.0,0
+2020-01-01 00:15,102.0,0
+
+!usgs screened example
+# format: dwr-dms-1.0
+# date_formatted: 2024-06-01T12:00:00
+# agency: usgs
+# station_id: lib
+# agency_id: '14301000'
+# param: stage
+# unit: ft
+# subloc: default
+# original_header: Agency USGS Site 14301000 LIBBY CR NR LIBBY OR approved data
+datetime,value,user_flag
+2020-01-01 00:00,5.12,0
+2020-01-01 01:00,5.13,0
+
+!Division of Environmental Services at DWR (des)
+# format: dwr-dms-1.0
+# date_formatted: 2023-11-15T09:30:00
+# agency: des
+# station_id: msd
+# agency_id: B9155200
+# param: ec
+# unit: uS/cm
+# subloc: bottom
+# original_header: DWR Division of Environmental Services Mildred Island Bottom Sensor
+datetime,value,user_flag
+2020-01-01 00:00,220.5,0
+2020-01-01 00:15,221.0,0
+
+!cdec formatted example
+# format: dwr-dms-1.0
+# date_formatted: 2024-01-10T08:00:00
+# agency: cdec
+# station_id: sac
+# agency_id: SAC
+# param: flow
+# unit: cfs
+# subloc: default
+datetime,value,user_flag
+2021-01-01 00:00,450.0,0
+2021-01-01 01:00,452.0,0
+
+!noaa formatted example
+# format: dwr-dms-1.0
+# date_formatted: 2024-02-20T10:00:00
+# agency: noaa
+# station_id: pryc1
+# agency_id: '9415020'
+# param: elev
+# unit: ft
+# subloc: default
+datetime,value,user_flag
+2022-06-01 00:00,3.21,0
+2022-06-01 01:00,3.19,0
+
+!ncro corrupted file with extra space [fails]
+#   format: dwr-dms-1.0
+#   agency: ncro
+#   station_id: xyz
+#   param: temp
+datetime,value,user_flag
+2020-01-01 00:00,15.0,0

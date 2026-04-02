@@ -6,8 +6,6 @@ import pytest
 from dms_datastore.read_ts import parse_yaml_header
 from dms_datastore.write_ts import prep_header
 
-pytestmark = pytest.mark.skip(reason="Temporarily disabled while fixing test data packaging in CI")
-
 def leading_commented_header(text: str, comment: str = "#") -> str:
     # Use the same rule as extract_commented_header, but on an in-memory string
     lines = text.splitlines(keepends=True)
