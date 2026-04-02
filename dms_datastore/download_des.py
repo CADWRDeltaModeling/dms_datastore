@@ -354,7 +354,10 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
                     itry = itry + 1
                     sleeptime = 4.0 if itry > 5 else 2.0
                     if itry >= max_retry:
-                        raise
+                        fmessage = f"ReadingDates failed for station {station}, subloc {subloc}, param {paramname} after {max_retry} retries"
+                        logger.info(fmessage)
+                        failures.append((station, paramname))
+                        break
                     time.sleep(sleeptime)
 
             fstart = rid.start_date
@@ -421,6 +424,20 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
         logger.info("Failed query stations: ")
         for failure in failures:
             logger.info(failure)
+
+    failures_dicts = []
+    for f in failures:
+        station_id, param_name = (f[0], f[1]) if len(f) >= 2 else (f[0], None)
+        failures_dicts.append({
+            "agency": "dwr_des",
+            "station_id": station_id,
+            "agency_id": None,
+            "param": param_name,
+            "subloc": None,
+            "exc_type": "DownloadError",
+            "message": f"Download failed for station {station_id} param {param_name}",
+        })
+    return failures_dicts
 
 
 

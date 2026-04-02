@@ -525,10 +525,12 @@ def reformat(inpath, outpath, pattern):
     print(f"Reformatting complete for {label}. Reformatting failed on these files:")
     for srcfail in failures:
         print(srcfail)
+    return failures
 
 
 def reformat_main(
-    inpath="raw", outpath="formatted", agencies=["usgs", "des", "cdec", "noaa", "ncro"]
+    inpath="raw", outpath="formatted", agencies=["usgs", "des", "cdec", "noaa", "ncro"],
+    failures_file=None,
 ):
     if not os.path.exists(outpath):
         raise ValueError(f"Destination directory {os.path.abspath(outpath)} does not exist. Please create it before running reformat.")
@@ -541,6 +543,7 @@ def reformat_main(
         exts = known_ext[agency] if agency in known_ext else [".csv"]
         pattern[agency] = [f"{agency}*{ext}" for ext in exts]
 
+    all_failed_files = []
     with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
         future_to_agency = {
             executor.submit(reformat, inpath, outpath, pattern[agency]): agency
@@ -552,6 +555,8 @@ def reformat_main(
             try:
                 data = future.result()
                 print("Data", data)
+                if data:
+                    all_failed_files.extend(data)
             except Exception as exc:
                 trace = traceback.format_exc()
                 print(
@@ -559,6 +564,16 @@ def reformat_main(
                 )
                 sys.stdout.flush()
     print("Exiting reformat_main")
+
+    # Write failures CSV
+    if failures_file is None:
+        logdir = Path("logs")
+        logdir.mkdir(exist_ok=True)
+        failures_file = logdir / "reformat_failures.csv"
+    failures_file = Path(failures_file)
+    failures_file.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame({"filepath": all_failed_files}).to_csv(failures_file, index=False)
+    print(f"Failures written to {failures_file} ({len(all_failed_files)} entries)")
 
 
 @click.command()
@@ -587,8 +602,14 @@ def reformat_main(
 @click.option("--logdir", type=click.Path(path_type=Path), default="logs")
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
+@click.option(
+    "--failures-file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Path for the failures CSV. Defaults to {logdir}/reformat_failures.csv.",
+)
 @click.help_option("-h", "--help")
-def reformat_cli(inpath, outpath, pattern, agencies, logdir=None, debug=False, quiet=False):
+def reformat_cli(inpath, outpath, pattern, agencies, logdir=None, debug=False, quiet=False, failures_file=None):
     """Reformat files from raw to standard format and add metadata."""
     in_dir = inpath
     out_dir = outpath
@@ -619,10 +640,16 @@ def reformat_cli(inpath, outpath, pattern, agencies, logdir=None, debug=False, q
 
     if pattern_list is None:
         # Send to multithreaded driver
-        reformat_main(inpath=in_dir, outpath=out_dir, agencies=agencies_list)
+        effective_failures_file = failures_file if failures_file is not None else Path(logdir or "logs") / "reformat_failures.csv"
+        reformat_main(inpath=in_dir, outpath=out_dir, agencies=agencies_list, failures_file=effective_failures_file)
     else:
         # Send to simple python with pattern
-        reformat(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
+        failed = reformat(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
+        effective_failures_file = failures_file if failures_file is not None else Path(logdir or "logs") / "reformat_failures.csv"
+        effective_failures_file = Path(effective_failures_file)
+        effective_failures_file.parent.mkdir(parents=True, exist_ok=True)
+        pd.DataFrame({"filepath": failed}).to_csv(effective_failures_file, index=False)
+        print(f"Failures written to {effective_failures_file} ({len(failed)} entries)")
 
 
 if __name__ == "__main__":

@@ -251,7 +251,8 @@ def populate_repo(
             sl2["subloc"] = "lower"
             stationlist = pd.concat([stationlist, sl1, sl2], axis=0)
 
-    downloaders[agency](stationlist, dest_dir, start, end, param, overwrite)
+    result = downloaders[agency](stationlist, dest_dir, start, end, param, overwrite)
+    return result if result is not None else []
 
 
 def _write_renames(renames, outfile):
@@ -307,6 +308,7 @@ def populate_repo2(df, dest, start, overwrite=False, ignore_existing=None):
 def populate(dest, all_agencies=None, varlist=None, partial_update=False):
     logger.info(f"dest: {dest} agencies: {all_agencies}")
     doneagency = []
+    station_failures = []
 
     purge = False
     ignore_existing = None
@@ -338,7 +340,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
             for var in varlist:
                 logger.info(f"Calling populate_repo with agency {agency} variable: {var}")
                 if not partial_update:
-                    populate_repo(
+                    station_failures += populate_repo(
                         agency,
                         var,
                         dest,
@@ -346,7 +348,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                         pd.Timestamp(1999, 12, 31, 23, 59),
                         ignore_existing=ignore_existing,
                     )
-                    populate_repo(
+                    station_failures += populate_repo(
                         agency,
                         var,
                         dest,
@@ -354,7 +356,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                         pd.Timestamp(2019, 12, 31, 23, 59),
                         ignore_existing=ignore_existing,
                     )
-                populate_repo(
+                station_failures += populate_repo(
                     agency, var, dest, pd.Timestamp(2020, 1, 1), None, overwrite=True
                 )
                 ext = "rdb" if agency == "usgs" else ".csv"
@@ -367,7 +369,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                     logger.info(
                         f"Calling populate_repo (1) with agency {agency} variable: {var}  start: 1980-01-01"
                     )
-                    populate_repo(
+                    station_failures += populate_repo(
                         agency,
                         var,
                         dest,
@@ -378,7 +380,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                     logger.info(
                         f"Calling populate_repo (2) with agency {agency} variable: {var} start: 2000-01-01"
                     )
-                    populate_repo(
+                    station_failures += populate_repo(
                         agency,
                         var,
                         dest,
@@ -395,7 +397,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                     else None
                 )
 
-                populate_repo(
+                station_failures += populate_repo(
                     agency,
                     var,
                     dest,
@@ -411,6 +413,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
     logger.info("Completed population for these agencies: ")
     for agent in doneagency:
         logger.info(agent)
+    return station_failures
 
 
 def purge(dest):
@@ -439,7 +442,7 @@ def ncro_only(dest):
     revise_filename_syear_eyear(os.path.join(dest, f"cdec_*.csv"))
 
 
-def populate_main(dest, agencies=None, varlist=None, partial_update=False):
+def populate_main(dest, agencies=None, varlist=None, partial_update=False, failures_file=None):
     do_purge = False
     if not os.path.exists(dest):
         raise ValueError(f"Destination directory {os.path.abspath(dest)} does not exist. Please create it before running populate.")
@@ -447,7 +450,8 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
         if do_purge:
             purge(dest)
 
-    failures = []
+    agency_failures = []
+    station_failures = []
     if agencies is None or len(agencies) == 0:
         all_agencies = ["usgs", "dwr_des", "usbr", "noaa", "dwr_ncro", "dwr"]
     else:
@@ -464,11 +468,22 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
     for future in concurrent.futures.as_completed(future_to_agency):
         agency = future_to_agency[future]
         try:
-            future.result()
+            result = future.result()
+            if result:
+                station_failures.extend(result)
         except Exception as exc:
-            failures.append(agency)
+            agency_failures.append(agency)
             trace = traceback.format_exc()
             logger.info(f"{agency} generated an exception: {exc} with trace:\n{trace}")
+            station_failures.append({
+                "agency": agency,
+                "station_id": None,
+                "agency_id": None,
+                "param": None,
+                "subloc": None,
+                "exc_type": type(exc).__name__,
+                "message": str(exc),
+            })
         if "ncro" in agency:
             populate_ncro_realtime(dest)
 
@@ -485,6 +500,19 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
         revise_filename_syear_eyear(os.path.join(dest, f"ncro_*.csv"))
     revise_filename_syear_eyear(os.path.join(dest, f"cdec_*.csv"))
     logger.info("These agency queries failed")
+
+    # Write failures CSV
+    if failures_file is None:
+        logdir = Path("logs")
+        logdir.mkdir(exist_ok=True)
+        failures_file = logdir / "populate_repo_failures.csv"
+    failures_file = Path(failures_file)
+    failures_file.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        station_failures,
+        columns=["agency", "station_id", "agency_id", "param", "subloc", "exc_type", "message"],
+    ).to_csv(failures_file, index=False)
+    logger.info(f"Failures written to {failures_file} ({len(station_failures)} entries)")
 
 
 def populate_debug_ncro_rename(dest, agencies=None, varlist=None):
@@ -533,8 +561,14 @@ def populate_debug_ncro_rename(dest, agencies=None, varlist=None):
 @click.option("--logdir", type=click.Path(path_type=Path), default="logs")
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
+@click.option(
+    "--failures-file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Path for the failures CSV. Defaults to {logdir}/populate_repo_failures.csv.",
+)
 @click.help_option("-h", "--help")
-def populate_main_cli(dest, agencies, variables, partial, logdir="logs", debug=False, quiet=False):
+def populate_main_cli(dest, agencies, variables, partial, logdir="logs", debug=False, quiet=False, failures_file=None):
     """Populate repository with data from various agencies."""
 
     level, console = resolve_loglevel(
@@ -551,7 +585,8 @@ def populate_main_cli(dest, agencies, variables, partial, logdir="logs", debug=F
     varlist = list(variables) if variables else None
     agencies_list = list(agencies) if agencies else None
     logger.info(f"dest: {dest}, agencies: {agencies_list}, varlist:{varlist}")
-    populate_main(dest, agencies_list, varlist=varlist, partial_update=partial)
+    effective_failures_file = failures_file if failures_file is not None else Path(logdir) / "populate_repo_failures.csv"
+    populate_main(dest, agencies_list, varlist=varlist, partial_update=partial, failures_file=effective_failures_file)
 
 
 if __name__ == "__main__":

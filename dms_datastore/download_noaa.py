@@ -283,6 +283,7 @@ def noaa_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
     if not os.path.exists(dest_dir):
         os.mkdir(dest_dir)
     skips = []
+    failures = []
 
     # This is an attempt to short-circuit the download of water levels for non-tidal stations
     # The correctness of this remains to be checked.
@@ -316,6 +317,18 @@ def noaa_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                 future.result()  # This line can be used to handle results or exceptions from the tasks
             except Exception as e:
                 logger.error(f"Exception occurred during download: {e}")
+                # Identify station if possible from future metadata
+                failures.append({
+                    "agency": "noaa",
+                    "station_id": None,
+                    "agency_id": None,
+                    "param": None,
+                    "subloc": None,
+                    "exc_type": type(e).__name__,
+                    "message": str(e),
+                })
+
+    return failures
 
 
 def list_stations():

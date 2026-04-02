@@ -172,6 +172,8 @@ def auto_screen(
     params=None,
     plot_dest=None,
     start_station=None,
+    failures_file=None,
+    logdir="logs",
 ):
     """Auto screen all data in directory
     Parameters
@@ -212,7 +214,7 @@ def auto_screen(
     actual_fpath = fpath if fpath is not None else repo_root(source_repo)
     inventory = repo_data_inventory(repo="formatted",in_path=actual_fpath) # repo is the config repo, in_path is the data storage location
     inventory = filter_inventory_(inventory, stations, params)
-    failed_read = []
+    failures = []
 
     for index, row in inventory.iterrows():
         station_id = row["station_id"]
@@ -236,70 +238,92 @@ def auto_screen(
         # Now we have most information, but the time series may be split between sources
         # with low and high priority
         fetcher = custom_fetcher(agency)
-        # these may be lists
+        step = "read"
         try:
-            # logger.debug(f"fetching {fpath},{station_id},{param}")
             meta_ts = fetcher(source_repo, station_id, param, subloc=subloc, data_path=actual_fpath)
-        except Exception as e:
-            logger.warning(f"Read failed for {actual_fpath}, {station_id}, {param}, {subloc}, storage loc = {actual_fpath}")
-            logger.exception(e)
-            print(e)
-            meta_ts = None
+            if meta_ts is None:
+                logger.debug(f"No data found for {station_id} {subloc} {param}")
+                failures.append({
+                    "station_id": station_id, "subloc": subloc, "param": param,
+                    "step": step, "exc_type": "NoData", "message": "fetcher returned None",
+                })
+                continue
+            metas, ts = meta_ts
+            meta = metas[0]
+            subloc_actual = (
+                meta["sublocation"]
+                if "sublocation" in meta
+                else meta["subloc"] if "subloc" in meta else "default"
+            )
+            step = "screen"
+            proto = context_config(screen_config, station_id, subloc, param)
+            do_plot = plot_dest is not None
+            subloc_label = "" if subloc == "default" else subloc
+            plot_label = f"{station_info['name']}_{station_id}@{subloc_label}_{param}"
+            screened = screener(
+                ts,
+                station_id,
+                subloc_actual,
+                param,
+                proto,
+                do_plot,
+                plot_label,
+                plot_dest=plot_dest,
+            )
+            logger.debug(f"screening complete for {station_id} {subloc} {param}")
+            if "value" in screened.columns:
+                screened = screened[["value", "user_flag"]]
+            meta["screen"] = proto
 
-        if meta_ts is None:
-            logger.debug(f"No data found for {station_id} {subloc} {param}")
-            failed_read.append((station_id, subloc, param))
-            logger.debug("Cumulative fails:")
-            for fr in failed_read:
-                logger.debug(fr)
+            # Build output filename using configured naming spec for screened repo
+            output_meta = {
+                "agency": agency,
+                "station_id": station_id,
+                "subloc": subloc_actual if subloc_actual != "default" else None,
+                "param": param,
+                "agency_id": row.agency_id,
+            }
+            # Add year info if available from metadata
+            if "year" in meta:
+                output_meta["year"] = meta["year"]
+            elif "syear" in meta and "eyear" in meta:
+                output_meta["syear"] = meta["syear"]
+                output_meta["eyear"] = meta["eyear"]
+
+            # Get output without shard so that chunk_years will not append one and have it be redundant
+            output_fname = meta_to_filename(output_meta, repo="screened",include_shard=False)
+            output_fpath = os.path.join(dest, output_fname)
+            step = "write"
+            logger.debug(f"start write for {output_fpath} with meta {meta}")
+            write_ts_csv(screened, output_fpath, meta, chunk_years=True)
+            logger.debug("end write")
+        except Exception as e:
+            logger.warning(
+                f"Failed at step={step} for {station_id}, {subloc}, {param}: {e}"
+            )
+            logger.exception(e)
+            failures.append({
+                "station_id": station_id,
+                "subloc": subloc,
+                "param": param,
+                "step": step,
+                "exc_type": type(e).__name__,
+                "message": str(e),
+            })
             continue
-        metas, ts = meta_ts
-        meta = metas[0]
-        subloc_actual = (
-            meta["sublocation"]
-            if "sublocation" in meta
-            else meta["subloc"] if "subloc" in meta else "default"
-        )
-        proto = context_config(screen_config, station_id, subloc, param)
-        do_plot = plot_dest is not None
-        subloc_label = "" if subloc == "default" else subloc
-        plot_label = f"{station_info['name']}_{station_id}@{subloc_label}_{param}"
-        screened = screener(
-            ts,
-            station_id,
-            subloc_actual,
-            param,
-            proto,
-            do_plot,
-            plot_label,
-            plot_dest=plot_dest,
-        )
-        logger.debug(f"screening complete for {station_id} {subloc} {param}")
-        if "value" in screened.columns:
-            screened = screened[["value", "user_flag"]]
-        meta["screen"] = proto
-        
-        # Build output filename using configured naming spec for screened repo
-        output_meta = {
-            "agency": agency,
-            "station_id": station_id,
-            "subloc": subloc_actual if subloc_actual != "default" else None,
-            "param": param,
-            "agency_id": row.agency_id,
-        }
-        # Add year info if available from metadata
-        if "year" in meta:
-            output_meta["year"] = meta["year"]
-        elif "syear" in meta and "eyear" in meta:
-            output_meta["syear"] = meta["syear"]
-            output_meta["eyear"] = meta["eyear"]
-        
-        # Get output without shard so that chunk_years will not append one and have it be redundant
-        output_fname = meta_to_filename(output_meta, repo="screened",include_shard=False)
-        output_fpath = os.path.join(dest, output_fname)
-        logger.debug(f"start write for {output_fpath} with meta {meta}")
-        write_ts_csv(screened, output_fpath, meta, chunk_years=True)
-        logger.debug("end write")
+
+    # Write failures CSV
+    if failures_file is None:
+        logdir_path = Path(logdir)
+        logdir_path.mkdir(exist_ok=True)
+        failures_file = logdir_path / "auto_screen_failures.csv"
+    failures_file = Path(failures_file)
+    failures_file.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        failures,
+        columns=["station_id", "subloc", "param", "step", "exc_type", "message"],
+    ).to_csv(failures_file, index=False)
+    logger.info(f"Failures written to {failures_file} ({len(failures)} entries)")
 
 
 def update_steps(proto, x):
@@ -582,9 +606,15 @@ def test_single(fname):  # not maintained
 @click.option("--logdir", type=click.Path(path_type=Path), default="logs")
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
+@click.option(
+    "--failures-file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Path for the failures CSV. Defaults to {logdir}/auto_screen_failures.csv.",
+)
 @click.help_option("-h", "--help")
 def auto_screen_cli(config, fpath, dest, stations, params, plot_dest, start_station,
-                    logdir=None, debug=False, quiet=False):
+                    logdir=None, debug=False, quiet=False, failures_file=None):
     """Auto-screen individual files or whole repos."""
     level, console = resolve_loglevel(
         debug=debug,
@@ -615,6 +645,8 @@ def auto_screen_cli(config, fpath, dest, stations, params, plot_dest, start_stat
         params=params_list,
         plot_dest=plot_dest,
         start_station=start_station,
+        failures_file=failures_file if failures_file is not None else Path(logdir) / "auto_screen_failures.csv",
+        logdir=logdir,
     )
 
 

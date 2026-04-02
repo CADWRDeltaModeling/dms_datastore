@@ -141,9 +141,13 @@ def cdec_download(
     )
     stations = stations.loc[~subloc_inconsist, :]
     for index, row in stations.iterrows():
-        download_station_data(
-            row, dest_dir, start, end, endfile, param, overwrite, freq, failures, skips
-        )
+        try:
+            download_station_data(
+                row, dest_dir, start, end, endfile, param, overwrite, freq, failures, skips
+            )
+        except Exception as e:
+            logger.error(f"Unhandled exception for station {row.station_id} param {row.param}: {e}")
+            failures.append((row.station_id, row.param))
     # # Use ThreadPoolExecutor
     # with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
     # # Schedule the download tasks and handle them asynchronously
@@ -177,6 +181,20 @@ def cdec_download(
         logger.debug("Failed query stations: ")
         for failure in failures:
             logger.info(failure)
+
+    failures_dicts = []
+    for f in failures:
+        station_id, param_name = (f[0], f[1]) if len(f) >= 2 else (f[0], None)
+        failures_dicts.append({
+            "agency": "cdec",
+            "station_id": station_id,
+            "agency_id": None,
+            "param": param_name,
+            "subloc": None,
+            "exc_type": "DownloadError",
+            "message": f"Download failed for station {station_id} param {param_name}",
+        })
+    return failures_dicts
 
 
 

@@ -362,6 +362,15 @@ def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
             except Exception as e:
                 logger.debug(traceback.print_tb(e.__traceback__))
                 logger.error(f"Exception occurred during download: {e}")
+                failures.append({
+                    "agency": "usgs",
+                    "station_id": None,
+                    "agency_id": None,
+                    "param": None,
+                    "subloc": None,
+                    "exc_type": type(e).__name__,
+                    "message": str(e),
+                })
 
     if len(failures) == 0:
         logger.info("No failed stations")
@@ -369,6 +378,24 @@ def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
         logger.info("Failed query stations: ")
         for failure in failures:
             logger.info(failure)
+
+    failures_dicts = []
+    for f in failures:
+        if isinstance(f, dict):
+            failures_dicts.append(f)
+        else:
+            # Legacy tuple format: (station, paramname)
+            station_id, param_name = (f[0], f[1]) if len(f) >= 2 else (f[0], None)
+            failures_dicts.append({
+                "agency": "usgs",
+                "station_id": station_id,
+                "agency_id": None,
+                "param": param_name,
+                "subloc": None,
+                "exc_type": "DownloadError",
+                "message": f"Download failed for station {station_id} param {param_name}",
+            })
+    return failures_dicts
 
 
 def parse_start_year(txt):

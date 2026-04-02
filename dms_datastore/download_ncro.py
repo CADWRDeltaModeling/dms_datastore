@@ -632,7 +632,15 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
                 logger.info(
                     f"Exception occurred during download: station={station_id} site={site} trace={trace} err={result}"
                 )
-                failures.append((station_id, site, trace, str(result)))
+                failures.append({
+                    "agency": "ncro",
+                    "station_id": station_id,
+                    "agency_id": site,
+                    "param": trace,
+                    "subloc": None,
+                    "exc_type": type(result).__name__,
+                    "message": str(result),
+                })
 
     return failures
 
