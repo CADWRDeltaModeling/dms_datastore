@@ -19,7 +19,6 @@ from dms_datastore.dstore_config import *
 from dms_datastore.inventory import *
 from dms_datastore.write_ts import *
 from dms_datastore.filename import meta_to_filename
-from schimpy.station import *
 import geopandas as gpd
 import numpy as np
 import seaborn as sns
