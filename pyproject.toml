@@ -28,6 +28,9 @@ classifiers = [
 ]
 
 dependencies = [
+    # cadwr-dms conda channel only (not on PyPI) — install from GitHub for pip usage:
+    # vtools3: https://github.com/CADWRDeltaModeling/vtools3
+    # schimpy: https://github.com/CADWRDeltaModeling/schimpy
     "vtools3",
     "pyyaml",
     "beautifulsoup4",
@@ -45,10 +48,14 @@ dependencies = [
     "dask",
     "scikit-learn",
     "matplotlib",
+    "geopandas",
+    "scipy",
+    "seaborn",
+    "click",
+    "tabula-py",
+    "schimpy",
     "cfgrib",
     "diskcache",
-    "pytest",
-    "pytest-runner",
 ]
 
 [project.optional-dependencies]
