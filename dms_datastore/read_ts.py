@@ -11,7 +11,7 @@ from collections import defaultdict
 import os
 import fnmatch
 from vtools.functions.merge import *
-from vtools.data.vtime import days, minutes, hours, months, seconds, years, to_timedelta
+from vtools.data.vtime import days, minutes, hours, months, seconds, years
 from dms_datastore.filename import extract_year_fname
 
 __all__ = [
