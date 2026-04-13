@@ -2,7 +2,7 @@
 
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from setuptools_scm.version import meta
+
 import yaml
 import pandas as pd
 import warnings
