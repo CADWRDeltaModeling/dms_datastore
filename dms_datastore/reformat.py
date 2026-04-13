@@ -16,6 +16,8 @@ from dms_datastore.logging_config import configure_logging, resolve_loglevel
 import logging
 from pathlib import Path
 
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,6 +86,195 @@ def infer_unit(fname, param, src):
     thisvar = variable_mappings.loc[
         (variable_mappings.var_name == param) & (variable_mappings.src_name == src), :
     ]
+
+# reformat.py additions
+
+from collections import defaultdict
+from vtools.functions.merge import ts_merge
+
+
+DES_METADATA_CAVEAT = (
+    "Transitions metadata (such as instruments, sublocations, and agency-specific "
+    "details) over the lifetime of a series may not be resolved in time. "
+    "Metadata from the last original raw file covering a year is used for that year's shard."
+)
+
+
+def raw_data_key_from_meta(meta):
+    """
+    Grouping key for raw files that should become one formatted logical series.
+    """
+    source = _raw_source_from_meta(meta)
+    return (
+        source,
+        meta["station_id"],
+        meta.get("subloc"),
+        meta["param"],
+    )
+
+
+def _years_covered_by_valid_data(ts):
+    """
+    Years touched by non-NaN data in a normalized time series.
+    """
+    if ts is None or ts.empty:
+        return []
+
+    if isinstance(ts, pd.Series):
+        valid = ts.notna()
+    else:
+        valid = ts.notna().any(axis=1)
+
+    if not valid.any():
+        return []
+
+    years = pd.Index(ts.index[valid]).year
+    return sorted(pd.Index(years).unique().tolist())
+
+
+def build_des_year_metadata(raw_files, caveat_text=DES_METADATA_CAVEAT):
+    """
+    Choose one metadata dict per output year for a grouped DES logical series.
+
+    Policy:
+      the last raw file in chronological/effective order that covers a given year
+      supplies that year's metadata.
+    """
+    if not raw_files:
+        raise ValueError("raw_files may not be empty")
+
+    year_meta = {}
+
+    # lexical order is chronological after rename/rationalize
+    for fpath in sorted(raw_files):
+        meta = infer_internal_meta_for_file(fpath)
+        ts = read_ts(fpath, force_regular=True)
+        years = _years_covered_by_valid_data(ts)
+
+        for yr in years:
+            chosen = dict(meta)
+            chosen["metadata_time_precision_caveat"] = caveat_text
+            year_meta[int(yr)] = chosen
+
+    if not year_meta:
+        raise ValueError("No yearly metadata could be derived from raw files")
+
+    return year_meta
+
+
+def merge_grouped_raw_des(raw_files):
+    """
+    Read DES raw files one at a time with read_ts, preserve source-specific business
+    logic, then merge explicitly at the end.
+
+    Later/finer files are allowed to win by ordering.
+    """
+    if not raw_files:
+        raise ValueError("raw_files may not be empty")
+
+    tss = []
+    commonfreq = None
+
+    for fpath in sorted(raw_files):
+        ts = read_ts(fpath, force_regular=True)
+        ts.index.name = "datetime"
+        ts.sort_index(inplace=True)
+
+        ts = sufficient(ts, min_valid=15)
+        if ts is None:
+            continue
+
+        if ts.shape[1] > 1:
+            ts.columns = ["value"]
+        else:
+            ts = ts.copy()
+            ts.columns = ["value"]
+
+        tsfreq = ts.index.freq if hasattr(ts.index, "freq") else None
+        if tsfreq is not None:
+            if commonfreq is None or tsfreq < commonfreq:
+                commonfreq = tsfreq
+
+        tss.append(ts)
+
+    if not tss:
+        return None
+
+    if commonfreq is not None:
+        tss = [x.asfreq(commonfreq) for x in tss]
+
+    # reverse so later raw files have priority in overlaps
+    merged = ts_merge(list(reversed(tss)))
+
+    if commonfreq is not None:
+        merged = merged.asfreq(commonfreq)
+
+    if merged.index.has_duplicates:
+        raise ValueError("Merged DES series still has duplicate timestamps")
+
+    return merged
+
+
+def reformat_des_grouped(inpath, outpath, pattern):
+    if isinstance(pattern, str):
+        pattern = [pattern]
+
+    if inpath not in (None, ""):
+        pattern = [os.path.join(inpath, pat) for pat in pattern]
+
+    allfiles = []
+    for pat in pattern:
+        allfiles.extend(glob.glob(pat))
+    allfiles.sort()
+
+    groups = defaultdict(list)
+    for fpath in allfiles:
+        raw_meta = interpret_fname(os.path.basename(fpath), naming=RAW_NAMING)
+        key = raw_data_key_from_meta(raw_meta)
+        groups[key].append(fpath)
+
+    failures = []
+
+    for gkey, raw_files in groups.items():
+        try:
+            merged = merge_grouped_raw_des(raw_files)
+            if merged is None:
+                continue
+
+            year_meta = build_des_year_metadata(raw_files)
+
+            # use one representative file to build formatted base name
+            hdr_meta = infer_internal_meta_for_file(sorted(raw_files)[0])
+            meta_for_name = dict(hdr_meta)
+
+            FORMATTED_NAMING = naming_spec(repo="formatted")
+            newfname = os.path.join(
+                outpath,
+                meta_to_filename(
+                    meta_for_name,
+                    naming=FORMATTED_NAMING,
+                    include_shard=False,
+                ),
+            )
+
+            write_ts_csv(
+                merged,
+                newfname,
+                metadata=year_meta,
+                chunk_years=True,
+            )
+
+        except Exception as exc:
+            print(f"Failed on DES group {gkey}")
+            print(f"Files: {raw_files}")
+            print(f"Exception args:\n {exc.args}")
+            failures.extend(raw_files)
+
+    if failures:
+        print("Reformatting failed on these files:")
+        for srcfail in failures:
+            print(srcfail)
+
 
 
 def ncro_header(fname):
@@ -336,7 +527,6 @@ def infer_internal_meta_for_file(fpath):
     meta_out["source"] = source
     meta_out["station_id"] = station_id
     meta_out["subloc"] = meta.get("subloc")
-    meta_out["sublocation"] = meta["subloc"] if meta.get("subloc") is not None else "default"
     meta_out["agency_id"] = meta["agency_id"]
     meta_out["station_name"] = slookup.loc[station_id, "name"]
     meta_out["latitude"] = slookup.loc[station_id, "lat"]
@@ -526,40 +716,135 @@ def reformat(inpath, outpath, pattern):
     for srcfail in failures:
         print(srcfail)
 
+def reformat_provider(inpath, outpath, agency, patterns):
+    """
+    Dispatch provider-specific reformat behavior.
+    """
+    if agency == "des":
+        logger.info(f"Using DES grouped reformat")
+        return reformat_des_grouped(inpath, outpath, patterns)
+    logger.info("Using standard per-file reformat path")
+    return reformat(inpath, outpath, patterns)
+
+
+def _infer_provider_from_patterns(pattern_list):
+    """
+    Very lightweight inference for ad hoc pattern mode.
+    If every pattern clearly starts with 'des', use DES grouped path.
+    """
+    stems = set()
+    for pat in pattern_list:
+        base = os.path.basename(pat)
+        stem = base.split("*", 1)[0].split("_", 1)[0]
+        if stem:
+            stems.add(stem)
+    return stems
+
 
 def reformat_main(
     inpath="raw", outpath="formatted", agencies=["usgs", "des", "cdec", "noaa", "ncro"]
 ):
     if not os.path.exists(outpath):
-        raise ValueError(f"Destination directory {os.path.abspath(outpath)} does not exist. Please create it before running reformat.")
+        raise ValueError(
+            f"Destination directory {os.path.abspath(outpath)} does not exist. Please create it before running reformat."
+        )
+
     if not isinstance(agencies, list):
         agencies = [agencies]
+
     all_agencies = agencies
     known_ext = {"usgs": [".csv", ".rdb"]}
     pattern = {}
+
     for agency in agencies:
         exts = known_ext[agency] if agency in known_ext else [".csv"]
         pattern[agency] = [f"{agency}*{ext}" for ext in exts]
 
     with concurrent.futures.ProcessPoolExecutor(max_workers=5) as executor:
         future_to_agency = {
-            executor.submit(reformat, inpath, outpath, pattern[agency]): agency
+            executor.submit(reformat_provider, inpath, outpath, agency, pattern[agency]): agency
             for agency in all_agencies
         }
 
         for future in concurrent.futures.as_completed(future_to_agency):
             agency = future_to_agency[future]
             try:
-                data = future.result()
-                print("Data", data)
+                future.result()
+                print(f"Completed reformat for {agency}")
             except Exception as exc:
                 trace = traceback.format_exc()
                 print(
                     f"{agency} generated an exception: {exc} with traceback:\n{trace}"
                 )
                 sys.stdout.flush()
+
     print("Exiting reformat_main")
 
+
+@click.command()
+@click.option(
+    "--inpath",
+    required=True,
+    help="Input directory where files are stored.",
+)
+@click.option(
+    "--outpath",
+    required=True,
+    help="Output directory where files will be stored.",
+)
+@click.option(
+    "--pattern",
+    multiple=True,
+    default=None,
+    help="File name or pattern to reformat. If omitted, uses agencies to form patterns",
+)
+@click.option(
+    "--agencies",
+    multiple=True,
+    default=None,
+    help='Agencies to process, in which case pattern should be omitted. If not specified, does ["usgs","des","cdec","noaa","ncro"].',
+)
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs")
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
+@click.help_option("-h", "--help")
+def reformat_cli(inpath, outpath, pattern, agencies, logdir=None, debug=False, quiet=False):
+    """Reformat files from raw to standard format and add metadata."""
+    in_dir = inpath
+    out_dir = outpath
+    agencies_list = list(agencies) if agencies else []
+    pattern_list = list(pattern) if pattern else None
+
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=logdir,
+        logfile_prefix="reformat"
+    )
+
+    logger.info(
+        f"in_dir={in_dir}, out_dir={out_dir}, agencies={agencies_list}, pattern={pattern_list}"
+    )
+
+    if (pattern_list is not None) and (len(agencies_list) > 0):
+        raise ValueError("File pattern and list of agencies cannot both be specified")
+
+    if (pattern_list is None) and (len(agencies_list) == 0):
+        agencies_list = ["usgs", "des", "cdec", "noaa", "ncro"]
+
+    if pattern_list is None:
+        reformat_main(inpath=in_dir, outpath=out_dir, agencies=agencies_list)
+    else:
+        providers = _infer_provider_from_patterns(pattern_list)
+        if providers == {"des"}:
+            reformat_des_grouped(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
+        else:
+            reformat(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
 
 @click.command()
 @click.option(
@@ -618,11 +903,13 @@ def reformat_cli(inpath, outpath, pattern, agencies, logdir=None, debug=False, q
         agencies_list = ["usgs", "des", "cdec", "noaa", "ncro"]
 
     if pattern_list is None:
-        # Send to multithreaded driver
         reformat_main(inpath=in_dir, outpath=out_dir, agencies=agencies_list)
     else:
-        # Send to simple python with pattern
-        reformat(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
+        providers = _infer_provider_from_patterns(pattern_list)
+        if providers == {"des"}:
+            reformat_des_grouped(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
+        else:
+            reformat(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
 
 
 if __name__ == "__main__":

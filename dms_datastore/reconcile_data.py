@@ -34,6 +34,7 @@ Notes
 
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
 import os
 import re
@@ -107,6 +108,20 @@ class ReconcileAction:
     reason: str
     staged_path: Optional[str] = None
     repo_path: Optional[str] = None
+
+
+@dataclass
+class VettedWrite:
+    """Internal execution-ready result for screened reconciliation.
+
+    This wraps the lightweight :class:`ReconcileAction` with the prepared
+    dataframe and header text required for apply mode, so apply can write
+    without rereading and remerging the source files.
+    """
+
+    action: ReconcileAction
+    df_to_write: Optional[pd.DataFrame] = None
+    header_text: Optional[str] = None
 
 
 # -----------------------------
@@ -665,6 +680,94 @@ def _read_csv_timeseries(path: str) -> pd.DataFrame:
         )
     return df
 
+def _action_sort_key(action: ReconcileAction) -> Tuple[str, str, str, str]:
+    return (action.series_id, action.shard, action.action, action.reason)
+
+
+def _action_debug_string(action: ReconcileAction) -> str:
+    return (
+        f"{action.action} series_id={action.series_id} shard={action.shard} "
+        f"reason={action.reason} staged={action.staged_path} repo={action.repo_path}"
+    )
+
+
+def _header_for_reconcile_write(staged_path: str, repo_path: str) -> str:
+    return (
+        extract_commented_header(repo_path)
+        if os.path.exists(repo_path)
+        else extract_commented_header(staged_path)
+    )
+
+
+def _vet_one_flagged_shard(
+    *,
+    series_id: str,
+    shard: str,
+    spath: str,
+    rpath: Optional[str],
+    repo_dir: str,
+    atol: float,
+    rtol: float,
+    value_reference: str,
+    explicit_conflict: str,
+) -> Optional[VettedWrite]:
+    dest = rpath if rpath is not None else os.path.join(repo_dir, os.path.basename(spath))
+
+    if rpath is None or (not os.path.exists(rpath)):
+        action = ReconcileAction(
+            series_id=series_id,
+            shard=shard,
+            action="write",
+            reason="missing_in_repo",
+            staged_path=spath,
+            repo_path=dest,
+        )
+        df = read_flagged(spath, apply_flags=False, return_flags=True)
+        return VettedWrite(
+            action=action,
+            df_to_write=df,
+            header_text=_header_for_reconcile_write(spath, dest),
+        )
+
+    if _hash_data_section(spath) == _hash_data_section(rpath):
+        return None
+
+    sdf = read_flagged(spath, apply_flags=False, return_flags=True)
+    rdf = read_flagged(rpath, apply_flags=False, return_flags=True)
+    merged = _merge_screened_flags(
+        rdf,
+        sdf,
+        atol=atol,
+        rtol=rtol,
+        value_reference=value_reference,
+        explicit_conflict=explicit_conflict,
+    )
+
+    same_idx = merged.index.equals(rdf.index)
+    same_cols = list(merged.columns) == list(rdf.columns)
+    same_vals = (
+        same_idx
+        and same_cols
+        and _values_equal(merged, rdf.reindex(merged.index), atol=atol, rtol=rtol)
+    )
+    if same_vals:
+        return None
+
+    action = ReconcileAction(
+        series_id=series_id,
+        shard=shard,
+        action="write",
+        reason="flag_or_value_merge_changed",
+        staged_path=spath,
+        repo_path=dest,
+    )
+    return VettedWrite(
+        action=action,
+        df_to_write=merged,
+        header_text=_header_for_reconcile_write(spath, dest),
+    )
+
+
 # -----------------------------
 # Public APIs
 # -----------------------------
@@ -966,6 +1069,7 @@ def update_flagged_data(
     value_reference: str = "staged",
     explicit_conflict: str = "prefer_repo",
     plan: bool = False,
+    max_workers: int = 4,
 ) -> List[ReconcileAction]:
     """Reconcile staged screened data into repo screened data (flag-smart).
 
@@ -987,108 +1091,84 @@ def update_flagged_data(
     Repo headers are preserved whenever possible.
 
     Writes preserve the existing repo header (metadata) whenever possible.
+    Vetting is multithreaded, while writes remain serial and deterministic.
     """
+    if max_workers < 1:
+        raise ValueError("max_workers must be >= 1")
+
+    logger.info("update_flagged_data: scanning staged_dir=%s repo_dir=%s", staged_dir, repo_dir)
     staged_files = _list_csv_files(staged_dir)
     repo_files = _list_csv_files(repo_dir)
     staged_map = _index_by_series_and_shard(staged_files, remove_source=remove_source)
     repo_map = _index_by_series_and_shard(repo_files, remove_source=remove_source)
 
-    actions: List[ReconcileAction] = []
-
+    jobs: List[Tuple[str, str, str, Optional[str]]] = []
     for series_id, staged_shards in staged_map.items():
         repo_shards = repo_map.get(series_id, {})
-
-
         for shard, spath in staged_shards.items():
-            rpath = repo_shards.get(shard)
-            dest = (
-                rpath
-                if rpath is not None
-                else os.path.join(repo_dir, os.path.basename(spath))
-            )
+            jobs.append((series_id, shard, spath, repo_shards.get(shard)))
 
-            if rpath is None or (not os.path.exists(rpath)):
-                actions.append(
-                    ReconcileAction(
-                        series_id=series_id,
-                        shard=shard,
-                        action="write",
-                        reason="missing_in_repo",
-                        staged_path=spath,
-                        repo_path=dest,
-                    )
-                )
-                continue
+    logger.info(
+        "update_flagged_data: vetting %d staged shards with %d worker(s)",
+        len(jobs),
+        max_workers,
+    )
 
-            # Hash fast path (data section): if identical, skip.
-            if _hash_data_section(spath) == _hash_data_section(rpath):
-                continue
-
-            sdf = read_flagged(spath, apply_flags=False, return_flags=True)
-            rdf = read_flagged(rpath, apply_flags=False, return_flags=True)
-            merged = _merge_screened_flags(
-                rdf,
-                sdf,
-                atol=atol,
-                rtol=rtol,
-                value_reference=value_reference,
-                explicit_conflict=explicit_conflict,
-            )
-
-            # Decide if rewrite is needed by comparing parsed data section
-            same_idx = merged.index.equals(rdf.index)
-            same_cols = list(merged.columns) == list(rdf.columns)
-            same_vals = (
-                same_idx
-                and same_cols
-                and _values_equal(
-                    merged, rdf.reindex(merged.index), atol=atol, rtol=rtol
-                )
-            )
-            if same_vals:
-                continue
-
-            actions.append(
-                ReconcileAction(
+    vetted: List[VettedWrite] = []
+    if jobs:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_map = {
+                executor.submit(
+                    _vet_one_flagged_shard,
                     series_id=series_id,
                     shard=shard,
-                    action="write",
-                    reason="flag_or_value_merge_changed",
-                    staged_path=spath,
-                    repo_path=dest,
-                )
-            )
+                    spath=spath,
+                    rpath=rpath,
+                    repo_dir=repo_dir,
+                    atol=atol,
+                    rtol=rtol,
+                    value_reference=value_reference,
+                    explicit_conflict=explicit_conflict,
+                ): (series_id, shard, spath, rpath)
+                for series_id, shard, spath, rpath in jobs
+            }
+
+            try:
+                for future in concurrent.futures.as_completed(future_map):
+                    result = future.result()
+                    if result is not None:
+                        vetted.append(result)
+            except Exception:
+                for pending in future_map:
+                    pending.cancel()
+                raise
+
+    vetted.sort(key=lambda v: _action_sort_key(v.action))
+    actions = [v.action for v in vetted]
+
+    logger.info(
+        "update_flagged_data: vetting complete; %d update(s) planned from %d staged shard(s)",
+        len(actions),
+        len(jobs),
+    )
+    for action in actions:
+        logger.debug("update_flagged_data planned: %s", _action_debug_string(action))
 
     if plan:
         return actions
 
-    for a in actions:
-        if a.staged_path is None or a.repo_path is None:
-            raise ValueError("Internal error: missing paths in action")
-        head = (
-            extract_commented_header(a.repo_path)
-            if os.path.exists(a.repo_path)
-            else extract_commented_header(a.staged_path)
+    logger.info("update_flagged_data: applying %d update(s)", len(vetted))
+    for vetted_write in vetted:
+        action = vetted_write.action
+        if action.repo_path is None or vetted_write.df_to_write is None:
+            raise ValueError("Internal error: vetted write missing repo_path or dataframe")
+        logger.debug("update_flagged_data apply: %s", _action_debug_string(action))
+        _write_preserving_header(
+            df=vetted_write.df_to_write,
+            dest_path=action.repo_path,
+            header_text=vetted_write.header_text or "",
         )
 
-        if a.reason == "missing_in_repo":
-            df = read_flagged(a.staged_path, apply_flags=False, return_flags=True)
-        else:
-            sdf = read_flagged(a.staged_path, apply_flags=False, return_flags=True)
-            rdf = (
-                read_flagged(a.repo_path, apply_flags=False, return_flags=True)
-                if os.path.exists(a.repo_path)
-                else sdf.iloc[0:0]
-            )
-            df = _merge_screened_flags(
-                rdf,
-                sdf,
-                atol=atol,
-                rtol=rtol,
-                value_reference=value_reference,
-                explicit_conflict=explicit_conflict,
-            )
-
-        _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head)
-
+    logger.info("update_flagged_data: apply complete; %d update(s) written", len(vetted))
     return actions
+

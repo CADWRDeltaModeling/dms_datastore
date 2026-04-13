@@ -342,7 +342,7 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
                 else:
                     meta_out["agency_var_id"] = var_ids
 
-                meta_out["sublocation"] = bucket
+                meta_out["subloc"] = bucket
 
                 if len(cols) > 1:
                     meta_out["subloc_comment"] = (
@@ -356,10 +356,7 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
                 meta_out["source_columns"] = cols
 
                 meta_file = dict(meta)
-                if bucket == "default":
-                    meta_file.pop("subloc", None)
-                else:
-                    meta_file["subloc"] = bucket
+                meta_file["subloc"] = bucket
 
                 newfname = meta_to_filename(meta_file, repo="formatted")
                 work_dir, newfname_f = os.path.split(newfname)

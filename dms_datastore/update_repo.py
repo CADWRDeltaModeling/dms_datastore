@@ -1,9 +1,13 @@
 # dms_datastore/cli/update_repo.py
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+
 import click
 import pandas as pd
 
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
 from dms_datastore.reconcile_data import update_repo
 from dms_datastore._reconcile_cli import (
     echo_actions_text,
@@ -11,6 +15,9 @@ from dms_datastore._reconcile_cli import (
     resolve_plan_flag,
     write_actions_csv,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -57,6 +64,9 @@ from dms_datastore._reconcile_cli import (
     default=False,
     help="In plan mode, exit with code 2 if any actions would be taken.",
 )
+@click.option("--logdir", type=click.Path(path_type=Path), default=None, help="Optional log directory.")
+@click.option("--debug", is_flag=True, help="Enable debug logging and per-action output.")
+@click.option("--quiet", is_flag=True, help="Disable console logging.")
 def main(
     staged_dir: str,
     repo_dir: str,
@@ -74,10 +84,22 @@ def main(
     apply: bool,
     out_actions: str | None,
     fail_if_changes: bool,
+    logdir: Path | None,
+    debug: bool,
+    quiet: bool,
 ) -> None:
     """
     Reconcile staged vs repo time-series CSV files (formatted/processed tiers).
     """
+    level, console = resolve_loglevel(debug=debug, quiet=quiet)
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=logdir,
+        logfile_prefix="update_repo",
+    )
+
     if plan and apply:
         raise click.UsageError("Choose at most one of --plan or --apply (default is --plan).")
 
@@ -99,7 +121,9 @@ def main(
         plan=plan_effective,
     )
 
-    echo_actions_text(actions)
+    logger.info("update_repo CLI: %d action(s) computed", len(actions))
+    if debug:
+        echo_actions_text(actions)
 
     if out_actions is not None:
         if not out_actions.lower().endswith(".csv"):

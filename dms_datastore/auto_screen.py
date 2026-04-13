@@ -255,11 +255,10 @@ def auto_screen(
             continue
         metas, ts = meta_ts
         meta = metas[0]
-        subloc_actual = (
-            meta["sublocation"]
-            if "sublocation" in meta
-            else meta["subloc"] if "subloc" in meta else "default"
-        )
+        # temporary tolerance for "sublocation" added in early 2026. "subloc" is now preferred.
+        subloc_actual = meta.get("subloc", meta.get("sublocation", "default"))
+        if subloc_actual in (None, "", "none"):
+            subloc_actual = "default"
         proto = context_config(screen_config, station_id, subloc, param)
         do_plot = plot_dest is not None
         subloc_label = "" if subloc == "default" else subloc

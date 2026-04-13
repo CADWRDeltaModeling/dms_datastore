@@ -1,9 +1,13 @@
 # dms_datastore/cli/update_flagged_data.py
 from __future__ import annotations
 
+import logging
+from pathlib import Path
+
 import click
 import pandas as pd
 
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
 from dms_datastore.reconcile_data import update_flagged_data
 from dms_datastore._reconcile_cli import (
     echo_actions_text,
@@ -11,6 +15,9 @@ from dms_datastore._reconcile_cli import (
     resolve_plan_flag,
     write_actions_csv,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -54,6 +61,16 @@ from dms_datastore._reconcile_cli import (
     default=False,
     help="In plan mode, exit with code 2 if any actions would be taken.",
 )
+@click.option(
+    "--max-workers",
+    default=4,
+    type=int,
+    show_default=True,
+    help="Number of worker threads used for vetting staged shards.",
+)
+@click.option("--logdir", type=click.Path(path_type=Path), default=None, help="Optional log directory.")
+@click.option("--debug", is_flag=True, help="Enable debug logging and per-action output.")
+@click.option("--quiet", is_flag=True, help="Disable console logging.")
 def main(
     staged_dir: str,
     repo_dir: str,
@@ -66,10 +83,23 @@ def main(
     apply: bool,
     out_actions: str | None,
     fail_if_changes: bool,
+    max_workers: int,
+    logdir: Path | None,
+    debug: bool,
+    quiet: bool,
 ) -> None:
     """
     Reconcile staged screened data into repo screened data (flag-smart).
     """
+    level, console = resolve_loglevel(debug=debug, quiet=quiet)
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=logdir,
+        logfile_prefix="update_flagged_data",
+    )
+
     if plan and apply:
         raise click.UsageError("Choose at most one of --plan or --apply (default is --plan).")
 
@@ -84,9 +114,12 @@ def main(
         value_reference=value_source,
         explicit_conflict=flag_conflict,
         plan=plan_effective,
+        max_workers=max_workers,
     )
 
-    echo_actions_text(actions)
+    logger.info("update_flagged_data CLI: %d action(s) computed", len(actions))
+    if debug:
+        echo_actions_text(actions)
 
     if out_actions is not None:
         if not out_actions.lower().endswith(".csv"):

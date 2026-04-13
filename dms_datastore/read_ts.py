@@ -11,7 +11,8 @@ from collections import defaultdict
 import os
 import fnmatch
 from vtools.functions.merge import *
-from vtools.data.vtime import days, minutes, hours, months, seconds, years
+from vtools.data.duplicate_index import inspect_duplicate_index
+from vtools.data.vtime import days, minutes, hours, months, seconds, years, to_timedelta
 from dms_datastore.filename import extract_year_fname
 
 __all__ = [
@@ -128,13 +129,12 @@ def extract_commented_header(fpath, comment="#"):
     Header as single string, possibly with embedded end lines
     """
     lines = []
-    with open(fpath) as f:
+    with open(fpath, "r", encoding="utf-8") as f:
         for line in f:
             if line.startswith(comment):
                 lines.append(line)
             else:
                 break
-
     return "".join(lines)
 
 def parse_yaml_header(text, comment="#", strict_indent=True):
@@ -1619,7 +1619,7 @@ def infer_freq_robust(
                 freq = to_timedelta(p)
                 tester = index.round(p)
 
-                diff = (index - tester) < (freq / 5)
+                diff = abs(index - tester) < (freq / 5)
                 frac = diff.mean()
                 if frac > 0.98:
                     return p
@@ -1839,7 +1839,12 @@ def csv_retrieve_ts(
             tsm.append(dset[selector])
 
     if len(tsm) >= 2:
-        big_ts = ts_merge(tsm, strict_priority=True,names=tsm[0].columns if selector is not None else tsm[0].columns) 
+        try:
+            big_ts = ts_merge(tsm, strict_priority=True,names=tsm[0].columns if selector is not None else tsm[0].columns) 
+        except Exception as e:
+            for i, ts in enumerate(tsm):
+                inspect_duplicate_index(ts, label=f"tsm[{i}]")
+            raise
     else:
         big_ts = tsm[0]
     if force_regular:

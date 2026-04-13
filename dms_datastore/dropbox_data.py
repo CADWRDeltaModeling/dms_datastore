@@ -246,14 +246,19 @@ def _check_metadata(meta):
 
     required = [
         "station_id",
-        "sublocation",
+        "subloc",
         "source",
         "agency",
         "param",
         "unit",
         "time_zone",
     ]
-
+    # Explicitly forbid legacy key
+    if "sublocation" in meta:
+        raise ValueError(
+            "Metadata key 'sublocation' is no longer supported. "
+            "Use 'subloc' instead (e.g., 'default', 'upper', 'lower')."
+        )
     for k in required:
         if k not in meta:
             raise ValueError(f"Missing required metadata field '{k}'")
@@ -275,9 +280,18 @@ def _check_metadata(meta):
     _require_lower("agency")
     _require_lower("param")
 
-    # sublocation: explicit None allowed
-    if meta["sublocation"] is not None:
-        _require_lower("sublocation")
+    subloc = meta["subloc"]
+
+    if subloc is None or str(subloc).strip().lower() in ["", "none"]:
+        meta["subloc"] = "default"
+        subloc = "default"
+
+    if not isinstance(subloc, str):
+        raise ValueError(f"Metadata 'subloc' must be a string, got {type(subloc)}")
+
+    if subloc != subloc.lower():
+        raise ValueError(f"Metadata 'subloc' must be lower case. Got '{subloc}'")
+
 
     # unit: case preserved, but must be vtools compatible
     if not isinstance(meta["unit"], str):
