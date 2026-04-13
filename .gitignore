@@ -13,8 +13,6 @@
 **/cache
 # jupyter notebooks temp dir
 **/.ipynb_checkpoints
-# tests data
-tests/data
 # dss files
 *.dss
 # dask workspace
