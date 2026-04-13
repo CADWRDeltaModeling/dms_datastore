@@ -375,7 +375,7 @@ def _write_preserving_header(
     os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
     if header_text and not header_text.endswith("\n"):
         header_text = header_text + "\n"
-    with open(dest_path, "w", newline="\n") as f:
+    with open(dest_path, "w", encoding="utf-8", newline="\n") as f:
         if header_text:
             f.write(header_text)
         df.to_csv(f, header=True, sep=",", date_format=date_format)
@@ -654,6 +654,7 @@ def _read_csv_timeseries(path: str) -> pd.DataFrame:
         parse_dates=["datetime"],
         index_col="datetime",
         dtype={"user_flag": str},
+        encoding="utf-8",
     )
     if not isinstance(df.index, pd.DatetimeIndex):
         raise ValueError(f"Expected datetime index in {path}")
@@ -929,6 +930,7 @@ def update_repo(
                 continue
 
             # Parsed compare to ignore harmless numeric/formatting differences
+            logger.debug("Comparing staged=%s repo=%s series_id=%s shard=%s", spath, rpath, series_id, shard)
             sdf = read_ts(spath,force_regular=True)
             rdf = read_ts(rpath,force_regular=True)
             if list(sdf.columns) != list(rdf.columns):
