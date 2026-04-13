@@ -12,7 +12,7 @@ import pandas as pd
 from dms_datastore.read_ts import parse_yaml_header
 from dms_datastore.write_ts import prep_header, write_ts_csv
 
-pytestmark = pytest.mark.skip(reason="Temporarily disabled on CI due to reorder_metadata recursion fix")
+#pytestmark = pytest.mark.skip(reason="Temporarily disabled on CI due to reorder_metadata recursion fix")
 
 def leading_commented_header(text: str, comment: str = "#") -> str:
     # Use the same rule as extract_commented_header, but on an in-memory string

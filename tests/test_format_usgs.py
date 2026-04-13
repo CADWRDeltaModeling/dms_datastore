@@ -9,7 +9,7 @@ from dms_datastore.process_station_variable import (
     normalize_station_request,
     stationfile_or_stations,
 )
-pytestmark = pytest.mark.skip(reason="Temporarily disabled while fixing test data packaging in CI")
+#pytestmark = pytest.mark.skip(reason="Temporarily disabled while fixing test data packaging in CI")
 
 def test_nwis_download():
     stations = ["mok"]
