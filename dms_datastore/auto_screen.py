@@ -501,6 +501,7 @@ def ncro_fetcher(repo, station_id, param, subloc, data_path=None):
         repo=repo,
         data_path=data_path,
         meta=True,
+        force_regular=True
     )
 
 def general_fetcher(repo, station_id, param, subloc, data_path=None):
@@ -511,6 +512,7 @@ def general_fetcher(repo, station_id, param, subloc, data_path=None):
         repo=repo,
         data_path=data_path,
         meta=True,
+        force_regular=True
     )
 
 def custom_fetcher(agency):

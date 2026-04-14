@@ -104,7 +104,7 @@ def read_ts_repo(
     start=None,
     end=None,
     meta=False,
-    force_regular=False,
+    force_regular=True,
     modifier=None,
     data_path=None,
 ):

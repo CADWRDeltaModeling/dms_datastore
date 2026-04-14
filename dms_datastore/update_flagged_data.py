@@ -25,6 +25,12 @@ logger = logging.getLogger(__name__)
 @click.argument("staged_dir", type=click.Path(exists=True, file_okay=False, dir_okay=True))
 @click.argument("repo_dir", type=click.Path(exists=True, file_okay=False, dir_okay=True))
 @click.option(
+    "--pattern",
+    default="*.csv",
+    show_default=True,
+    help="Filename glob within each tier directory.",
+)
+@click.option(
     "--remove-source",
     is_flag=True,
     default=False,
@@ -74,6 +80,7 @@ logger = logging.getLogger(__name__)
 def main(
     staged_dir: str,
     repo_dir: str,
+    pattern: str,
     remove_source: bool,
     atol: float,
     rtol: float,
@@ -108,6 +115,7 @@ def main(
     actions = update_flagged_data(
         staged_dir=staged_dir,
         repo_dir=repo_dir,
+        pattern=pattern,
         remove_source=remove_source,
         atol=atol,
         rtol=rtol,

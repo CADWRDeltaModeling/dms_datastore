@@ -42,6 +42,7 @@ from dataclasses import dataclass
 from glob import glob
 from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+import shutil
 import numpy as np
 import pandas as pd
 from vtools import ts_merge
@@ -134,6 +135,28 @@ _RE_YEAR2 = re.compile(
 )
 _RE_YEAR1 = re.compile(r"^(?P<stem>.*)_(?P<year>\d{4})(?P<ext>\..{3,4})$")
 
+
+def file_empty(fname: str, comment: str = "#") -> bool:
+    """Check if a CSV file is empty or contains only comments/blank lines."""
+    if not os.path.exists(fname):
+        return True
+
+    if os.path.getsize(fname) == 0:
+        return True
+
+    with open(fname, "r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip().startswith(comment) and line.strip():
+                return False
+
+    return True
+
+
+
+def _quarantine_file(fname, quarantine_dir="quarantine"):
+    if not os.path.exists(quarantine_dir):
+        os.makedirs(quarantine_dir)
+    shutil.copy(fname, quarantine_dir)
 
 def _parse_shard(basename: str) -> Tuple[str, Optional[int]]:
     """ Parse a shard label from a filename.
@@ -378,7 +401,7 @@ def _write_preserving_header(
     with open(dest_path, "w", encoding="utf-8", newline="\n") as f:
         if header_text:
             f.write(header_text)
-        df.to_csv(f, header=True, sep=",", date_format=date_format)
+        df.to_csv(f, header=True, sep=",", date_format=date_format, lineterminator="\n",)
 
 
 # -----------------------------
@@ -698,8 +721,6 @@ def _header_for_reconcile_write(staged_path: str, repo_path: str) -> str:
         if os.path.exists(repo_path)
         else extract_commented_header(staged_path)
     )
-
-
 def _vet_one_flagged_shard(
     *,
     series_id: str,
@@ -712,9 +733,25 @@ def _vet_one_flagged_shard(
     value_reference: str,
     explicit_conflict: str,
 ) -> Optional[VettedWrite]:
+    logger.debug(
+        "vet flagged shard series_id=%s shard=%s staged=%s repo=%s",
+        series_id,
+        shard,
+        spath,
+        rpath,
+    )
+
     dest = rpath if rpath is not None else os.path.join(repo_dir, os.path.basename(spath))
 
+    # Missing repo file: staged data becomes the candidate write.
     if rpath is None or (not os.path.exists(rpath)):
+        try:
+            sdf = read_flagged(spath, apply_flags=False, return_flags=True)
+        except Exception as e:
+            logger.warning("Failed to read staged file %s: %s", spath, e)
+            _quarantine_file(spath)
+            return None
+
         action = ReconcileAction(
             series_id=series_id,
             shard=shard,
@@ -723,18 +760,57 @@ def _vet_one_flagged_shard(
             staged_path=spath,
             repo_path=dest,
         )
-        df = read_flagged(spath, apply_flags=False, return_flags=True)
         return VettedWrite(
             action=action,
-            df_to_write=df,
+            df_to_write=sdf,
             header_text=_header_for_reconcile_write(spath, dest),
         )
 
-    if _hash_data_section(spath) == _hash_data_section(rpath):
+    # Fast path: identical data section, nothing to do.
+    hash_equal = _hash_data_section(spath) == _hash_data_section(rpath)
+
+    if not hash_equal:
+        logger.debug(
+            "HASH DIFF: staged=%s repo=%s",
+            spath,
+            rpath,
+        )
+
+    if hash_equal:
         return None
 
-    sdf = read_flagged(spath, apply_flags=False, return_flags=True)
-    rdf = read_flagged(rpath, apply_flags=False, return_flags=True)
+    # Read staged screened file.
+    try:
+        sdf = read_flagged(spath, apply_flags=False, return_flags=True)
+    except Exception as e:
+        logger.warning("Failed to read staged file %s: %s", spath, e)
+        _quarantine_file(spath)
+        return None
+
+    # Read repo screened file. Empty/corrupt repo is treated as missing.
+    try:
+        rdf = read_flagged(rpath, apply_flags=False, return_flags=True)
+    except Exception as e:
+        if file_empty(rpath) and "No columns to parse" in str(e):
+            logger.warning(
+                "Repo file appears empty/corrupt, treating as missing: %s",
+                rpath,
+            )
+            action = ReconcileAction(
+                series_id=series_id,
+                shard=shard,
+                action="write",
+                reason="missing_in_repo",
+                staged_path=spath,
+                repo_path=dest,
+            )
+            return VettedWrite(
+                action=action,
+                df_to_write=sdf,
+                header_text=_header_for_reconcile_write(spath, dest),
+            )
+        raise
+
     merged = _merge_screened_flags(
         rdf,
         sdf,
@@ -746,11 +822,28 @@ def _vet_one_flagged_shard(
 
     same_idx = merged.index.equals(rdf.index)
     same_cols = list(merged.columns) == list(rdf.columns)
-    same_vals = (
-        same_idx
-        and same_cols
-        and _values_equal(merged, rdf.reindex(merged.index), atol=atol, rtol=rtol)
-    )
+
+    same_vals = False
+    if same_idx and same_cols:
+        rdf2 = rdf.reindex(merged.index)
+
+        value_diff = _diff_mask(
+            merged[["value"]],
+            rdf2[["value"]],
+            atol=atol,
+            rtol=rtol,
+        )
+
+        merged_flag = _normalize_flag(merged["user_flag"])
+        rdf_flag = _normalize_flag(rdf2["user_flag"])
+
+        flag_diff = ~(
+            (merged_flag.isna() & rdf_flag.isna())
+            | ((~merged_flag.isna()) & (~rdf_flag.isna()) & (merged_flag == rdf_flag))
+        ).to_numpy()
+
+        same_vals = (not value_diff.any()) and (not flag_diff.any())
+
     if same_vals:
         return None
 
@@ -767,7 +860,6 @@ def _vet_one_flagged_shard(
         df_to_write=merged,
         header_text=_header_for_reconcile_write(spath, dest),
     )
-
 
 # -----------------------------
 # Public APIs
@@ -854,31 +946,31 @@ def update_repo(
     If a meaningful change is detected outside the recent window, the function
     adds reconcile actions for the recent window shards as well.
     """
+
     if now is None:
         now = pd.Timestamp.now()
     this_year = int(now.year)
+
     if prefer not in ["repo", "staged"]:
         raise ValueError("prefer must be 'repo' or 'staged'")
 
-    if os.path.exists(repo_dir):
-        repo_dir = repo_dir
-    else:
-        try: 
+    if not os.path.exists(repo_dir):
+        try:
             repo_dir = dstore_config.config_file(repo_dir)
-        except:
+        except Exception:
             if not os.path.exists(repo_dir):
-                raise ValueError(f"Repo directory does not exist as a directory or as config entry that maps to directory: {repo_dir}")
-    
-        
+                raise ValueError(
+                    f"Repo directory does not exist as a directory or as config entry that maps to directory: {repo_dir}"
+                )
+
     staged_files = _list_csv_files(staged_dir, pattern=pattern)
-    repo_files = _list_csv_files(repo_dir, pattern="*")   # match all to detect deletions
+    repo_files = _list_csv_files(repo_dir, pattern="*")
     staged_map = _index_by_series_and_shard(staged_files, remove_source=remove_source)
     repo_map = _index_by_series_and_shard(repo_files, remove_source=remove_source)
 
     actions: List[ReconcileAction] = []
-    # Simple run-level counters (for logging / traceability)
-    n_candidates = 0  # number of staged shard files encountered
-    n_inspected = 0  # number of staged shard files inspected (after sampling)
+    n_candidates = 0
+    n_inspected = 0
 
     for series_id, staged_shards in staged_map.items():
         repo_shards = repo_map.get(series_id, {})
@@ -889,13 +981,13 @@ def update_repo(
                 f"Set allow_new_series=True to initialize new series."
             )
 
-        # Determine which shards to inspect for "change detection" outside recent window
         changed_old = False
+
         for shard, spath in staged_shards.items():
             n_candidates += 1
             rpath = repo_shards.get(shard)
+
             if rpath is None:
-                # New shard/file
                 actions.append(
                     ReconcileAction(
                         series_id=series_id,
@@ -908,7 +1000,6 @@ def update_repo(
                 )
                 continue
 
-            # If we can determine a year, apply sampling; otherwise treat as recent.
             _, end_year = _parse_shard(os.path.basename(spath))
             if end_year is None:
                 inspect = True
@@ -925,35 +1016,66 @@ def update_repo(
                 continue
             n_inspected += 1
 
-            # Fast compare: data-section hash
             if _hash_data_section(spath) == _hash_data_section(rpath):
                 continue
 
-            # Parsed compare to ignore harmless numeric/formatting differences
-            logger.debug("Comparing staged=%s repo=%s series_id=%s shard=%s", spath, rpath, series_id, shard)
-            sdf = read_ts(spath,force_regular=True)
-            rdf = read_ts(rpath,force_regular=True)
+            logger.debug(
+                "Comparing staged=%s repo=%s series_id=%s shard=%s",
+                spath,
+                rpath,
+                series_id,
+                shard,
+            )
+
+            try:
+                sdf = read_ts(spath, force_regular=True)
+            except Exception as e:
+                logger.warning("Failed to read staged file %s: %s", spath, e)
+                _quarantine_file(spath)
+                continue
+
+            try:
+                rdf = read_ts(rpath, force_regular=True)
+            except Exception as e:
+                if file_empty(rpath) and "No columns to parse" in str(e):
+                    logger.warning(
+                        "Repo file appears empty/corrupt, treating as missing: %s",
+                        rpath,
+                    )
+                    actions.append(
+                        ReconcileAction(
+                            series_id=series_id,
+                            shard=shard,
+                            action="write",
+                            reason="missing_in_repo",
+                            staged_path=spath,
+                            repo_path=os.path.join(repo_dir, os.path.basename(spath)),
+                        )
+                    )
+                    continue
+                raise
+
             if list(sdf.columns) != list(rdf.columns):
                 raise ValueError(
                     f"Column mismatch for {series_id} shard {shard}: "
                     f"repo={list(rdf.columns)} staged={list(sdf.columns)}"
                 )
-            # If one side has timestamps the other lacks, that is a meaningful change.
-            # (Typical case: staged has appended new data beyond repo.)
+
             common_idx = sdf.index.intersection(rdf.index)
-            has_new_timestamps = (len(common_idx) != len(sdf.index)) or (len(common_idx) != len(rdf.index))
+            has_new_timestamps = (len(common_idx) != len(sdf.index)) or (
+                len(common_idx) != len(rdf.index)
+            )
 
             if len(common_idx) == 0:
                 different = True
             elif has_new_timestamps:
                 different = True
             else:
-                # Same timestamps: compare values (possibly with tolerance)
                 different = not _values_equal(
                     sdf.loc[common_idx], rdf.loc[common_idx], atol=atol, rtol=rtol
                 )
+
             if different:
-                # More informative reason strings for plans/logs.
                 reason = "data_changed"
                 if len(common_idx) == 0:
                     reason = "empty_overlap"
@@ -961,9 +1083,7 @@ def update_repo(
                     extra_in_staged = sdf.index.difference(rdf.index)
                     extra_in_repo = rdf.index.difference(sdf.index)
                     if len(extra_in_staged) > 0 or len(extra_in_repo) > 0:
-                        # classify pure append/prepend when overlap matches
                         if len(extra_in_repo) == 0:
-                            # staged has additional timestamps only
                             if extra_in_staged.min() > rdf.index.max():
                                 reason = "append_only"
                             elif extra_in_staged.max() < rdf.index.min():
@@ -973,12 +1093,11 @@ def update_repo(
                         else:
                             reason = "index_mismatch"
                     else:
-                        # same timestamps; only value diffs can trigger 'different'
                         reason = "overlap_values_changed"
 
                 if end_year is not None and (this_year - end_year) > recent_years:
                     changed_old = True
-                # Mark shard for update; actual writing happens below
+
                 actions.append(
                     ReconcileAction(
                         series_id=series_id,
@@ -990,11 +1109,10 @@ def update_repo(
                     )
                 )
 
-        # If old history changed, escalate to reconciling the entire series.
         if changed_old:
-            # Ensure all shards are reconciled.
+            existing_action_shards = {a.shard for a in actions if a.series_id == series_id}
             for shard, spath in staged_shards.items():
-                if shard not in {a.shard for a in actions if a.series_id == series_id}:
+                if shard not in existing_action_shards:
                     actions.append(
                         ReconcileAction(
                             series_id=series_id,
@@ -1013,42 +1131,61 @@ def update_repo(
             n_updates,
             n_candidates,
             n_inspected,
-        )        
+        )
         return actions
 
-    # Execute actions
+    # -----------------------------
+    # APPLY PHASE
+    # -----------------------------
+    n_updates = len({(a.series_id, a.shard) for a in actions})
+
+    logger.info(
+        "update_repo apply: starting %d update(s) (%d staged shards, %d inspected)",
+        n_updates,
+        n_candidates,
+        n_inspected,
+    )
+
     n_updates = len({(a.series_id, a.shard) for a in actions})
     for a in actions:
         if a.action == "write":
-            # Preserve existing repo header if present; otherwise preserve staged header.
             if a.repo_path is None:
                 raise ValueError("Internal error: repo_path is None")
+            if a.staged_path is None:
+                raise ValueError("Internal error: staged_path is None")
+
             if os.path.exists(a.repo_path):
                 head = extract_commented_header(a.repo_path)
             else:
-                head = extract_commented_header(a.staged_path) if a.staged_path else ""
-            df = _read_csv_timeseries(a.staged_path)  # type: ignore[arg-type]
+                head = extract_commented_header(a.staged_path)
+
+            df = _read_csv_timeseries(a.staged_path)
             _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head)
+
         elif a.action == "splice_write":
             if a.staged_path is None:
                 raise ValueError("Internal error: staged_path is None")
-            # If repo missing, treat as write
+
             if a.repo_path is None or (not os.path.exists(a.repo_path)):
                 dest = os.path.join(repo_dir, os.path.basename(a.staged_path))
                 head = extract_commented_header(a.staged_path)
-                df = read_ts(a.staged_path)
+                df = read_ts(a.staged_path, force_regular=True)
                 _write_preserving_header(df=df, dest_path=dest, header_text=head)
                 continue
+
             head = extract_commented_header(a.repo_path)
-            sdf = _read_csv_timeseries(a.staged_path)
-            rdf = _read_csv_timeseries(a.repo_path)
-            if prefer == "repo": 
+            sdf = read_ts(a.staged_path, force_regular=True)
+            rdf = read_ts(a.repo_path, force_regular=True)
+
+            if prefer == "repo":
                 merged = ts_merge([rdf, sdf], strict_priority=True)
             elif prefer == "staged":
                 merged = ts_merge([sdf, rdf], strict_priority=True)
             else:
                 raise ValueError("prefer must be 'repo' or 'staged'")
+
             _write_preserving_header(df=merged, dest_path=a.repo_path, header_text=head)
+
         else:
             raise ValueError(f"Unknown action {a.action}")
 
@@ -1060,11 +1197,11 @@ def update_repo(
     )
     return actions
 
-
 def update_flagged_data(
     staged_dir: str,
     repo_dir: str,
     *,
+    pattern: str = "*.csv",
     remove_source: bool = False,
     atol: float = 0.0,
     rtol: float = 0.0,
@@ -1098,9 +1235,14 @@ def update_flagged_data(
     if max_workers < 1:
         raise ValueError("max_workers must be >= 1")
 
-    logger.info("update_flagged_data: scanning staged_dir=%s repo_dir=%s", staged_dir, repo_dir)
-    staged_files = _list_csv_files(staged_dir)
-    repo_files = _list_csv_files(repo_dir)
+    logger.info(
+        "update_flagged_data: scanning staged_dir=%s repo_dir=%s pattern=%s",
+        staged_dir,
+        repo_dir,
+        pattern,
+    )
+    staged_files = _list_csv_files(staged_dir, pattern=pattern)
+    repo_files = _list_csv_files(repo_dir, pattern=pattern)
     staged_map = _index_by_series_and_shard(staged_files, remove_source=remove_source)
     repo_map = _index_by_series_and_shard(repo_files, remove_source=remove_source)
 

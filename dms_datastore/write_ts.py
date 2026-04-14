@@ -355,6 +355,7 @@ def write_ts_csv(
                     header=True,
                     sep=",",
                     date_format="%Y-%m-%dT%H:%M:%S",
+                    lineterminator="\n",
                     **kwargs,
                 )
     else:
@@ -370,5 +371,6 @@ def write_ts_csv(
             header=True,
             sep=",",
             date_format="%Y-%m-%dT%H:%M:%S",
+            lineterminator="\n",
             **kwargs,
         )
