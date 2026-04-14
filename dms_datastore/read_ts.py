@@ -10,10 +10,15 @@ import inspect
 from collections import defaultdict
 import os
 import fnmatch
+from os.path import split as opsplit
+from os import PathLike
+
 from vtools.functions.merge import *
 from vtools.data.duplicate_index import inspect_duplicate_index
 from vtools.data.vtime import days, minutes, hours, months, seconds, years, to_timedelta
 from dms_datastore.filename import extract_year_fname
+import logging
+logger = logging.getLogger(__name__)
 
 __all__ = [
     "extract_commented_header",
@@ -339,8 +344,8 @@ def read_dms1(
         selector=selector,
         qaqc_selector=None,
         qaqc_accept=[],
-        parsedates=["datetime"],
-        indexcol="datetime",
+        parsedates=[0],   # should be in col 0 and called "datetime" is a requirement of the pattern but 
+        indexcol=0,
         sep=",",
         skiprows=0,
         header=0,
@@ -350,6 +355,10 @@ def read_dms1(
         freq=freq if freq not in (None, "None") else "infer",
         **kwargs,
     )
+    # Coerce defective to standard
+    if ts.index.name is None:
+        logger.warning(f"File/pattern {fpath_pattern} points to file with no index name. Coercing to 'datetime'")
+        ts.index.name = "datetime"
     return ts
 
 
@@ -1585,10 +1594,9 @@ def count_comments(fname, comment):
 
 
 def path_pattern(path_pattern):
-    from os.path import split as opsplit
 
-    if isinstance(path_pattern, str):
-        fdir, fpat = opsplit(path_pattern)
+    if isinstance(path_pattern, (str, PathLike)):
+        fdir, fpat = opsplit(str(path_pattern))
     else:
         fdir, fpat = path_pattern
     return fdir, fpat
@@ -1677,6 +1685,7 @@ def csv_retrieve_ts(
     nrows=None,
     **kwargs,
 ):
+    fpath_pattern = str(fpath_pattern)
     # Allow caller to provide additional NA tokens via kwargs (e.g. "(null)").
     # We cannot pass na_values directly to pd.read_csv because this function
     # already supplies na_values=extra_na. Instead, merge them here.

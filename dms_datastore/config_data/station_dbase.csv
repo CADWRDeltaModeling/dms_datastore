@@ -230,7 +230,7 @@ mow,MOW,Mowry Slough,37.485,-122.033,585491.4,4149116.2,,,,sfei,,x,,
 nw,NW,Newark Slough,37.513,-122.082,581128.9,4152179.4,,,,sfei,,x,,
 pond,POND,Pond A8 Outlet at Confluence with Alviso Slough,37.424,-121.98,590250.4,4142398,,,,sfei,,x,,
 sm,SM,San Mateo Bridge near surface,37.464,-122.024,586311.2,4146794.6,,,,sfei,,,x,
-ssw2,11426000,Sacramento Weir Spill to Yolo Bypass,38.440277,-121.554166,626181,4255656,,,SSW2,usgs,,,x,Only reports hourly flow and not realtime
+ssw2,11426000,Sacramento Weir Spill to Yolo Bypass,38.440277,-121.554166,626181,4255656,,,SSW2,usgs,,,x,Only reports daily flow and not realtime
 sfp17,'374811122235001,San Francisco Bay at Pier 17,37.803,-122.397,553143.4,4184169.8,,,,usgs,,,x,
 mrz2,9415102,Martinez-Amorco Pier,38.035,-122.125,576774.9,4210025.7,,,,noaa,x,,x,
 alvz,11169750,Alviso Slough Near Alviso,37.44,-121.998,588609.4,4144155.7,,,,usgs,,,x,

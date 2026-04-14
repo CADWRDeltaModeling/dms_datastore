@@ -1064,6 +1064,8 @@ def update_repo(
                         )
                     )
                     continue
+                logger.info("Error reading repo file %s: %s", rpath, e)
+                logger.error(e, stack_info=True, exc_info=True)
                 raise
 
             if list(sdf.columns) != list(rdf.columns):
