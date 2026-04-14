@@ -361,7 +361,7 @@ def ts_multifile(
             tsfreq = ts.index.freq if hasattr(ts.index, "freq") else None
             if commonfreq is None:
                 commonfreq = tsfreq
-            elif tsfreq < commonfreq:
+            elif compare_intervals(tsfreq, commonfreq) < 0:
                 print(
                     f"frequency change detected from {commonfreq} to {tsfreq} within pattern"
                 )
