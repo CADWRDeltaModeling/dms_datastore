@@ -407,6 +407,8 @@ def _write_preserving_header(
     os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
     if header_text and not header_text.endswith("\n"):
         header_text = header_text + "\n"
+    if df.index.name is None:
+        df.index.name = "datetime"
     with open(dest_path, "w", encoding="utf-8", newline="\n") as f:
         if header_text:
             f.write(header_text)
@@ -1169,6 +1171,8 @@ def update_repo(
                 head = extract_commented_header(a.staged_path)
 
             df = _read_csv_timeseries(a.staged_path)
+            if df.index.name is None:
+                df.index.name = "datetime"
             _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head)
 
         elif a.action == "splice_write":

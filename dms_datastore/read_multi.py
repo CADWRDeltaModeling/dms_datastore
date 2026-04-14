@@ -9,6 +9,7 @@ from dms_datastore import dstore_config
 from dms_datastore.filename import build_repo_globs, interpret_fname
 from vtools.functions.merge import ts_merge, ts_splice
 from vtools.functions.unit_conversions import *
+from vtools.data.vtime import compare_interval
 
 __all__ = ["read_ts_repo", "ts_multifile_read", "resolve_providers_for_repo"]
 
@@ -361,7 +362,7 @@ def ts_multifile(
             tsfreq = ts.index.freq if hasattr(ts.index, "freq") else None
             if commonfreq is None:
                 commonfreq = tsfreq
-            elif compare_intervals(tsfreq, commonfreq) < 0:
+            elif compare_interval(tsfreq, commonfreq) < 0:
                 print(
                     f"frequency change detected from {commonfreq} to {tsfreq} within pattern"
                 )
