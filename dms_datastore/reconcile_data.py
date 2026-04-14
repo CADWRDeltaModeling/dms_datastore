@@ -137,20 +137,29 @@ _RE_YEAR1 = re.compile(r"^(?P<stem>.*)_(?P<year>\d{4})(?P<ext>\..{3,4})$")
 
 
 def file_empty(fname: str, comment: str = "#") -> bool:
-    """Check if a CSV file is empty or contains only comments/blank lines."""
+    """Check if a CSV file is empty or contains only comments/blank lines.
+
+    This function is intentionally binary-safe so it can be used even when a file
+    has an encoding problem.
+    """
     if not os.path.exists(fname):
         return True
 
     if os.path.getsize(fname) == 0:
         return True
 
-    with open(fname, "r", encoding="utf-8") as f:
+    comment_b = comment.encode("ascii")
+
+    with open(fname, "rb") as f:
         for line in f:
-            if not line.strip().startswith(comment) and line.strip():
-                return False
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith(comment_b):
+                continue
+            return False
 
     return True
-
 
 
 def _quarantine_file(fname, quarantine_dir="quarantine"):

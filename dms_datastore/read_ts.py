@@ -1629,6 +1629,13 @@ def infer_freq_robust(
             )
         return f
 
+def _decode_context(path, pos, window=32):
+    with open(path, "rb") as f:
+        start = max(0, pos - window)
+        f.seek(start)
+        chunk = f.read(2 * window)
+    return " ".join(f"{b:02x}" for b in chunk)
+
 
 def csv_retrieve_ts(
     fpath_pattern,
@@ -1767,26 +1774,31 @@ def csv_retrieve_ts(
         dset = None  # to prevent holdover in memory
         if column_names is None:
             # warnings.filterwarnings('error')
-            # try:
-            dset = pd.read_csv(
-                m,
-                index_col=indexcol,
-                header=header,
-                skiprows=skiprows_spec,
-                sep=sep,
-                parse_dates=parsedates,
-                date_format=dateformat,
-                na_values=extra_na,
-                keep_default_na=True,
-                dtype=coltypes,
-                skipinitialspace=True,
-                nrows=nrows,
-                **dargs,
-            )
-            # print(dset.tail())
-            # except:
-            #    print(f"Warning for: {m}")
-            #    # reformat --inpath raw --outpath formatted
+            try:
+                dset = pd.read_csv(
+                    m,
+                    index_col=indexcol,
+                    header=header,
+                    skiprows=skiprows_spec,
+                    sep=sep,
+                    parse_dates=parsedates,
+                    date_format=dateformat,
+                    na_values=extra_na,
+                    keep_default_na=True,
+                    dtype=coltypes,
+                    skipinitialspace=True,
+                    nrows=nrows,
+                    **dargs,
+                )
+            except UnicodeDecodeError as e:
+                context = _decode_context(m, e.start)
+                raise RuntimeError(
+                    f"Invalid UTF-8 in file: {m}\n"
+                    f"Byte offset: {e.start}\n"
+                    f"Nearby bytes: {context}\n\n"
+                    "File is likely cp1252/latin-1 encoded."
+                ) from e
+
 
             if header is None:
                 # This is essentially a fixup for vtide, which I'm not
@@ -1801,23 +1813,32 @@ def csv_retrieve_ts(
             dset.columns = [x.strip() for x in dset.columns]
 
         else:
-            dset = pd.read_csv(
-                m,
-                index_col=indexcol,
-                header=header,
-                skiprows=skiprows_spec,
-                sep=sep,
-                parse_dates=parsedates,
-                date_format=dateformat,
-                na_values=extra_na,
-                keep_default_na=True,
-                dtype=coltypes,
-                names=column_names,
-                skipinitialspace=True,
-                nrows=nrows,
-                **dargs,
-            )
-
+            try:
+                dset = pd.read_csv(
+                    m,
+                    index_col=indexcol,
+                    header=header,
+                    skiprows=skiprows_spec,
+                    sep=sep,
+                    parse_dates=parsedates,
+                    date_format=dateformat,
+                    na_values=extra_na,
+                    keep_default_na=True,
+                    dtype=coltypes,
+                    names=column_names,
+                    skipinitialspace=True,
+                    nrows=nrows,
+                    **dargs,
+                )
+            except UnicodeDecodeError as e:
+                context = _decode_context(m, e.start)
+                raise RuntimeError(
+                    f"Invalid UTF-8 in file: {m}\n"
+                    f"Byte offset: {e.start}\n"
+                    f"Nearby bytes: {context}\n\n"
+                    "File is likely cp1252/latin-1 encoded."
+                ) from e
+            
         if qaqc_selector is not None:
             # It is costly to try to handle blanks differently for both data
             # (for which we usually want blanks to be NaN and alphanumeric flags.
