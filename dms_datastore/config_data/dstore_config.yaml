@@ -13,7 +13,8 @@ repo_base: "//cnrastore-bdo/Modeling_Data/repo"
 registries:
   continuous: station_dbase.csv
   processed: processed_series.csv
-  structures: structures.csv
+  structures: structures_registry.csv
+  daily: station_dbase.csv
 
 repos:
   formatted:
@@ -72,6 +73,7 @@ repos:
     data_key: [station_id, subloc, param, modifier, shard]
 
 
+
   structures:
     root: "//cnrastore-bdo/Modeling_Data/repo/structures"
     registry: structures
@@ -81,6 +83,28 @@ repos:
     filename_templates:
       - "{processor}_{structure_id@subloc}_{param@modifier}.csv"
       - "{processor}_{structure_id@subloc}_{param@modifier}_{year}.csv"
+
+
+  daily_formatted:
+    root: "//cnrastore-bdo/Modeling_Data/repo/daily/formatted"
+    registry: continuous  # aliases the station data base that provides supplementary metadata like geolocation and agency
+    site_key: station_id  # registry and template use this term for the site's identifier (was "key")
+    provider_key: source  # provider is the agency mainly involved in delivering the data. 
+                          # Generic for "source" (datamart) "agency" (collecting agency) and
+#                         #  "processor" (group synthesizing, manipulating or filling data)
+    provider_resolution_mode: registry_column   # way of differentiating data that cover 
+                                                # the same logical data set from two providers
+    provider_resolution_column: agency          # consult the registry column
+    provider_resolution_order:                  
+      bbid: ["cdec"]                    # ncro is prioritized over cdec
+      usgs: ["usgs"]
+      dwr: ["dwr", "cdec"]
+      ebmud: ["usgs", "ebmud", "cdec"]
+    filename_templates:
+      - "{source}_{station_id@subloc}_{agency_id}_{param}.csv"
+    file_key: [source, station_id, subloc, param]        # sufficient key to identify a file/wildcard group. 
+                                                                # shard is conceptual
+    data_key: [station_id, subloc, param]                # sufficient to describe a stream/series of data
 
 
 screen_config_v20230126: screen_config_v20230126.yaml

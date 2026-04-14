@@ -35,22 +35,21 @@ cdec_base_url = "cdec.water.ca.gov"
 
 
 def download_station_data(
-    row, dest_dir, start, end, endfile, param, overwrite, freq, failures, skips
+    row, dest_dir, start, end, endfile, param, overwrite, freq
 ):
-    # Extract station information
     station = row.station_id
     try:
         cdec_id = row.cdec_id.lower()
-    except:
+    except Exception:
         cdec_id = station
 
     agency_id = row.agency_id
     p = row.param
     z = row.src_var_id
     subloc = row.subloc
-    yearname = (
-        f"{start.year}_{endfile}"  # if start.year != end.year else f"{start.year}"
-    )
+    semantic_key = (station, p)
+
+    yearname = f"{start.year}_{endfile}"
 
     if subloc == "default":
         path = os.path.join(
@@ -61,55 +60,75 @@ def download_station_data(
             dest_dir, f"cdec_{station}@{subloc}_{agency_id}_{p}_{yearname}.csv"
         ).lower()
 
+    result = {
+        "station": station,
+        "paramname": p,
+        "param_code": z,
+        "semantic_key": semantic_key,
+        "path": path,
+        "found": False,
+        "skipped": False,
+        "reason": None,
+        "durations_tried": ["E", "H", "D", "M"] if freq is None else [freq],
+        "sensor_codes_tried": [z],
+    }
+
     if os.path.exists(path) and overwrite is False:
-        logger.info("Skipping existing station because file exists: %s" % path)
-        skips.append(path)
-        return
+        logger.info("Skipping existing station because file exists: %s", path)
+        result["skipped"] = True
+        result["reason"] = "exists"
+        return result
+
     stime = start.strftime("%m-%d-%Y")
     etime = end if end == "Now" else end.strftime("%m-%d-%Y")
+
+    logger.debug(f"Downloading station {station} parameter {p} sensor code {z}")
+
     found = False
-    logger.info(f"Downloading station {station} parameter {p} sensor code {z}")
-    zz = [z]
-    for code in zz:
+    for code in [z]:
         dur_codes = ["E", "H", "D", "M"] if freq is None else [freq]
         for dur in dur_codes:
-            station_query = f"http://{cdec_base_url}/dynamicapp/req/CSVDataServletPST?Stations={cdec_id}&SensorNums={code}&dur_code={dur}&Start={stime}&End={etime}"
+            station_query = (
+                f"http://{cdec_base_url}/dynamicapp/req/CSVDataServletPST"
+                f"?Stations={cdec_id}&SensorNums={code}&dur_code={dur}"
+                f"&Start={stime}&End={etime}"
+            )
+
             maxattempt = 5
-            response = None
+            station_html = ""
             for iattempt in range(maxattempt):
                 try:
                     response = requests.get(station_query)
                     station_html = response.text.replace("\r", "")
                     break
-                except:
+                except Exception:
                     time.sleep(1)
                     station_html = ""
-                    found = False
 
             if (station_html.startswith("Title") and len(station_html) > 16) or (
                 station_html.startswith("STATION_ID") and len(station_html) > 90
             ):
-                found = True
                 with open(path, "w") as f:
                     f.write(station_html)
-                logger.debug("Found, duration code: %s" % dur)
+                logger.debug("Found, duration code: %s", dur)
+                found = True
+                result["found"] = True
+                result["reason"] = "success"
+                result["duration_found"] = dur
                 break
+
         if found:
             break
-    if not found:
-        failures.append((station, p))
-        logger.info(f"No data found for durations {dur_codes}, sensor codes {zz}")
 
+    if not found:
+        result["reason"] = "no_data"
+
+    return result
 
 def cdec_download(
-    stations, dest_dir, start, end=None, param=None, overwrite=False, freq=None
+    stations, dest_dir, start, end=None, param=None, overwrite=False, freq=None, max_workers=6
 ):
-    """Download robot for CDEC
-    Requires a list of stations, destination directory and start/end date
-    These dates are passed on to CDEC ... actual return dates can be
-    slightly different
-    """
-
+    """Download robot for CDEC."""
     if end is None:
         end = dt.datetime.now()
         endfile = 9999
@@ -118,12 +137,7 @@ def cdec_download(
 
     if not os.path.exists(dest_dir):
         os.mkdir(dest_dir)
-    failures = []
-    skips = []
 
-    # This is a small hardwired section to cull ec values
-    # from the wrong sublocation/program
-    # CDEC uses a different variable code for each
     bottom_codes = {"92", "102"}
 
     stations = stations.copy()
@@ -140,47 +154,66 @@ def cdec_download(
         & ~stations.src_var_id.isin(bottom_codes)
     )
     stations = stations.loc[~subloc_inconsist, :]
-    for index, row in stations.iterrows():
-        download_station_data(
-            row, dest_dir, start, end, endfile, param, overwrite, freq, failures, skips
-        )
-    # # Use ThreadPoolExecutor
-    # with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-    # # Schedule the download tasks and handle them asynchronously
-    # futures = []
-    # for index, row in stations.iterrows():
-    # future = executor.submit(
-    # download_station_data,
-    # row,
-    # dest_dir,
-    # start,
-    # end,
-    # endfile,
-    # param,
-    # overwrite,
-    # freq,
-    # failures,
-    # skips,
-    # )
-    # futures.append(future)
 
-    # # Optionally, handle the results of the tasks
-    # for future in concurrent.futures.as_completed(futures):
-    # try:
-    # future.result()  # This line can be used to handle results or exceptions from the tasks
-    # except Exception as e:
-    # logger.error(f"Exception occurred during download: {e}")
+    results = []
 
-    if len(failures) == 0:
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for _, row in stations.iterrows():
+            futures.append(
+                executor.submit(
+                    download_station_data,
+                    row,
+                    dest_dir,
+                    start,
+                    end,
+                    endfile,
+                    param,
+                    overwrite,
+                    freq,
+                )
+            )
+
+        for future in concurrent.futures.as_completed(futures):
+            try:
+                results.append(future.result())
+            except Exception as e:
+                logger.error(f"Exception occurred during download: {e}")
+
+    grouped = {}
+    for result in results:
+        if result is None:
+            continue
+        key = result["semantic_key"]
+        grouped.setdefault(key, []).append(result)
+
+    final_failures = []
+    skips = []
+
+    for key, group in grouped.items():
+        if any(item.get("found") for item in group):
+            success_codes = [str(item["param_code"]) for item in group if item.get("found")]
+            logger.debug(f"Semantic success for {key} via code(s): {', '.join(success_codes)}")
+            continue
+
+        if all(item.get("skipped") for item in group):
+            skips.extend([item["path"] for item in group if item.get("path")])
+            continue
+
+        final_failures.append(key)
+
+        durs = sorted({dur for item in group for dur in item.get("durations_tried", [])})
+        codes = sorted({str(item["param_code"]) for item in group})
+        logger.info(f"No data found for station={key[0]} param={key[1]} durations={durs}, sensor codes={codes}")
+
+    if len(final_failures) == 0:
         logger.debug("No failed station variable combinations")
     else:
-        logger.debug("Failed query stations: ")
-        for failure in failures:
+        logger.info("Failed query stations:")
+        for failure in final_failures:
             logger.info(failure)
 
-
-
-
+    return results
 
 def download_cdec(
     dest_dir,

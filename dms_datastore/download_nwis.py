@@ -20,6 +20,7 @@ import concurrent.futures
 import shutil
 import json
 import yaml
+from urllib.parse import urlencode
 from dms_datastore.write_ts import write_ts_csv
 
 from dms_datastore.process_station_variable import (
@@ -50,6 +51,78 @@ def _quarantine_file(fname, quarantine_dir="quarantine"):
     shutil.move(fname, "quarantine")
 
 
+def _read_json_input(parseinput):
+    """Read JSON from a filename or a JSON string."""
+    if isinstance(parseinput, (str, os.PathLike)) and os.path.exists(parseinput):
+        with open(parseinput, "r", encoding="utf-8") as file:
+            return True, json.load(file)
+    return False, json.loads(parseinput)
+
+
+def parse_usgs_daily_json(parseinput, outfile, report_empty=False, metadata=None):
+    """Parse USGS OGC daily FeatureCollection JSON to a DMS1-compatible CSV.
+
+    Parameters
+    ----------
+    parseinput : str or path-like
+        JSON data or filename containing USGS daily JSON.
+    outfile : str
+        Output file name.
+    report_empty : bool or str
+        If truthy, log an informational message instead of raising when no
+        features are present. If a string is supplied it will be used in the log.
+    metadata : dict, optional
+        Additional metadata to merge into the output header.
+    """
+    from_file, data = _read_json_input(parseinput)
+
+    features = data.get("features", [])
+    if len(features) == 0:
+        if report_empty:
+            reportfname = parseinput if from_file else report_empty
+            logger.info(f"No daily time series features: {reportfname}")
+            return
+        else:
+            return
+
+    records = []
+    for feat in features:
+        props = feat.get("properties", {})
+        time_val = props.get("time")
+        value_val = props.get("value")
+        if time_val in (None, ""):
+            continue
+        records.append({"datetime": time_val, "value": value_val})
+
+    if len(records) == 0:
+        if report_empty:
+            reportfname = parseinput if from_file else report_empty
+            logger.info(f"Daily response had features but no time/value records: {reportfname}")
+            return
+        else:
+            return
+
+    result_df = pd.DataFrame.from_records(records)
+    result_df["datetime"] = pd.to_datetime(result_df["datetime"], errors="raise")
+    result_df["value"] = pd.to_numeric(result_df["value"], errors="coerce")
+    result_df = result_df.sort_values("datetime")
+    result_df = result_df.set_index("datetime")
+    result_df.index.name = "datetime"
+    result_df = result_df[["value"]]
+
+    out_meta = {
+        "format_modifier": "parse-usgs-daily-json",
+        "data_source": "usgs_ogc_daily",
+        "time_stamp": data.get("timeStamp"),
+        "number_returned": data.get("numberReturned"),
+    }
+    if metadata:
+        out_meta.update(metadata)
+
+    write_ts_csv(result_df, outfile, out_meta, chunk_years=False)
+    return result_df
+
+
 def parse_usgs_json(parseinput, outfile, report_empty=False):
     """
     Parameters
@@ -58,14 +131,7 @@ def parse_usgs_json(parseinput, outfile, report_empty=False):
     Output file name
 
     """
-    # Read the JSON data from a file
-    if os.path.exists(parseinput):
-        from_file = True
-        with open(parseinput, "r") as file:
-            data = json.load(file)
-    else:
-        from_file = False
-        data = json.loads(parseinput)
+    from_file, data = _read_json_input(parseinput)
 
     # Extract the time series data
     time_series_data = data["value"]["timeSeries"]
@@ -195,134 +261,312 @@ def parse_usgs_json(parseinput, outfile, report_empty=False):
     return result_df
 
 
-def download_station(
-    row, dest_dir, start, end, param, overwrite, endfile, successes, failures, skips
-):
+DAILY_PAGE_LIMIT = 50000
 
-    agency_id = row.agency_id
-    station = row.station_id
-    param = row.src_var_id
-    paramname = row.param
-    subloc = row.subloc
 
-    if (station, paramname) in successes:
-        return
+def _count_daily_days(start, end):
+    """Count inclusive whole days in a daily request window."""
+    return (end.date() - start.date()).days + 1
 
-    yearname = (
-        f"{start.year}_{endfile}"  # if start.year != end.year else f"{start.year}"
-    )
-    outfname = f"usgs_{station}_{agency_id}_{paramname}_{yearname}.csv"
-    # Water quality data; does not work in command line.
-    if str(paramname).startswith("qual"):
-        outfname = f"usgs_{station}_{agency_id}_{paramname}_{param}_{yearname}.csv"
-    outfname = outfname.lower()
-    path = os.path.join(dest_dir, outfname)
-    if os.path.exists(path) and not overwrite:
-        logger.info("Skipping existing station because file exists: %s" % station)
-        skips.append(path)
-        return
-    else:
-        logger.info(f"Attempting to download station: {station} variable {param}")
+
+def _check_daily_limit(start, end, limit=DAILY_PAGE_LIMIT):
+    """Raise if the requested daily span could exceed the one-request cap."""
+    ndays = _count_daily_days(start, end)
+    if ndays > limit:
+        raise ValueError(
+            f"Requested daily span is {ndays} days, which exceeds the current one-request "
+            f"limit of {limit}. Narrow the date range or implement pagination."
+        )
+
+
+def _build_usgs_daily_query(agency_id, start, end, param=None, limit=DAILY_PAGE_LIMIT):
+    """Build a one-page OGC API query for USGS daily values."""
+    params = {
+        "f": "json",
+        "lang": "en-US",
+        "limit": limit,
+        "properties": "time,value",
+        "skipGeometry": "true",
+        "sortby": "+time",
+        "monitoring_location_id": f"USGS-{agency_id}",
+        "time": f"{start.strftime('%Y-%m-%dT00:00:00Z')}/{end.strftime('%Y-%m-%dT00:00:00Z')}",
+    }
+    if param:
+        params["parameter_code"] = f"{int(param):05d}"
+    return "https://api.waterdata.usgs.gov/ogcapi/v0/collections/daily/items?" + urlencode(params)
+
+
+def _build_usgs_iv_query(agency_id, start, end, param=None, paramname=None):
+    """Build a legacy NWIS IV or water-quality query for one station/parameter."""
     stime = start.strftime("%Y-%m-%d")
     etime = end.strftime("%Y-%m-%d")
-    found = False
-    station_query_base = f"https://nwis.waterservices.usgs.gov/nwis/iv/?sites={agency_id}&startDT={stime}&endDT={etime}&format=json"
+    station_query_base = (
+        f"https://nwis.waterservices.usgs.gov/nwis/iv/?sites={agency_id}"
+        f"&startDT={stime}&endDT={etime}&format=json"
+    )
     if param:
         station_query = station_query_base + f"&variable={int(param):05}"
-        # station_query = station_query_base % (station,stime,etime,param)
     else:
         station_query = station_query_base
-    # Water quality data; does not work in command line.
+
     if str(paramname).startswith("qual"):
-        station_query_base = f"https://waterdata.usgs.gov/nwis/qwdata?site_no={agency_id}&begin_date={stime}&end_date={etime}&format=serial_rdb"
-        station_query_base = f"https://nwis.waterdata.usgs.gov/nwis/qwdata?site_no={agency_id}&begin_date={stime}&end_date={etime}&format=json"
+        station_query_base = (
+            f"https://nwis.waterdata.usgs.gov/nwis/qwdata?site_no={agency_id}"
+            f"&begin_date={stime}&end_date={etime}&format=json"
+        )
         if param:
             station_query = station_query_base + f"&parameter_cd={int(param):05}"
         else:
             station_query = station_query_base
-    logger.info(f"USGS Query for ({station},{paramname}): {station_query}")
-    max_attempt = 3
+    return station_query
+
+
+def _build_station_query(agency_id, start, end, param=None, paramname=None, daily=False):
+    """Build the outbound request URL for one station/parameter candidate."""
+    if daily:
+        _check_daily_limit(start, end)
+        return _build_usgs_daily_query(agency_id, start, end, param=param)
+    return _build_usgs_iv_query(agency_id, start, end, param=param, paramname=paramname)
+
+
+def _request_station_text(station_query, station, agency_id, param, max_attempt=3, timeout=75):
+    """Request text from USGS with bounded retries.
+
+    Parameters
+    ----------
+    station_query : str
+        Fully formed request URL.
+    station : str
+        Internal station identifier used for logging.
+    agency_id : str
+        Agency/site code used in the outgoing request.
+    param : str or None
+        Source parameter code used in the outgoing request.
+    max_attempt : int, optional
+        Maximum number of request attempts.
+    timeout : int or float, optional
+        Request timeout in seconds.
+
+    Returns
+    -------
+    tuple[str, int]
+        Response text and the successful attempt number.
+    """
     session = requests.Session()
-    station_html = ""
-    found = False
-    for attempt in range(1, (max_attempt + 1)):
+    last_exc = None
+    for attempt in range(1, max_attempt + 1):
         logger.debug(f"attempt: {attempt} variable {int(param):05}, {station}, {agency_id}")
         try:
             response = session.get(
                 station_query,
                 headers={"User-Agent": "Mozilla/6.0"},
-                timeout=75,
+                timeout=timeout,
             )
             response.raise_for_status()
-            station_html = response.text
             logger.debug("Request successful, got text")
-            break
-        except Exception as e:
-            # html part failed
+            return response.text, attempt
+        except Exception as exc:
+            last_exc = exc
             if attempt == max_attempt:
-                failures.append(station)
-                found = False
-                logger.debug(
-                    "Multiple failures in USGS web request for ({station},{paramname},{param})"
-                )
-            else:
-                continue  # Failed communication or download, next attempt
-        # If we got here, we got content. Find out whether it is legit data and parse it from json to csv
-        # Otherwise record it as not having provided data
-        # Assume, simply by virtue of size and the fact that the download code was success, that data are empty
-        found = True
-    if (
-        len(station_html) < 1000
-    ):  # Most USGS data fewer than 2000 characters have no good data
-        logger.info(
-            f"Small file for station {station} param name {paramname} param code {int(param):05}"
-        )
-        found = False
+                break
+    raise last_exc
+
+
+def download_station(
+    row, dest_dir, start, end, param, overwrite, endfile, daily=False
+):
+    """Download and parse one station/parameter candidate.
+
+    Parameters
+    ----------
+    row : pandas.Series
+        Normalized station request row containing station and variable metadata.
+    dest_dir : str or path-like
+        Destination directory for output files.
+    start : datetime.datetime
+        Inclusive start time for the request.
+    end : datetime.datetime
+        Inclusive end time for the request.
+    param : str or None
+        Optional parameter override from the caller. The row-specific source
+        variable id is used for the actual request.
+    overwrite : bool
+        If False, existing files are skipped.
+    endfile : int
+        Year token used in the output filename.
+    daily : bool, optional
+        If True, use the USGS OGC daily endpoint and daily parser.
+
+    Returns
+    -------
+    dict
+        Result record describing the attempt. This is aggregated in the main
+        thread so semantic success can be decided across multiple candidate
+        source codes for the same ``(station, paramname)``.
+    """
+    agency_id = row.agency_id
+    station = row.station_id
+    param = row.src_var_id
+    paramname = row.param
+    semantic_key = (station, paramname)
+
+    yearname = f"{start.year}_{endfile}"
+    outfname = f"usgs_{station}_{agency_id}_{paramname}_{yearname}.csv"
+    if (not daily) and str(paramname).startswith("qual"):
+        outfname = f"usgs_{station}_{agency_id}_{paramname}_{param}_{yearname}.csv"
+    outfname = outfname.lower()
+    path = os.path.join(dest_dir, outfname)
+
+    result = {
+        "station": station,
+        "paramname": paramname,
+        "param_code": param,
+        "semantic_key": semantic_key,
+        "path": path,
+        "query": None,
+        "found": False,
+        "skipped": False,
+        "reason": None,
+    }
+
+    if os.path.exists(path) and not overwrite:
+        logger.info("Skipping existing station because file exists: %s" % station)
+        result["skipped"] = True
+        result["reason"] = "exists"
+        return result
+
+    logger.debug(f"Attempting to download station: {station} variable {param}")
+    station_query = _build_station_query(
+        agency_id=agency_id,
+        start=start,
+        end=end,
+        param=param,
+        paramname=paramname,
+        daily=daily,
+    )
+    result["query"] = station_query
+    logger.debug(f"USGS Query for ({station},{paramname}): {station_query}")
+
+    try:
+        station_html, attempt = _request_station_text(station_query, station, agency_id, param)
+    except Exception:
+        logger.debug(f"Station {station} query failed or produced no data")
+        result["reason"] = "request_failed"
+        return result
+
+    if daily:
+        try:
+            daily_json = json.loads(station_html)
+        except json.JSONDecodeError:
+            logger.info(
+                f"Daily response for {station} {paramname} ({param}) was not valid JSON"
+            )
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(station_html)
+            _quarantine_file(path)
+            result["reason"] = "invalid_json"
+            return result
+
+        features = daily_json.get("features", [])
+        if len(features) == 0:
+            logger.debug(
+                f"Daily response yielded no features for station {station} variable {param}"
+            )
+            result["reason"] = "no_data"
+            return result
+
+        logger.info(f"Parsing USGS daily JSON: {path} param {param}")
+        try:
+            meta = {
+                "agency": "usgs",
+                "source": "usgs",
+                "station_id": station,
+                "agency_id": agency_id,
+                "param": paramname,
+                "src_var_id": param,
+            }
+            df = parse_usgs_daily_json(
+                station_html,
+                path,
+                report_empty=f"{station} {paramname} ({param})",
+                metadata=meta,
+            )
+        except Exception:
+            logger.info(
+                f"Parsing of daily {station} {paramname} ({param}) JSON to csv failed. Writing to quarantine"
+            )
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(station_html)
+            _quarantine_file(path)
+            result["reason"] = "parse_failed"
+            return result
     else:
-        # We know download code was success and file is big enough to test.
-        # The length threshold is conservative so could still be empty or bogus
+        if len(station_html) < 1000:
+            logger.info(
+                f"Small file for station {station} param name {paramname} param code {int(param):05}"
+            )
+            result["reason"] = "small_response"
+            return result
         if "No sites found matching" in station_html or "\"timeSeries\":[]" in station_html:
-            found = False
             logger.debug(
                 f"Based on typical indicators, attempt yielded no data for vari {int(param):05}.txt"
             )
-        else:
-            # Try parsing -- final word detecting non-data
-            logger.info(f"Parsing USGS JSON: {path} param {param}")
-            try:
-                df = parse_usgs_json(
-                    station_html, path, report_empty=f"{station} {paramname} ({param})"
-                )
-            except Exception as exc:
-                # Parsing broke. The quarantine allows it to be looked at for improvement of the parser.
-                # But here we just log it as no data and move on.
-                logger.info(
-                    f"Parsing of {station} {paramname} ({param}) JSON to csv failed. Writing to quarantine"
-                )
-                with open(path, "w") as f:
-                    f.write(station_html)
-                _quarantine_file(path)
-                found = False
-            if df is not None and not df.empty:
-                found = True
-                successes.add((station, paramname))
-                print(f"Apparent success in attempt {attempt} param {int(param):05}")
+            result["reason"] = "no_data"
+            return result
 
-            else:
-                found = False  # Looke promising but yielded no data
-                print("attempt yielded no data")
+        logger.info(f"Parsing USGS JSON: {path} param {param}")
+        try:
+            df = parse_usgs_json(
+                station_html, path, report_empty=f"{station} {paramname} ({param})"
+            )
+        except Exception:
+            logger.info(
+                f"Parsing of {station} {paramname} ({param}) JSON to csv failed. Writing to quarantine"
+            )
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(station_html)
+            _quarantine_file(path)
+            result["reason"] = "parse_failed"
+            return result
 
-    if not found:
-        logger.debug(f"Station {station} query failed or produced no data")
-        if (station, paramname) not in failures:
-            failures.append((station, paramname))
+    if df is not None and not df.empty:
+        result["found"] = True
+        result["reason"] = "success"
+        print(f"Apparent success in attempt {attempt} param {int(param):05}")
+    else:
+        print("attempt yielded no data")
+        result["reason"] = "no_data"
+
+    return result
 
 
-def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=False, max_workers=4):
-    """Download robot for NWIS
-    Requires a list of stations, destination directory and start/end date
-    These dates are passed on to CDEC ... actual return dates can be
-    slightly different
+def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=False, max_workers=4, daily=False):
+    """Download robot for NWIS.
+
+    Parameters
+    ----------
+    stations : pandas.DataFrame
+        Normalized station request table.
+    dest_dir : str or path-like
+        Destination directory for downloaded files.
+    start : datetime.datetime
+        Inclusive start time for the request.
+    end : datetime.datetime, optional
+        Inclusive end time for the request. If omitted, current time is used.
+    param : str or None, optional
+        Optional parameter override passed through the existing interface.
+    overwrite : bool, optional
+        If False, existing files are skipped.
+    max_workers : int, optional
+        Number of worker threads used for downloads.
+    daily : bool, optional
+        If True, use the USGS OGC daily endpoint and daily parser.
+
+    Notes
+    -----
+    Success and failure are aggregated after all worker threads complete. This
+    prevents misleading final failure messages when multiple candidate source
+    parameter codes map to the same semantic parameter name.
     """
     if end is None:
         end = dt.datetime.now()
@@ -332,12 +576,8 @@ def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
     if not os.path.exists(dest_dir):
         os.mkdir(dest_dir)
 
-    failures = []
-    skips = []
-    successes = set()
-    # Use ThreadPoolExecutor
+    results = []
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Schedule the download tasks and handle them asynchronously
         futures = []
         for ndx, row in stations.iterrows():
             future = executor.submit(
@@ -349,26 +589,42 @@ def nwis_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
                 param,
                 overwrite,
                 endfile,
-                successes,
-                failures,
-                skips,
+                daily,
             )
             futures.append(future)
 
-        # Optionally, handle the results of the tasks
         for future in concurrent.futures.as_completed(futures):
             try:
-                future.result()  # This line can be used to handle results or exceptions from the tasks
+                results.append(future.result())
             except Exception as e:
                 logger.debug(traceback.print_tb(e.__traceback__))
                 logger.error(f"Exception occurred during download: {e}")
 
-    if len(failures) == 0:
+    grouped = {}
+    for result in results:
+        if result is None:
+            continue
+        key = result["semantic_key"]
+        grouped.setdefault(key, []).append(result)
+
+    final_failures = []
+    for key, group in grouped.items():
+        if any(item.get("found") for item in group):
+            success_codes = [str(item["param_code"]).zfill(5) for item in group if item.get("found")]
+            logger.debug(f"Semantic success for {key} via code(s): {', '.join(success_codes)}")
+            continue
+        if all(item.get("skipped") for item in group):
+            continue
+        final_failures.append(key)
+
+    if len(final_failures) == 0:
         logger.info("No failed stations")
     else:
         logger.info("Failed query stations: ")
-        for failure in failures:
+        for failure in final_failures:
             logger.info(failure)
+
+    return results
 
 
 def parse_start_year(txt):
@@ -398,7 +654,7 @@ def parse_start_year(txt):
     return None
 
 
-def download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile):
+def download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile, daily=False):
     """Download robot for NWIS (National Water Information System)."""
     destdir = dest_dir
     stime = dt.datetime(*list(map(int, re.split(r"[^\d]", start))))
@@ -422,7 +678,7 @@ def download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile)
     df = attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id")
     vlookup = dstore_config.config_file("variable_mappings")
     df = attach_src_var_id(df, vlookup, source="usgs")
-    nwis_download(df, destdir, stime, etime, param, overwrite)
+    nwis_download(df, destdir, stime, etime, param, overwrite, daily=daily)
 
 
 @click.command()
@@ -460,11 +716,17 @@ def download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile)
     default=False,
     help="Overwrite existing files (if False they will be skipped, presumably for speed)",
 )
+@click.option(
+    "--daily",
+    is_flag=True,
+    default=False,
+    help="Use the USGS OGC daily-values endpoint and write DMS1-compatible daily output.",
+)
 @click.option("--logdir", type=click.Path(path_type=Path), default="logs")
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
 @click.argument("stationfile", nargs=-1)
-def download_nwis_cli(dest_dir, start, end, param, stations, overwrite, stationfile,logdir, debug, quiet):
+def download_nwis_cli(dest_dir, start, end, param, stations, overwrite, daily, stationfile,logdir, debug, quiet):
     """CLI for downloading NWIS (National Water Information System)."""
     
     
@@ -480,7 +742,7 @@ def download_nwis_cli(dest_dir, start, end, param, stations, overwrite, stationf
             logfile_prefix="download_nwis",  # per-CLI identity
         
     )    
-    download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile)
+    download_nwis(dest_dir, start, end, param, stations, overwrite, stationfile, daily=daily)
 
 
 if __name__ == "__main__":

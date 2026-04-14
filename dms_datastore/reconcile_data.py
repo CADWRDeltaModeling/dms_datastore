@@ -965,17 +965,11 @@ def update_repo(
     if prefer not in ["repo", "staged"]:
         raise ValueError("prefer must be 'repo' or 'staged'")
 
-    if not os.path.exists(repo_dir):
-        try:
-            repo_dir = dstore_config.config_file(repo_dir)
-        except Exception:
-            if not os.path.exists(repo_dir):
-                raise ValueError(
-                    f"Repo directory does not exist as a directory or as config entry that maps to directory: {repo_dir}"
-                )
+    repo_dir = dstore_config.resolve_repo_data_dir(repo_or_path=repo_dir)
+
 
     staged_files = _list_csv_files(staged_dir, pattern=pattern)
-    repo_files = _list_csv_files(repo_dir, pattern="*")
+    repo_files = _list_csv_files(repo_dir, pattern=pattern)
     staged_map = _index_by_series_and_shard(staged_files, remove_source=remove_source)
     repo_map = _index_by_series_and_shard(repo_files, remove_source=remove_source)
 
@@ -1249,6 +1243,8 @@ def update_flagged_data(
     """
     if max_workers < 1:
         raise ValueError("max_workers must be >= 1")
+
+    repo_dir = dstore_config.resolve_repo_data_dir(repo_or_path=repo_dir)
 
     logger.info(
         "update_flagged_data: scanning staged_dir=%s repo_dir=%s pattern=%s",

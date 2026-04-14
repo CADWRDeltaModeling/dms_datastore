@@ -22,12 +22,13 @@ data:
          names: ["datetime", "gate_1","gate_2","gate_3","gate_4","gate_5"]
          na_values: ["(null)", "null", "NULL", ""]
          hint: "resort"
+         force_regular: False
       merge_method: "ts_splice" # We will not call read_ts on wildcard, but rather glob and read and creat list of dfs
       merge_args: 
          transition: prefer_first
       selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
     transforms:
-      - name: dst_st      # SCADA is delivered local time. Often this is not needed from better data sources
+      - name: dst_tz      # SCADA is delivered local time. Often this is not needed from better data sources
         args:
           src_tz: US/Pacific
           target_tz: ${target_tz}
@@ -39,23 +40,24 @@ data:
           hyst: 0.5
           heartbeat_freq: 60min    
     metadata: 
-      station_id: ccf
-      agency_id: ccf
-      source: dms
+      structure_id: ccfb
+      agency_id: ccfb
+      processor: dms
       agency: dwr
+      source: dwr
       freq: None   # None for irregular, "infer" for infer.
       param: height
       unit: ft
-      sublocation: radial
+      subloc: radial
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}   
       latitude: 37.8299         # projected will be inferred. User changes should be made to projected, not latitude/longitude. 
       longitude: -121.55694
 
     output:
-      repo_name: formatted
+      repo_name: structures
       staging:
-        dir: ./drop_staging/formatted
+        dir: ./drop_staging
         write_args:
           float_format: "%0.3f"
           chunk_years: False
@@ -66,4 +68,4 @@ data:
         inspection:
           recent_years: 3
           p3: 0.15
-          p10: 0.05      
+          p10: 0.05     

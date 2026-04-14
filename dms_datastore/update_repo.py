@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
 @click.argument("staged_dir", type=click.Path(exists=True, file_okay=False, dir_okay=True))
-@click.argument("repo_dir", type=click.Path(exists=True, file_okay=False, dir_okay=True))
+@click.argument("repo_dir", type=str)
 @click.option("--pattern", default="*.csv", show_default=True, help="Filename glob within each tier directory.")
 @click.option(
     "--prefer",

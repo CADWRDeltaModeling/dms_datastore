@@ -14,36 +14,40 @@ def station_info(search):
     Arguments:
         SEARCHPHRASE: Search phrase which can be blank if using --config
     """
-    station_lookup = dstore_config.config_file("station_dbase")
     if search == "config":
         print(dstore_config.configuration())
         return
-    # vlookup = dstore_config.config_file("variable_mappings")
-    # slookup = pd.read_csv(station_lookup,sep=",",comment="#",header=0,usecols=["id","agency",
-    #                                                                           "agency_id","name",
-    #                                                                           "x","y","lat","lon"]).squeeze()
+
     slookup = dstore_config.station_dbase()[
-        ["agency", "agency_id", "name", "x", "y", "lat", "lon"]
-    ]
-    slookup.loc[:, "station_id"] = slookup.index.str.lower()
+        ["station_id", "agency", "agency_id", "name", "x", "y", "lat", "lon"]
+    ].copy()
+
+    # Avoid ambiguity between index name and column label.
+    slookup = slookup.reset_index(drop=True)
+
+    slookup["station_id"] = slookup["station_id"].astype(str).str.lower()
+    slookup["agency"] = slookup["agency"].astype(str)
+    slookup["agency_id"] = slookup["agency_id"].astype(str)
+    slookup["name"] = slookup["name"].astype(str)
+
     lsearch = search.lower()
-    match_id = slookup.station_id.str.contains(lsearch)
-    match_name = slookup.name.str.lower().str.contains(lsearch)
-    match_agency_id = slookup.agency_id.str.lower().str.contains(lsearch)
-    match_agency = slookup.agency.str.lower().str.contains(lsearch)
+    match_id = slookup["station_id"].str.contains(lsearch, na=False)
+    match_name = slookup["name"].str.lower().str.contains(lsearch, na=False)
+    match_agency_id = slookup["agency_id"].str.lower().str.contains(lsearch, na=False)
+    match_agency = slookup["agency"].str.lower().str.contains(lsearch, na=False)
+
     matches = match_id | match_name | match_agency_id | match_agency
+
     print("Matches:")
     mlook = slookup.loc[
         matches, ["station_id", "agency", "agency_id", "name", "x", "y", "lat", "lon"]
-    ].sort_values(
-        axis=0, by="station_id"
-    )  # .set_index("id")
+    ].sort_values(by="station_id")
+
     if mlook.shape[0] == 0:
         print("None")
     else:
-        print(mlook.to_string())
+        print(mlook.to_string(index=False))
     return mlook
-
 
 @click.command()
 @click.option(

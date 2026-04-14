@@ -10,6 +10,7 @@ __all__ = [
     "coerce_repo_config",
     "repo_config",
     "repo_root",
+    "resolve_repo_data_dir",
     "repo_names",
     "registry_df",
     "repo_registry",
@@ -70,6 +71,48 @@ def repo_root(repo=None, repo_cfg=None):
     cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
     return cfg["root"]
 
+def resolve_repo_data_dir(repo_or_path=None, repo=None, repo_cfg=None):
+    """
+    Resolve a physical repo data directory from either:
+      - an explicit existing directory path
+      - a configured repo name
+      - a repo_cfg dict
+
+    This is for callers that want repo semantics from config, but may override
+    the physical data location during debugging.
+    """
+    if repo_cfg is not None:
+        root = repo_root(repo_cfg=repo_cfg)
+        if not os.path.isdir(root):
+            raise ValueError(f"Configured repo root does not exist: {root}")
+        return root
+
+    if repo_or_path is not None and repo is not None:
+        raise ValueError("Provide only one of repo_or_path or repo")
+
+    target = repo if repo is not None else repo_or_path
+    if target is None:
+        raise ValueError("Must provide repo_or_path, repo, or repo_cfg")
+
+    # Direct directory override wins
+    if os.path.isdir(target):
+        return target
+
+    # Otherwise interpret as configured repo name
+    try:
+        root = repo_root(repo=target)
+    except Exception as e:
+        raise ValueError(
+            f"Not an existing directory and not a configured repo name: {target}"
+        ) from e
+
+    if not os.path.isdir(root):
+        raise ValueError(
+            f"Configured repo root for {target!r} does not exist: {root}"
+        )
+
+    return root
+
 
 def repo_registry(repo=None, repo_cfg=None):
     cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
@@ -86,30 +129,7 @@ def station_dbase():
     
     return repo_registry("formatted")
 
-    
-def blah():
-    global station_dbase_cache
-    if station_dbase_cache is None:
-        if dbase_name is None:
-            dbase_name = config_file("station_dbase")
-        db = pd.read_csv(
-            dbase_name,
-            sep=",",
-            comment="#",
-            header=0,
-            index_col="id",
-            dtype={"agency_id": str},
-        )
-        db["agency_id"] = db["agency_id"].str.replace("'", "", regex=True)
 
-        dup = db.index.duplicated()
-        db.index = db.index.str.replace("'", "")
-        if dup.sum(axis=0) > 0:
-            print("Duplicates")
-            print(db[dup])
-            raise ValueError("Station database has duplicate id keys. See above")
-        station_dbase_cache = db
-    return station_dbase_cache
 
 
 def sublocation_df(dbase_name=None):

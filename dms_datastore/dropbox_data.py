@@ -3,18 +3,24 @@ import re
 import pandas as pd
 import yaml
 import glob
+import click
+from vtools import dst_st, ts_merge, ts_splice,ts_coarsen
 from omegaconf import OmegaConf
 from dms_datastore.read_ts import read_ts, infer_freq_robust
 from dms_datastore.write_ts import write_ts_csv
-from dms_datastore.dstore_config import station_dbase
-from dms_datastore.filename import meta_to_filename
+from dms_datastore.dstore_config import repo_registry, repo_config
+from dms_datastore.filename import interpret_fname, meta_to_filename, naming_spec
 from dms_datastore.reconcile_data import update_repo
-import click
-from vtools import dst_st, ts_merge, ts_splice,ts_coarsen
+import logging
+from pathlib import Path
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
+
+logger = logging.getLogger(__name__)
+
 
 # Global variable to store cached data
 _cached_spec = None
-_station_dbase = station_dbase()
+
 
 _TRANSFORMS = {}
 
@@ -98,60 +104,134 @@ register_transform("dst_tz", _transform_dst_tz)
 
 
 
+_FILENAME_FIELD_SENTINELS = {"infer_from_filename", "registry_lookup"}
 
-def populate_meta(fpath, listing, meta_out=None):
+
+def _metadata_uses_filename_inference(metadata):
+    return any(value == "infer_from_filename" for value in (metadata or {}).values())
+
+
+def _metadata_uses_registry_lookup(metadata):
+    return any(value == "registry_lookup" for value in (metadata or {}).values())
+
+
+def _pattern_is_template(pattern):
+    return isinstance(pattern, str) and "{" in pattern and "}" in pattern
+
+
+def _template_to_glob(pattern):
+    return re.sub(r"\{[^{}]+\}", "*", pattern)
+
+
+def _registry_lookup_value(row, field_name):
+    field_map = {
+        "station_name": "name",
+        "agency": "agency",
+        "agency_id": "agency_id",
+        "latitude": "lat",
+        "longitude": "lon",
+        "projection_x_coordinate": "x",
+        "projection_y_coordinate": "y",
+    }
+    if field_name not in field_map:
+        raise ValueError(f"registry_lookup is not supported for metadata field '{field_name}'")
+
+    src = field_map[field_name]
+    if src not in row.index:
+        raise ValueError(f"Station registry is missing column '{src}' required for '{field_name}'")
+
+    val = row[src]
+    if pd.isna(val):
+        raise ValueError(f"Station registry column '{src}' is null for station")
+
+    if field_name in ("latitude", "longitude", "projection_x_coordinate", "projection_y_coordinate"):
+        return float(val)
+    return val
+
+
+def _infer_meta_from_template_path(fpath, listing):
+    pattern = listing["collect"]["file_pattern"]
+    name = listing.get("name", "<unnamed>")
+    if not _pattern_is_template(pattern):
+        raise ValueError(f"{name}: collect.file_pattern must be a filename template when using infer_from_filename")
+    return interpret_fname(os.path.basename(fpath), naming=naming_spec(templates=[pattern]))
+
+
+def _resolve_metadata_value(field_name, raw_value, inferred_meta, registry_row):
+    if raw_value == "infer_from_filename":
+        if field_name not in inferred_meta or inferred_meta[field_name] in (None, ""):
+            raise ValueError(f"Could not infer metadata field '{field_name}' from filename")
+        return inferred_meta[field_name]
+
+    if raw_value == "registry_lookup":
+        if registry_row is None:
+            raise ValueError(f"registry_lookup requested for '{field_name}' but no registry row is available")
+        return _registry_lookup_value(registry_row, field_name)
+
+    return raw_value
+
+
+def _registry_row_for_metadata(name, merged, repo_name):
+    rcfg = repo_config(repo_name)
+    site_key = rcfg["site_key"]
+    slookup = repo_registry(repo_name)
+
+    if site_key in merged and merged[site_key] not in (None, "", "infer_from_filename"):
+        sid = str(merged[site_key]).strip()
+        if sid in slookup.index:
+            return slookup.loc[sid]
+        raise ValueError(f"{name}: {site_key} '{sid}' not found in registry for repo {repo_name!r}")
+
+    if "agency_id" in merged and merged["agency_id"] not in (None, "", "infer_from_filename"):
+        aid = str(merged["agency_id"]).strip()
+        hits = slookup[slookup["agency_id"].astype(str).str.strip() == aid]
+        if hits.empty:
+            raise ValueError(f"{name}: agency_id '{aid}' not found in registry for repo {repo_name!r}")
+        if len(hits) > 1:
+            raise ValueError(f"{name}: agency_id '{aid}' matched multiple rows in registry for repo {repo_name!r}")
+        return hits.iloc[0]
+
+    return None
+
+def populate_meta(fpath, listing, repo_name, meta_out=None):
+    rcfg = repo_config(repo_name)
+    site_key = rcfg["site_key"]
+
     meta = dict(listing.get("metadata", {}) or {})
     name = listing.get("name", "<unnamed>")
+    inferred = dict(meta_out or {})
 
-    # Start from inferred/meta_out, but do NOT overwrite user-provided keys.
-    out = dict(meta_out or {})
-    for k, v in meta.items():
-        out[k] = v
+    out = {}
+    for field_name, raw_value in meta.items():
+        if raw_value == "registry_lookup":
+            continue
+        out[field_name] = _resolve_metadata_value(field_name, raw_value, inferred, None)
 
-    # station_id must exist (leave deeper standards to _check_metadata)
-    if "station_id" not in out:
-        raise ValueError(
-            f"{name}: Missing 'station_id' in metadata."
-        )
+    for field_name, value in inferred.items():
+        if field_name not in out:
+            out[field_name] = value
 
-    # Optional inference from agency_id ONLY when explicitly requested.
-    if str(out["station_id"]) == "infer_from_agency_id":
+    if site_key not in out:
+        raise ValueError(f"{name}: Missing '{site_key}' after metadata resolution.")
+
+    if str(out[site_key]) == "infer_from_agency_id":
         if "agency_id" not in out or out["agency_id"] in (None, ""):
-            raise ValueError(
-                f"{name}: station_id=infer_from_agency_id requires agency_id."
-            )
-        slookup = station_dbase()
-        hits = slookup[slookup["agency_id"] == out["agency_id"]]
+            raise ValueError(f"{name}: {site_key}=infer_from_agency_id requires agency_id.")
+        slookup = repo_registry(repo_name)
+        hits = slookup[slookup["agency_id"].astype(str).str.strip() == str(out["agency_id"]).strip()]
         if hits.empty:
-            raise ValueError(f"{name}: agency_id '{out['agency_id']}' not found in station database.")
-        out["station_id"] = hits.index[0]
+            raise ValueError(f"{name}: agency_id '{out['agency_id']}' not found in registry for repo {repo_name!r}.")
+        if len(hits) > 1:
+            raise ValueError(f"{name}: agency_id '{out['agency_id']}' matched multiple rows in registry for repo {repo_name!r}.")
+        out[site_key] = hits.index[0]
 
-    # Optional enrichment (NOT elaborating now): only if a station exists and only fill missing keys.
-    # (You can later gate this with an explicit station_database flag.)
-    try:
-        slookup = station_dbase()
-        sid = out["station_id"]
-        if sid in slookup.index:
-            for src_key, dst_key in [
-                ("name", "station_name"),
-                ("agency", "agency"),
-                ("agency_id", "agency_id"),
-                ("lat", "latitude"),
-                ("lon", "longitude"),
-                ("x", "projection_x_coordinate"),
-                ("y", "projection_y_coordinate"),
-            ]:
-                if dst_key not in out or out[dst_key] is None:
-                    val = slookup.loc[sid, src_key]
-                    if pd.isna(val):
-                        continue
-                    out[dst_key] = float(val) if dst_key in ("latitude","longitude","projection_x_coordinate","projection_y_coordinate") else val
-    except Exception:
-        # No silent fill: if lookup fails, just leave things as-is.
-        pass
+    registry_row = _registry_row_for_metadata(name, out, repo_name)
+
+    for field_name, raw_value in meta.items():
+        if raw_value == "registry_lookup":
+            out[field_name] = _resolve_metadata_value(field_name, raw_value, inferred, registry_row)
 
     return out
-
 
 def infer_meta(fpath, listing, fail="none"):
     print(listing)
@@ -203,7 +283,7 @@ def _apply_transforms(ts, transforms):
         if tname not in _TRANSFORMS:
             raise ValueError(f"Unknown transform '{tname}'")
         else:
-            print(f"Applying transform '{tname}' with args {targs}")
+            logger.debug("dropbox: applying transform=%s args=%s", tname, targs)
         ts = _TRANSFORMS[tname](ts, **targs)
 
     return ts
@@ -238,14 +318,12 @@ def _maybe_rename_value_column(ts, splice_args):
     raise ValueError(f"splice_args.rename must be str or dict, got {type(ren)}")
 
 
-def _check_metadata(meta):
-    """
-    Enforce metadata standards. Fail hard on violation.
-    No coercion, no defaults, no inference here.
-    """
+def _check_metadata(meta, repo_name):
+    rcfg = repo_config(repo_name)
+    site_key = rcfg["site_key"]
 
     required = [
-        "station_id",
+        site_key,
         "subloc",
         "source",
         "agency",
@@ -275,11 +353,11 @@ def _check_metadata(meta):
             )
 
     # lowercase-enforced fields
-    _require_lower("station_id")
+
     _require_lower("source")
     _require_lower("agency")
     _require_lower("param")
-
+    _require_lower(site_key)
     subloc = meta["subloc"]
 
     if subloc is None or str(subloc).strip().lower() in ["", "none"]:
@@ -340,183 +418,339 @@ def _check_metadata(meta):
         )
 
 
-def get_data(spec):
-
+def get_data(spec, selected_names=None):
+    logger.info("dropbox: loaded %d recipe entries", len(spec["data"]))
     always_skip = True
 
-    for listing in spec["data"]:  # iterate over listings (Moke, Clifton Court, etc.)
+    selected_names = None if not selected_names else set(selected_names)
+    seen_names = set()
+    failures = []
+    successes = []
+
+    for listing in spec["data"]:
         name = listing.get("name", "<unnamed>")
-        if "skip" in listing and always_skip:
-            """skip the item, possibly because it is securely archived already"""
-            if listing["skip"] in ["True", True]:
-                continue
+        seen_names.add(name)
 
-        item = listing["collect"]
-        output = listing.get("output", {}) or {}
-        repo_name = output.get("repo_name", None)
-        if repo_name is None:
-            raise ValueError(f"{name}: missing required 'output.repo_name'")
+        if selected_names is not None and name not in selected_names:
+            continue
+        try:
+            logger.info("dropbox: processing listing=%s", name)
+            if "skip" in listing and always_skip:
+                if listing["skip"] in ["True", True]:
+                    logger.info("dropbox: skipping listing=%s (skip=True)", name)
+                    continue
 
-        staging_cfg = output.get("staging", {}) or {}
-        dest = staging_cfg.get("dir", None)
-        if dest is None:
-            raise ValueError(f"{name}: missing required 'output.staging.dir'")
-        if not os.path.exists(dest):
-            raise ValueError(f"{name}: output.staging.dir does not exist: {dest}")
+            item = listing["collect"]
+            output = listing.get("output", {}) or {}
+            repo_name = output.get("repo_name", None)
+            if repo_name is None:
+                raise ValueError(f"{name}: missing required 'output.repo_name'")
 
-        reconcile_cfg = output.get("reconcile", None)
+            staging_cfg = output.get("staging", {}) or {}
+            dest = staging_cfg.get("dir", None)
+            if dest is None:
+                raise ValueError(f"{name}: missing required 'output.staging.dir'")
+            if not os.path.exists(dest):
+                raise ValueError(f"{name}: output.staging.dir does not exist: {dest}")
 
-        file_pattern = item["file_pattern"]
-        location = item["location"]
+            reconcile_cfg = output.get("reconcile", None)
 
-        # With OmegaConf, path composition should be done via interpolation in YAML,
-        # e.g. "${dropbox_home}/ebmud" rather than Python .format(...).
-        for field_name, field_val in [
-            ("collect.file_pattern", file_pattern),
-            ("collect.location", location),
-        ]:
-            if isinstance(field_val, str) and "{dropbox_home}" in field_val:
-                raise ValueError(
-                    f"{name}: {field_name} still contains '{{dropbox_home}}'. "
-                    "Update the YAML to use OmegaConf interpolation instead, e.g. '${dropbox_home}/...'."
-                )
+            file_pattern = item["file_pattern"]
+            location = item["location"]
 
-        recursive = bool(item["recursive_search"])
-
-        collector = DataCollector("dummy", location, file_pattern, recursive)
-        wildcard = item.get(
-            "wildcard", None
-        )  # expected: time_shard | time_overlap | None
-        reader = reader_for(item["reader"])
-        if reader is None:
-            raise ValueError(f"{name}: unknown reader '{item['reader']}'")
-
-        selector = item.get("selector", None)
-        input_metadata = listing["metadata"]
-        reader_args = item.get("reader_args", {}) or {}
-        # transforms live at the listing level in the YAML (sibling to collect/metadata/output).
-        # Also accept legacy key "transform" (singular) if present.
-        transforms = listing.get("transforms", None)
-        if transforms is None:
-            transforms = listing.get("transform", []) or []
-        transforms = transforms or []
-        splice_args = item.get("splice_args", {}) or {}
-
-        # --- Read according to wildcard interpretation
-        series_list = []
-        meta_source_path = None
-
-        if wildcard == "time_shard":
-            # vtools read_ts style: pass the glob directly
-            fglob = collector.data_file_glob()
-            ts = reader(fglob, selector=selector, freq=input_metadata["freq"], **reader_args)
-            ts = _maybe_rename_value_column(ts, splice_args)
-            series_list = [ts]
-            meta_source_path = fglob
-
-        elif wildcard == "time_overlap":
-            # expand/sort/read each; then splice/merge
-            allfiles = sorted(collector.data_file_list())
-            if not allfiles:
-                raise ValueError(
-                    f"{name}: glob matched no files: {collector.data_file_glob()}"
-                )
-            meta_source_path = allfiles[0]
-            for fpath in allfiles:
-                ts = reader(
-                    fpath, selector=selector, freq=input_metadata["freq"], **reader_args
-                )
-                if not isinstance(ts.index, pd.DatetimeIndex):
+            # With OmegaConf, path composition should be done via interpolation in YAML,
+            # e.g. "${dropbox_home}/ebmud" rather than Python .format(...).
+            for field_name, field_val in [
+                ("collect.file_pattern", file_pattern),
+                ("collect.location", location),
+            ]:
+                if isinstance(field_val, str) and "{dropbox_home}" in field_val:
                     raise ValueError(
-                        f"{name}: reader did not return DatetimeIndex for file {fpath}"
+                        f"{name}: {field_name} still contains '{{dropbox_home}}'. "
+                        "Update the YAML to use OmegaConf interpolation instead, e.g. '${dropbox_home}/...'."
                     )
-                ts = _maybe_rename_value_column(ts, splice_args)
-                series_list.append(ts)
 
-        elif wildcard is None:
-            # single file (no wildcard semantics)
-            fglob = collector.data_file_glob()
-            matched = sorted(glob.glob(fglob, recursive=collector.recursive))
-            if not matched:
-                raise ValueError(f"{name}: file pattern matched no files: {fglob}")
-            if len(matched) > 1:
+            recursive = bool(item["recursive_search"])
+
+            collector = DataCollector("dummy", location, file_pattern, recursive)
+            wildcard = item.get(
+                "wildcard", None
+            )  # expected: time_shard | time_overlap | None
+            uses_filename_inference = _metadata_uses_filename_inference(listing.get("metadata", {}))
+            uses_registry_lookup = _metadata_uses_registry_lookup(listing.get("metadata", {}))
+            uses_template_pattern = _pattern_is_template(file_pattern)
+
+            if uses_filename_inference and not uses_template_pattern:
                 raise ValueError(
-                    f"{name}: collect.wildcard omitted but pattern matched multiple files: {matched}"
+                    f"{name}: infer_from_filename requires collect.file_pattern to be a filename template"
                 )
-            meta_source_path = matched[0]
-            ts = reader(meta_source_path, selector=selector, freq=input_metadata["freq"], **reader_args)
-            ts = _maybe_rename_value_column(ts, splice_args)
-            series_list = [ts]
 
-        else:
-            raise ValueError(
-                f"{name}: collect.wildcard must be 'time_shard', 'time_overlap', or omitted; got '{wildcard}'"
-            )
+            inference_mode = uses_filename_inference or (uses_registry_lookup and uses_template_pattern)
+            logger.info(
+               "dropbox: listing=%s location=%s pattern=%s wildcard=%s inference_mode=%s",
+                name, location, file_pattern, wildcard, inference_mode
+           )
+            reader = reader_for(item["reader"])
+            if reader is None:
+                raise ValueError(f"{name}: unknown reader '{item['reader']}'")
 
-        # --- Combine if needed (combine BEFORE transforms to avoid creating duplicate
-        # timestamps via DST conversion, and because overlap feeds should resolve
-        # duplicates in the combine step)
-        if len(series_list) == 1:
-            ts = series_list[0]
-        else:
-            merge_method = item.get("merge_method", "ts_splice")
-            merge_args = item.get("merge_args", {}) or {}
+            selector = item.get("selector", None)
+            input_metadata = listing["metadata"]
+            reader_args = item.get("reader_args", {}) or {}
+            # transforms live at the listing level in the YAML (sibling to collect/metadata/output).
+            # Also accept legacy key "transform" (singular) if present.
+            transforms = listing.get("transforms", None)
+            if transforms is None:
+                transforms = listing.get("transform", []) or []
+            transforms = transforms or []
+            splice_args = item.get("splice_args", {}) or {}
 
-            if merge_method == "ts_splice":
-                ts = ts_splice(series_list, **merge_args)
-            elif merge_method == "ts_merge":
-                ts = ts_merge(series_list, **merge_args)
+            # --- Read according to wildcard interpretation
+            series_list = []
+            meta_source_path = None
+
+            if inference_mode:
+                if wildcard is not None:
+                    raise ValueError(
+                        f"{name}: filename/template inference mode does not support collect.wildcard; omit it"
+                    )
+                template_glob = _template_to_glob(file_pattern)
+                matched = sorted(glob.glob(os.path.join(location, template_glob), recursive=collector.recursive))
+                if not matched:
+                    raise ValueError(
+                        f"{name}: filename template matched no files: {os.path.join(location, template_glob)}"
+                    )
+                per_file_results = []
+                for fpath in matched:
+                    logger.debug("dropbox: listing=%s reading file=%s", name, fpath)
+                    try:
+                        ts = reader(
+                            fpath,
+                            selector=selector,
+                            freq=input_metadata["freq"],
+                            **reader_args,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "dropbox: READ FAILED listing=%s file=%s pattern=%s selector=%r reader_args=%r",
+                            name, fpath, file_pattern, selector, reader_args,
+                        )
+                        raise
+
+                    ts = _maybe_rename_value_column(ts, splice_args)
+                    if not isinstance(ts.index, pd.DatetimeIndex):
+                        raise ValueError(f"{name}: reader did not return DatetimeIndex for file {fpath}")
+                    per_file_results.append((fpath, ts))
+
+            elif wildcard == "time_shard":
+                # vtools read_ts style: pass the glob directly
+                fglob = collector.data_file_glob()
+                logger.debug("dropbox: listing=%s reading glob=%s", name, fglob)
+                try:
+                    ts = reader(
+                        fglob,
+                        selector=selector,
+                        freq=input_metadata["freq"],
+                        **reader_args,
+                    )
+                except Exception:
+                    logger.exception(
+                        "dropbox: READ FAILED listing=%s file=%s pattern=%s selector=%r reader_args=%r",
+                        name, fpath, file_pattern, selector, reader_args,
+                    )
+                    raise           
+                ts = _maybe_rename_value_column(ts, splice_args)
+                series_list = [ts]
+                meta_source_path = fglob
+
+            elif wildcard == "time_overlap":
+                # expand/sort/read each; then splice/merge
+                allfiles = sorted(collector.data_file_list())
+                if not allfiles:
+                    raise ValueError(
+                        f"{name}: glob matched no files: {collector.data_file_glob()}"
+                    )
+                meta_source_path = allfiles[0]
+                for fpath in allfiles:
+                    logger.debug("dropbox: listing=%s reading file=%s", name, fpath)
+                    try:
+                        ts = reader(
+                            fpath,
+                            selector=selector,
+                            freq=input_metadata["freq"],
+                            **reader_args,
+                        )
+                    except Exception:
+                        logger.exception(
+                            "dropbox: READ FAILED listing=%s file=%s pattern=%s selector=%r reader_args=%r",
+                            name, fpath, file_pattern, selector, reader_args,
+                        )
+                        raise
+
+                    if not isinstance(ts.index, pd.DatetimeIndex):
+                        raise ValueError(
+                            f"{name}: reader did not return DatetimeIndex for file {fpath}"
+                        )
+                    ts = _maybe_rename_value_column(ts, splice_args)
+                    series_list.append(ts)
+
+            elif wildcard is None:
+                # single file (no wildcard semantics)
+                fglob = collector.data_file_glob()
+                matched = sorted(glob.glob(fglob, recursive=collector.recursive))
+                if not matched:
+                    raise ValueError(f"{name}: file pattern matched no files: {fglob}")
+                if len(matched) > 1:
+                    raise ValueError(
+                        f"{name}: collect.wildcard omitted but pattern matched multiple files: {matched}"
+                    )
+                meta_source_path = matched[0]
+                try:
+                    ts = reader(
+                        meta_source_path,
+                        selector=selector,
+                        freq=input_metadata["freq"],
+                        **reader_args,
+                    )
+                except Exception:
+                    logger.exception(
+                        "dropbox: READ FAILED listing=%s file=%s pattern=%s selector=%r reader_args=%r",
+                        name, meta_source_path, file_pattern, selector, reader_args,
+                    )
+                    raise
+                
+                ts = _maybe_rename_value_column(ts, splice_args)
+                series_list = [ts]
+
             else:
                 raise ValueError(
-                    f"{name}: merge_method must be 'ts_splice' or 'ts_merge', "
-                    f"got '{merge_method}'"
+                    f"{name}: collect.wildcard must be 'time_shard', 'time_overlap', or omitted; got '{wildcard}'"
                 )
 
-        # Now apply transforms once, after combining
-        ts = _apply_transforms(ts, transforms)
-        inferring_meta = "metadata_infer" in listing
-        if inferring_meta:
-            inferred_meta = infer_meta(meta_source_path, listing)
-        else:
-            inferred_meta = {}
+            # --- Combine if needed (combine BEFORE transforms to avoid creating duplicate
+            # timestamps via DST conversion, and because overlap feeds should resolve
+            # duplicates in the combine step)
+            outputs_to_write = []
 
-        meta_out = populate_meta(meta_source_path, listing, inferred_meta)
+            if inference_mode:
+                for meta_source_path, ts in per_file_results:
+                    ts = _apply_transforms(ts, transforms)
+                    inferred_meta = _infer_meta_from_template_path(meta_source_path, listing)
+                    meta_out = populate_meta(
+                        meta_source_path,
+                        listing,
+                        repo_name=repo_name,
+                        meta_out=inferred_meta,
+                    )
 
-        # infer frequency if requested
-        if meta_out["freq"] == "infer":
-            meta_out["freq"] = infer_freq_robust(ts.index)
+                    if meta_out["freq"] == "infer":
+                        meta_out["freq"] = infer_freq_robust(ts.index)
 
-        # use "irregular" if None is specified
-        if meta_out["freq"] is None or meta_out["freq"] == "None":
-            meta_out["freq"] = "irregular"
+                    if meta_out["freq"] is None or meta_out["freq"] == "None":
+                        meta_out["freq"] = "irregular"
 
-        if "sublocation" not in meta_out or meta_out["sublocation"] is None:
-            meta_out["sublocation"] = "default"
+                    _check_metadata(meta_out, repo_name)
+                    outputs_to_write.append((ts, meta_out))
+            else:
+                if len(series_list) == 1:
+                    ts = series_list[0]
+                else:
+                    merge_method = item.get("merge_method", "ts_splice")
+                    merge_args = item.get("merge_args", {}) or {}
 
-        _check_metadata(meta_out)
+                    if merge_method == "ts_splice":
+                        ts = ts_splice(series_list, **merge_args)
+                    elif merge_method == "ts_merge":
+                        ts = ts_merge(series_list, **merge_args)
+                    else:
+                        raise ValueError(
+                            f"{name}: merge_method must be 'ts_splice' or 'ts_merge', "
+                            f"got '{merge_method}'"
+                        )
 
-        fname_out = meta_to_filename(meta_out, repo=repo_name, include_shard=False)
-        fname_out = os.path.join(dest, fname_out)
+                ts = _apply_transforms(ts, transforms)
+                inferring_meta = "metadata_infer" in listing
+                if inferring_meta:
+                    inferred_meta = infer_meta(meta_source_path, listing)
+                else:
+                    inferred_meta = {}
 
-        write_args = dict(staging_cfg.get("write_args", {"float_format": "%.4f"}) or {})
-        write_ts_csv(ts, fname_out, metadata=meta_out, **write_args)
+                meta_out = populate_meta(meta_source_path, listing, repo_name, inferred_meta)
 
-        if reconcile_cfg is not None:
-            inspection_cfg = reconcile_cfg.get("inspection", {}) or {}
-            repo_dir = reconcile_cfg.get("repo_data_dir", repo_name)
-            update_repo(
-                staged_dir=dest,
-                repo_dir=repo_dir,
-                prefer=reconcile_cfg.get("prefer", "staged"),
-                allow_new_series=reconcile_cfg.get("allow_new_series", True),
-                recent_years=inspection_cfg.get("recent_years", 3),
-                p3=inspection_cfg.get("p3", 0.15),
-                p10=inspection_cfg.get("p10", 0.05),
+                if meta_out["freq"] == "infer":
+                    meta_out["freq"] = infer_freq_robust(ts.index)
+
+                if meta_out["freq"] is None or meta_out["freq"] == "None":
+                    meta_out["freq"] = "irregular"
+
+                _check_metadata(meta_out, repo_name)
+                outputs_to_write.append((ts, meta_out))
+            logger.info(
+                "dropbox: listing=%s writing %d output file(s) to %s",
+                name, len(outputs_to_write), dest
             )
+            write_args = dict(staging_cfg.get("write_args", {"float_format": "%.4f"}) or {})
+            for ts, meta_out in outputs_to_write:
+                fname_out = meta_to_filename(meta_out, repo=repo_name, include_shard=False)
+                fname_out = os.path.join(dest, fname_out)
+                write_ts_csv(ts, fname_out, metadata=meta_out, **write_args)
 
-def dropbox_data(spec_fname):
+            if reconcile_cfg is not None:
+                inspection_cfg = reconcile_cfg.get("inspection", {}) or {}
+
+                # Physical destination for reconcile writes/reads:
+                # - explicit scratch/debug path if provided
+                # - otherwise configured root for repo_name
+                repo_data_dir = reconcile_cfg.get("repo_data_dir", repo_name)
+                logger.info(
+                    "dropbox: listing=%s reconcile staged_dir=%s repo_target=%s",
+                    name, dest, repo_data_dir
+                )
+
+                update_repo(
+                    staged_dir=dest,
+                    repo_dir=repo_data_dir,
+                    prefer=reconcile_cfg.get("prefer", "staged"),
+                    allow_new_series=reconcile_cfg.get("allow_new_series", True),
+                    recent_years=inspection_cfg.get("recent_years", 3),
+                    p3=inspection_cfg.get("p3", 0.15),
+                    p10=inspection_cfg.get("p10", 0.05),
+                )
+        except Exception as e:
+            logger.exception("dropbox: FAILED listing=%s", name)
+            failures.append(
+                {
+                    "name": name,
+                    "error_type": type(e).__name__,
+                    "message": str(e),
+                }
+            )
+            continue
+
+    if selected_names is not None:
+            missing = selected_names - seen_names
+            if missing:
+                raise ValueError(
+                    f"Requested recipe name(s) not found in YAML: {sorted(missing)}"
+                )
+    logger.info(
+        "dropbox: completed run with %d succeeded, %d failed",
+        len(successes),
+        len(failures),
+    )
+
+    if failures:
+        failed_names = [f["name"] for f in failures]
+        logger.error("dropbox: failed listings=%s", failed_names)
+        raise RuntimeError(
+            "One or more recipe entries failed. "
+            f"Failed listings: {failed_names}. "
+            "Use --name <recipe> to rerun and repair individual entries."
+        )            
+
+def dropbox_data(spec_fname, selected_names=None):
     spec = get_spec(spec_fname)
-    get_data(spec)
+    get_data(spec, selected_names=selected_names)
 
 
 @click.command(name="dropbox")
@@ -525,11 +759,26 @@ def dropbox_data(spec_fname):
     "spec_fname",
     required=True,
     type=click.Path(exists=True, dir_okay=False, readable=True),
-    help="YAML file with dropbox specification.",
+    help="YAML file with dropbox specification.",)
+@click.option(
+    "--name",
+    "selected_names",
+    multiple=True,
+    help="Run only the named recipe entry or entries from the YAML.",
 )
-def dropbox_cli(spec_fname):
+@click.option("--logdir", type=click.Path(path_type=Path), default=None, help="Optional log directory.")
+@click.option("--debug", is_flag=True, help="Enable debug logging and per-file output.")
+@click.option("--quiet", is_flag=True, help="Disable console logging.")
+def dropbox_cli(spec_fname,selected_names, logdir, debug, quiet): 
     """Read unformatted data files and write formatted CSV files per dropbox spec."""
-    dropbox_data(spec_fname)
+    level, console = resolve_loglevel(debug=debug, quiet=quiet)
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=logdir,
+    )
+    dropbox_data(spec_fname,selected_names)
 
 
 if __name__ == "__main__":
