@@ -13,25 +13,48 @@ des_rationalize_time_spec: des_rationalize_cfg.yaml
 repo_base: "//cnrastore-bdo/Modeling_Data/repo"
 
 # registry files available to repos
+
+
 registries:
   continuous: station_dbase.csv
   processed: processed_series.csv
   structures: structures_registry.csv
   daily: station_dbase.csv
 
+
 repos:
   formatted:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/formatted"
-    registry: continuous  # aliases the station data base that provides supplementary metadata like geolocation and agency
-    site_key: station_id  # registry and template use this term for the site's identifier (was "key")
-    provider_key: source  # provider is the agency mainly involved in delivering the data. 
-                          # Generic for "source" (datamart) "agency" (collecting agency) and
-#                         # "processor" (group synthesizing, manipulating or filling data)
-    provider_resolution_mode: registry_column   # way of differentiating data that cover 
-                                                # the same logical data set from two providers
-    provider_resolution_column: agency          # consult the registry column
-    provider_resolution_order:                  
-      ncro: ["ncro", "cdec"]                    # ncro is prioritized over cdec
+
+    # Registry providing supplementary metadata (e.g., agency, location)
+    registry: continuous
+
+    # Primary identifier for a site (station, structure, etc.). This will be a key for the registry 
+    # and is always part of filename templates, usually in the second slot
+    # Examples: structure_id or station_id
+    site_key: station_id
+
+    # Depending on settings for the repo, multiple sources (e.g., ncro, cdec) may supply the same series
+    # For instance Bacon Island conductance is observed by NCRO but distributed both by NCRO (QA/QC'd data on Water Data Library)
+    # and on CDEC (realtime, not QA/QC). This field, in this case {source} appears in the filename template
+    # (typically first slot) and drives globbing and merge order
+    provider_key: source
+
+    # Strategy for resolving multiple providers for the same data_key if allwed. Possibilities: 
+    # assume_unique: only one provider allowed (no resolution needed)
+    # registry_column: use registry metadata to determine preferred providers
+    provider_resolution_mode: registry_column
+
+    # Registry column used to decide provider selection policy
+    # Example: station_id → agency gives you the id of the observing agency, which is unique and a good basis for
+    # prioritizing various sources. Used in provider_resolution_order.
+    provider_resolution_column: agency
+
+    # Mapping from registry value → ordered list of preferred providers (this is the generic term, in this case it is {source})
+    # Example: if agency = ncro, prefer ncro then cdec in the {source} slot
+    # The keys must match the provider_resolution_column values (agency) and mapped values must match the provider_key field (here: source)
+    provider_resolution_order:
+      ncro: ["ncro", "cdec"]
       dwr_ncro: ["ncro"]
       des: ["des"]
       dwr_des: ["des"]
@@ -41,19 +64,29 @@ repos:
       dwr_om: ["cdec"]
       dwr: ["dwr", "cdec"]
       ebmud: ["usgs", "ebmud", "cdec"]
+
+    # Filename template
+    # {source} is the provider_key and disambiguates multiple files for the same data_key
     filename_templates:
       - "{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
-    file_key: [source, station_id, subloc, param, shard]        # sufficient key to identify a file/wildcard group. 
-                                                                # shard is conceptual
-    data_key: [station_id, subloc, param, shard]                # sufficient to describe a stream/series of data
+
+    # File identity: uniquely identifies a physical file (includes provider dimension)
+    # shard is conceptual (e.g., year or syear/eyear depending on template)
+    file_key: [source, station_id, subloc, param, shard]
+
+    # Data identity: uniquely identifies a logical time series independent of provider
+    # Multiple files (different sources) may map to the same data_key
+    data_key: [station_id, subloc, param, shard]
 
 
   screened:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
     registry: continuous
     site_key: station_id
+    # screened data is assumed to be grouped according to the original agency/program that manages the station.
+    # so whereas in formatted you might have both "ncro" and "cdec" sources for a station, here they will be unified under ncro.    
     provider_key: agency
-    provider_resolution_mode: assume_unique
+    provider_resolution_mode: assume_unique   # given the above policy, the screened directory is assumed to provide only one version of each logical stream
     filename_templates:
       - "{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
     file_key: [agency, station_id, subloc, param, shard]
@@ -66,7 +99,7 @@ repos:
     registry: processed
     site_key: station_id
     provider_key: processor
-    provider_resolution: assume_unique
+    provider_resolution: assume_unique     # This may have to be adjusted for cases like SF harmonic tides where there is a noaa and dwr version
     filename_templates:
       - "{processor}_{station_id@subloc}_{param@modifier}.csv"
       - "{processor}_{station_id@subloc}_{param@modifier}_{year}.csv"
