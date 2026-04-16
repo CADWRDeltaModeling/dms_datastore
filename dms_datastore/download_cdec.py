@@ -86,7 +86,12 @@ def download_station_data(
 
     found = False
     for code in [z]:
-        dur_codes = ["E", "H", "D", "M"] if freq is None else [freq]
+
+        if freq is None:
+            dur_codes = ["E"]   # new default
+        else:
+            dur_codes = [f.strip().upper() for f in freq.split(",")]
+
         for dur in dur_codes:
             station_query = (
                 f"http://{cdec_base_url}/dynamicapp/req/CSVDataServletPST"
@@ -315,8 +320,9 @@ def download_cdec(
 )
 @click.option(
     "--freq",
-    default=None,
-    help="Specify the frequency. Otherwise proceeds from even to hour to day. Must be H or D",
+    default="E",
+    help="Frequency code(s): E (event), H (hourly), D (daily), M (monthly). "
+     "Default is E. Multiple values allowed as comma-separated list (e.g., E,H,D)."
 )
 @click.argument("stationfile", nargs=-1)
 def download_cdec_cli(
