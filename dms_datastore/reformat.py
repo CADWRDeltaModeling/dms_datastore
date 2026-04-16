@@ -15,8 +15,10 @@ from dms_datastore.dstore_config import config_file, station_dbase
 from dms_datastore.logging_config import configure_logging, resolve_loglevel
 import logging
 from pathlib import Path
-
-
+from collections import defaultdict
+import warnings
+from dms_datastore.read_multi import _apply_freq_resolution, _series_freq_label
+from vtools.functions.merge import ts_merge
 
 logger = logging.getLogger(__name__)
 
@@ -71,6 +73,79 @@ RAW_NAMING = naming_spec(
     templates=["{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
 )
 
+def _ordered_unique(seq):
+    out = []
+    for x in seq:
+        if x not in out:
+            out.append(x)
+    return out
+
+
+def reformat_freq_resolver_from_labels(freq_labels):
+    """
+    Frequency reconciliation policy for reformatted inputs.
+
+    Resolution is determined solely from the ordered sequence of input
+    frequencies. This avoids station-specific logic and keeps behavior
+    reproducible.
+
+    Supported transitions:
+
+    - h -> 6min      : resolve to 6min using asfreq (no interpolation)
+    - 10min -> 15min : resolve to 15min with interpolation
+    - 20min -> 15min : resolve to 15min with interpolation
+    - h -> 15min     : resolve to 15min with interpolation
+
+    - h/D mix        : warn and resolve to D using asfreq
+    - 15min/D mix    : warn and resolve to D using asfreq
+
+    Any other combination is considered ambiguous and raises an error.
+    """
+    sig = _ordered_unique(freq_labels)
+
+    if len(sig) <= 1:
+        return None
+
+    if sig == ["h", "6min"]:
+        return "as_freq_finer"
+
+    if sig == ["10min", "15min"]:
+        return "interp_to_latest"
+
+    if sig == ["20min", "15min"]:
+        return "interp_to_latest"
+
+    if sig == ["h", "15min"]:
+        return "interp_to_finer"
+
+    if set(sig) == {"h", "D"}:
+        warnings.warn(
+            f"Mixed hourly/daily frequencies detected ({sig}); resolving to daily with asfreq.",
+            stacklevel=2,
+        )
+        return "as_freq_coarser"
+
+    if set(sig) == {"15min", "D"}:
+        warnings.warn(
+            f"Mixed 15min/daily frequencies detected ({sig}); resolving to daily with asfreq.",
+            stacklevel=2,
+        )
+        return "as_freq_coarser"
+
+    raise ValueError(
+        f"Unrecognized frequency transition sequence {sig}. "
+        "Add an explicit rule to reformat_freq_resolver_from_labels()."
+    )
+
+
+def reformat_freq_resolver(items):
+    """
+    Wrapper that derives the ordered frequency signature from resolver items.
+    """
+    freq_labels = [item["freq_label"] for item in items]
+    return reformat_freq_resolver_from_labels(freq_labels)
+
+
 
 
 def _raw_source_from_meta(meta):
@@ -87,10 +162,6 @@ def infer_unit(fname, param, src):
         (variable_mappings.var_name == param) & (variable_mappings.src_name == src), :
     ]
 
-# reformat.py additions
-
-from collections import defaultdict
-from vtools.functions.merge import ts_merge
 
 
 DES_METADATA_CAVEAT = (
@@ -160,20 +231,18 @@ def build_des_year_metadata(raw_files, caveat_text=DES_METADATA_CAVEAT):
         raise ValueError("No yearly metadata could be derived from raw files")
 
     return year_meta
-
-
 def merge_grouped_raw_des(raw_files):
     """
     Read DES raw files one at a time with read_ts, preserve source-specific business
     logic, then merge explicitly at the end.
 
-    Later/finer files are allowed to win by ordering.
+    Later files have priority in overlaps. Frequency reconciliation is determined
+    from the ordered sequence of per-file frequencies.
     """
     if not raw_files:
         raise ValueError("raw_files may not be empty")
 
-    tss = []
-    commonfreq = None
+    items = []
 
     for fpath in sorted(raw_files):
         ts = read_ts(fpath, force_regular=True)
@@ -190,24 +259,22 @@ def merge_grouped_raw_des(raw_files):
             ts = ts.copy()
             ts.columns = ["value"]
 
-        tsfreq = ts.index.freq if hasattr(ts.index, "freq") else None
-        if tsfreq is not None:
-            if commonfreq is None or tsfreq < commonfreq:
-                commonfreq = tsfreq
+        items.append(
+            {
+                "path": fpath,
+                "ts": ts,
+                "freq_label": _series_freq_label(ts),
+            }
+        )
 
-        tss.append(ts)
-
-    if not tss:
+    if not items:
         return None
 
-    if commonfreq is not None:
-        tss = [x.asfreq(commonfreq) for x in tss]
+    resolver = reformat_freq_resolver(items)
+    items, _ = _apply_freq_resolution(items, resolver)
 
-    # reverse so later raw files have priority in overlaps
-    merged = ts_merge(list(reversed(tss)))
-
-    if commonfreq is not None:
-        merged = merged.asfreq(commonfreq)
+    # later files win in overlaps
+    merged = ts_merge(list(reversed([item["ts"] for item in items])))
 
     if merged.index.has_duplicates:
         raise ValueError("Merged DES series still has duplicate timestamps")
@@ -256,7 +323,7 @@ def reformat_des_grouped(inpath, outpath, pattern):
                     include_shard=False,
                 ),
             )
-
+            
             write_ts_csv(
                 merged,
                 newfname,
@@ -667,7 +734,12 @@ def reformat(inpath, outpath, pattern):
         try:
             hdr_meta = infer_internal_meta_for_file(fpath)
             try:
-                df = read_ts(fpath, force_regular=True)  # Argument?
+                df = read_ts(fpath, force_regular=True)
+                logger.debug(
+                  "single-file reformat freq=%s for %s",
+                  _series_freq_label(df),
+                  fpath,
+                )  # Argument?
             except:
                 print(f"Could not read file: {fpath}")
                 raise
@@ -719,26 +791,88 @@ def reformat(inpath, outpath, pattern):
 def reformat_provider(inpath, outpath, agency, patterns):
     """
     Dispatch provider-specific reformat behavior.
+
+    `patterns` may be either wildcard patterns or concrete file paths.
     """
     if agency == "des":
-        logger.info(f"Using DES grouped reformat")
+        logger.info("Using DES grouped reformat")
         return reformat_des_grouped(inpath, outpath, patterns)
+
     logger.info("Using standard per-file reformat path")
     return reformat(inpath, outpath, patterns)
 
 
-def _infer_provider_from_patterns(pattern_list):
+
+
+# ... keep existing imports ...
+
+
+def _group_patterns_by_provider(inpath, patterns):
     """
-    Very lightweight inference for ad hoc pattern mode.
-    If every pattern clearly starts with 'des', use DES grouped path.
+    Infer raw provider/source from matched filenames using RAW_NAMING and
+    return provider -> list of concrete file paths.
+
+    This is the key bridge that makes pattern-mode behave the same way as
+    agency-mode dispatch.
     """
-    stems = set()
-    for pat in pattern_list:
-        base = os.path.basename(pat)
-        stem = base.split("*", 1)[0].split("_", 1)[0]
-        if stem:
-            stems.add(stem)
-    return stems
+    if patterns is None:
+        raise ValueError("patterns may not be None")
+
+    if isinstance(patterns, str):
+        patterns = [patterns]
+
+    expanded = []
+    for pat in patterns:
+        full_pat = os.path.join(inpath, pat) if inpath not in (None, "") else pat
+        expanded.extend(glob.glob(full_pat))
+
+    expanded = sorted(set(expanded))
+    if not expanded:
+        return {}
+
+    grouped = defaultdict(list)
+    failures = []
+
+    for fpath in expanded:
+        base = os.path.basename(fpath)
+        try:
+            meta = interpret_fname(base, naming=RAW_NAMING)
+        except Exception as exc:
+            failures.append((fpath, exc))
+            continue
+
+        provider = _raw_source_from_meta(meta)
+        grouped[provider].append(fpath)
+
+    if failures:
+        msg = "\n".join(f"{f}: {e}" for f, e in failures[:10])
+        more = "" if len(failures) <= 10 else f"\n... and {len(failures) - 10} more"
+        raise ValueError(
+            "Some input files could not be parsed with RAW_NAMING:\n"
+            f"{msg}{more}"
+        )
+
+    return {provider: sorted(files) for provider, files in grouped.items()}
+
+
+def reformat_selected(inpath, outpath, patterns):
+    """
+    Reformat arbitrary matched files, but dispatch provider-specific behavior
+    based on parsed raw filename metadata rather than CLI mode.
+    """
+    grouped = _group_patterns_by_provider(inpath, patterns)
+    if not grouped:
+        print("No input files matched the requested pattern(s)")
+        return
+
+    for provider, files in grouped.items():
+        print(f"Dispatching {len(files)} file(s) for provider {provider}")
+        reformat_provider(
+            inpath=None,          # files are already concrete paths
+            outpath=outpath,
+            agency=provider,
+            patterns=files,
+        )
 
 
 def reformat_main(
@@ -781,70 +915,6 @@ def reformat_main(
     print("Exiting reformat_main")
 
 
-@click.command()
-@click.option(
-    "--inpath",
-    required=True,
-    help="Input directory where files are stored.",
-)
-@click.option(
-    "--outpath",
-    required=True,
-    help="Output directory where files will be stored.",
-)
-@click.option(
-    "--pattern",
-    multiple=True,
-    default=None,
-    help="File name or pattern to reformat. If omitted, uses agencies to form patterns",
-)
-@click.option(
-    "--agencies",
-    multiple=True,
-    default=None,
-    help='Agencies to process, in which case pattern should be omitted. If not specified, does ["usgs","des","cdec","noaa","ncro"].',
-)
-@click.option("--logdir", type=click.Path(path_type=Path), default="logs")
-@click.option("--debug", is_flag=True)
-@click.option("--quiet", is_flag=True)
-@click.help_option("-h", "--help")
-def reformat_cli(inpath, outpath, pattern, agencies, logdir=None, debug=False, quiet=False):
-    """Reformat files from raw to standard format and add metadata."""
-    in_dir = inpath
-    out_dir = outpath
-    agencies_list = list(agencies) if agencies else []
-    pattern_list = list(pattern) if pattern else None
-
-    level, console = resolve_loglevel(
-        debug=debug,
-        quiet=quiet,
-    )
-    configure_logging(
-        package_name="dms_datastore",
-        level=level,
-        console=console,
-        logdir=logdir,
-        logfile_prefix="reformat"
-    )
-
-    logger.info(
-        f"in_dir={in_dir}, out_dir={out_dir}, agencies={agencies_list}, pattern={pattern_list}"
-    )
-
-    if (pattern_list is not None) and (len(agencies_list) > 0):
-        raise ValueError("File pattern and list of agencies cannot both be specified")
-
-    if (pattern_list is None) and (len(agencies_list) == 0):
-        agencies_list = ["usgs", "des", "cdec", "noaa", "ncro"]
-
-    if pattern_list is None:
-        reformat_main(inpath=in_dir, outpath=out_dir, agencies=agencies_list)
-    else:
-        providers = _infer_provider_from_patterns(pattern_list)
-        if providers == {"des"}:
-            reformat_des_grouped(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
-        else:
-            reformat(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
 
 @click.command()
 @click.option(
@@ -905,11 +975,8 @@ def reformat_cli(inpath, outpath, pattern, agencies, logdir=None, debug=False, q
     if pattern_list is None:
         reformat_main(inpath=in_dir, outpath=out_dir, agencies=agencies_list)
     else:
-        providers = _infer_provider_from_patterns(pattern_list)
-        if providers == {"des"}:
-            reformat_des_grouped(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
-        else:
-            reformat(inpath=in_dir, outpath=out_dir, pattern=pattern_list)
+        # NEW: route through filename-based provider dispatch
+        reformat_selected(inpath=in_dir, outpath=out_dir, patterns=pattern_list)
 
 
 if __name__ == "__main__":

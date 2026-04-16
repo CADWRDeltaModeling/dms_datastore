@@ -277,6 +277,7 @@ def read_yaml_header(fpath):
 
 
 def is_dms1_screen(fname):
+    fname = str(fname)
     if not fname.endswith(".csv"):
         return False
     pattern = re.compile(r"format\s?:\s?dwr-dms-1.0")
@@ -322,6 +323,7 @@ def read_dms1_screen(
 
 
 def is_dms1(fname):
+    fname=str(fname) 
     if not fname.endswith(".csv"):
         return False
     pattern = re.compile(r"#\s?format\s?:\s?dwr-dms-1.0")
@@ -332,9 +334,11 @@ def is_dms1(fname):
     return True
 
 
+
 def read_dms1(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
+    fpath_pattern = str(fpath_pattern)
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -542,6 +546,7 @@ def is_cdec_csv2(fname):
     with open(fname, "r") as f:
         title_line = f.readline()
         return title_line.lower().startswith("station_id,duration,sensor_number")
+    return False
 
 
 # STATION_ID,DURATION,SENSOR_NUMBER,SENSOR_TYPE,DATE TIME,OBS DATE,VALUE,DATA_FLAG,UNITS
@@ -1685,7 +1690,6 @@ def csv_retrieve_ts(
     nrows=None,
     **kwargs,
 ):
-    fpath_pattern = str(fpath_pattern)
     # Allow caller to provide additional NA tokens via kwargs (e.g. "(null)").
     # We cannot pass na_values directly to pd.read_csv because this function
     # already supplies na_values=extra_na. Instead, merge them here.
