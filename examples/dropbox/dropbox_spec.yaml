@@ -21,23 +21,6 @@ data:
       unit: ft^3/s
       sublocation: default
 
-  - name: ccfb
-    skip: False
-    dest: *formatted
-    collect:
-      file_pattern: "CC_Gate_Positions*.csv"
-      location:   "{dropbox_home}/hydraulic_structures/incoming"  # This could be understood as a default
-      recursive_search: False
-      reader: read_ts    # Names, pointers to code etc. To be fleshed out
-      selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
-    metadata: 
-      station_id: ccfb_station
-      source: ccfb_source
-      agency: ccfb_agency
-      freq: None   # None for irregular, "infer" for infer.
-      param: gate
-      unit: m
-      sublocation: default
 
   - name: USGS Aquarius flows
     skip: True
