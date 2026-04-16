@@ -50,7 +50,12 @@ def read_daily_manifest(manifest):
     -------
     DataFrame
     """
-    df = pd.read_csv(manifest, comment="#")
+    manifest_path = (
+        manifest
+        if os.path.exists(manifest)
+        else dstore_config.config_file(manifest)
+    )
+    df = pd.read_csv(manifest_path, comment="#")
 
     missing = [c for c in REQUIRED_COLUMNS if c not in df.columns]
     if missing:
