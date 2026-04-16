@@ -12,6 +12,7 @@ import os
 import fnmatch
 from os.path import split as opsplit
 from os import PathLike
+from vtools.data.indexing import infer_freq_robust
 
 from vtools.functions.merge import *
 from vtools.data.duplicate_index import inspect_duplicate_index
@@ -1605,42 +1606,6 @@ def path_pattern(path_pattern):
     else:
         fdir, fpat = path_pattern
     return fdir, fpat
-
-
-def infer_freq_robust(
-    index, preferred=["h", "15min", "6min", "10min", "h", "d"], **kwargs
-):
-    index = index.round("1min")
-    if len(index) < 8:
-        # not enough to quibble, use the 8 points
-        f = pd.infer_freq(index)
-    else:
-        f = pd.infer_freq(index[-7:-1])
-
-        if f is None:
-            index = index.round("1min")
-            istrt = 3 * len(index) // 4
-            f = pd.infer_freq(index[istrt : istrt + 7])
-        if f is None:
-            # Give it one more shot halfway through
-            istrt = len(index) // 2
-            f = pd.infer_freq(index[istrt : istrt + 7])
-        if f is None:
-            f = pd.infer_freq(index[0:7])
-        if f is None:
-            for p in preferred:
-                freq = to_timedelta(p)
-                tester = index.round(p)
-
-                diff = abs(index - tester) < (freq / 5)
-                frac = diff.mean()
-                if frac > 0.98:
-                    return p
-        if f is None:
-            raise ValueError(
-                "read_ts set to infer frequency, but multiple attempts failed. Set to string to manually "
-            )
-        return f
 
 def _decode_context(path, pos, window=32):
     with open(path, "rb") as f:

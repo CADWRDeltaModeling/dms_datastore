@@ -205,3 +205,234 @@ def test_user_patch_applies_explicit_on_equal_values(tmp_path: Path) -> None:
     out = pd.read_csv(repo / f, comment="#", parse_dates=["datetime"], index_col="datetime")
     assert out["value"].iloc[0] == 10.0
     assert out["user_flag"].astype("Int64").iloc[0] == 1
+
+
+NOW = pd.Timestamp("2026-02-08")
+
+
+def _mk_values_freq(freq: str, periods: int = 10, start: str = "2024-01-01", seed: int = 0) -> pd.DataFrame:
+    idx = pd.date_range(start, periods=periods, freq=freq)
+    rng = np.random.default_rng(seed)
+    df = pd.DataFrame({"value": rng.normal(size=len(idx))}, index=idx)
+    df.index.name = "datetime"
+    return df
+
+
+def _mk_irregular_values() -> pd.DataFrame:
+    idx = pd.to_datetime(["2024-01-01 00:00", "2024-01-01 00:10", "2024-01-01 00:15"])
+    df = pd.DataFrame({"value": [1.0, 2.0, 3.0]}, index=idx)
+    df.index.name = "datetime"
+    return df
+
+
+def _mk_screened(values: pd.DataFrame, flag=pd.NA) -> pd.DataFrame:
+    out = pd.DataFrame(index=values.index)
+    out["value"] = values["value"]
+    out["user_flag"] = pd.Series([flag] * len(values), index=values.index, dtype="Int64")
+    out.index.name = "datetime"
+    return out
+
+
+def test_update_repo_plan_freq_mismatch_quarantine(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_foo_123_flow_2024.csv"
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\n"
+
+    write_ts_csv(_mk_values_freq("15min", periods=16, seed=1), staged / f, metadata=meta, chunk_years=False)
+    write_ts_csv(_mk_values_freq("10min", periods=16, seed=2), repo / f, metadata=meta, chunk_years=False)
+
+    actions = update_repo(
+        str(staged), str(repo),
+        now=NOW, p10=1.0, p3=1.0,
+        freq_mismatch="quarantine",
+        plan=True,
+    )
+    assert len(actions) == 1
+    assert actions[0].action == "quarantine_skip"
+
+
+def test_update_repo_plan_freq_mismatch_replace(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_foo_123_flow_2024.csv"
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\n"
+
+    staged_df = _mk_values_freq("15min", periods=16, seed=1)
+    repo_df = _mk_values_freq("10min", periods=16, seed=2)
+
+    write_ts_csv(staged_df, staged / f, metadata=meta, chunk_years=False)
+    write_ts_csv(repo_df, repo / f, metadata=meta, chunk_years=False)
+
+    actions = update_repo(
+        str(staged), str(repo),
+        now=NOW, p10=1.0, p3=1.0,
+        freq_mismatch="replace",
+        plan=True,
+    )
+    assert len(actions) == 1
+    assert actions[0].action == "replace_write"
+
+
+def test_update_repo_apply_freq_mismatch_replace(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_foo_123_flow_2024.csv"
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\n"
+
+    staged_df = _mk_values_freq("15min", periods=16, seed=1)
+    repo_df = _mk_values_freq("10min", periods=16, seed=2)
+
+    write_ts_csv(staged_df, staged / f, metadata=meta, chunk_years=False)
+    write_ts_csv(repo_df, repo / f, metadata=meta, chunk_years=False)
+
+    update_repo(
+        str(staged), str(repo),
+        now=NOW, p10=1.0, p3=1.0,
+        freq_mismatch="replace",
+        plan=False,
+    )
+
+    out = pd.read_csv(repo / f, comment="#", parse_dates=["datetime"], index_col="datetime")
+    assert len(out) == len(staged_df)
+    assert pd.to_datetime(out.index).to_series().diff().iloc[1:].eq(pd.Timedelta("15min")).all()
+
+
+def test_update_repo_plan_repo_irregular_replaced(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_foo_123_flow_2024.csv"
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\n"
+
+    write_ts_csv(_mk_values_freq("15min", periods=16, seed=1), staged / f, metadata=meta, chunk_years=False)
+    write_ts_csv(_mk_irregular_values(), repo / f, metadata=meta, chunk_years=False)
+
+    actions = update_repo(
+        str(staged), str(repo),
+        now=NOW, p10=1.0, p3=1.0,
+        plan=True,
+    )
+    assert len(actions) == 1
+    assert actions[0].action == "replace_write"
+
+
+def test_update_flagged_plan_freq_mismatch_quarantine(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_baz_789_ec_2024.csv"
+    meta = "station_id: baz\nparam: ec\nunit: uS/cm\nscreen: true\n"
+
+    write_ts_csv(_mk_screened(_mk_values_freq("15min", periods=16, seed=1), flag=1), staged / f, metadata=meta, chunk_years=False)
+    write_ts_csv(_mk_screened(_mk_values_freq("10min", periods=16, seed=2), flag=0), repo / f, metadata=meta, chunk_years=False)
+
+    actions = update_flagged_data(
+        str(staged), str(repo),
+        freq_mismatch="quarantine",
+        plan=True,
+    )
+    assert len(actions) == 1
+    assert actions[0].action == "quarantine_skip"
+
+
+def test_update_flagged_plan_freq_mismatch_replace(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_baz_789_ec_2024.csv"
+    meta = "station_id: baz\nparam: ec\nunit: uS/cm\nscreen: true\n"
+
+    staged_df = _mk_screened(_mk_values_freq("15min", periods=16, seed=1), flag=1)
+    repo_df = _mk_screened(_mk_values_freq("10min", periods=16, seed=2), flag=0)
+
+    write_ts_csv(staged_df, staged / f, metadata=meta, chunk_years=False)
+    write_ts_csv(repo_df, repo / f, metadata=meta, chunk_years=False)
+
+    actions = update_flagged_data(
+        str(staged), str(repo),
+        freq_mismatch="replace",
+        plan=True,
+    )
+    assert len(actions) == 1
+    assert actions[0].action == "replace_write"
+
+
+def test_update_flagged_apply_freq_mismatch_replace(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_baz_789_ec_2024.csv"
+    meta = "station_id: baz\nparam: ec\nunit: uS/cm\nscreen: true\n"
+
+    staged_df = _mk_screened(_mk_values_freq("15min", periods=16, seed=1), flag=1)
+    repo_df = _mk_screened(_mk_values_freq("10min", periods=16, seed=2), flag=0)
+
+    write_ts_csv(staged_df, staged / f, metadata=meta, chunk_years=False)
+    write_ts_csv(repo_df, repo / f, metadata=meta, chunk_years=False)
+
+    update_flagged_data(
+        str(staged), str(repo),
+        freq_mismatch="replace",
+        plan=False,
+    )
+
+    out = pd.read_csv(repo / f, comment="#", parse_dates=["datetime"], index_col="datetime")
+    assert out["user_flag"].astype("Int64").eq(1).all()
+
+
+def test_update_flagged_plan_repo_irregular_replaced(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_baz_789_ec_2024.csv"
+    meta = "station_id: baz\nparam: ec\nunit: uS/cm\nscreen: true\n"
+
+    write_ts_csv(_mk_screened(_mk_values_freq("15min", periods=16, seed=1), flag=1), staged / f, metadata=meta, chunk_years=False)
+    write_ts_csv(_mk_screened(_mk_irregular_values(), flag=0), repo / f, metadata=meta, chunk_years=False)
+
+    actions = update_flagged_data(
+        str(staged), str(repo),
+        plan=True,
+    )
+    assert len(actions) == 1
+    assert actions[0].action == "replace_write"
+
+
+def test_update_flagged_plan_staged_irregular_quarantined(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_baz_789_ec_2024.csv"
+    meta = "station_id: baz\nparam: ec\nunit: uS/cm\nscreen: true\n"
+
+    write_ts_csv(_mk_screened(_mk_irregular_values(), flag=1), staged / f, metadata=meta, chunk_years=False)
+    write_ts_csv(_mk_screened(_mk_values_freq("15min", periods=16, seed=1), flag=0), repo / f, metadata=meta, chunk_years=False)
+
+    actions = update_flagged_data(
+        str(staged), str(repo),
+        plan=True,
+    )
+    assert len(actions) == 1
+    assert actions[0].action == "quarantine_skip"

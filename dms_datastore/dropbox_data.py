@@ -6,6 +6,7 @@ import glob
 import click
 from vtools import dst_st, ts_merge, ts_splice,ts_coarsen
 from omegaconf import OmegaConf
+from vtools.data.indexing import infer_freq_robust
 from dms_datastore.read_ts import read_ts, infer_freq_robust
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.dstore_config import repo_registry, repo_config

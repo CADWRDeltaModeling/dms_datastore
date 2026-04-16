@@ -50,6 +50,13 @@ logger = logging.getLogger(__name__)
 @click.option("--p10", default=0.05, type=float, show_default=True, help="Sampling probability for shards >= 10 years old.")
 @click.option("--atol", default=0.0, type=float, show_default=True, help="Absolute tolerance for parsed-data comparisons.")
 @click.option("--rtol", default=0.0, type=float, show_default=True, help="Relative tolerance for parsed-data comparisons.")
+@click.option(
+    "--freq-mismatch",
+    type=click.Choice(["quarantine", "replace"], case_sensitive=False),
+    default="quarantine",
+    show_default=True,
+    help="When staged and repo are both regular but have different inferred frequencies, quarantine staged or replace the repo file.",
+)
 @click.option("--plan", is_flag=True, default=False, help="Dry-run: compute and print actions without writing.")
 @click.option("--apply", is_flag=True, default=False, help="Execute: write changes to the repo.")
 @click.option(
@@ -80,6 +87,7 @@ def main(
     p10: float,
     atol: float,
     rtol: float,
+    freq_mismatch: str,
     plan: bool,
     apply: bool,
     out_actions: str | None,
@@ -112,15 +120,15 @@ def main(
         prefer=prefer,
         allow_new_series=allow_new_series,
         remove_source=remove_source,
-        now = None if now is None else pd.Timestamp(now),
+        now=None if now is None else pd.Timestamp(now),
         recent_years=recent_years,
         p10=p10,
         p3=p3,
         atol=atol,
         rtol=rtol,
+        freq_mismatch=freq_mismatch,
         plan=plan_effective,
     )
-
     logger.info("update_repo CLI: %d action(s) computed", len(actions))
     if debug:
         echo_actions_text(actions)

@@ -40,6 +40,13 @@ logger = logging.getLogger(__name__)
 @click.option("--atol", default=0.0, type=float, show_default=True, help="Absolute tolerance for value comparisons.")
 @click.option("--rtol", default=0.0, type=float, show_default=True, help="Relative tolerance for value comparisons.")
 @click.option(
+    "--freq-mismatch",
+    type=click.Choice(["quarantine", "replace"], case_sensitive=False),
+    default="quarantine",
+    show_default=True,
+    help="When staged and repo are both regular but have different inferred frequencies, quarantine staged or replace the repo file.",
+)
+@click.option(
     "--value-source",
     type=click.Choice(["staged", "repo"], case_sensitive=False),
     default="staged",
@@ -86,6 +93,7 @@ def main(
     rtol: float,
     value_source: str,
     flag_conflict: str,
+    freq_mismatch: str,
     plan: bool,
     apply: bool,
     out_actions: str | None,
@@ -121,6 +129,7 @@ def main(
         rtol=rtol,
         value_reference=value_source,
         explicit_conflict=flag_conflict,
+        freq_mismatch=freq_mismatch,
         plan=plan_effective,
         max_workers=max_workers,
     )

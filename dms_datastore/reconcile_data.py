@@ -46,6 +46,7 @@ import shutil
 import numpy as np
 import pandas as pd
 from vtools import ts_merge
+from vtools.data.indexing import compare_regular_freq
 from dms_datastore.inventory import to_wildcard
 from dms_datastore.read_ts import extract_commented_header
 from dms_datastore import dstore_config
@@ -732,6 +733,7 @@ def _header_for_reconcile_write(staged_path: str, repo_path: str) -> str:
         if os.path.exists(repo_path)
         else extract_commented_header(staged_path)
     )
+
 def _vet_one_flagged_shard(
     *,
     series_id: str,
@@ -743,6 +745,7 @@ def _vet_one_flagged_shard(
     rtol: float,
     value_reference: str,
     explicit_conflict: str,
+    freq_mismatch: str,
 ) -> Optional[VettedWrite]:
     logger.debug(
         "vet flagged shard series_id=%s shard=%s staged=%s repo=%s",
@@ -822,6 +825,93 @@ def _vet_one_flagged_shard(
             )
         raise
 
+    status, freq_reason, sfreq, rfreq = compare_regular_freq(sdf, rdf)
+
+    if status == "dst_irregular":
+        logger.warning(
+            "Destination screened file irregular; replacing whole file: "
+            "series_id=%s shard=%s staged=%s repo=%s reason=%s",
+            series_id, shard, spath, rpath, freq_reason,
+        )
+        action = ReconcileAction(
+            series_id=series_id,
+            shard=shard,
+            action="replace_write",
+            reason=freq_reason,
+            staged_path=spath,
+            repo_path=dest,
+        )
+        return VettedWrite(
+            action=action,
+            df_to_write=sdf,
+            header_text=_header_for_reconcile_write(spath, dest),
+        )
+
+    if status == "src_irregular":
+        logger.warning(
+            "Staged screened file irregular; quarantining and skipping: "
+            "series_id=%s shard=%s staged=%s repo=%s reason=%s",
+            series_id, shard, spath, rpath, freq_reason,
+        )
+        action = ReconcileAction(
+            series_id=series_id,
+            shard=shard,
+            action="quarantine_skip",
+            reason=freq_reason,
+            staged_path=spath,
+            repo_path=dest,
+        )
+        return VettedWrite(action=action, df_to_write=None, header_text=None)
+
+    if status == "both_irregular":
+        logger.warning(
+            "Both screened files irregular; quarantining staged and skipping: "
+            "series_id=%s shard=%s staged=%s repo=%s reason=%s",
+            series_id, shard, spath, rpath, freq_reason,
+        )
+        action = ReconcileAction(
+            series_id=series_id,
+            shard=shard,
+            action="quarantine_skip",
+            reason=freq_reason,
+            staged_path=spath,
+            repo_path=dest,
+        )
+        return VettedWrite(action=action, df_to_write=None, header_text=None)
+
+    if status == "both_regular_different":
+        logger.warning(
+            "Screened frequency mismatch; no merge: "
+            "series_id=%s shard=%s staged=%s repo=%s staged_freq=%s repo_freq=%s reason=%s",
+            series_id, shard, spath, rpath, sfreq, rfreq, freq_reason,
+        )
+        if freq_mismatch == "replace":
+            action = ReconcileAction(
+                series_id=series_id,
+                shard=shard,
+                action="replace_write",
+                reason=freq_reason,
+                staged_path=spath,
+                repo_path=dest,
+            )
+            return VettedWrite(
+                action=action,
+                df_to_write=sdf,
+                header_text=_header_for_reconcile_write(spath, dest),
+            )
+
+        action = ReconcileAction(
+            series_id=series_id,
+            shard=shard,
+            action="quarantine_skip",
+            reason=freq_reason,
+            staged_path=spath,
+            repo_path=dest,
+        )
+        return VettedWrite(action=action, df_to_write=None, header_text=None)
+
+    # only both_regular_same falls through
+
     merged = _merge_screened_flags(
         rdf,
         sdf,
@@ -876,7 +966,6 @@ def _vet_one_flagged_shard(
 # Public APIs
 # -----------------------------
 
-
 def update_repo(
     staged_dir: str,
     repo_dir: str,
@@ -891,6 +980,7 @@ def update_repo(
     p3: float = 0.15,
     atol: float = 0.0,
     rtol: float = 0.0,
+    freq_mismatch: str = "quarantine",
     plan: bool = False,
 ) -> List[ReconcileAction]:
     """ Reconcile staged vs repo time-series CSV files (formatted/processed tiers).
@@ -964,7 +1054,9 @@ def update_repo(
 
     if prefer not in ["repo", "staged"]:
         raise ValueError("prefer must be 'repo' or 'staged'")
-
+    if freq_mismatch not in ["quarantine", "replace"]:
+        raise ValueError("freq_mismatch must be 'quarantine' or 'replace'")
+    
     repo_dir = dstore_config.resolve_repo_data_dir(repo_or_path=repo_dir)
 
 
@@ -1041,6 +1133,15 @@ def update_repo(
 
             try:
                 rdf = read_ts(rpath, force_regular=True)
+            except NotImplementedError as e:
+                if "force_regular but could not discover freq" in str(e):
+                    logger.warning(
+                        "Repo file could not be regularized; rereading irregular for frequency classification: %s",
+                        rpath,
+                    )
+                    rdf = read_ts(rpath, force_regular=False)
+                else:
+                    raise
             except Exception as e:
                 if file_empty(rpath) and "No columns to parse" in str(e):
                     logger.warning(
@@ -1061,6 +1162,82 @@ def update_repo(
                 logger.info("Error reading repo file %s: %s", rpath, e)
                 logger.error(e, stack_info=True, exc_info=True)
                 raise
+
+            status, freq_reason, sfreq, rfreq = compare_regular_freq(sdf, rdf)
+            if status == "dst_irregular":
+                logger.warning(
+                    "Destination irregular; replacing whole file: "
+                    "series_id=%s shard=%s staged=%s repo=%s reason=%s",
+                    series_id, shard, spath, rpath, freq_reason,
+                )
+                actions.append(
+                    ReconcileAction(
+                        series_id=series_id,
+                        shard=shard,
+                        action="replace_write",
+                        reason=freq_reason,
+                        staged_path=spath,
+                        repo_path=rpath,
+                    )
+                )
+                continue
+
+            if status == "src_irregular":
+                logger.warning(
+                    "Staged file irregular; quarantining and skipping: "
+                    "series_id=%s shard=%s staged=%s repo=%s reason=%s",
+                    series_id, shard, spath, rpath, freq_reason,
+                )
+                actions.append(
+                    ReconcileAction(
+                        series_id=series_id,
+                        shard=shard,
+                        action="quarantine_skip",
+                        reason=freq_reason,
+                        staged_path=spath,
+                        repo_path=rpath,
+                    )
+                )
+                continue
+
+            if status == "both_irregular":
+                logger.warning(
+                    "Both files irregular; quarantining staged and skipping: "
+                    "series_id=%s shard=%s staged=%s repo=%s reason=%s",
+                    series_id, shard, spath, rpath, freq_reason,
+                )
+                actions.append(
+                    ReconcileAction(
+                        series_id=series_id,
+                        shard=shard,
+                        action="quarantine_skip",
+                        reason=freq_reason,
+                        staged_path=spath,
+                        repo_path=rpath,
+                    )
+                )
+                continue
+
+            if status == "both_regular_different":
+                logger.warning(
+                    "Frequency mismatch; no merge: "
+                    "series_id=%s shard=%s staged=%s repo=%s staged_freq=%s repo_freq=%s reason=%s",
+                    series_id, shard, spath, rpath, sfreq, rfreq, freq_reason,
+                )
+                action_name = "quarantine_skip" if freq_mismatch == "quarantine" else "replace_write"
+                actions.append(
+                    ReconcileAction(
+                        series_id=series_id,
+                        shard=shard,
+                        action=action_name,
+                        reason=freq_reason,
+                        staged_path=spath,
+                        repo_path=rpath,
+                    )
+                )
+                continue
+
+            # only "both_regular_same" falls through to normal reconcile
 
             if list(sdf.columns) != list(rdf.columns):
                 raise ValueError(
@@ -1171,6 +1348,27 @@ def update_repo(
                 df.index.name = "datetime"
             _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head)
 
+        elif a.action == "replace_write":
+            if a.repo_path is None:
+                raise ValueError("Internal error: repo_path is None")
+            if a.staged_path is None:
+                raise ValueError("Internal error: staged_path is None")
+
+            head = extract_commented_header(a.repo_path) if os.path.exists(a.repo_path) else extract_commented_header(a.staged_path)
+            df = _read_csv_timeseries(a.staged_path)
+            if df.index.name is None:
+                df.index.name = "datetime"
+            _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head)
+
+        elif a.action == "quarantine_skip":
+            if a.staged_path is not None:
+                logger.warning(
+                    "Quarantining staged file and skipping update: %s (%s)",
+                    a.staged_path,
+                    a.reason,
+                )
+                _quarantine_file(a.staged_path)
+
         elif a.action == "splice_write":
             if a.staged_path is None:
                 raise ValueError("Internal error: staged_path is None")
@@ -1183,8 +1381,12 @@ def update_repo(
                 continue
 
             head = extract_commented_header(a.repo_path)
+
             sdf = read_ts(a.staged_path, force_regular=True)
-            rdf = read_ts(a.repo_path, force_regular=True)
+            try:
+                rdf = read_ts(a.repo_path, force_regular=True)
+            except NotImplementedError:
+                rdf = read_ts(a.repo_path, force_regular=False)
 
             if prefer == "repo":
                 merged = ts_merge([rdf, sdf], strict_priority=True)
@@ -1216,6 +1418,7 @@ def update_flagged_data(
     rtol: float = 0.0,
     value_reference: str = "staged",
     explicit_conflict: str = "prefer_repo",
+    freq_mismatch: str = "quarantine",
     plan: bool = False,
     max_workers: int = 4,
 ) -> List[ReconcileAction]:
@@ -1243,6 +1446,9 @@ def update_flagged_data(
     """
     if max_workers < 1:
         raise ValueError("max_workers must be >= 1")
+
+    if freq_mismatch not in ["quarantine", "replace"]:
+        raise ValueError("freq_mismatch must be 'quarantine' or 'replace'")
 
     repo_dir = dstore_config.resolve_repo_data_dir(repo_or_path=repo_dir)
 
@@ -1284,10 +1490,10 @@ def update_flagged_data(
                     rtol=rtol,
                     value_reference=value_reference,
                     explicit_conflict=explicit_conflict,
+                    freq_mismatch=freq_mismatch,   # <-- ADD THIS
                 ): (series_id, shard, spath, rpath)
                 for series_id, shard, spath, rpath in jobs
             }
-
             try:
                 for future in concurrent.futures.as_completed(future_map):
                     result = future.result()
@@ -1315,9 +1521,25 @@ def update_flagged_data(
     logger.info("update_flagged_data: applying %d update(s)", len(vetted))
     for vetted_write in vetted:
         action = vetted_write.action
+
+        # --- quarantine branch ---
+        if action.action == "quarantine_skip":
+            if action.staged_path is not None:
+                logger.warning(
+                    "Quarantining staged file and skipping screened update: %s (%s)",
+                    action.staged_path,
+                    action.reason,
+                )
+                _quarantine_file(action.staged_path)
+            continue
+
+        # --- sanity check ---
         if action.repo_path is None or vetted_write.df_to_write is None:
             raise ValueError("Internal error: vetted write missing repo_path or dataframe")
+
+        # --- WRITE / REPLACE_WRITE ---
         logger.debug("update_flagged_data apply: %s", _action_debug_string(action))
+
         _write_preserving_header(
             df=vetted_write.df_to_write,
             dest_path=action.repo_path,
