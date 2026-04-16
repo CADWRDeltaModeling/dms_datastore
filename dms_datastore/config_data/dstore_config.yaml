@@ -3,6 +3,9 @@ variable_mappings: variable_mappings.csv
 variable_definitions: variables.csv
 sublocations: station_subloc.csv
 
+daily_data_manifest: daily_data_manifest.csv
+
+
 file_deletion_list: non_15_min_files_checked.txt
 compare_excepts_formatted: compare_excepts_formatted.txt
 des_rationalize_time_spec: des_rationalize_cfg.yaml
@@ -23,7 +26,7 @@ repos:
     site_key: station_id  # registry and template use this term for the site's identifier (was "key")
     provider_key: source  # provider is the agency mainly involved in delivering the data. 
                           # Generic for "source" (datamart) "agency" (collecting agency) and
-#                         #  "processor" (group synthesizing, manipulating or filling data)
+#                         # "processor" (group synthesizing, manipulating or filling data)
     provider_resolution_mode: registry_column   # way of differentiating data that cover 
                                                 # the same logical data set from two providers
     provider_resolution_column: agency          # consult the registry column
@@ -71,8 +74,6 @@ repos:
       - "{processor}_{station_id@subloc}_{param}.csv"
     file_key: [processor, station_id, subloc, param, modifier, shard]
     data_key: [station_id, subloc, param, modifier, shard]
-
-
 
   structures:
     root: "//cnrastore-bdo/Modeling_Data/repo/structures"
