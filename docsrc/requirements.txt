@@ -1,7 +1,8 @@
 # furo==2021.11.16
 sphinx>=7.0
 sphinx-design
-sphinx-argparse  
+sphinx-argparse
+sphinxcontrib-mermaid
 sphinxcontrib-bibtex
 sphinx_rtd_theme
 ghp-import # for GitHub Pages import

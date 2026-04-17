@@ -486,3 +486,72 @@ with stable semantics and stable output for canonical files.
 - `write_ts_csv` is the canonical file-emission path.
 
 All interactions are governed by a strict key (`key_column`), explicit filename interpretation rules, and fail-fast validation.
+
+## 10. Repository Configuration System
+
+The repo configuration is the central control for how a filesystem of CSV files becomes a searchable, canonical repository. A config lives as YAML (see `dms_datastore/config_data/` for examples) and defines at minimum:
+
+- `root`: repository root directory
+- `registry` (which station registry to use)
+- `key_column` (logical site identity, e.g. `station_id`)
+- `provider_key` (data provenance column used in filenames, e.g. `source` or `agency`)
+- `filename_templates`: list of templates used for rendering and interpreting filenames
+- `search` and `parse` subsections controlling shard style, source-slot behavior, and legacy parsing modes
+
+These settings are authoritative and are consulted by inventory builders, `read_ts_repo`, `populate_repo`, and Dropbox ingestion. The config is validated at startup (or when a repo is opened) and missing required fields cause a fail-fast error.
+
+### Config-driven behavior
+
+- Interpretation: templates drive exact parsing of filenames; no heuristics.
+- Inventory: grouping, shard discovery, and series_id construction are all driven by config slots (`key_column`, `subloc`, `param`, `modifier`).
+- Provider resolution: `provider_resolution_mode` (for example `by_registry_column`) controls how multiple providers are prioritized when several file families map to the same logical dataset.
+
+## 11. Downloaders and Data Acquisition
+
+Download modules (for example `download_nwis.py`, `download_cdec.py`, `download_noaa.py`) are thin adapters that:
+
+- fetch raw data from agency APIs or archives,
+- normalize raw fields enough to write the canonical CSV format, and
+- emit files into a `raw` staging area (often under `repo/raw/agency/...`).
+
+Downloader responsibilities intentionally stop short of repo-level decisions (they do not decide final filename templates or provider priority). Instead downloaders emit raw artifacts and metadata that are later reprocessed into the configured repo shape.
+
+Example: `download_nwis.py` fetches NWIS data and writes per-station, per-year CSVs into a `raw` area. `populate_repo` or `reformat` will later convert those raw files into filenames that match `filename_templates` and place them into the `formatted` repo.
+
+## 12. Repo Stages: raw → formatted → screened
+
+The repository pipeline uses explicit staged directories and conventions to separate concerns and enable deterministic processing.
+
+- Raw: `repo/raw/` — untouched downloads or incoming exports (exactly what came from agency APIs or Dropbox). Files here are archival and used for provenance.
+- Formatted: `repo/formatted/` — files that have been normalized and renamed to match `filename_templates` and the configured repo layout. This is where `write_ts_csv` outputs canonical CSVs with YAML headers.
+- Screened: `repo/screened/` — outputs of automated screening (e.g., `auto_screen.py`) and manual review. Files moved here have `user_flag` changes recorded and represent the data considered ready for downstream analysis or distribution.
+
+Transitions:
+
+- `reformat` / `populate_repo`: reads `raw/` artifacts, applies formatting rules, renders canonical filenames via `filename_templates`, and writes into `formatted/`.
+- `auto_screen` (and `screeners.py`): runs QA/QC on `formatted/` files and writes outputs (or sidecars) into `screened/` and may update headers or create screened variants.
+
+Design rationale: staging keeps download and processing concerns separated, makes provenance auditable, and allows selective reprocessing without mutating raw artifacts.
+
+## 13. Dropbox ingestion and `populate_repo`
+
+Dropbox ingestion (`dropbox_data.py`) and other inbound processes follow the same config-driven model:
+
+- Dropbox importer watches configured Dropbox specs and downloads files into a configured inbound directory (a `raw` area). It records source metadata (original path, timestamp) and preserves the original filename.
+- `populate_repo` is the orchestrator that converts inbound/raw files into the repo's `formatted` layout. It:
+   - reads the repo config to determine `filename_templates`, `key_column`, and shard rules;
+   - runs `interpret_fname`/templating logic or, when necessary, applies mapping rules to derive required fields from inbound metadata;
+   - calls `write_ts_csv` (via `prep_header`) to create canonical CSVs in `formatted/`;
+   - updates inventories so downstream `read_ts_repo` calls can discover newly added series.
+
+Because both Dropbox ingestion and `populate_repo` use the same repo config, the system remains consistent: a file produced by `populate_repo` will match the templates used by inventory and `read_ts_repo`.
+
+## 14. Practical notes for developers
+
+- When adding a new downloader, ensure it writes to `raw/` and emits minimal metadata so `populate_repo` can derive the repo fields.
+- When changing `filename_templates`, run inventory checks and tests — template changes can invalidate parsing of existing files.
+- Use `populate_repo` for deterministic renaming and sharding rather than ad-hoc file moves; it enforces header canonicalization and metadata preservation.
+
+---
+
+End of extended design notes.

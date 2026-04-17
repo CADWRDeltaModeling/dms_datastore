@@ -1,21 +1,38 @@
 # dms_datastore
 
-Delta Modeling Section Datastore provides tools for downloading and managing continuous data. This repository is a work in progress. 
+Delta Modeling Section Datastore — tools for downloading, formatting, screening, and
+managing continuous time-series data from water-quality and hydrological agencies
+(USGS, CDEC, NOAA, NCRO, DES, and others).
 
-## Table of Contents
-- [Overview](#overview)
-- [Data Repository Structure](#data-repository-structure)
-- [Data Quality and Flags](#data-quality-and-flags)
-- [Data Screening and Error Detection Methods](#data-screening-and-error-detection-methods)
-- [Metadata and Station Concepts](#metadata-and-station-concepts)
-- [File Naming Conventions](#file-naming-conventions)
-- [Units and Standardization](#units-and-standardization)
-- [Data Fetching and Priority](#data-fetching-and-priority)
-- [Configuration System](#configuration-system)
-- [Accessing Datastore Data](#accessing-datastore-data)
-- [Challenges and Exceptions](#challenges-and-exceptions)
-- [Installation](#installation)
-- [CLI Commands](#cli-commands)
+**Full documentation:** https://cadwrdeltamodeling.github.io/dms_datastore/
+
+## Quick Install
+
+```bash
+git clone https://github.com/CADWRDeltaModeling/dms_datastore
+conda env create -f environment.yml
+conda activate dms_datastore
+```
+
+Development install after the above:
+
+```bash
+pip install --no-deps -e .
+```
+
+## Quick Start
+
+```python
+from dms_datastore.read_multi import read_ts_repo
+
+# Read EC data for station "dsj"
+data = read_ts_repo("dsj", "ec")
+```
+
+For the complete data model, CLI reference, configuration system, and API docs see
+the [documentation site](https://cadwrdeltamodeling.github.io/dms_datastore/) or the
+[`docsrc/`](docsrc/) folder for the Sphinx source.
+
 
 ## Overview
 
@@ -170,7 +187,7 @@ The Dropbox Data Processing System provides a mechanism for importing ad-hoc or 
 
 The system uses a YAML configuration file (`dropbox_spec.yaml`) to define data sources, collection patterns, and metadata handling rules. The `dropbox_data.py` script processes these configurations to locate, transform, and store the data in the standardized repository format.
 
-See [README-dropbox.md](README-dropbox.md) for detailed documentation on this system.
+See the Dropbox documentation in the project docs (docsrc/dropbox.rst) for detailed information on this system.
 
 ## Configuration System
 

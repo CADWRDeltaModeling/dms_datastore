@@ -13,12 +13,14 @@ mostly focused on environmental data for the Bay-Delta.
 .. toctree::
    :maxdepth: 3
    :caption: Contents:
-   
+
    self
    install
    concepts
    station_info
    download_data
+   commands
+   dropbox
    read_data_meta
    repository
    Local Caching <notebooks/cache.ipynb>

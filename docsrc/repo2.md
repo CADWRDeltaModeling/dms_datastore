@@ -278,7 +278,6 @@ write_ts_csv defines output
 Everything is explicit, deterministic, and validated
 
 
----
 
 # 🔄 update.md (evolution + current status)
 
@@ -480,3 +479,34 @@ Future:
 ### What We Want
 
 - config defines everything
+
+## 10. Configuration System (Summary)
+
+Repository configs live as YAML under `dms_datastore/config_data/` and are the single source of truth for:
+
+- which directory is the repo root
+- how filenames map to metadata (`filename_templates`)
+- the registry to use for enrichment
+- shard and search behavior (`search` / `parse`)
+
+Configs are validated and consumed by inventory builders, `read_ts_repo`, `populate_repo`, and inbound systems such as `dropbox_data.py`.
+
+## 11. Downloaders and Staging
+
+Downloaders (e.g., `download_nwis.py`) fetch raw agency data and write it to a `raw/` staging area. They intentionally do not perform final renaming or provider-resolution — that is the job of `populate_repo` / `reformat` which consult the repo config to produce canonical files under `formatted/`.
+
+Staged directories used by the project:
+
+- `raw/`: ingest and archived downloads
+- `formatted/`: canonical, template-named CSVs created by `populate_repo` / `reformat`
+- `screened/`: outputs from `auto_screen.py` and manual review
+
+## 12. Dropbox and `populate_repo`
+
+Dropbox ingestion downloads inbound files into the configured `raw` area and annotates them with source metadata. `populate_repo` reads those raw artifacts, uses the repo config to interpret or map incoming metadata to template slots, and writes canonical CSVs into `formatted/`. Inventory is then updated so the new series are discoverable.
+
+## 13. Operational Notes
+
+- Keep downloaders focused on data retrieval and minimal normalization; avoid embedding repo-specific filename logic.
+- Use `populate_repo` to convert raw artifacts into repo-shaped files so that `read_ts_repo` and downstream tools behave deterministically.
+- When modifying templates or provider-resolution modes, run inventory and round-trip tests to catch parsing regressions.

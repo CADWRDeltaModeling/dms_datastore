@@ -43,7 +43,8 @@ html_static_path = ['_static']
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-extensions = [ 'sphinx_rtd_theme', 'nbsphinx', 
+extensions = [ 'sphinx_rtd_theme', 'nbsphinx',
+          'sphinxcontrib.mermaid',
           'sphinx.ext.mathjax',
           'sphinx.ext.autodoc', 
           'sphinx.ext.viewcode',
