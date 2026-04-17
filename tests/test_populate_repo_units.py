@@ -83,10 +83,10 @@ def test_list_ncro_stations_extracts_fields(monkeypatch):
     monkeypatch.setattr(pr.glob, "glob", lambda pat: files)
     got = pr.list_ncro_stations("/tmp")
 
-    assert list(got.columns) == ["id", "param", "agency", "agency_id_from_file"]
+    assert list(got.columns) == ["station_id", "param", "agency", "agency_id_from_file"]
     assert got.to_dict("records") == [
-        {"id": "anh", "param": "ec", "agency": "cdec", "agency_id_from_file": "b9542100"},
-        {"id": "mab", "param": "temp", "agency": "cdec", "agency_id_from_file": "b1234567"},
+        {"station_id": "anh", "param": "ec", "agency": "cdec", "agency_id_from_file": "b9542100"},
+        {"station_id": "mab", "param": "temp", "agency": "cdec", "agency_id_from_file": "b1234567"},
     ]
 
 
