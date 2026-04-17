@@ -47,6 +47,9 @@ from collections.abc import Mapping
 
 import pandas as pd
 from dms_datastore import dstore_config
+import logging
+logger = logging.getLogger(__name__)
+
 
 _MAPPING_CACHE = {}
 
@@ -186,7 +189,7 @@ def normalize_station_request(
 
     rename_map = {}
     if "id" in df.columns and "station_id" not in df.columns:
-        rename_map["id"] = "station_id"
+        rename_map["station_id"] = "station_id"
     if "param_col" in df.columns and "param" not in df.columns:
         rename_map["param_col"] = "param"
     if rename_map:
@@ -258,7 +261,13 @@ def _load_mapping(mapping):
 
     raise ValueError("mapping must be a DataFrame, mapping object, or CSV path")
 
-def attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id", registry_df=None):
+def attach_agency_id(
+    df,
+    repo_name="formatted",
+    agency_id_col="agency_id",
+    registry_df=None,
+    on_missing="raise",
+):
     """
     Attach source-facing station identifiers from a registry.
 
@@ -274,6 +283,15 @@ def attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id", regis
         output column ``agency_id``.
     registry_df : pandas.DataFrame, optional
         Explicit registry table to use instead of reading from configuration.
+    on_missing : {"raise", "drop", "keep_na"}, default "raise"
+        Policy for rows whose ``agency_id_col`` cannot be resolved.
+
+        - ``"raise"``:
+          Raise ``ValueError`` if any requested stations are unresolved.
+        - ``"drop"``:
+          Drop unresolved rows and return only resolved rows.
+        - ``"keep_na"``:
+          Keep unresolved rows and leave canonical ``agency_id`` missing.
 
     Returns
     -------
@@ -285,9 +303,16 @@ def attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id", regis
     ------
     ValueError
         If the configured site key is missing, if ``agency_id_col`` is not
-        present in the registry, or if one or more requested stations cannot be
-        resolved.
+        present in the registry, or if ``on_missing="raise"`` and one or more
+        requested stations cannot be resolved.
     """
+    valid_policies = {"raise", "drop", "keep_na"}
+    if on_missing not in valid_policies:
+        raise ValueError(
+            f"Invalid on_missing policy {on_missing!r}. "
+            f"Expected one of {sorted(valid_policies)}"
+        )
+
     if registry_df is None:
         repo_cfg = dstore_config.repo_config(repo_name)
         registry_name = repo_cfg["registry"]
@@ -309,18 +334,68 @@ def attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id", regis
     merged = df.merge(registry, on="station_id", how="left", suffixes=("", "_registry"))
 
     if agency_id_col not in merged.columns:
-        raise ValueError(f"Requested agency id column {agency_id_col!r} not found in registry")
+        raise ValueError(
+            f"Requested agency id column {agency_id_col!r} not found in registry"
+        )
 
     missing = merged[agency_id_col].isna() | (
         merged[agency_id_col].astype(str).str.strip() == ""
     )
-    if missing.any():
-        missing_ids = sorted(merged.loc[missing, "station_id"].dropna().unique().tolist())
-        raise ValueError(f"Unable to resolve {agency_id_col!r} for stations: {missing_ids}")
 
-    merged["agency_id"] = (
-        merged[agency_id_col].astype(str).str.replace("'", "", regex=True)
+    if missing.any():
+        missing_rows = merged.loc[missing, ["station_id"]].copy()
+        if "param" in merged.columns:
+            missing_rows["param"] = merged.loc[missing, "param"]
+        missing_ids = sorted(missing_rows["station_id"].dropna().unique().tolist())
+
+        if on_missing == "raise":
+            raise ValueError(
+                f"Unable to resolve {agency_id_col!r} for stations: {missing_ids}"
+            )
+
+        if on_missing == "drop":
+            for _, row in missing_rows.drop_duplicates().iterrows():
+                if "param" in missing_rows.columns:
+                    logger.warning(
+                        "Ignoring station %s param %s due to lack of %s in registry",
+                        row["station_id"],
+                        row["param"],
+                        agency_id_col,
+                    )
+                else:
+                    logger.warning(
+                        "Ignoring station %s due to lack of %s in registry",
+                        row["station_id"],
+                        agency_id_col,
+                    )
+            merged = merged.loc[~missing].copy()
+
+        elif on_missing == "keep_na":
+            for _, row in missing_rows.drop_duplicates().iterrows():
+                if "param" in missing_rows.columns:
+                    logger.warning(
+                        "Keeping station %s param %s with unresolved %s",
+                        row["station_id"],
+                        row["param"],
+                        agency_id_col,
+                    )
+                else:
+                    logger.warning(
+                        "Keeping station %s with unresolved %s",
+                        row["station_id"],
+                        agency_id_col,
+                    )
+
+    if agency_id_col == "agency_id":
+        # Canonical column is already the requested source-facing identifier.
+        return merged
+
+    merged["agency_id"] = pd.NA
+    present = merged[agency_id_col].notna()
+    merged.loc[present, "agency_id"] = (
+        merged.loc[present, agency_id_col].astype(str).str.replace("'", "", regex=True)
     )
+
     return merged
 
 def attach_subloc(df, subloc_lookup=None, default_subloc="default"):
@@ -483,7 +558,7 @@ def attach_src_var_id(df, mapping, source=None):
 
 def process_station_list(
     stationlist,
-    id_col="id",
+    id_col="station_id",
     agency_id_col="agency_id",
     param_col=None,
     param=None,

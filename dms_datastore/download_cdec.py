@@ -263,7 +263,12 @@ def download_cdec(
         )
 
     df = attach_subloc(df, default_subloc="default")
-    df = attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id")
+    df = attach_agency_id(
+        df,
+        repo_name="formatted",
+        agency_id_col="cdec_id",
+        on_missing="drop",
+    )
     vlookup = dstore_config.config_file("variable_mappings")
     df = attach_src_var_id(df, vlookup, source="cdec")
 

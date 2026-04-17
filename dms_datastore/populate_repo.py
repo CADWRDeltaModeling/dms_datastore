@@ -1,19 +1,107 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
-Scripts to populate raw/incoming with populate() obtaining des, usgs, noaa, usgs, usbr
-usgs: files may have two series
-des: naive download will produce files from different instruments with time overlaps
-     the script    run rationalize_time_partitions for des
+Raw download and staging utilities for external data providers.
 
-ncro: typically done with download_ncro which is a period of record downloader
-      ncro is not realtime run populate2 to get the update for ncro
-run revise_time to correct start and end times.
+This module orchestrates acquisition of raw time series files from multiple
+providers and writes them into a staging/raw directory using a raw naming
+convention. It does not apply repository merge or provider-resolution policy;
+those steps occur later in formatting and repo update workflows.
 
-What are steps to update just realtime
+Overview
+--------
+The module supports two closely related workflows.
 
-Need to add something for the daily stations and for O&M (Clifton Court, Banks)
+1. General population of raw data
+   - ``populate_main()`` is the top-level orchestration entry point.
+   - ``populate()`` loops over agencies and variables.
+   - ``populate_repo()`` prepares a station request for one agency/parameter
+     pair and dispatches to the appropriate downloader.
+
+2. NCRO realtime supplementation
+   - ``list_ncro_stations()`` scans existing NCRO files in a destination
+     directory and extracts the logical station/parameter pairs already present.
+   - ``supplement_ncro_with_cdec()`` uses that list to request corresponding CDEC data,
+     intended to supplement NCRO's non-realtime coverage with a realtime feed.
+   - ``populate_ncro_realtime()`` is a convenience wrapper around this path.
+
+Raw naming
+----------
+Files handled by this module use a raw/downloader naming profile rather than
+repo-configured naming semantics. The profile is used only for parsing and
+renaming downloader outputs:
+
+- ``{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv``
+- ``{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv``
+
+This naming is represented by ``RAW_NAMING`` and is intentionally separate from
+repo templates used by formatted/screened/processed repositories.
+
+Download sequence
+-----------------
+A typical end-to-end raw population sequence is:
+
+1. Build a station request from configured registries and variable mappings.
+2. Download raw files with the provider-specific downloader.
+3. Revise filename year fields to match the actual years present in the data.
+4. For DES, rationalize overlapping or inconsistent time partitions.
+5. For NCRO, optionally supplement with corresponding CDEC realtime files.
+
+The NCRO supplementation step depends on the existing NCRO files already present
+in the destination directory, because those files are used to determine which
+station/parameter combinations should be mirrored from CDEC.
+
+Station request preparation
+---------------------------
+Before calling a downloader, the module prepares a station-request DataFrame
+using helper functions such as:
+
+- ``normalize_station_request()``
+- ``attach_agency_id()``
+- ``attach_src_var_id()``
+
+The resulting request typically contains station identity, sublocation,
+parameter, agency/provider-specific identifier, and source-variable code needed
+by the target downloader.
+
+Functions
+---------
+populate_main(dest, agencies=None, varlist=None, partial_update=False)
+    Main orchestration entry point. Runs downloads, handles failures, triggers
+    NCRO realtime supplementation when applicable, and performs selected
+    post-download cleanup steps.
+
+populate(dest, all_agencies=None, varlist=None, partial_update=False)
+    Agency/variable loop used by ``populate_main()``.
+
+populate_repo(agency, param, dest, start, end, overwrite=False, ...)
+    Prepare a request for a single agency and parameter and invoke the matching
+    downloader.
+
+list_ncro_stations(dest)
+    Inspect existing ``ncro_*.csv`` files in a destination directory and return
+    a DataFrame describing the station/parameter combinations present.
+
+supplement_ncro_with_cdec(df, dest, start, overwrite=False, ...)
+    Request CDEC data corresponding to the station/parameter combinations
+    identified from NCRO files.
+
+populate_ncro_realtime(dest, realtime_start=...)
+    Convenience wrapper that derives the NCRO station list from ``dest`` and
+    passes it to ``supplement_ncro_with_cdec()``.
+
+revise_filename_syears(...)
+revise_filename_syear_eyear(...)
+    Adjust year fields in raw filenames to reflect the actual valid-data span.
+
+Notes
+-----
+This module operates at the raw-file staging layer. It is expected that later
+steps such as reformatting, screening, and repo reconciliation will impose the
+stricter repository semantics defined elsewhere in the package.
+
+Because this module sits between external downloaders and downstream repo logic,
+identifier handling is especially important. In particular, the NCRO-to-CDEC
+supplementation path is sensitive to how station identifiers and provider-
+specific IDs are prepared before download.
 """
 
 import glob
@@ -281,26 +369,48 @@ def list_ncro_stations(dest):
             logger.info(x)
             raise ValueError(f"Unable to parse station and parameter from name {x}")
 
-    return pd.DataFrame(
-        data=stationlist, columns=["id", "param", "agency", "agency_id_from_file"]
+    df = pd.DataFrame(
+        data=stationlist, columns=["station_id", "param", "agency", "agency_id_from_file"]
     )
+    df = df.drop_duplicates(subset=["station_id", "param"])
+    return df
 
 
-def populate_repo2(df, dest, start, overwrite=False, ignore_existing=None):
+def supplement_ncro_with_cdec(df, dest, start, overwrite=False, ignore_existing=None):
     """Currently used by ncro realtime."""
     vlookup = dstore_config.config_file("variable_mappings")
-    df["station_id"] = df["id"].str.replace("'", "")
+    df["station_id"] = df["station_id"].str.replace("'", "")
     df["subloc"] = "default"
 
     if ignore_existing is not None:
-        df = df[~df["id"].isin(ignore_existing)]
+        df = df[~df["station_id"].isin(ignore_existing)]
 
     source = "cdec"
-    agency_id_col = "agency_id_from_file"
-    stationlist = normalize_station_request(stationframe=df, default_subloc="default")
-    stationlist = attach_agency_id(stationlist, repo_name="formatted", agency_id_col=agency_id_col)
+    agency_id_col = "cdec_id"
+
+    stationlist = normalize_station_request(
+        stationframe=df,
+        default_subloc="default",
+    )
+
+    stationlist = attach_agency_id(
+        stationlist,
+        repo_name="formatted",
+        agency_id_col=agency_id_col,
+        on_missing="drop",
+    )
+
+    if stationlist.empty:
+        logger.warning(
+            "No NCRO stations remain for CDEC supplementation after dropping rows "
+            "with missing %s",
+            agency_id_col,
+        )
+        return
+
     stationlist = attach_src_var_id(stationlist, vlookup, source=source)
     end = None
+    logger.debug("NCRO CDEC supplementation request:\n%s", stationlist)
     downloaders["cdec"](stationlist, dest, start, end, overwrite)
 
 
@@ -413,18 +523,11 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
         logger.info(agent)
 
 
-def purge(dest):
-    if purge:
-        for pat in ["*.csv", "*.rdb"]:
-            allfiles = glob.glob(os.path.join(dest, pat))
-            for fname in allfiles:
-                os.remove(fname)
-
 
 def populate_ncro_realtime(dest, realtime_start=pd.Timestamp(2021, 1, 1)):
     end = None
     ncrodf = list_ncro_stations(dest)
-    populate_repo2(ncrodf, dest, realtime_start, overwrite=True)
+    supplement_ncro_with_cdec(ncrodf, dest, realtime_start, overwrite=True)
 
 
 
@@ -452,8 +555,12 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
         all_agencies = ["usgs", "dwr_des", "usbr", "noaa", "dwr_ncro", "dwr"]
     else:
         all_agencies = agencies
-    do_ncro = ("ncro" in all_agencies) or ("dwr_ncro" in all_agencies)
-    do_des = ("des" in all_agencies) or ("dwr_des" in all_agencies)
+    
+    # Normalize agency names: convert "ncro" to "dwr_ncro" and "des" to "dwr_des"
+    all_agencies = ["dwr_ncro" if ag == "ncro" else "dwr_des" if ag == "des" else ag for ag in all_agencies]
+    
+    do_ncro = "dwr_ncro" in all_agencies
+    do_des = "dwr_des" in all_agencies
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
         future_to_agency = {
@@ -499,7 +606,9 @@ def populate_debug_ncro_rename(dest, agencies=None, varlist=None):
         all_agencies = ["usgs", "dwr_des", "usbr", "noaa", "dwr_ncro", "dwr"]
     else:
         all_agencies = agencies
-    do_ncro = ("ncro" in all_agencies) or ("dwr_ncro" in all_agencies)
+    # Normalize agency names: convert "ncro" to "dwr_ncro" and "des" to "dwr_des"
+    all_agencies = ["dwr_ncro" if ag == "ncro" else "dwr_des" if ag == "des" else ag for ag in all_agencies]
+    do_ncro = "dwr_ncro" in all_agencies
     if do_ncro:
         revise_filename_syear_eyear(os.path.join(dest, f"ncro_*.csv"))
     revise_filename_syear_eyear(os.path.join(dest, f"cdec_*.csv"))

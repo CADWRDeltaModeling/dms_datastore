@@ -40,8 +40,9 @@ repos:
     # (typically first slot) and drives globbing and merge order
     provider_key: source
 
-    # Strategy for resolving multiple providers for the same data_key if allwed. Possibilities: 
-    # assume_unique: only one provider allowed (no resolution needed)
+    # Strategy for resolving multiple providers for the same data_key if allwed. 
+    # Possibilities: 
+    # assume_unique: only one provider allowed in a repo (no resolution needed). See screened.
     # registry_column: use registry metadata to determine preferred providers
     provider_resolution_mode: registry_column
 
