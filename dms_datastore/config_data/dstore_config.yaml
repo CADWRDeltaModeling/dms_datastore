@@ -12,6 +12,8 @@ des_rationalize_time_spec: des_rationalize_cfg.yaml
 
 repo_base: "//cnrastore-bdo/Modeling_Data/repo"
 
+spot_check_spec: spot_check_spec.yaml
+
 # registry files available to repos
 
 
@@ -91,7 +93,7 @@ repos:
     filename_templates:
       - "{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
     file_key: [agency, station_id, subloc, param, shard]
-    data_key: [station_id, subloc, param, shard]
+    data_key: [station_id, subloc, param]
 
 
 

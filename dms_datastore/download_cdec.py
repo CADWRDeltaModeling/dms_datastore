@@ -88,7 +88,7 @@ def download_station_data(
     for code in [z]:
 
         if freq is None:
-            dur_codes = ["E"]   # new default
+            dur_codes = ["E", "H"]   # new default
         else:
             dur_codes = [f.strip().upper() for f in freq.split(",")]
 
@@ -286,7 +286,7 @@ def download_cdec(
 )
 @click.option(
     "--id_col",
-    default="id",
+    default="station_id",
     type=str,
     help="Column in station file representing CDEC ID. IDs with > 3 characters will be ignored.",
 )
@@ -325,9 +325,9 @@ def download_cdec(
 )
 @click.option(
     "--freq",
-    default="E",
+    default="E,H",
     help="Frequency code(s): E (event), H (hourly), D (daily), M (monthly). "
-     "Default is E. Multiple values allowed as comma-separated list (e.g., E,H,D)."
+     "Default is E,H. Multiple values allowed as comma-separated list (e.g., E,H,D)."
 )
 @click.argument("stationfile", nargs=-1)
 def download_cdec_cli(

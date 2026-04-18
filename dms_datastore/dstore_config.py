@@ -361,28 +361,46 @@ def resolve_repo_data_dir(repo_or_path=None, repo=None, repo_cfg=None):
 
     return root
 
-
-
 def repo_registry(repo=None, repo_cfg=None):
     """
-    Load the registry associated with a configured repository.
+    Load and validate the registry associated with a configured repository.
+
+    This function applies repository semantics to a raw registry table:
+    - resolves the repository configuration
+    - identifies the registry file and its ``site_key``
+    - validates that the ``site_key`` column exists
+    - enforces uniqueness of the ``site_key``
+    - sets the DataFrame index to the ``site_key``
 
     Parameters
     ----------
     repo : str, optional
         Configured repository name.
     repo_cfg : dict, optional
-        Repository configuration dictionary.
+        Repository configuration dictionary. One of ``repo`` or
+        ``repo_cfg`` must be provided.
 
     Returns
     -------
     pandas.DataFrame
-        Registry table keyed according to the repository ``site_key``.
+        Registry table indexed by the repository's ``site_key``.
+        The key column is preserved as a column as well.
 
     Raises
     ------
     ValueError
-        Raised if the repository has no named registry.
+        If the repository is not configured, has no registry,
+        the registry is missing the required ``site_key`` column,
+        or the key contains duplicate values.
+
+    Notes
+    -----
+    This is the **preferred entry point** for accessing registry data
+    in application code. It ensures that the registry is interpreted
+    consistently with repository configuration.
+
+    In contrast, :func:`registry_df` returns a raw table without
+    any guarantees about identity or uniqueness.
     """
     cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
     registry_name = cfg.get("registry")
@@ -390,8 +408,25 @@ def repo_registry(repo=None, repo_cfg=None):
 
     if registry_name is None:
         raise ValueError(f"Repo {cfg['name']!r} has no named registry")
-    return registry_df(registry_name, key_column=site_key)
 
+    db = registry_df(registry_name).copy()
+
+    if site_key not in db.columns:
+        raise ValueError(
+            f"Registry {registry_name} is missing key column {site_key}"
+        )
+
+    db[site_key] = (
+        db[site_key].astype(str).str.replace("'", "", regex=True).str.strip()
+    )
+
+    dup = db[site_key].duplicated()
+    if dup.any():
+        raise ValueError(f"Registry {registry_name} has duplicate {site_key} keys")
+
+    db = db.set_index(site_key, drop=False)
+    db.index = db.index.astype(str)
+    return db
 
 
 def station_dbase():
@@ -477,30 +512,50 @@ def repo_config(repo_name):
     _repo_cache[repo_name] = spec
     return spec
 
-
-
-def registry_df(registry_name, key_column="id"):
+def registry_df(registry_name):
     """
-    Load a named registry declared in the configuration.
+    Load a raw registry table by name.
+
+    This function resolves a registry declared in the top-level
+    ``registries`` section of the configuration and reads it into
+    a :class:`pandas.DataFrame`.
+
+    It performs only low-level loading and light normalization:
+    - resolve the configured file path
+    - read the CSV
+    - strip quotes and surrounding whitespace from column names
+    - normalize selected known columns such as ``agency_id``
+
+    It does **not** apply repository semantics. In particular, it does not:
+    - determine which column is the site key
+    - validate uniqueness of any identifier column
+    - set an index
+    - enforce repository-specific identity rules
 
     Parameters
     ----------
     registry_name : str
-        Name of a registry under the top-level ``registries`` section.
-    key_column : str, optional
-        Column to validate and use as the index.
+        Name of a registry under the top-level ``registries`` section
+        of the configuration.
 
     Returns
     -------
     pandas.DataFrame or None
-        Registry table indexed by ``key_column``. Returns ``None`` when
-        ``registry_name`` is ``None``.
+        Raw registry table. Returns ``None`` if ``registry_name`` is None.
 
     Raises
     ------
     ValueError
-        Raised if the registry is unknown, missing on disk, empty, missing the
-        requested key column, or contains duplicate keys.
+        If the registry is not declared in configuration, cannot be
+        resolved to a file, or is empty.
+
+    Notes
+    -----
+    This is a low-level loader. Application code should usually prefer
+    :func:`repo_registry`, which interprets the raw table using the
+    configured repository ``site_key``.
+
+    The loaded table is cached by ``registry_name``.
     """
     global _registry_cache
 
@@ -530,27 +585,13 @@ def registry_df(registry_name, key_column="id"):
 
     db.columns = db.columns.str.replace("'", "", regex=True).str.strip()
 
-    if key_column not in db.columns:
-        raise ValueError(
-            f"Registry {registry_name} is missing key column {key_column}"
+    if "agency_id" in db.columns:
+        db["agency_id"] = (
+            db["agency_id"].astype(str).str.replace("'", "", regex=True).str.strip()
         )
 
-    db[key_column] = db[key_column].astype(str).str.replace("'", "", regex=True).str.strip()
-
-    if "agency_id" in db.columns:
-        db["agency_id"] = db["agency_id"].astype(str).str.replace("'", "", regex=True).str.strip()
-
-    dup = db[key_column].duplicated()
-    if dup.any():
-        print("Duplicates")
-        print(db.loc[dup, [key_column]])
-        raise ValueError(f"Registry {registry_name} has duplicate {key_column} keys")
-
-    db = db.set_index(key_column, drop=False)
-    # Ensure index is string type for consistent merging
-    db.index = db.index.astype(str)
+    _registry_cache[registry_name] = db
     return db
-
 
 
 def source_priority_group(name):

@@ -187,16 +187,20 @@ def normalize_station_request(
             raise ValueError("stationframe must be a pandas DataFrame")
         df = stationframe.copy()
 
-    rename_map = {}
-    if "id" in df.columns and "station_id" not in df.columns:
-        rename_map["station_id"] = "station_id"
-    if "param_col" in df.columns and "param" not in df.columns:
-        rename_map["param_col"] = "param"
-    if rename_map:
-        df = df.rename(columns=rename_map)
-
+    # todo: rewrite in terms of site_key rather than "station_id"    
     if "station_id" not in df.columns:
         raise ValueError("Request must contain a station_id column")
+
+    if param is not None:
+        if "param" in df.columns:
+            missing = df["param"].isna() | (df["param"].astype(str).str.strip() == "")
+            df.loc[missing, "param"] = param
+        else:
+            df["param"] = param
+
+    if "param" not in df.columns:
+        raise ValueError("Request must contain a param column or param argument")
+    
 
     parsed = df["station_id"].apply(_split_station_and_subloc)
     parsed_df = pd.DataFrame(parsed.tolist(), columns=["station_id", "_parsed_subloc"], index=df.index)
@@ -219,12 +223,6 @@ def normalize_station_request(
         else:
             df["param"] = param
 
-    if "param" not in df.columns:
-        raise ValueError("Request must contain param or param must be provided")
-
-    df["station_id"] = (
-        df["station_id"].astype(str).str.replace("'", "", regex=True).str.strip().str.lower()
-    )
     df["param"] = df["param"].astype(str).str.strip()
     if "subloc" in df.columns:
         df["subloc"] = df["subloc"].apply(_normalize_subloc_value)
@@ -265,7 +263,6 @@ def attach_agency_id(
     df,
     repo_name="formatted",
     agency_id_col="agency_id",
-    registry_df=None,
     on_missing="raise",
 ):
     """
@@ -281,8 +278,6 @@ def attach_agency_id(
     agency_id_col : str, default "agency_id"
         Name of the registry column that should be copied into the canonical
         output column ``agency_id``.
-    registry_df : pandas.DataFrame, optional
-        Explicit registry table to use instead of reading from configuration.
     on_missing : {"raise", "drop", "keep_na"}, default "raise"
         Policy for rows whose ``agency_id_col`` cannot be resolved.
 
@@ -313,34 +308,32 @@ def attach_agency_id(
             f"Expected one of {sorted(valid_policies)}"
         )
 
-    if registry_df is None:
-        repo_cfg = dstore_config.repo_config(repo_name)
-        registry_name = repo_cfg["registry"]
-        site_key = repo_cfg["site_key"]
-        registry = dstore_config.registry_df(registry_name, key_column=site_key).copy()
-    else:
-        registry = registry_df.copy()
-        site_key = "station_id" if "station_id" in registry.columns else repo_name
-
+    repo_cfg = dstore_config.repo_config(repo_name)
+    registry_name = repo_cfg["registry"]
+    site_key = repo_cfg["site_key"]
+    registry = dstore_config.registry_df(registry_name).copy()
     if site_key not in registry.columns:
-        raise ValueError(f"Registry site key column {site_key!r} not found")
+            raise ValueError(f"Registry site key column {site_key!r} not found")
 
     if registry.index.name == site_key:
         registry = registry.reset_index(drop=(site_key in registry.columns))
 
-    if site_key != "station_id":
-        registry = registry.rename(columns={site_key: "station_id"})
 
-    merged = df.merge(registry, on="station_id", how="left", suffixes=("", "_registry"))
-
-    if agency_id_col not in merged.columns:
+    if agency_id_col not in registry.columns:
         raise ValueError(
             f"Requested agency id column {agency_id_col!r} not found in registry"
         )
 
+
+    lookup = registry[[site_key, agency_id_col]].copy()
+    lookup = lookup.rename(columns={site_key: "station_id"})
+
+    merged = df.merge(lookup, on="station_id", how="left")
+
+
     missing = merged[agency_id_col].isna() | (
-        merged[agency_id_col].astype(str).str.strip() == ""
-    )
+            merged[agency_id_col].astype(str).str.strip() == ""
+        )
 
     if missing.any():
         missing_rows = merged.loc[missing, ["station_id"]].copy()
@@ -622,10 +615,18 @@ def process_station_list(
     else:
         station_df = stationlist.copy()
 
+    if "station_id" not in df.columns:
+        raise ValueError("Request must contain a station_id column")
+
     if param is not None:
-        station_df["param"] = param
-    elif param_col is not None and param_col in station_df.columns:
-        station_df = station_df.rename(columns={param_col: "param"})
+        if "param" in df.columns:
+            missing = df["param"].isna() | (df["param"].astype(str).str.strip() == "")
+            df.loc[missing, "param"] = param
+        else:
+            df["param"] = param
+
+    if "param" not in df.columns:
+        raise ValueError("Request must contain a param column or param argument")
 
     if subloc_col is not None and subloc_col in station_df.columns and "subloc" not in station_df.columns:
         station_df = station_df.rename(columns={subloc_col: "subloc"})

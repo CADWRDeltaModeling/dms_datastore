@@ -388,45 +388,82 @@ def test_registry_df_none_returns_none():
 
 
 def test_registry_df_reads_registry_and_normalizes_columns():
-    df = cfgmod.registry_df("stations", key_column="station_id")
+    df = cfgmod.registry_df("stations")
 
     assert list(df.columns) == ["station_id", "agency_id", "name"]
-    assert df.index.tolist() == ["anh", "old"]
-    assert df.loc["anh", "agency_id"] == "A1"
+    assert df["station_id"].tolist() == ["'anh'", "'old'"]
+    assert df.loc[0, "agency_id"] == "A1"
 
 
 @pytest.mark.xfail(reason="registry_df initializes but does not populate _registry_cache in current implementation")
 def test_registry_df_caches_result(monkeypatch):
-    first = cfgmod.registry_df("stations", key_column="station_id")
+    first = cfgmod.registry_df("stations")
 
     monkeypatch.setattr(
         pd,
         "read_csv",
         lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("cache not used")),
     )
-    second = cfgmod.registry_df("stations", key_column="station_id")
+    second = cfgmod.registry_df("stations")
     assert second is first
-
 
 @pytest.mark.parametrize(
     "registry_name, match",
     [
         ("missing", "Registry not found"),
-        ("missing_key", "missing key column"),
-        ("duplicates", "duplicate station_id keys"),
         ("empty", "is empty or could not be read"),
-    ],
+    ]
 )
 def test_registry_df_error_cases(registry_name, match):
     with pytest.raises(ValueError, match=match):
-        cfgmod.registry_df(registry_name, key_column="station_id")
+        cfgmod.registry_df(registry_name)
 
 
 def test_repo_registry_uses_repo_site_key():
     df = cfgmod.repo_registry(repo="formatted")
     assert df.index.name == "station_id"
     assert df.loc["old", "agency_id"] == "A2"
+    
+def test_repo_registry_rejects_missing_site_key(monkeypatch):
+    monkeypatch.setitem(
+        cfgmod.config["repos"],
+        "broken_repo",
+        {
+            "root": "formatted_root",
+            "registry": "missing_key",
+            "site_key": "station_id",
+            "provider_key": "source",
+            "provider_resolution_mode": "assume_unique",
+            "filename_templates": ["{source}_{station_id}_{param}.csv"],
+        },
+    )
 
+    with pytest.raises(
+        ValueError,
+        match="Registry missing_key is missing key column station_id",
+    ):
+        cfgmod.repo_registry(repo="broken_repo")
+
+
+def test_repo_registry_rejects_duplicate_site_key(monkeypatch):
+    monkeypatch.setitem(
+        cfgmod.config["repos"],
+        "dup_repo",
+        {
+            "root": "formatted_root",
+            "registry": "duplicates",
+            "site_key": "station_id",
+            "provider_key": "source",
+            "provider_resolution_mode": "assume_unique",
+            "filename_templates": ["{source}_{station_id}_{param}.csv"],
+        },
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="Registry duplicates has duplicate station_id keys",
+    ):
+        cfgmod.repo_registry(repo="dup_repo")
 
 def test_repo_registry_rejects_repo_without_registry():
     with pytest.raises(ValueError, match="has no named registry"):

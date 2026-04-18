@@ -18,8 +18,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dms_datastore import read_ts
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.process_station_variable import (
-    process_station_list,
     stationfile_or_stations,
+    normalize_station_request,
+    attach_subloc,
+    attach_agency_id,
+    attach_src_var_id,
 )
 
 from dms_datastore import dstore_config
@@ -667,31 +670,63 @@ def ncro_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
     )
     return failures
 
+def download_ncro(
+    dest_dir,
+    start,
+    end,
+    param,
+    stations,
+    stationfile,
+    overwrite,
+    update_inventory=False,
+):
+    """Download robot for NCRO water data."""
 
-def test():
-    destdir = "."
-    overwrite = True
-    stime = pd.Timestamp(2015, 1, 1)
-    etime = dt.datetime.now()
-    params = ["do", "elev", "flow", "velocity", "ph", "cla", "turbidity", "temp"]
-    params = ["fdom"]
-    params = ["ssc"]
-    for param in params:
-        stations = ["orm", "old", "oh1", "bet"]
-        stationfile = stationfile_or_stations(stationfile=None, stations=stations)
-        slookup = dstore_config.config_file("station_dbase")
-        vlookup = mapping_df
-        # vlookup = dstore_config.config_file("variable_mappings")
-        df = process_station_list(
-            stationfile,
+    if start is None:
+        stime = pd.Timestamp(2024, 1, 1)
+    else:
+        stime = dt.datetime(*list(map(int, re.split(r"[^\d]", start))))
+
+    if end is None:
+        etime = dt.datetime.now()
+    else:
+        etime = dt.datetime(*list(map(int, re.split(r"[^\d]", end))))
+
+    station_input = stationfile_or_stations(
+        list(stationfile) if stationfile else None,
+        list(stations) if stations else None,
+    )
+
+    if isinstance(station_input, str):
+        req_df = pd.read_csv(station_input, sep=",", comment="#", header=0)
+        df = normalize_station_request(
+            stationframe=req_df,
             param=param,
-            station_lookup=slookup,
-            agency_id_col="agency_id",
-            param_lookup=vlookup,
-            source="ncro",
+            default_subloc=None,
         )
-        ncro_download(df, destdir, stime, etime, overwrite=overwrite)
+    else:
+        df = normalize_station_request(
+            stationlist=station_input,
+            param=param,
+            default_subloc=None,
+        )
 
+    df = attach_subloc(df, default_subloc="default")
+    df = attach_agency_id(
+        df,
+        repo_name="formatted",
+        agency_id_col="agency_id",
+    )
+    df = attach_src_var_id(df, mapping_df, source="ncro")
+
+    return ncro_download(
+        df,
+        dest_dir,
+        stime,
+        etime,
+        overwrite=overwrite,
+        update_inventory=update_inventory,
+    )
 
 
 @click.command(
@@ -764,31 +799,16 @@ def download_ncro_cli(
         logger.debug(f"NCRO inventory download complete. Records: {len(inventory)}")
         return
 
-    if start is None:
-        stime = pd.Timestamp(2024, 1, 1)
-    else:
-        stime = dt.datetime(*list(map(int, re.split(r"[^\d]", start))))
-    if end is None:
-        etime = dt.datetime.now()
-    else:
-        etime = dt.datetime(*list(map(int, re.split(r"[^\d]", end))))
-
-    stationfile = stationfile_or_stations(
-        list(stationfile) if stationfile else None, list(stations) if stations else None
-    )
-    slookup = dstore_config.config_file("station_dbase")
-    vlookup = mapping_df
-    # vlookup = dstore_config.config_file("variable_mappings")
-    df = process_station_list(
-        stationfile,
+    download_ncro(
+        dest_dir=dest_dir,
+        start=start,
+        end=end,
         param=param,
-        station_lookup=slookup,
-        agency_id_col="agency_id",
-        param_lookup=vlookup,
-        source="ncro",
+        stations=stations,
+        stationfile=stationfile,
+        overwrite=overwrite,
+        update_inventory=update_inventory,
     )
-
-    ncro_download(df, dest_dir, stime, etime, overwrite=overwrite, update_inventory=update_inventory)
 
 
 if __name__ == "__main__":
