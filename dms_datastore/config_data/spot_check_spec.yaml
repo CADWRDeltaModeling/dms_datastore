@@ -1,0 +1,216 @@
+# Annotated spot-check configuration
+#
+# This version preserves the comments and explains the new tier-aware stream
+# checks that were added to support cases like CDEC -> NCRO name changes across
+# tiers.
+#
+# The script now supports two kinds of spot checks:
+#
+#   1. check_files
+#      Legacy simple checks. Use these only when the same filename glob is
+#      expected to mean the same thing in every tier.
+#
+#   2. check_streams
+#      Preferred for logical streams whose filenames may differ by tier.
+#      This is the right tool when raw/formatted use one provider-like prefix
+#      and screened uses a different first slot because the repo semantics have
+#      changed.
+#
+# Main sections:
+#   repo_dirs     Baseline repo locations used for count comparison
+#   staging_dirs  Freshly downloaded/staged locations being checked
+#   defaults      Shared policy knobs
+#   groups        Agency/source groupings to validate
+#
+# Count checks
+# ------------
+# For each group and tier, the script compares the number of staged files that
+# match the tier pattern with the number of repo files that match the same
+# pattern. The required minimum is:
+#
+#     max( ceil(n_count_fract * repo_count), min_count_abs )
+#
+# if min_count_abs is provided, otherwise just the fractional threshold.
+#
+# Spot checks
+# -----------
+# For each check_files/check_streams item and each requested year:
+#   * find candidate files in the STAGING directory for the current tier
+#   * filter candidates whose filename contains either:
+#       - the exact requested year, or
+#       - a covering range like 2005_2007
+#   * optionally open the chosen file with read_ts()
+#
+# Exit code bitmask
+# -----------------
+#   1 = count failures
+#   2 = required missing files
+#   4 = required open failures
+
+repo_dirs:
+  # Baseline repo directories, by tier.
+  # These are used as the reference population for count checks.
+  raw: //cnrastore-bdo/Modeling_Data/archive_repo/repo_staging/continuous/raw
+  formatted: //cnrastore-bdo/Modeling_Data/repo/continuous/formatted
+  screened: //cnrastore-bdo/Modeling_Data/repo/continuous/screened
+
+staging_dirs:
+  # Freshly staged directories being validated.
+  raw: //cnrastore-bdo/Modeling_Data/repo_staging_auto/continuous/raw
+  formatted: //cnrastore-bdo/Modeling_Data/repo_staging_auto/continuous/formatted
+  screened: //cnrastore-bdo/Modeling_Data/repo_staging_auto/continuous/screened
+
+defaults:
+  # Default fraction of repo files that must appear in staging for a pass.
+  n_count_fract: 0.90
+
+  # Optional absolute floor for count checks. If omitted at the group/tier
+  # level, there is no absolute minimum beyond the fractional requirement.
+  min_count_abs: 1
+
+  check_files:
+    # Required checks increment the failure counts and affect the exit code.
+    # Optional checks only generate warnings.
+    require: true
+
+    # If true, open the chosen file with read_ts() after it is found.
+    # If false, only existence/year coverage is checked.
+    open: false
+
+groups:
+  - name: des
+
+    # Tier-specific count patterns.
+    # The screened tier uses dwr_des_* because the first slot changes there.
+    tiers:
+      raw:
+        pattern: des_*.csv
+        min_count_abs: 430   # as of 2026-04-17 there are 434 files in the repo, so this allows for 4 missing files without a failure
+      formatted:
+        pattern: des_*.csv
+        n_count_fract: 0.90
+        min_count_abs: 2000
+      screened:
+        pattern: dwr_des_*.csv
+        min_count_abs: 2000
+
+    # Tier-aware logical stream checks.
+    # Use this form when the same logical series may have different names by
+    # tier.
+    check_streams:
+      - name: mrz_upper_40_elev
+        years: [1991, 2005, 2012, 2019, 2020, 2022, 2025, 2026]
+        tier_patterns:
+          raw: des_mrz@upper_40_elev_*
+          formatted: des_mrz@upper_40_elev_*
+          screened: dwr_des_mrz@upper_40_elev_*
+
+      - name: mrz_lower_40_ec
+        years: [2005, 2012, 2019, 2020, 2022]
+        tier_patterns:
+          raw: des_mrz@lower_40_ec_*
+          formatted: des_mrz@lower_40_ec_*
+          screened: dwr_des_mrz@lower_40_ec_*
+
+  - name: ncro
+    tiers:
+      raw:
+        pattern: ncro_*.csv
+      formatted:
+        pattern: ncro_*.csv
+      screened:
+        pattern: ncro_*.csv
+
+    # Historical BAC EC stream where the same ncro_* naming is expected across
+    # tiers.
+    check_streams:
+      - name: bac_ec_historical
+        years: [1991, 2004, 2012, 2019, 2020, 2022]
+        tier_patterns:
+          raw: ncro_bac_*_ec_*
+          formatted: ncro_bac_*_ec_*
+          screened: ncro_bac_*_ec_*
+
+  - name: usbr
+    tiers:
+      raw:
+        pattern: usbr_*.csv
+        min_count_abs: 129
+      formatted:
+        pattern: usbr_*.csv
+        min_count_abs: 300
+      screened:
+        pattern: usbr_*.csv
+
+  - name: ncro_cdec
+    # This group exists to validate the realtime CDEC tail that shadows NCRO
+    # series.
+    #
+    # Key idea:
+    #   raw/formatted   expect cdec_* filenames
+    #   screened        expect the logical stream to have been absorbed into
+    #                   ncro_* naming
+    #
+    # So count patterns and stream patterns are intentionally different by tier.
+    tiers:
+      raw:
+        pattern: cdec_*.csv
+
+        # A repo comparison may not make much sense for raw if the baseline is
+        # sparse or the raw staging population is intentionally small.
+        # Setting n_count_fract to 0.0 effectively disables the fractional gate
+        # while still allowing an absolute minimum.
+        n_count_fract: 0.0
+        min_count_abs: 1
+      formatted:
+        pattern: cdec_*.csv
+        n_count_fract: 0.90
+        min_count_abs: 1
+      screened:
+        pattern: ncro_*.csv
+        n_count_fract: 0.90
+        min_count_abs: 1
+
+    check_streams:
+      - name: bac_ec_realtime_tail
+        years: [2025, 2026]
+
+        # Optional because realtime tails can be fragile; turn this back on to
+        # make it a hard requirement.
+        require: false
+
+        # Same logical stream, different acceptable filenames by tier.
+        tier_patterns:
+          raw: cdec_bac_*_ec_*
+          formatted: cdec_bac_*_ec_*
+          screened: ncro_bac_*_ec_*
+
+  - name: usgs
+    tiers:
+      raw:
+        pattern: usgs_*.csv
+        n_count_fract: 0.90
+        min_count_abs: 800
+      formatted:
+        pattern: usgs_*.csv
+        n_count_fract: 0.90
+        min_count_abs: 6230
+      screened:
+        pattern: usgs_*.csv
+        n_count_fract: 0.90
+        min_count_abs: 6230
+
+  - name: noaa
+    tiers:
+      raw:
+        pattern: noaa_*_elev_*.csv
+        n_count_fract: 0.25  # set low in case predictions are a confounder
+        min_count_abs: 25    # there are only a few in the repo, so an complete sweep is expected
+      formatted:
+        pattern: noaa_*_elev_*.csv
+        n_count_fract: 0.25
+        min_count_abs: 25
+      screened:
+        pattern: noaa_*_elev_*.csv
+        n_count_fract: 0.25
+        min_count_abs: 25
