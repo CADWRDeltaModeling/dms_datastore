@@ -366,10 +366,10 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
             if "NFU" in rid.unit_name:
                 continue
             if fend < start:
-                logger.info(f"skipping one file because fend < {start}")
+                logger.debug(f"skipping one file because fend < {start}")
                 continue
             if fstart > end:
-                logger.info(f"skipping one file because fstart > {end}")
+                logger.debug(f"skipping one file because fstart > {end}")
                 continue
             fstart = max(start, fstart)
             fend = min(fend, end)
@@ -416,11 +416,11 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
                     write_ts(path, df, meta)
 
     if len(failures) == 0:
-        logger.info("No failed stations")
+        logger.info("No failed/unproductive stations")
     else:
-        logger.info("Failed/unproductive query stations: ")
+        logger.info(f"{len(failures)} failed/unproductive query stations (skipped {len(skips)} existing files)")
         for failure in failures:
-            logger.info(failure)
+            logger.debug(failure)
 
 
 

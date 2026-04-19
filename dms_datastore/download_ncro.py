@@ -283,7 +283,6 @@ def _handle_failed_inventory_refresh(inventory_prev, meta_prev, reason):
     reliable_prev = _inventory_is_reliable(inventory_prev)
     previous_failed_updates = int(meta_prev.get("failed_updates", 0))
     new_failed_updates = previous_failed_updates + 1
-
     if reliable_prev and new_failed_updates <= NCRO_MAX_FAILED_UPDATES:
         _write_inventory_file(
             inventory_prev,
@@ -338,6 +337,7 @@ def load_inventory(force_update=False):
         ncro_inventory = _handle_failed_inventory_refresh(inventory_prev, meta_prev, reason)
         return ncro_inventory
 
+    logger.info(f"NCRO Inventory: successfully downloaded new inventory with {len(inventory_new)} entries; writing to file")
     _write_inventory_file(
         inventory_new,
         inventoryfile,
