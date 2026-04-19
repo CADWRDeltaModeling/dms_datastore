@@ -87,7 +87,7 @@ Additional methods from ``vtools3``
 
 
 Reading Data with ``read_ts_repo``
-===================================
+==================================
 
 :func:`~dms_datastore.read_multi.read_ts_repo` is the primary way to access data
 from the datastore. It handles file path construction, source prioritization,
@@ -150,7 +150,7 @@ Function parameters
 
 
 Example: retrieval and visualization
--------------------------------------
+------------------------------------
 
 .. code-block:: python
 
@@ -176,7 +176,7 @@ Example: retrieval and visualization
 
 
 Caching repeated reads
------------------------
+----------------------
 
 For repeated access to the same data the datastore provides the
 ``@cache_dataframe`` decorator:

@@ -14,7 +14,7 @@ See :doc:`commands` for the full CLI reference.
 
 
 Configuration System
-=====================
+====================
 
 The datastore uses YAML files and Python modules to manage station metadata,
 variable mappings, and screening configurations.
@@ -76,7 +76,7 @@ All functions cache their results to avoid repeated filesystem reads.
 
 
 Screen Configuration
----------------------
+--------------------
 
 The screening configuration YAML (referenced by ``screen_config`` in
 ``dstore_config.yaml``) drives :mod:`~dms_datastore.auto_screen` and contains

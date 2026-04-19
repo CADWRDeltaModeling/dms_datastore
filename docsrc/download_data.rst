@@ -14,31 +14,25 @@ Station Lists
 
 
 Specific Command Line Interfaces
-=================================
+================================
 
 CDEC
-^^^^^^
-.. argparse::
-    :module: dms_datastore.download_cdec
-    :func: create_arg_parser
+^^^^
+.. click:: dms_datastore.download_cdec:download_cdec_cli
     :prog: download_cdec
 
 
 
 USGS (NWIS)
-^^^^^^^^^^^^^
+^^^^^^^^^^^
 
-.. argparse::
-    :module: dms_datastore.download_nwis
-    :func: create_arg_parser
+.. click:: dms_datastore.download_nwis:download_nwis_cli
     :prog: download_nwis
 
 NOAA
 ^^^^
 
-.. argparse::
-    :module: dms_datastore.download_noaa
-    :func: create_arg_parser
+.. click:: dms_datastore.download_noaa:download_noaa_cli
     :prog: download_noaa
 
 DWR-NCRO
@@ -55,17 +49,12 @@ so its interface is simpler, less flexible and different from the others.
 #    :module: dms_datastore.download_ncro
 #    :func: create_arg_parser
 #    :prog: download_ncro.py
-
+    
+.. click:: dms_datastore.download_des:download_des_cli
+    :prog: download_des
 DWR-DES (DISE)
 ^^^^^^^^^^^^^^
 
 DWR Division of Environmental Services has been renamed but the name has not yet been updated here. 
 These web services are internal to DWR. External users can get reformatted/screened data from our group or request data 
 from DWR liasons who are identified on CDEC on a per-station basis.
-
-.. argparse::
-    :module: dms_datastore.download_des
-    :func: create_arg_parser
-    :prog: download_des
-
-

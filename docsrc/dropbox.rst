@@ -22,7 +22,7 @@ Key Components
    metadata inference rules.
 
 How it works
------------
+------------
 
 The processing follows these steps:
 

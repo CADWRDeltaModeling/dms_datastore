@@ -18,7 +18,7 @@ Use the `dms` grouped CLI (or call commands directly by script name).
    dms download_ncro --help
 
 Command Help Shortcuts
------------------------
+----------------------
 
 .. code-block:: bash
 
@@ -54,7 +54,7 @@ Command Help Shortcuts
    rationalize_time_partitions --help
 
 Workflow A: Repository Build Pipeline (Download → Reformat → Auto Screen)
------------------------------------------------------------------------
+-------------------------------------------------------------------------
 
 Stage 1: Download into raw/staging
 
@@ -124,7 +124,7 @@ Workflow B: Dropbox Ingest (separate workflow)
    dropbox --input dms_datastore/config_data/dropbox_spec.yaml
 
 Workflow C: Staging → Repo update and utilities
-------------------------------------------------
+-----------------------------------------------
 
 .. code-block:: bash
 

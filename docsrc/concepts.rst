@@ -155,7 +155,7 @@ Units and Standardization
 
 
 Known Challenges and Exceptions
-================================
+===============================
 
 **WDL Station IDs**
    WDL station IDs may not match the canonical ``station_id`` due to appended ``"00"``
@@ -170,4 +170,3 @@ Known Challenges and Exceptions
    USGS may have multiple instruments measuring the same variable for one station ID
    due to different programs or sublocations. The ``raw/`` directory can store dual
    versions for QA/QC, though the processed set should ideally be unified.
-

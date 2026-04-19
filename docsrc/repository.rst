@@ -1,8 +1,8 @@
 
 
-###########################
+########################
 Time Series Repositories
-###########################
+########################
 
 This page describes the design of the repository system for developers and advanced
 users who need to build inventory tools, implement downloaders, or integrate with
@@ -25,7 +25,7 @@ These form a strict, deterministic pipeline::
 
 
 Repository Configuration
-=========================
+========================
 
 A repo configuration defines how a directory of files is interpreted as structured data.
 
@@ -70,7 +70,7 @@ Key terminology
 
 
 Source Priority Configuration
-------------------------------
+-----------------------------
 
 The ``source_priority`` block in ``dstore_config.yaml`` specifies preferred data
 sources per agency-managed station group:
@@ -93,7 +93,7 @@ For example, EBMUD station data is resolved by preferring USGS, then EBMUD, then
 
 
 Filename Templates and Interpretation
-======================================
+=====================================
 
 Filename templates define the bidirectional mapping between metadata and filenames.
 
@@ -120,7 +120,7 @@ Design rules:
 
 
 Registry (station_dbase.csv)
-=============================
+============================
 
 The registry provides authoritative metadata that enriches filename-derived fields.
 
@@ -138,7 +138,7 @@ Inventory System
 Inventory converts repository files into structured summaries.
 
 File inventory (``repo_file_inventory``)
------------------------------------------
+----------------------------------------
 
 Groups by ``file_pattern``. Represents:
 
@@ -147,7 +147,7 @@ Groups by ``file_pattern``. Represents:
 * Provider-specific datasets
 
 Data inventory (``repo_data_inventory``)
------------------------------------------
+----------------------------------------
 
 Groups by ``series_id``. Represents:
 
@@ -167,7 +167,7 @@ A ``series_id`` is constructed from metadata::
 
 
 Populating the Repository
-==========================
+=========================
 
 The :doc:`commands` page documents the full CLI workflow. A summary::
 
@@ -225,7 +225,7 @@ Guarantees: stable formatting, idempotent round-trip, canonical YAML header.
 
 
 End-to-End Flow
-================
+===============
 
 Read path::
 
@@ -241,7 +241,7 @@ Write path::
 
 
 Design Principles
-==================
+=================
 
 Fail fast
    Bad filenames → error. Bad config → error. No implicit recovery.
@@ -265,7 +265,7 @@ Separation of concerns
 
 
 Architectural Evolution Notes
-==============================
+=============================
 
 The repository system was refactored from an implicit agency-based model to a fully
 config-driven provider model. Key terminology changes:
@@ -285,4 +285,3 @@ Configs **must** define ``site_key``, ``provider_key``, and
 no fallback behavior.
 
 The legacy ``parse.style = legacy`` option remains for backward compatibility.
-

@@ -16,8 +16,35 @@
 
 
 # -- Project information -----------------------------------------------------
-import dms_datastore
+import sys
 import os
+from unittest.mock import MagicMock
+
+# Mock heavy/unavailable dependencies before importing dms_datastore,
+# so conf.py works in the CI docs environment without the full conda env.
+_MOCK_MODULES = [
+    "vtools", "vtools.data", "vtools.data.indexing", "vtools.data.vtime",
+    "vtools.data.timeseries", "vtools.data.gap", "vtools.data.duplicate_index",
+    "vtools.functions", "vtools.functions.merge", "vtools.functions.filter",
+    "vtools.functions.coarsen", "vtools.functions.error_detect",
+    "vtools.functions.unit_conversions",
+    "schimpy", "schimpy.station", "schimpy.unit_conversions",
+    "tabula",
+    "geopandas",
+    "shapely", "shapely.geometry",
+    "diskcache",
+    "seaborn",
+    "dask", "dask.dataframe",
+    "paramiko",
+    "boto3",
+    "cfgrib",
+    "eccodes",
+    "numba",
+]
+for _mod in _MOCK_MODULES:
+    sys.modules.setdefault(_mod, MagicMock())
+
+import dms_datastore
 
 project = 'dms_datastore'
 copyright = '2022, Eli Ateljevich, CA DWR'
@@ -43,19 +70,23 @@ html_static_path = ['_static']
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
-extensions = [ 'sphinx_rtd_theme', 'nbsphinx',
-          'sphinxcontrib.mermaid',
-          'sphinx.ext.mathjax',
-          'sphinx.ext.autodoc', 
-          'sphinx.ext.viewcode',
-          'matplotlib.sphinxext.mathmpl',
-          'matplotlib.sphinxext.plot_directive',
-          'sphinx.ext.intersphinx',
-          'sphinx.ext.autodoc',
-          #'sphinx_argparse_cli',
-          'sphinxarg.ext',
-          'sphinx.ext.doctest',
-          'numpydoc']
+extensions = [
+    'sphinx_rtd_theme',
+    'nbsphinx',
+    'sphinxcontrib.mermaid',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.autodoc',
+    'sphinx.ext.viewcode',
+    'matplotlib.sphinxext.mathmpl',
+    'matplotlib.sphinxext.plot_directive',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.autodoc',
+    #'sphinx_argparse_cli',
+    'sphinxarg.ext',
+    'sphinx_click',
+    'sphinx.ext.doctest',
+    'numpydoc',
+]
 
 autodoc_member_order = 'alphabetical'
 
