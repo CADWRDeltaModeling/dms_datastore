@@ -61,6 +61,11 @@ def download_station_data(
             dest_dir, f"cdec_{station}@{subloc}_{agency_id}_{p}_{yearname}.csv"
         ).lower()
 
+    if freq is None:
+        dur_codes = ["E", "H"]   # new default
+    else:
+        dur_codes = [f.strip().upper() for f in freq.split(",") if f.strip()]
+
     result = {
         "station": station,
         "paramname": p,
@@ -70,7 +75,7 @@ def download_station_data(
         "found": False,
         "skipped": False,
         "reason": None,
-        "durations_tried": ["E", "H", "D", "M"] if freq is None else [freq],
+        "durations_tried": dur_codes.copy(),
         "sensor_codes_tried": [z],
     }
 
@@ -88,10 +93,7 @@ def download_station_data(
     found = False
     for code in [z]:
 
-        if freq is None:
-            dur_codes = ["E", "H"]   # new default
-        else:
-            dur_codes = [f.strip().upper() for f in freq.split(",")]
+
 
         for dur in dur_codes:
             station_query = (

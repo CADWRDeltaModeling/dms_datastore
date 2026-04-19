@@ -607,7 +607,7 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
                 if os.path.exists(proposed_path) and not overwrite:
                     logger.info(f"Skipping existing file (use --overwrite to replace): {proposed_path}")
                     continue
-
+                logger.info(f"Scheduling download for station {station_id} site {site} trace {trace} param {paramname}")
                 task = asyncio.create_task(
                     _async_download_one_trace_to_csv(
                         client=client,
@@ -633,7 +633,8 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
                     f"Exception occurred during download: station={station_id} site={site} trace={trace} err={result}"
                 )
                 failures.append((station_id, site, trace, str(result)))
-
+            else:
+                logger.debug(f"Successfully downloaded: station={station_id} site={site} trace={trace} path={result}")
     return failures
 
 

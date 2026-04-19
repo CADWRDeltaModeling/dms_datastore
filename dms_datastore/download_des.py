@@ -418,7 +418,7 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
     if len(failures) == 0:
         logger.info("No failed stations")
     else:
-        logger.info("Failed query stations: ")
+        logger.info("Failed/unproductive query stations: ")
         for failure in failures:
             logger.info(failure)
 
