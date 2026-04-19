@@ -214,7 +214,7 @@ def download_station_data(
                 content = response.content
                 raw_table = content.decode()
                 if faulty_output(raw_table):
-                    logger.warning(
+                    logger.debug(
                         "NOAA returned short or unusable output for station=%s param=%s "
                         "agency_id=%s start=%s end=%s url=%s snippet=%r",
                         station,
