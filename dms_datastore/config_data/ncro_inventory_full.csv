@@ -1,0 +1,518 @@
+# last_update: 2026-04-18
+# failed_updates: 0
+param,trace,desc,datasource,start_time,end_time,site
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2008-01-06 13:15:00,2026-03-19 12:30:00,A02100
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1983-10-01 00:00:00,2026-03-19 12:30:00,A02100
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-02-06 10:30:00,A02108
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2009-01-15 10:30:00,2025-11-13 15:00:00,A0215000
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1992-10-01 00:00:00,2026-01-20 10:30:00,A02160
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-02-06 08:15:00,A02170
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-06 18:45:00,2020-10-01 00:00:00,A02200
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-11-05 13:00:00,2025-11-17 15:30:00,A0223002
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1987-10-01 00:00:00,2026-03-13 08:15:00,B91120
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1990-10-01 00:00:00,2026-03-13 08:15:00,B91120
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1987-10-01 00:00:00,2026-01-28 12:45:00,B91160
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2006-04-13 11:45:09,2026-01-28 12:45:00,B91160
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2022-04-28 10:00:00,2026-01-21 12:45:00,B9125000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2015-06-12 13:45:16,2026-01-21 12:45:00,B9125000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2015-06-12 13:45:16,2026-01-21 12:45:00,B9125000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2015-06-12 13:45:16,2026-01-21 12:45:00,B9125000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2015-06-12 13:45:16,2026-01-21 12:45:00,B9125000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2015-06-12 13:45:16,2026-01-21 12:45:00,B9125000
+pH,pH.RAW,pH - Raw Point Data,Combined,2022-04-28 10:00:00,2026-01-21 12:45:00,B9125000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2015-06-19 07:00:00,2026-04-15 00:00:00,B91250Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2015-06-19 07:00:00,2026-04-07 06:45:00,B91250Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-07 06:45:00,B91250Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-09-26 12:15:00,2026-04-07 06:45:00,B91250Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2015-06-19 07:00:00,2026-04-07 06:45:00,B91250Q
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2022-04-28 10:30:00,2026-04-18 16:45:00,B9145000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2015-06-12 12:30:16,2026-04-18 16:45:00,B9145000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2015-06-12 12:30:16,2026-04-18 16:45:00,B9145000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2015-06-12 12:30:16,2026-04-18 16:45:00,B9145000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2015-06-12 12:30:16,2026-04-18 16:45:00,B9145000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2015-06-12 12:30:16,2026-04-18 16:45:00,B9145000
+pH,pH.RAW,pH - Raw Point Data,Combined,2022-04-28 10:30:00,2026-04-18 16:45:00,B9145000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2015-06-12 09:15:00,2026-04-07 06:45:00,B91450Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2015-06-12 09:15:00,2026-04-07 06:45:00,B91450Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-07 06:45:00,B91450Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-09-26 12:15:00,2026-04-07 06:45:00,B91450Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2015-06-12 09:15:00,2026-04-07 06:45:00,B91450Q
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2017-04-11 10:15:00,2026-03-18 11:00:00,B9147000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2015-06-12 10:30:16,2026-03-18 11:00:00,B9147000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2015-06-12 10:30:16,2026-03-18 11:00:00,B9147000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2015-06-12 10:30:16,2026-03-18 11:00:00,B9147000
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2017-04-11 10:15:00,2025-05-21 10:15:00,B9147000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2015-06-12 10:30:16,2026-03-18 11:00:00,B9147000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2015-06-12 10:30:16,2026-03-18 11:00:00,B9147000
+fDOM,fDOM.RAW,Fluorescent Dissolved Organic Matter - Raw Point Data,Combined,2017-04-11 10:15:00,2026-03-18 11:00:00,B9147000
+pH,pH.RAW,pH - Raw Point Data,Combined,2017-04-11 10:15:00,2026-03-18 11:00:00,B9147000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2015-06-12 11:15:00,2026-04-07 06:45:00,B91470Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2015-06-12 11:15:00,2026-04-07 06:45:00,B91470Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-07 06:45:00,B91470Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-09-26 12:15:00,2026-04-07 06:45:00,B91470Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2015-06-12 11:00:00,2026-04-07 06:45:00,B91470Q
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1995-10-01 00:00:00,2026-03-18 10:15:00,B91475
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-26 09:30:00,B91479
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1990-10-01 00:00:00,2026-03-26 09:30:00,B91479
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1994-10-01 00:00:00,2026-03-19 08:15:00,B91510
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2014-04-17 11:45:00,2014-06-04 09:15:00,B91510
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,2010-03-03 08:00:00,2026-03-19 08:15:00,B91511
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-19 10:15:00,B91560
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2013-03-04 14:31:07,2026-02-25 10:00:00,B9156000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2013-03-04 14:31:07,2026-02-25 10:00:00,B9156000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2013-03-04 14:31:07,2026-02-25 10:00:00,B9156000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2013-03-04 14:31:07,2026-02-25 10:00:00,B9156000
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2013-03-04 14:31:07,2025-10-28 10:00:00,B9156000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2013-03-04 14:31:07,2026-02-25 10:00:00,B9156000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2013-03-04 14:31:07,2026-02-25 10:00:00,B9156000
+pH,pH.RAW,pH - Raw Point Data,Combined,2013-03-04 14:31:07,2026-02-25 10:00:00,B9156000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2003-01-01 00:00:00,2026-04-06 13:45:00,B91560Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2003-01-01 00:00:00,2026-04-06 13:45:00,B91560Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-06 13:45:00,B91560Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-06 08:15:00,2026-04-06 13:45:00,B91560Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2001-11-16 12:20:45,2026-04-06 13:45:00,B91560Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-26 08:45:00,B91650
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1988-10-01 00:00:00,2026-03-26 08:45:00,B91650
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-04-08 08:45:00,B91750
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2008-04-04 10:45:31,2026-01-15 09:30:00,B9409500
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2008-04-04 10:45:31,2026-01-15 09:30:00,B9409500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-04-04 10:45:31,2026-01-15 09:30:00,B9409500
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-17 09:45:00,B94100
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-26 07:30:00,B94133
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1990-10-01 00:00:00,2026-03-26 07:30:00,B94133
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-17 10:30:00,B94150
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-17 11:00:00,B94175
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-17 08:30:00,B95020
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1982-10-01 00:00:00,1999-09-30 23:45:00,B95029
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2010-02-03 11:01:01,2026-02-11 10:45:00,B9502900
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2010-02-17 10:01:00,2026-02-11 10:45:00,B9502900
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2010-02-17 10:01:00,2026-02-11 10:45:00,B9502900
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1982-10-01 00:00:00,2026-02-11 10:45:00,B9502900
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2010-02-03 11:01:01,2025-08-06 10:15:00,B9502900
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2010-02-03 11:01:01,2026-02-11 10:45:00,B9502900
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2010-02-03 11:01:01,2026-02-11 10:45:00,B9502900
+pH,pH.RAW,pH - Raw Point Data,Combined,2010-02-03 11:01:01,2026-02-11 10:45:00,B9502900
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2010-03-30 10:01:53,2026-01-27 10:45:00,B9504400
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2014-03-25 11:30:19,2026-01-27 10:45:00,B9504400
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2014-03-25 11:30:19,2026-01-27 10:45:00,B9504400
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2005-10-20 13:30:08,2026-01-27 10:45:00,B9504400
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2007-12-28 13:30:19,2026-01-27 10:45:00,B9504400
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2005-10-20 13:30:08,2026-01-27 10:45:00,B9504400
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2024-02-21 14:45:00,2026-02-11 12:00:00,B9504500
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2014-05-12 12:01:04,2026-02-11 12:00:00,B9504500
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2014-05-12 12:01:04,2026-02-11 12:00:00,B9504500
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2014-05-12 12:01:04,2026-02-11 12:00:00,B9504500
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2014-05-12 12:01:04,2026-02-11 12:00:00,B9504500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2014-05-12 12:01:04,2026-02-11 12:00:00,B9504500
+pH,pH.RAW,pH - Raw Point Data,Combined,2024-02-21 14:45:00,2026-02-11 12:00:00,B9504500
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2014-10-07 12:31:38,2026-01-27 11:45:00,B9505000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2014-10-07 12:31:38,2026-01-27 11:45:00,B9505000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2014-10-07 12:31:38,2026-01-27 11:45:00,B9505000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2014-10-07 12:31:38,2026-01-27 11:45:00,B9505000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2014-10-07 12:31:38,2026-01-27 11:45:00,B9505000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2015-06-05 09:30:00,2026-04-01 14:00:00,B95050Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2015-06-05 09:30:00,2026-04-01 14:00:00,B95050Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-01 14:00:00,B95050Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-09-26 12:15:00,2026-04-01 14:00:00,B95050Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2015-06-05 09:30:00,2026-04-01 14:00:00,B95050Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1982-10-01 00:00:00,2017-06-06 17:30:00,B95058
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-06-01 00:00:09,2017-06-06 17:30:00,B95058
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1987-10-01 00:00:00,2026-03-30 11:00:00,B95060
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-30 11:00:00,B95060
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1990-10-01 00:00:00,2026-03-30 11:00:00,B95060
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2014-03-25 10:30:16,2026-01-27 10:15:00,B9506100
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2014-03-25 10:30:16,2026-01-27 10:15:00,B9506100
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2008-04-10 11:45:16,2026-01-27 10:15:00,B9506100
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2008-04-10 11:45:16,2026-01-27 10:15:00,B9506100
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-04-10 11:45:16,2026-01-27 10:15:00,B9506100
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-17 09:00:00,B95100
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2010-03-10 13:15:19,2026-01-15 11:45:00,B9510800
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2014-03-25 13:16:23,2026-01-15 11:45:00,B9510800
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2014-03-25 13:16:23,2026-01-15 11:45:00,B9510800
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2005-10-20 14:00:08,2026-01-15 11:45:00,B9510800
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2009-12-03 15:15:30,2026-01-15 11:45:00,B9510800
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2005-10-20 14:00:08,2026-01-15 11:45:00,B9510800
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2014-03-25 12:15:16,2026-01-15 11:15:00,B9512000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2014-03-25 12:15:16,2026-01-15 11:15:00,B9512000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2005-10-20 11:15:08,2026-01-15 11:15:00,B9512000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2007-09-18 09:30:31,2026-01-15 11:15:00,B9512000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2005-10-20 11:15:08,2026-01-15 11:15:00,B9512000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2005-10-20 14:30:00,2026-03-24 10:45:00,B9520000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2009-12-03 14:45:30,2026-03-24 10:45:00,B9520000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2005-10-20 14:30:00,2026-03-24 10:45:00,B9520000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2002-01-01 00:00:00,2025-01-23 12:00:00,B9521600
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2002-01-01 00:00:00,2025-01-23 12:00:00,B9521600
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2007-06-05 11:30:08,2025-01-23 11:15:00,B9522500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2007-06-05 11:30:08,2025-01-23 11:15:00,B9522500
+Chloride,Chloride.RAW,Chloride - Raw Point Data,Combined,2001-06-04 20:00:00,2002-10-29 11:45:00,B9524900
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2001-01-01 00:00:00,2025-01-23 10:30:00,B9524900
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2001-01-01 00:00:00,2025-01-23 10:30:00,B9524900
+pH,pH.RAW,pH - Raw Point Data,Combined,2001-06-04 20:00:00,2002-11-29 17:15:00,B9524900
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1985-10-01 00:00:00,2026-02-19 12:00:00,B95250
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1986-10-01 00:00:00,2026-02-19 12:00:00,B95250
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-06-01 11:29:08,2026-02-19 12:00:00,B95250
+Chloride,Chloride.RAW,Chloride - Raw Point Data,Combined,2000-01-01 00:00:00,2002-11-29 23:15:00,B9525000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2000-01-01 00:00:00,2011-04-06 10:00:08,B9525000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2000-01-01 00:00:00,2011-04-06 10:00:08,B9525000
+pH,pH.RAW,pH - Raw Point Data,Combined,2000-01-01 00:00:00,2002-11-29 23:15:00,B9525000
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,2001-10-01 00:00:00,2026-03-19 08:30:00,B95260
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-02-10 11:45:00,B95270
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2007-03-30 11:45:00,2026-02-03 12:30:00,B9528500
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2007-03-30 11:45:00,2026-02-03 12:30:00,B9528500
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2007-03-30 11:45:00,2026-02-03 12:30:00,B9528500
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2007-03-30 11:45:00,2026-02-03 12:30:00,B9528500
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2007-03-30 11:45:00,2025-09-24 11:15:00,B9528500
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2007-03-30 11:45:00,2026-02-03 12:30:00,B9528500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2007-03-30 11:45:00,2026-02-03 12:30:00,B9528500
+pH,pH.RAW,pH - Raw Point Data,Combined,2007-03-30 11:45:00,2026-02-03 12:30:00,B9528500
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,2004-10-01 00:00:00,2026-03-24 09:15:00,B95290
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2014-02-04 09:15:00,2014-07-08 07:30:00,B95290
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,2005-07-15 07:45:00,2026-04-09 10:30:00,B95295
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2007-02-02 12:15:00,2026-02-03 10:15:00,B9529500
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2007-02-02 12:15:00,2026-02-03 10:15:00,B9529500
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2007-02-02 12:15:00,2026-02-03 10:15:00,B9529500
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2007-02-02 12:15:00,2026-02-03 10:15:00,B9529500
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2007-02-02 12:15:00,2025-10-14 08:45:00,B9529500
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2007-02-02 12:15:00,2026-02-03 10:15:00,B9529500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2007-02-02 12:15:00,2026-02-03 10:15:00,B9529500
+pH,pH.RAW,pH - Raw Point Data,Combined,2007-02-02 12:15:00,2026-02-03 10:15:00,B9529500
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2023-02-07 10:45:00,2026-02-11 11:45:00,B9529700
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2023-02-07 10:45:00,2026-02-11 11:45:00,B9529700
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1990-10-01 00:00:00,2010-07-07 09:45:08,B95300
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-04-02 10:45:00,B95300
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1992-10-01 00:00:00,2010-07-07 09:45:08,B95300
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2006-04-11 09:15:00,2018-08-03 09:44:28,B9530000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2006-03-06 10:30:00,2018-08-03 09:44:28,B9530000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2006-03-06 10:30:00,2018-08-03 09:44:28,B9530000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2006-03-06 10:30:00,2018-08-03 09:44:28,B9530000
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2006-03-06 10:30:00,2018-08-03 09:44:28,B9530000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2006-03-06 10:30:00,2018-08-03 09:44:28,B9530000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2006-03-06 10:30:00,2018-08-03 09:44:28,B9530000
+pH,pH.RAW,pH - Raw Point Data,Combined,2006-03-06 10:30:00,2018-08-03 09:44:28,B9530000
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1995-10-01 00:00:00,2026-03-24 11:00:00,B95310
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2006-05-15 10:00:00,2013-08-27 11:15:28,B9531000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2006-03-24 13:00:00,2013-08-27 11:15:28,B9531000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2006-03-24 13:00:00,2013-08-27 11:15:28,B9531000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2006-03-24 13:00:00,2013-08-27 11:15:28,B9531000
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2006-03-24 13:00:00,2013-08-27 11:15:28,B9531000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2006-03-24 13:00:00,2013-08-27 11:15:28,B9531000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2006-03-24 13:00:00,2013-08-27 11:15:28,B9531000
+pH,pH.RAW,pH - Raw Point Data,Combined,2006-03-24 13:00:00,2013-08-27 11:15:28,B9531000
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2013-02-26 12:01:22,2026-03-04 10:45:00,B9532000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2013-02-26 12:01:22,2026-03-04 10:45:00,B9532000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2013-02-26 12:01:22,2026-03-04 10:45:00,B9532000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2013-02-26 12:01:22,2026-03-04 10:45:00,B9532000
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2013-02-26 12:01:22,2025-10-01 10:30:00,B9532000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2013-02-26 12:01:22,2026-03-04 10:45:00,B9532000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2013-02-26 12:01:22,2026-03-04 10:45:00,B9532000
+pH,pH.RAW,pH - Raw Point Data,Combined,2013-02-26 12:01:22,2026-03-04 10:45:00,B9532000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2013-01-15 14:14:44,2026-04-08 08:00:00,B95320Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2013-01-15 14:14:44,2026-04-08 08:00:00,B95320Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-08 07:45:00,B95320Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-07 12:30:00,2026-04-08 07:45:00,B95320Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2013-01-15 14:14:44,2026-04-08 07:45:00,B95320Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2002-10-01 00:00:00,2025-12-11 10:45:00,B95325
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1998-10-01 00:00:00,2025-12-11 10:45:00,B95325
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-10-01 00:00:23,2025-12-11 10:45:00,B95325
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2006-06-19 11:15:00,2018-08-08 09:00:23,B9532500
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2006-06-19 11:15:00,2018-08-08 09:00:23,B9532500
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2006-06-19 11:15:00,2018-08-08 09:00:23,B9532500
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2006-06-19 11:15:00,2018-08-08 09:00:23,B9532500
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2006-06-19 11:15:00,2018-08-08 09:00:23,B9532500
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2006-06-19 11:15:00,2018-08-08 09:00:23,B9532500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2006-06-19 11:15:00,2018-08-08 09:00:23,B9532500
+pH,pH.RAW,pH - Raw Point Data,Combined,2006-06-19 11:15:00,2018-08-08 09:00:23,B9532500
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2018-04-10 10:01:24,2026-02-03 12:00:00,B9533800
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2018-04-10 10:01:24,2026-02-03 12:00:00,B9533800
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2018-04-10 10:01:24,2026-02-03 12:00:00,B9533800
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2018-04-10 10:01:24,2026-02-03 12:00:00,B9533800
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2018-04-10 10:01:24,2025-10-14 09:45:00,B9533800
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2018-04-10 10:01:24,2026-02-03 12:00:00,B9533800
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2018-04-10 10:01:24,2026-02-03 12:00:00,B9533800
+pH,pH.RAW,pH - Raw Point Data,Combined,2018-04-10 10:01:24,2026-02-03 12:00:00,B9533800
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2005-03-21 21:45:35,2026-04-01 14:00:00,B95338Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2005-03-21 21:45:35,2026-04-01 14:00:00,B95338Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-07 08:30:00,2026-04-01 14:00:00,B95338Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-18 10:00:00,2026-04-01 14:00:00,B95338Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2005-03-21 21:45:35,2026-04-01 14:00:00,B95338Q
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-02-10 12:00:00,B95340
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2018-04-10 09:15:28,2026-02-03 11:30:00,B9534100
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2018-04-10 09:15:28,2026-02-03 11:30:00,B9534100
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2018-04-10 09:15:28,2026-02-03 11:30:00,B9534100
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2018-04-10 09:15:28,2026-02-03 11:30:00,B9534100
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2018-04-10 09:15:28,2025-10-14 09:15:00,B9534100
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2018-04-10 09:15:28,2026-02-03 11:30:00,B9534100
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2018-04-10 09:15:28,2026-02-03 11:30:00,B9534100
+pH,pH.RAW,pH - Raw Point Data,Combined,2018-04-10 09:15:28,2026-02-03 11:30:00,B9534100
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2005-03-18 08:30:47,2026-04-01 14:00:00,B95341Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2005-03-18 08:30:47,2026-04-01 14:00:00,B95341Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-01 14:00:00,B95341Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-08-08 12:30:00,2026-04-01 14:00:00,B95341Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2005-03-18 08:30:47,2026-04-01 14:00:00,B95341Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1992-10-01 00:00:00,2010-07-02 08:00:08,B95365
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1990-10-01 00:00:00,2026-03-24 10:00:00,B95365
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2014-03-31 23:00:00,2014-08-11 09:00:00,B95365
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1997-10-01 00:00:00,2010-07-02 08:00:08,B95365
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2006-01-18 12:15:00,2026-02-03 10:45:00,B9536500
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2006-01-18 12:15:00,2026-02-03 10:45:00,B9536500
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2006-01-18 12:15:00,2026-02-03 10:45:00,B9536500
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2006-01-18 12:15:00,2026-02-03 10:45:00,B9536500
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2006-01-18 12:15:00,2025-10-28 09:30:00,B9536500
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2006-01-18 12:15:00,2026-02-03 10:45:00,B9536500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2006-01-18 12:15:00,2026-02-03 10:45:00,B9536500
+pH,pH.RAW,pH - Raw Point Data,Combined,2006-01-18 12:15:00,2026-02-03 10:45:00,B9536500
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1992-10-01 00:00:00,2026-03-03 10:45:00,B95366
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1991-10-01 00:00:00,2026-03-03 10:45:00,B95366
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2014-04-02 08:45:00,2014-08-11 08:30:00,B95366
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1993-10-01 00:00:00,2026-03-03 10:45:00,B95366
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2005-11-23 11:30:00,2017-11-28 11:29:28,B9536600
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2000-01-01 00:00:00,2017-11-28 11:29:28,B9536600
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2000-01-01 00:00:00,2017-11-28 11:29:28,B9536600
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2000-01-01 00:00:00,2017-11-28 11:29:28,B9536600
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2004-03-03 10:45:00,2017-11-28 11:29:28,B9536600
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2000-01-01 00:00:00,2017-11-28 11:29:28,B9536600
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2000-01-01 00:00:00,2017-11-28 11:29:28,B9536600
+pH,pH.RAW,pH - Raw Point Data,Combined,2000-01-01 00:00:00,2017-11-28 11:29:28,B9536600
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2021-12-16 14:30:00,2024-01-17 11:15:00,B9536900
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2021-12-16 14:30:00,2024-01-17 11:15:00,B9536900
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2016-07-19 12:16:37,2026-02-03 11:00:00,B9537000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2016-07-19 12:16:37,2026-02-03 11:00:00,B9537000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2016-07-19 12:16:37,2026-02-03 11:00:00,B9537000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2015-02-25 14:45:08,2026-02-03 11:00:00,B9537000
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2016-07-19 12:16:37,2025-10-28 10:30:00,B9537000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2016-07-19 12:16:37,2026-02-03 11:00:00,B9537000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2015-02-25 14:45:08,2026-02-03 11:00:00,B9537000
+pH,pH.RAW,pH - Raw Point Data,Combined,2016-07-19 12:16:37,2026-02-03 11:00:00,B9537000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2014-07-16 12:29:04,2026-04-08 07:45:00,B95370Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2014-07-16 12:29:04,2026-04-08 07:45:00,B95370Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-08 07:45:00,B95370Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-08-08 12:45:00,2026-04-08 07:45:00,B95370Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2014-07-16 12:29:04,2026-04-08 07:45:00,B95370Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2021-12-16 13:00:00,2024-01-17 11:30:00,B9537100
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2021-12-16 13:00:00,2024-01-17 11:30:00,B9537100
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2021-11-02 10:00:00,2022-02-09 12:30:00,B9537200
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2021-11-02 10:00:00,2022-02-09 12:30:00,B9537200
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2021-09-17 13:30:08,2024-01-17 11:00:08,B9537400
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2021-09-17 13:30:08,2024-01-17 11:00:08,B9537400
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2022-06-15 12:00:00,2025-05-01 10:30:00,B9537500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2022-06-15 12:00:00,2025-05-01 10:30:00,B9537500
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2022-06-15 11:00:00,2026-02-11 11:00:00,B9537600
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2022-06-15 11:00:00,2026-02-11 11:00:00,B9537600
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2025-05-01 11:00:00,2026-02-11 10:45:00,B9537700
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2025-05-01 11:00:00,2026-02-11 10:45:00,B9537700
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2005-07-07 12:00:00,2010-11-19 11:29:28,B95378
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,1999-07-14 13:00:00,2010-11-19 11:29:28,B95378
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,1999-07-14 13:00:00,2010-11-19 11:29:28,B95378
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1999-07-14 13:00:00,2010-11-19 11:29:28,B95378
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2004-03-03 11:30:00,2010-11-19 11:29:28,B95378
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,1999-07-14 13:00:00,2010-11-19 11:29:28,B95378
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1999-07-14 13:00:00,2010-11-19 11:29:28,B95378
+pH,pH.RAW,pH - Raw Point Data,Combined,1999-07-14 13:00:00,2010-11-19 11:29:28,B95378
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2005-07-07 12:00:00,2026-02-18 12:15:00,B9537800
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,1999-07-14 13:00:00,2026-02-18 12:15:00,B9537800
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,1999-07-14 13:00:00,2026-02-18 12:15:00,B9537800
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1999-07-14 13:00:00,2026-02-18 12:15:00,B9537800
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2004-03-03 11:30:00,2025-05-28 11:30:00,B9537800
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,1999-07-14 13:00:00,2026-02-18 12:15:00,B9537800
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1999-07-14 13:00:00,2026-02-18 12:15:00,B9537800
+pH,pH.RAW,pH - Raw Point Data,Combined,1999-07-14 13:00:00,2026-02-18 12:15:00,B9537800
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-03 11:45:00,B95380
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-03 11:45:00,B95380
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1988-10-01 00:00:00,2026-03-03 11:45:00,B95380
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2011-01-18 14:00:00,2026-04-08 07:45:00,B95380Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2011-01-18 14:00:00,2026-04-08 07:45:00,B95380Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-08 07:45:00,B95380Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-07 08:15:00,2026-04-08 07:45:00,B95380Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2011-01-18 14:00:00,2026-04-08 07:45:00,B95380Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2021-12-16 11:30:00,2024-01-17 10:00:00,B9538100
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2021-12-16 11:30:00,2024-01-17 10:00:00,B9538100
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2021-11-04 13:30:08,2026-02-11 13:30:00,B9538500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2021-11-04 13:30:08,2026-02-11 13:30:00,B9538500
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2021-11-04 11:00:08,2026-03-25 10:45:08,B9538600
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2021-11-04 11:00:08,2026-03-25 10:45:08,B9538600
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2024-06-14 00:15:00,2024-12-10 00:00:00,B95386Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2024-06-14 00:15:00,2024-12-10 00:00:00,B95386Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2024-06-14 00:15:00,2024-12-10 00:00:00,B95386Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2021-11-04 10:15:08,2026-01-29 13:15:08,B9538900
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2021-11-04 10:15:08,2026-01-29 13:15:08,B9538900
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2018-05-01 11:00:00,2026-03-04 10:15:00,B9539000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2018-05-01 11:00:00,2026-03-04 10:15:00,B9539000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2018-05-01 11:00:00,2026-03-04 10:15:00,B9539000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2013-03-21 11:45:08,2026-03-04 10:15:00,B9539000
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2018-05-01 11:00:00,2025-10-01 09:45:00,B9539000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2018-05-01 11:00:00,2026-03-04 10:15:00,B9539000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2013-03-21 11:45:08,2026-03-04 10:15:00,B9539000
+pH,pH.RAW,pH - Raw Point Data,Combined,2018-05-01 11:00:00,2026-03-04 10:15:00,B9539000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2013-01-30 16:00:00,2026-04-08 07:45:00,B95390Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2013-01-30 16:00:00,2026-04-08 07:45:00,B95390Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-08 07:45:00,B95390Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-07 12:15:00,2026-04-08 07:45:00,B95390Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2013-01-30 16:00:00,2026-04-08 07:45:00,B95390Q
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2020-05-04 23:00:00,B95400
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2005-07-07 10:45:00,2026-03-04 09:45:00,B9540000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2001-01-01 00:02:00,2026-03-04 09:45:00,B9540000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2001-01-01 00:02:00,2026-03-04 09:45:00,B9540000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2001-01-01 00:02:00,2026-03-04 09:45:00,B9540000
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2005-07-07 10:45:00,2025-09-03 08:30:00,B9540000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2001-01-01 00:02:00,2026-03-04 09:45:00,B9540000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2001-01-01 00:02:00,2026-03-04 09:45:00,B9540000
+pH,pH.RAW,pH - Raw Point Data,Combined,2001-01-01 00:02:00,2026-03-04 09:45:00,B9540000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2005-07-12 13:46:09,2026-04-16 08:30:00,B95400Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2005-07-12 13:46:09,2026-04-16 08:30:00,B95400Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-16 08:30:00,B95400Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-07 11:45:00,2026-04-16 08:30:00,B95400Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2005-07-12 13:46:09,2026-04-16 08:30:00,B95400Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2007-04-24 10:45:08,2026-03-06 10:00:00,B95410
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-01-01 08:30:08,2026-03-06 10:00:00,B95410
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2014-04-30 11:30:08,2026-04-18 16:45:00,B9541000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2014-04-30 11:30:08,2026-04-18 16:45:00,B9541000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2015-03-09 13:30:08,2026-03-25 10:15:00,B9541050
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2015-03-09 13:30:08,2026-03-25 10:15:00,B9541050
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2023-02-15 13:15:00,2026-04-08 09:30:00,B9541060
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2023-02-15 13:15:00,2026-04-08 09:30:00,B9541060
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2023-02-15 12:30:00,2026-02-11 13:15:00,B9541070
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2023-02-15 12:30:00,2026-02-11 13:15:00,B9541070
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2014-03-18 11:00:00,2026-04-08 07:45:00,B95410Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2014-03-18 11:00:00,2026-04-08 07:45:00,B95410Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-08 07:45:00,B95410Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-07 12:30:00,2026-04-08 07:45:00,B95410Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2014-03-18 11:00:00,2026-04-08 07:45:00,B95410Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2014-04-30 12:30:08,2026-03-25 09:15:00,B9541500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2014-04-30 12:30:08,2026-03-25 09:15:00,B9541500
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2014-03-18 10:15:00,2026-04-08 07:45:00,B95415Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2014-03-18 10:15:00,2026-04-08 07:45:00,B95415Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-08 07:45:00,B95415Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-07 12:30:00,2026-04-08 07:45:00,B95415Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2014-03-18 10:15:00,2026-04-08 07:45:00,B95415Q
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1984-10-01 00:00:00,2026-03-27 10:00:00,B95420
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2021-03-18 08:15:00,2026-03-27 09:45:00,B95421
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1983-10-01 00:00:00,2026-03-27 09:45:00,B95421
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2021-03-18 08:15:00,2026-03-27 09:45:00,B95421
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2014-07-02 11:00:08,2021-03-18 08:30:00,B9542100
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2014-07-02 11:00:08,2021-03-18 08:30:00,B9542100
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2008-06-25 10:45:08,2026-03-27 09:15:00,B95422
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-06-25 10:45:08,2026-03-27 09:15:00,B95422
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2016-01-14 11:15:00,2026-03-26 09:15:00,B95423
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,2015-11-05 09:30:00,2026-03-26 09:15:00,B95423
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-01-14 11:15:00,2026-03-26 09:15:00,B95423
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2022-01-19 14:30:00,2023-11-15 12:30:00,B9542400
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2022-01-19 14:30:00,2023-11-15 12:30:00,B9542400
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2022-01-13 09:45:00,2026-02-05 10:00:00,B95425
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1983-10-01 00:00:00,2026-02-05 10:00:00,B95425
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2022-01-27 09:30:00,2026-02-05 10:00:00,B95425
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2010-03-10 11:01:00,2026-03-24 10:15:00,B9545800
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2006-06-23 12:45:08,2026-03-24 10:15:00,B9545800
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2009-12-03 12:45:30,2026-03-24 10:15:00,B9545800
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2006-06-23 12:45:08,2026-03-24 10:15:00,B9545800
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-02-19 10:00:00,B95460
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1987-01-06 11:00:00,2026-02-19 11:30:00,B95468
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1987-10-01 00:00:00,2026-02-19 11:30:00,B95468
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1990-10-01 00:00:00,2026-02-19 11:30:00,B95468
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1988-10-01 00:00:00,2010-08-04 08:45:09,B95500
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2025-12-04 10:30:00,B95500
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1990-10-01 00:00:00,2010-08-04 08:45:09,B95500
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2006-02-23 13:15:00,2018-08-14 08:45:28,B9550000
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2006-02-23 13:15:00,2018-08-14 08:45:28,B9550000
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2006-02-23 13:15:00,2018-08-14 08:45:28,B9550000
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2006-02-23 13:15:00,2018-08-14 08:45:28,B9550000
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2006-02-23 13:15:00,2018-08-14 08:45:28,B9550000
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2006-02-23 13:15:00,2018-08-14 08:45:28,B9550000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2006-02-23 13:15:00,2018-08-14 08:45:28,B9550000
+pH,pH.RAW,pH - Raw Point Data,Combined,2006-02-23 13:15:00,2018-08-14 08:45:28,B9550000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2013-04-23 11:14:57,2026-04-01 14:00:00,B95502Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2013-04-23 11:14:57,2026-04-01 14:00:00,B95502Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-01 14:00:00,B95502Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-08-16 06:45:00,2026-04-01 14:00:00,B95502Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2013-04-23 11:14:57,2026-04-01 14:00:00,B95502Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1987-10-01 00:00:00,2026-03-06 09:00:00,B95503
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1987-10-01 00:00:00,2026-03-06 09:00:00,B95503
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1988-10-01 00:00:00,2026-03-06 09:00:00,B95503
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2006-02-08 11:45:00,2026-03-24 10:00:00,B9550600
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2003-01-01 00:00:00,2026-03-24 10:00:00,B9550600
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2003-01-01 00:00:00,2026-03-24 10:00:00,B9550600
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2003-01-01 00:00:00,2026-03-24 10:00:00,B9550600
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2004-12-28 11:15:00,2025-05-28 10:30:00,B9550600
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2003-01-01 00:00:00,2026-03-24 10:00:00,B9550600
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2003-01-01 00:00:00,2026-03-24 10:00:00,B9550600
+pH,pH.RAW,pH - Raw Point Data,Combined,2003-01-01 00:00:00,2026-03-24 10:00:00,B9550600
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2003-10-01 00:00:00,2010-07-07 07:15:09,B95530
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1998-10-01 00:00:00,2026-03-24 11:30:00,B95530
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-06-01 00:00:09,2010-07-07 07:15:09,B95530
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2005-07-13 09:46:00,2026-03-24 08:30:00,B9553100
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,1999-10-01 14:00:00,2026-03-24 08:30:00,B9553100
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,1999-10-01 14:00:00,2026-03-24 08:30:00,B9553100
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1999-10-01 14:00:00,2026-03-24 08:30:00,B9553100
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2002-06-04 10:01:00,2025-08-12 07:45:00,B9553100
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,1999-10-01 14:00:00,2026-03-24 08:30:00,B9553100
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1999-10-01 14:00:00,2026-03-24 08:30:00,B9553100
+pH,pH.RAW,pH - Raw Point Data,Combined,1999-10-01 14:00:00,2026-03-24 08:30:00,B9553100
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-24 12:00:00,B95540
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2006-01-05 12:45:00,2026-03-24 09:15:00,B9554100
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2002-06-04 10:46:00,2026-03-24 09:15:00,B9554100
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2002-06-04 10:46:00,2026-03-24 09:15:00,B9554100
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2002-06-04 10:46:00,2026-03-24 09:15:00,B9554100
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2004-03-12 11:45:00,2025-05-28 09:45:00,B9554100
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2002-06-04 10:46:00,2026-03-24 09:15:00,B9554100
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2002-06-04 10:46:00,2026-03-24 09:15:00,B9554100
+pH,pH.RAW,pH - Raw Point Data,Combined,2002-06-04 10:46:00,2026-03-24 09:15:00,B9554100
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2007-09-05 10:15:00,2026-04-01 14:00:00,B95541Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2007-09-05 10:15:00,2026-04-01 14:00:00,B95541Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-01 14:00:00,B95541Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-06 08:30:00,2026-04-01 14:00:00,B95541Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2007-09-05 10:15:00,2026-04-01 14:00:00,B95541Q
+Chlorophyll,Chlorophyll.RAW,Chlorophyll - Raw Point Data,Combined,2009-06-18 10:15:00,2026-03-24 09:15:00,B9561600
+DissolvedOxygen,DissolvedOxygen.RAW,Dissolved Oxygen - Raw Point Data,Combined,2009-06-18 10:15:00,2026-03-24 09:15:00,B9561600
+DissolvedOxygenPercentage,DissolvedOxygenPercentage.RAW,Dissolved Oxygen Percentage - Raw Point Data,Combined,2009-06-18 10:15:00,2026-03-24 09:15:00,B9561600
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2009-06-18 10:15:00,2026-03-24 09:15:00,B9561600
+Salinity,Salinity.RAW,Salinity - Raw Point Data,Combined,2009-06-18 10:15:00,2025-10-30 08:30:00,B9561600
+Turbidity,Turbidity.RAW,Turbidity - Raw Point Data,Combined,2009-06-18 10:15:00,2026-03-24 09:15:00,B9561600
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2009-06-18 10:15:00,2026-03-24 09:15:00,B9561600
+pH,pH.RAW,pH - Raw Point Data,Combined,2009-06-18 10:15:00,2026-03-24 09:15:00,B9561600
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-04 10:45:00,B95620
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2018-06-11 10:15:00,2026-04-16 08:00:00,B95640Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2018-06-11 10:15:00,2026-04-16 08:00:00,B95640Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2018-06-11 10:15:00,2026-04-16 08:00:00,B95640Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2018-06-11 10:15:00,2026-04-16 08:00:00,B95640Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2018-06-11 10:15:00,2026-04-16 08:00:00,B95640Q
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-04 13:15:00,B95660
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2006-09-23 01:00:00,2018-08-10 13:15:00,B95660Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2006-09-23 01:00:00,2018-08-10 13:15:00,B95660Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2018-08-10 13:15:00,B95660Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-09-19 14:00:00,2018-08-10 13:15:00,B95660Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2006-09-23 01:00:00,2018-08-10 13:15:00,B95660Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-26 10:30:00,B95740
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-26 10:30:00,B95740
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,1988-10-01 00:00:00,2026-03-26 10:30:00,B95740
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2007-06-22 13:45:00,2026-04-16 08:45:00,B95740Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2007-06-22 13:45:00,2026-04-16 08:45:00,B95740Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-16 08:45:00,B95740Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-08-16 07:00:00,2026-04-16 08:45:00,B95740Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2007-06-22 13:45:00,2026-04-16 08:45:00,B95740Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2013-06-10 14:00:08,2026-04-01 08:30:00,B9576000
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2013-06-10 14:00:08,2026-04-01 08:30:00,B9576000
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2013-02-28 12:30:01,2026-04-16 09:00:00,B95760Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2013-02-28 12:30:01,2026-04-16 09:00:00,B95760Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-16 09:00:00,B95760Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-08-08 12:45:00,2026-04-16 09:00:00,B95760Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2013-02-28 12:30:01,2026-04-16 09:00:00,B95760Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2006-10-02 07:15:00,2026-03-25 11:45:00,B95765
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,2002-01-29 10:30:00,2026-03-25 11:45:00,B95765
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2007-12-17 13:45:14,2026-03-25 11:45:00,B95765
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2004-05-03 11:45:00,2013-06-03 11:15:00,B95765Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2002-02-14 12:00:00,2013-06-03 11:15:00,B95765Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2002-02-14 11:24:55,2013-06-03 11:15:00,B95765Q
+StreamLevel,StreamLevel.RAW,Stream Water Level - Raw Point Data,Combined,1982-10-01 00:00:00,2026-03-05 10:15:00,B95820
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2005-03-23 15:30:00,2026-04-13 14:15:00,B95820Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2005-03-23 15:30:00,2026-04-13 14:15:00,B95820Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-10-01 00:00:00,2026-04-13 14:15:00,B95820Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-10-04 09:45:00,2026-04-13 14:15:00,B95820Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2005-03-23 15:30:00,2026-04-13 14:15:00,B95820Q
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2006-07-05 09:45:08,2026-02-25 13:00:14,B95850
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-01-02 09:30:08,2026-02-25 13:00:14,B95850
+ECat25C,ECat25C.RAW,Conductivity at 25C - Raw Point Data,Combined,2006-05-09 08:45:08,2026-02-19 09:45:00,B95880
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2008-01-02 08:30:08,2026-02-19 09:45:00,B95880
+StreamFlow,StreamFlow.RAW,Stream Flow Rate - Raw Point Data,Combined,2007-06-23 20:45:00,2026-04-07 06:45:00,E33670Q
+Velocity,Velocity.RAW,Mean Velocity - Raw Point Data,Combined,2007-06-23 20:45:00,2026-04-07 06:45:00,E33670Q
+WaterSurfaceElevationNAVD88,WaterSurfaceElevationNAVD88.RAW,Water Surface Elevation (NAVD88) - Raw Point Data,Combined,2015-12-02 10:15:00,2026-04-07 06:45:00,E33670Q
+WaterTemp,WaterTemp.RAW,Water Temperature - Raw Point Data,Combined,2016-09-26 12:00:00,2026-04-07 06:45:00,E33670Q
+WaterTempADCP,WaterTempADCP.RAW,ADCP Water Temperature - Raw Point Data,Combined,2007-06-23 20:45:00,2026-04-07 06:45:00,E33670Q
