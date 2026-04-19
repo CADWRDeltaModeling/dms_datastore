@@ -58,6 +58,24 @@ extensions = [ 'sphinx_rtd_theme', 'nbsphinx',
           'numpydoc']
 
 autodoc_member_order = 'alphabetical'
+
+# Mock heavy/optional dependencies so docs can build without the full environment
+autodoc_mock_imports = [
+    "tabula",
+    "vtools",
+    "schimpy",
+    "geopandas",
+    "shapely",
+    "diskcache",
+    "seaborn",
+    "dask",
+    "paramiko",
+    "boto3",
+    "cfgrib",
+    "eccodes",
+    "numba",
+]
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
 

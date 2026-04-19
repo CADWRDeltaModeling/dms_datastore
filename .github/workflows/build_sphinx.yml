@@ -18,48 +18,30 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Set up Python 3.10
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-      - name: Add conda to system path
+      - name: Install pandoc
+        run: sudo apt-get install -y pandoc
+      - name: Install Python dependencies
         run: |
-          echo $CONDA/bin >> $GITHUB_PATH
-      - name: Conda build env for docs
-        shell: bash
-        run: |
-          conda env create --name dms_datastore -f environment.yml
-          source $CONDA/etc/profile.d/conda.sh
-          conda activate dms_datastore
           python -m pip install --upgrade pip
-          pip install -r docsrc/requirements.txt          
+          pip install pandas numpy pyyaml click requests httpx scipy matplotlib xarray tqdm openpyxl lxml
+          pip install -r docsrc/requirements.txt
           pip install --no-deps -e .
-          ghp-import -h
       - name: Build HTML
-        shell: bash
         run: |
-          source $CONDA/etc/profile.d/conda.sh
-          conda activate dms_datastore
           cd docsrc/
-          #sphinx-apidoc --force -o . ../dms_datastore
           make clean
           make html
-          
       - name: Run ghp-import
-        shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          source $CONDA/etc/profile.d/conda.sh
-          conda activate dms_datastore        
-          ghp-import -h
           git config http.postBuffer 157286400
-          git pull
-          
-          tree -L 3 -a
-          
           ghp-import -n -p -f ./docs/html
 
