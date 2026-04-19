@@ -2,6 +2,7 @@ station_dbase: station_dbase.csv
 variable_mappings: variable_mappings.csv
 variable_definitions: variables.csv
 sublocations: station_subloc.csv
+ncro_inventory: ncro_inventory_full.csv
 
 daily_data_manifest: daily_data_manifest.csv
 

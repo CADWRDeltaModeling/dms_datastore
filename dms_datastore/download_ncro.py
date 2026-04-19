@@ -40,9 +40,9 @@ REQUEST_CHUNK_YEARS = 5
 ALIGN_CHUNKS_TO_YEAR_MODULUS = True
 RETAIN_INVENTORY_DAYS = 14
 NCRO_MAX_WORKERS = 4
-NCRO_HTTP_TIMEOUT = 60.0  # seconds; increase if inventory downloads time out
-INVENTORY_MAX_WORKERS = 6
-INVENTORY_MAX_ATTEMPTS = 8
+NCRO_HTTP_TIMEOUT = 120.0  # seconds; increase if inventory downloads time out
+INVENTORY_MAX_WORKERS = 4
+INVENTORY_MAX_ATTEMPTS = 12
 NCRO_MIN_EXPECTED_ENTRIES = 515
 NCRO_MAX_FAILED_UPDATES = 7
 
@@ -92,11 +92,8 @@ def similar_ncro_station_names(site_id):
         base_id = site_id
     return [base_id.upper(), base_id.upper() + "Q", base_id.upper() + "00"]
 
-
-ncro_inventory_file = "ncro_por_inventory.txt"
 ncro_inventory = None
-inventory_dir = os.path.split(__file__)[0]
-inventoryfile = os.path.join(inventory_dir, "ncro_inventory_full.csv")
+inventoryfile = dstore_config.config_file("ncro_inventory")
 
 
 def _inventory_header_defaults():

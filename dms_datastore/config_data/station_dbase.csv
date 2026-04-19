@@ -55,8 +55,8 @@ ibs,97,Cordelia Slough at Ibis club,38.15729922,-122.1136785,577650.9,4223639,S9
 lis,B91560,Yolo Bypass at Lisbon,38.47503915,-121.5885124,623124,4259467.4,,B91560,LIS,dwr_ncro,x,x,,
 wci,B95338,West Canal near Clifton Court Intake,37.83161222,-121.5540556,627243.2,4188117.2,,B95338,WCI,dwr_ncro,,x,x,
 ori,B95341,Old River near Clifton Court Intake,37.82797167,-121.5526014,627377.4,4187715.2,,B95341,ORI,dwr_ncro,,x,x,ADCP flow station
-rcs,RCS,Ridge Cut Slough at Knight's Landing,38.79378266,-121.7253592,610695,4294664.3,,A02939,RCS,dwr_ncro,x,x,x,
-nsl,E33670,Montezuma Slough at National Steel,38.12202682,-121.8882107,597451.6,4219938,S64,E33670,NSL,dwr_ncro,x,x,x,
+rcs,A02939,Ridge Cut Slough at Knight's Landing,38.79378266,-121.7253592,610695,4294664.3,,A02939,RCS,dwr_ncro,x,x,x,
+nsl,E33670,Montezuma Slough at National Steel,38.12202682,-121.8882107,597451.6,4219938,S64,E33670,NSL,dwr_ncro,x,x,x,Unusual station code is correct
 nsl2,64,Montezuma Slough at National Steel,38.12222,-121.888694,597451.6,4219938,S64,64,NSL2,dwr_des,x,x,x,This i
 sjl,B95765,San Joaquin River near Lathrop,37.81097104,-121.3234822,647576.1,4186166.1,,B95765,SJL,dwr_ncro,x,x,x,Not confirmed. Moved to pier.
 bdt,B95740,San Joaquin River at Brandt Bridge,37.86457483,-121.3231244,647500.8,4192114.6,,B95740,BDT,dwr_ncro,x,x,x,
