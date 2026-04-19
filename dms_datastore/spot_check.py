@@ -485,7 +485,11 @@ def _glob_count(root: Path, pattern: str) -> int:
 
 
 _YEAR_RE = re.compile(r"(?<!\d)(19\d{2}|20\d{2})(?!\d)")
-_RANGE_RE = re.compile(r"(?<!\d)(19\d{2}|20\d{2})_(19\d{2}|20\d{2})(?!\d)")
+
+# Includes syear and eyear, with 9999 as a special "open" sentinel for convenience
+_RANGE_RE = re.compile(
+    r"(?<!\d)(19\d{2}|20\d{2})_(19\d{2}|20\d{2}|9999)(?!\d)"
+)
 
 
 def _filter_files_covering_year(paths: Sequence[Path], year: int) -> List[Path]:
