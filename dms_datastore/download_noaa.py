@@ -10,6 +10,7 @@ import os
 import click
 import concurrent.futures
 import pandas as pd
+from pathlib import Path
 from dms_datastore.process_station_variable import (
     attach_agency_id,
     attach_src_var_id,
@@ -107,7 +108,6 @@ def download_station_data(
     station_name = row["name"]
     paramname = row.param
     subloc = row.subloc
-
     product_info = {
         "hourly_height": {
             "agency": "noaa",
@@ -204,7 +204,7 @@ def download_station_data(
             )
             url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric{datum_str}&format=csv"
 
-            print(url)
+            logger.debug(f"URL: {url}")
             # logger.info(f"Retrieving {url}\n station {agency_id} from {date_start} to {date_end}".format(url,agency_id, date_start, date_end))
             # logger.info("URL: {}".format(url))
 
@@ -214,14 +214,26 @@ def download_station_data(
                 content = response.content
                 raw_table = content.decode()
                 if faulty_output(raw_table):
-                    if verbose:
-                        logger.info(f"No good data produced for {station},{paramname}")
-                    continue
-            except:
-                if verbose:
-                    logger.info(
-                        f"Error reported in retrieval for {station},{paramname}"
+                    logger.warning(
+                        "NOAA returned short or unusable output for station=%s param=%s "
+                        "agency_id=%s start=%s end=%s url=%s snippet=%r",
+                        station,
+                        paramname,
+                        agency_id,
+                        date_start,
+                        date_end,
+                        url,
+                        raw_table[:200],
                     )
+                    continue
+            except Exception:
+                logger.exception(
+                    "NOAA request failed for station=%s param=%s agency_id=%s url=%s",
+                    station,
+                    paramname,
+                    agency_id,
+                    url,
+                )
                 raw_table = "\n"
 
             if raw_table[0] == "\n":
@@ -237,16 +249,32 @@ def download_station_data(
                 try:
                     raw_table = retrieve_csv(url).decode()
                     if faulty_output(raw_table):
-                        if verbose:
-                            logger.info("No good data produced [2] for ")
+                        logger.warning(
+                            "NOAA fallback datum returned short or unusable output for "
+                            "station=%s param=%s agency_id=%s start=%s end=%s url=%s snippet=%r",
+                            station,
+                            paramname,
+                            agency_id,
+                            date_start,
+                            date_end,
+                            url,
+                            raw_table[:200],
+                        )
                         continue
-                except:
-                    if verbose:
-                        logger.info("Error in second retrieval")
+                except Exception:
+                    logger.exception(
+                        "NOAA fallback datum request failed for station=%s param=%s agency_id=%s url=%s",
+                        station,
+                        paramname,
+                        agency_id,
+                        url,
+                    )
                     continue
+            
             if first:
                 headers["datum"] = datum
                 write_header(path, headers)
+            
             write_table(raw_table, path, first)
             first = False
 
@@ -344,7 +372,6 @@ def assure_datetime(dtime, isend=False):
             dtm.datetime(dtime, 12, 31, 23, 59) if isend else dtm.datetime(dtime, 1, 1)
         )
 
-
 def download_noaa(
     start,
     end,
@@ -363,65 +390,63 @@ def download_noaa(
             "listing is deprecated. Try 'station_info noaa' to get a list of noaa stations"
         )
         return
+
+    station_input = stationfile_or_stations(stationfile, stations)
+    if isinstance(station_input, str):
+        req = pd.read_csv(station_input, sep=",", comment="#", header=0)
     else:
-        station_input = stationfile_or_stations(stationfile, stations)
-        if isinstance(station_input, str):
-            req = pd.read_csv(station_input, sep=",", comment="#", header=0)
-        else:
-            req = station_input
+        req = station_input
 
-        df = normalize_station_request(
-            stationframe=req if isinstance(req, pd.DataFrame) else None,
-            stationlist=req if not isinstance(req, pd.DataFrame) else None,
-            param=param,
-            default_subloc=None,  # NOAA has no sublocations
+    df = normalize_station_request(
+        stationframe=req if isinstance(req, pd.DataFrame) else None,
+        stationlist=req if not isinstance(req, pd.DataFrame) else None,
+        param=param,
+        default_subloc=None,  # NOAA has no sublocations
+    )
+
+    df = attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id")
+    vlookup = dstore_config.config_file("variable_mappings")
+    df = attach_src_var_id(df, vlookup, source="noaa")
+
+    # Preserve only station display name, and only after standard request shaping.
+    registry = dstore_config.repo_registry("formatted")
+    name_lookup = registry[["station_id", "name"]]
+    df = df.merge(name_lookup, on="station_id", how="left", validate="many_to_one")
+
+    if df["name"].isna().any():
+        missing = df.loc[df["name"].isna(), "station_id"].tolist()
+        raise ValueError(f"Missing station name for station_id(s): {missing}")
+
+
+
+    if start:
+        start = pd.Timestamp(start).to_pydatetime()
+    else:
+        start = None
+
+    if end:
+        end = pd.Timestamp(end).to_pydatetime()
+    else:
+        end = None
+
+    if syear or eyear:
+        if syear and start:
+            raise ValueError("syear and start are mutually exclusive")
+        if eyear and end:
+            raise ValueError("eyear and end are mutually exclusive")
+        if syear:
+            start = dtm.datetime(syear, 1, 1)
+        if eyear:
+            end = dtm.datetime(eyear + 1, 1, 1)
+
+    if start is not None and end is not None and start > end:
+        raise ValueError(
+            "start {} is after end {}".format(
+                start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+            )
         )
-        df = attach_agency_id(df, repo_name="formatted", agency_id_col="agency_id")
-        vlookup = dstore_config.config_file("variable_mappings")
-        df = attach_src_var_id(df, vlookup, source="noaa")
 
-        if start:
-            start = dtm.datetime(*list(map(int, re.split(r"[^\d]", start))))
-        else:
-            start = None
-        if end:
-            end = dtm.datetime(*list(map(int, re.split(r"[^\d]", end))))
-        else:
-            end = None
-
-        if syear or eyear:
-            # from numpy import VisibleDeprecationWarning
-            # raise VisibleDeprecationWarning("The syear and eyear arguments are deprecated. Please use start and end.")
-            if syear and start:
-                raise ValueError("syear and start are mutually exclusive")
-            if eyear and end:
-                raise ValueError("eyear and end are mutually exclusive")
-            if syear:
-                start = dtm.datetime(syear, 1, 1)
-            if eyear:
-                end = dtm.datetime(eyear + 1, 1, 1)
-
-        if not start is None and not end is None:
-            if start > end:
-                raise ValueError(
-                    "start {} is after end {}".format(
-                        start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
-                    )
-                )
-
-        if stations:
-            # stations explicitly input
-            stage_stations = stations
-        else:
-            # stations in file
-            stage_stations = []
-            for line in stationfile:
-                if not line.startswith("#") and len(line) > 1:
-                    sid = line.strip().split()[0]
-                    logger.info("station id={}".format(sid))
-                    stage_stations.append(sid)
-
-        return noaa_download(df, dest_dir, start, end, param, overwrite)
+    return noaa_download(df, dest_dir, start, end, param, overwrite)
 
 
 @click.command()
@@ -454,6 +479,9 @@ def download_noaa(
     is_flag=True,
     help="Overwrite existing files (if False they will be skipped, presumably for speed",
 )
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs")
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
 @click.argument("stationfile", nargs=-1)
 @click.help_option("-h", "--help")
 def download_noaa_cli(
@@ -467,6 +495,9 @@ def download_noaa_cli(
     list_stations_flag,
     overwrite,
     stationfile,
+    logdir,
+    debug,
+    quiet,  
 ):
     """Command line interface to download NOAA water level data.
 
@@ -475,6 +506,18 @@ def download_noaa_cli(
     example usage:
     dms download_noaa --start 2020-01-01 --end 2020-12-31 --param water_level --dest noaa_data stationlist.txt
     """
+
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=logdir,
+        logfile_prefix="download_noaa",
+    )    
     download_noaa(
         start,
         end,

@@ -250,8 +250,7 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
             df = usgs_multivariate(pat, "usgs_subloc_meta_new.csv")
         else:
             df = pd.read_csv("usgs_subloc_meta.csv", header=0, dtype=str)
-        df.reset_index()
-        df.index.name = "id"
+   
         filenames = glob.glob(pat)
         set_of_deletions = set()
 

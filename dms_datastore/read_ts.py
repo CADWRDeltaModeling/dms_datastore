@@ -790,14 +790,19 @@ def is_usgs_json1(fname):
     with open(fname, "r") as f:
         line0 = f.readline()
         line1 = f.readline()
+        line2 = f.readline()
 
-    if "parse-usgs-json" in line1:
+    if "parse-usgs-json" in line1 or "parse-usgs-json" in line2:
         return True
     return False
 
 
 def usgs_data_columns_json1(fname):
-    scan_data = pd.read_csv(fname, sep=",", comment="#", nrows=20, index_col=0)
+    try:
+        scan_data = pd.read_csv(fname, sep=",", comment="#", nrows=2, dtype=str)
+    except Exception as e:
+        print(f"Error reading CSV: {e}")
+        raise
     cols = [col for col in scan_data.columns if "value" in col]
     return cols
 
@@ -829,7 +834,6 @@ def read_usgs_json1(
         "Tst",
         "***",
     ]
-
     # Now tack on time zone at the end
     ts = csv_retrieve_ts(
         fpath_pattern,
