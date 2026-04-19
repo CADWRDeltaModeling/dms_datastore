@@ -15,25 +15,40 @@ def test_to_wildcard_remove_provider():
     assert got == "*_anh@north_11303500_flow_*.csv"
 
 
-def test_series_id_from_meta_file_level():
+def test_series_id_from_meta_uses_repo_data_key_with_provider():
     meta = {
-        "agency": "usgs",
+        "source": "usgs",
         "station_id": "anh",
         "subloc": "north",
         "param": "flow",
     }
-    got = inventory.series_id_from_meta(meta, remove_provider=False)
+    repo_cfg = {
+        "provider_key": "source",
+        "data_key": ["station_id", "subloc", "param"],
+    }
+
+    got = inventory.series_id_from_meta(
+        meta,
+        repo_cfg=repo_cfg,
+        remove_provider=False,
+    )
     assert got == "usgs|anh|north|flow"
 
-
-def test_series_id_from_meta_data_level():
+def test_series_id_from_meta_uses_repo_data_key_without_provider():
     meta = {
-        "agency": "usgs",
+        "source": "usgs",
         "station_id": "anh",
         "subloc": "north",
         "param": "flow",
     }
-    got = inventory.series_id_from_meta(meta, remove_provider=True)
+    repo_cfg = {
+        "provider_key": "source",
+        "data_key": ["station_id", "subloc", "param"],
+    }
+
+    got = inventory.series_id_from_meta(
+        meta,
+        repo_cfg=repo_cfg,
+        remove_provider=True,
+    )
     assert got == "anh|north|flow"
-    
-    

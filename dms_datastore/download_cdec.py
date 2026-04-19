@@ -12,6 +12,7 @@ import re
 import zipfile
 import os
 import string
+from pathlib import Path
 import datetime as dt
 import time
 import numpy as np
@@ -39,7 +40,7 @@ def download_station_data(
 ):
     station = row.station_id
     try:
-        cdec_id = row.cdec_id.lower()
+        cdec_id = row.src_site_id.upper()
     except Exception:
         cdec_id = station
 
@@ -266,7 +267,8 @@ def download_cdec(
     df = attach_agency_id(
         df,
         repo_name="formatted",
-        agency_id_col="cdec_id",
+        agency_id_col="agency_id",
+        src_site_id_col="cdec_id",
         on_missing="drop",
     )
     vlookup = dstore_config.config_file("variable_mappings")
@@ -329,6 +331,9 @@ def download_cdec(
     help="Frequency code(s): E (event), H (hourly), D (daily), M (monthly). "
      "Default is E,H. Multiple values allowed as comma-separated list (e.g., E,H,D)."
 )
+@click.option("--logdir", type=click.Path(path_type=Path), default=None)
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
 @click.argument("stationfile", nargs=-1)
 def download_cdec_cli(
     dest_dir,
@@ -341,9 +346,25 @@ def download_cdec_cli(
     stationfile,
     overwrite,
     freq,
+    logdir,
+    debug,
+    quiet,
 ):
     """CLI for downloading CDEC water data."""
+    level, console = resolve_loglevel(
+        debug=debug,
+        quiet=quiet,
+    )
+    logger.debug(f"Logging level set to {logging.getLevelName(level)} and console={console}")
 
+    configure_logging(
+          package_name="dms_datastore",
+          level=level,
+          console=not quiet,
+          logdir=logdir,
+          logfile_prefix="download_ncro"
+    )
+    logger.debug("Starting NCRO download")
     download_cdec(
         dest_dir,
         id_col,

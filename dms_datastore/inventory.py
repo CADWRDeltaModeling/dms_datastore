@@ -58,36 +58,35 @@ def _inventory_files(root):
 def _parse_inventory_meta(allfiles, repo_cfg=None):
     return [interpret_fname(fname, repo_cfg=repo_cfg) for fname in allfiles]
 
+
 def series_id_from_meta(meta, repo_cfg=None, remove_provider=False):
     """
     Construct a stable logical series identifier from parsed metadata.
 
     Parameters
     ----------
-    meta : dict
-        Parsed filename metadata
+    meta : dict-like
+        Parsed filename metadata or row-like object.
     repo_cfg : dict or None
-        Repo configuration (defines provider_key, site_key)
+        Repo configuration. When provided, identity is driven by repo_cfg["data_key"].
+        When omitted, a legacy station-style fallback is used.
     remove_provider : bool
-        If True, omit provider from identity
+        If True, omit provider from identity.
 
     Returns
     -------
     str
         series_id
     """
-
-    # --- resolve keys ---
     if repo_cfg is None:
-        provider_key = "agency"       # legacy fallback
-        site_key = "station_id"
+        provider_key = "agency"
+        data_key = ["station_id", "subloc", "param"]
     else:
         provider_key = repo_cfg["provider_key"]
-        site_key = repo_cfg["site_key"]
+        data_key = repo_cfg["data_key"]  # let missing data_key fail naturally for now
 
     parts = []
 
-    # --- provider ---
     if not remove_provider:
         provider_val = meta.get(provider_key)
         if provider_val is None:
@@ -96,29 +95,19 @@ def series_id_from_meta(meta, repo_cfg=None, remove_provider=False):
             )
         parts.append(str(provider_val))
 
-    # --- site ---
-    site_val = meta.get(site_key)
-    if site_val is None:
-        raise ValueError(
-            f"Missing site field {site_key!r} in metadata: {meta}"
-        )
-    parts.append(str(site_val))
+    for key in data_key:
+        val = meta.get(key)
 
-    # --- subloc ---
-    subloc = meta.get("subloc")
-    if subloc not in (None, "default"):
-        parts.append(str(subloc))
+        # suppress conventional empty sublocation/modifier noise
+        if key in ("subloc", "modifier") and val in (None, "", "default", "none"):
+            continue
 
-    # --- param ---
-    param = meta.get("param")
-    if param is None:
-        raise ValueError(f"Missing param in metadata: {meta}")
-    parts.append(str(param))
+        if val is None:
+            raise ValueError(
+                f"Missing data_key field {key!r} in metadata: {meta}"
+            )
 
-    # --- modifier ---
-    modifier = meta.get("modifier")
-    if modifier is not None:
-        parts.append(str(modifier))
+        parts.append(str(val))
 
     return "|".join(parts)
 

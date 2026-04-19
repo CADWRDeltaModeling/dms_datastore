@@ -289,47 +289,70 @@ def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
             logger.info(b)
     logger.info(f"Renaming complete for pattern: {pat}")
 
-
 def populate_repo(
     agency, param, dest, start, end, overwrite=False, ignore_existing=None
 ):
     """Populate repository for the given agency/source and parameter."""
     maximize_subloc = False
 
-    slookup = dstore_config.config_file("station_dbase")
     if "ncro" in agency:
         vlookup = mapping_df
         agency = "ncro"
     else:
         vlookup = dstore_config.config_file("variable_mappings")
 
-    subloclookup = dstore_config.config_file("sublocations")
-    df = pd.read_csv(slookup, sep=",", comment="#", header=0, dtype={"agency_id": str})
+    # Use repo-aware registry access instead of reading station_dbase CSV directly.
+    slookup = dstore_config.repo_registry("formatted").copy()
+
     filter_agency = "dwr_ncro" if agency == "ncro" else agency
-    df = df.loc[df.agency.str.lower() == filter_agency, :]
-    df["agency_id"] = df["agency_id"].str.replace("'", "", regex=True)
+    slookup = slookup.loc[slookup.agency.str.lower() == filter_agency, :]
+    name_lookup = (
+        slookup.loc[:, ["station_id", "name"]]
+        .drop_duplicates(subset=["station_id"])
+    )
 
-    dfsub = read_station_subloc(subloclookup)
-    df = merge_station_subloc(df, dfsub, default_z=-0.5)
 
-    df = df.reset_index()
+    dfsub = read_station_subloc(dstore_config.config_file("sublocations"))
+    slookup = merge_station_subloc(slookup, dfsub, default_z=-0.5)
 
     if ignore_existing is not None:
-        df = df[~df["station_id"].isin(ignore_existing)]
+        slookup = slookup[~slookup["station_id"].isin(ignore_existing)]
 
     dest_dir = dest
     source = "cdec" if agency in ["dwr", "usbr"] else agency
-    agency_id_col = "cdec_id" if source == "cdec" else "agency_id"
+    agency_id_col = "agency_id"
+    src_site_id_col = "cdec_id" if source == "cdec" else None
 
-    df = df[["station_id", "subloc"]]
+    # Preserve only the station display name, and only outside the standard
+    # request-building pipeline.
+    slookup = slookup.reset_index()
+    df_req = slookup.loc[:, ["station_id", "subloc"]]
 
     stationlist = normalize_station_request(
-        stationframe=df,
+        stationframe=df_req,
         param=param,
         default_subloc="default",
     )
-    stationlist = attach_agency_id(stationlist, repo_name="formatted", agency_id_col=agency_id_col)
+    stationlist = attach_agency_id(
+        stationlist,
+        repo_name="formatted",
+        agency_id_col=agency_id_col,
+        src_site_id_col=src_site_id_col,
+        on_missing="drop" if src_site_id_col is not None else "raise",
+    )
     stationlist = attach_src_var_id(stationlist, vlookup, source=source)
+
+    stationlist = stationlist.merge(
+        name_lookup,
+        on="station_id",
+        how="left",
+        validate="many_to_one",
+    )
+
+    if stationlist["name"].isna().any():
+        missing = stationlist.loc[stationlist["name"].isna(), "station_id"].tolist()
+        raise ValueError(f"Missing station name for station_id(s): {missing}")
+
     if maximize_subloc:
         stationlist["subloc"] = "default"
         if param not in ["flow", "elev"]:
@@ -386,7 +409,8 @@ def supplement_ncro_with_cdec(df, dest, start, overwrite=False, ignore_existing=
         df = df[~df["station_id"].isin(ignore_existing)]
 
     source = "cdec"
-    agency_id_col = "cdec_id"
+    agency_id_col = "agency_id"
+    src_site_id_col = "cdec_id"
 
     stationlist = normalize_station_request(
         stationframe=df,
@@ -397,6 +421,7 @@ def supplement_ncro_with_cdec(df, dest, start, overwrite=False, ignore_existing=
         stationlist,
         repo_name="formatted",
         agency_id_col=agency_id_col,
+        src_site_id_col=src_site_id_col,
         on_missing="drop",
     )
 

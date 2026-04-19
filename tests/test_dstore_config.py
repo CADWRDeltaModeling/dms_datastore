@@ -421,7 +421,7 @@ def test_registry_df_error_cases(registry_name, match):
 
 def test_repo_registry_uses_repo_site_key():
     df = cfgmod.repo_registry(repo="formatted")
-    assert df.index.name == "station_id"
+    assert df.index.name == "site_id"
     assert df.loc["old", "agency_id"] == "A2"
     
 def test_repo_registry_rejects_missing_site_key(monkeypatch):

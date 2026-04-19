@@ -426,6 +426,7 @@ def repo_registry(repo=None, repo_cfg=None):
 
     db = db.set_index(site_key, drop=False)
     db.index = db.index.astype(str)
+    db.index.name = "site_id"
     return db
 
 
@@ -590,6 +591,17 @@ def registry_df(registry_name):
             db["agency_id"].astype(str).str.replace("'", "", regex=True).str.strip()
         )
 
+    if "agency_id" in db.columns:
+        db["agency_id"] = (
+            db["agency_id"].astype(str).str.replace("'", "", regex=True).str.strip()
+        )
+
+        missing_agency = db["agency_id"].isna() | (db["agency_id"] == "") | (db["agency_id"].str.lower() == "nan")
+        if missing_agency.any():
+            bad_rows = db.loc[missing_agency]
+            raise ValueError(
+                f"Registry {registry_name} has missing agency_id values in {len(bad_rows)} row(s)"
+            )
     _registry_cache[registry_name] = db
     return db
 

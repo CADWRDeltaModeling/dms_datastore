@@ -79,7 +79,7 @@ repos:
 
     # Data identity: uniquely identifies a logical time series independent of provider
     # Multiple files (different sources) may map to the same data_key
-    data_key: [station_id, subloc, param, shard]
+    data_key: [station_id, subloc, param]
 
 
   screened:
@@ -109,7 +109,7 @@ repos:
       - "{processor}_{station_id@subloc}_{param}_{year}.csv"
       - "{processor}_{station_id@subloc}_{param}.csv"
     file_key: [processor, station_id, subloc, param, modifier, shard]
-    data_key: [station_id, subloc, param, modifier, shard]
+    data_key: [station_id, subloc, param, modifier]
 
   structures:
     root: "//cnrastore-bdo/Modeling_Data/repo/structures"
