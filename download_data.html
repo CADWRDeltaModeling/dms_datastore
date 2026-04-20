@@ -6,22 +6,22 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Downloading Data &mdash; dms_datastore 0.4.5+1.g3d9eed9 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+  <title>Downloading Data &mdash; dms_datastore 0.6.24.dev5+g8dd1423ef.d20260420 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=eb5c8c5c"></script>
+      <script src="_static/documentation_options.js?v=bfe2e5e8"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Reading Time Series and Metadata" href="read_data_meta.html" />
+    <link rel="next" title="dms_datastore Command Reference" href="commands.html" />
     <link rel="prev" title="Station Database and Queries" href="station_info.html" /> 
 </head>
 
@@ -54,30 +54,28 @@
 <li class="toctree-l2"><a class="reference internal" href="#station-lists">Station Lists</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#specific-command-line-interfaces">Specific Command Line Interfaces</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#cdec">CDEC</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#dms_datastore.download_cdec-create_arg_parser-positional-arguments">Positional Arguments</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#dms_datastore.download_cdec-create_arg_parser-named-arguments">Named Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#download-cdec">download_cdec</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#usgs-nwis">USGS (NWIS)</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#dms_datastore.download_nwis-create_arg_parser-positional-arguments">Positional Arguments</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#dms_datastore.download_nwis-create_arg_parser-named-arguments">Named Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#download-nwis">download_nwis</a></li>
 </ul>
 </li>
 <li class="toctree-l3"><a class="reference internal" href="#noaa">NOAA</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#dms_datastore.download_noaa-create_arg_parser-positional-arguments">Positional Arguments</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#dms_datastore.download_noaa-create_arg_parser-named-arguments">Named Arguments</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#download-noaa">download_noaa</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#dwr-ncro">DWR-NCRO</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#dwr-des-dise">DWR-DES (DISE)</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#dms_datastore.download_des-create_arg_parser-positional-arguments">Positional Arguments</a></li>
-<li class="toctree-l4"><a class="reference internal" href="#dms_datastore.download_des-create_arg_parser-named-arguments">Named Arguments</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dwr-ncro">DWR-NCRO</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#download-des">download_des</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#dwr-des-dise">DWR-DES (DISE)</a></li>
 </ul>
 </li>
 </ul>
 </li>
-</ul>
-</li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Processing System</a></li>
 <li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
 <li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
@@ -116,151 +114,269 @@
 <h2>Specific Command Line Interfaces<a class="headerlink" href="#specific-command-line-interfaces" title="Link to this heading"></a></h2>
 <section id="cdec">
 <h3>CDEC<a class="headerlink" href="#cdec" title="Link to this heading"></a></h3>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">download_cdec</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">dest</span> <span class="n">DEST_DIR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">id_col</span> <span class="n">ID_COL</span><span class="p">]</span>
-                     <span class="p">[</span><span class="o">--</span><span class="n">param_col</span> <span class="n">PARAM_COL</span><span class="p">]</span> <span class="o">--</span><span class="n">start</span> <span class="n">START</span> <span class="p">[</span><span class="o">--</span><span class="n">end</span> <span class="n">END</span><span class="p">]</span>
-                     <span class="p">[</span><span class="o">--</span><span class="n">param</span> <span class="n">PARAM</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">stations</span> <span class="p">[</span><span class="n">STATIONS</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">overwrite</span><span class="p">]</span>
-                     <span class="p">[</span><span class="o">--</span><span class="n">freq</span> <span class="n">FREQ</span><span class="p">]</span>
-                     <span class="p">[</span><span class="n">stationfile</span> <span class="o">...</span><span class="p">]</span>
+<section id="download-cdec">
+<h4>download_cdec<a class="headerlink" href="#download-cdec" title="Link to this heading"></a></h4>
+<p>CLI for downloading CDEC water data.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>download_cdec<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>STATIONFILE<span class="o">]</span>...
 </pre></div>
 </div>
-<section id="dms_datastore.download_cdec-create_arg_parser-positional-arguments">
-<h4>Positional Arguments<a class="headerlink" href="#dms_datastore.download_cdec-create_arg_parser-positional-arguments" title="Link to this heading"></a></h4>
-<dl class="option-list">
-<dt><kbd>stationfile</kbd></dt>
-<dd><p>CSV-format station file.</p>
-</dd>
-</dl>
-</section>
-<section id="dms_datastore.download_cdec-create_arg_parser-named-arguments">
-<h4>Named Arguments<a class="headerlink" href="#dms_datastore.download_cdec-create_arg_parser-named-arguments" title="Link to this heading"></a></h4>
-<dl class="option-list">
-<dt><kbd>--dest</kbd></dt>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-dest">
+<span class="sig-name descname"><span class="pre">--dest</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;dest_dir&gt;</span></span><a class="headerlink" href="#cmdoption-download_cdec-dest" title="Link to this definition"></a></dt>
 <dd><p>Destination directory for downloaded files.</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">'cdec_download'</span></code></p>
-</dd>
-<dt><kbd>--id_col</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-id_col">
+<span class="sig-name descname"><span class="pre">--id_col</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;id_col&gt;</span></span><a class="headerlink" href="#cmdoption-download_cdec-id_col" title="Link to this definition"></a></dt>
 <dd><p>Column in station file representing CDEC ID. IDs with &gt; 3 characters will be ignored.</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">'id'</span></code></p>
-</dd>
-<dt><kbd>--param_col</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-param_col">
+<span class="sig-name descname"><span class="pre">--param_col</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;param_col&gt;</span></span><a class="headerlink" href="#cmdoption-download_cdec-param_col" title="Link to this definition"></a></dt>
 <dd><p>Column in station file representing the parameter to download.</p>
-</dd>
-<dt><kbd>--start</kbd></dt>
-<dd><p>Start time, format 2009-03-31 14:00</p>
-</dd>
-<dt><kbd>--end</kbd></dt>
-<dd><p>Start time, format 2009-03-31 14:00</p>
-</dd>
-<dt><kbd>--param</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-start">
+<span class="sig-name descname"><span class="pre">--start</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;start&gt;</span></span><a class="headerlink" href="#cmdoption-download_cdec-start" title="Link to this definition"></a></dt>
+<dd><p><strong>Required</strong> Start time, format 2009-03-31 14:00</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-end">
+<span class="sig-name descname"><span class="pre">--end</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;end&gt;</span></span><a class="headerlink" href="#cmdoption-download_cdec-end" title="Link to this definition"></a></dt>
+<dd><p>End time, format 2009-03-31 14:00</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-param">
+<span class="sig-name descname"><span class="pre">--param</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;param&gt;</span></span><a class="headerlink" href="#cmdoption-download_cdec-param" title="Link to this definition"></a></dt>
 <dd><p>Variable to download</p>
-</dd>
-<dt><kbd>--stations</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-stations">
+<span class="sig-name descname"><span class="pre">--stations</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;stations&gt;</span></span><a class="headerlink" href="#cmdoption-download_cdec-stations" title="Link to this definition"></a></dt>
 <dd><p>Id or name of one or more stations.</p>
-</dd>
-<dt><kbd>--overwrite</kbd></dt>
-<dd><p>Overwrite existing files (if False they will be skipped, presumably for speed</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">False</span></code></p>
-</dd>
-<dt><kbd>--freq</kbd></dt>
-<dd><p>specify the frequency. Otherwise proceeds from even to hour to day. must be H or D</p>
-</dd>
-</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-overwrite">
+<span class="sig-name descname"><span class="pre">--overwrite</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_cdec-overwrite" title="Link to this definition"></a></dt>
+<dd><p>Overwrite existing files (if False they will be skipped, presumably for speed)</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-freq">
+<span class="sig-name descname"><span class="pre">--freq</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;freq&gt;</span></span><a class="headerlink" href="#cmdoption-download_cdec-freq" title="Link to this definition"></a></dt>
+<dd><p>Frequency code(s): E (event), H (hourly), D (daily), M (monthly). Default is E,H. Multiple values allowed as comma-separated list (e.g., E,H,D).</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-logdir">
+<span class="sig-name descname"><span class="pre">--logdir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;logdir&gt;</span></span><a class="headerlink" href="#cmdoption-download_cdec-logdir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-debug">
+<span class="sig-name descname"><span class="pre">--debug</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_cdec-debug" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-quiet">
+<span class="sig-name descname"><span class="pre">--quiet</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_cdec-quiet" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_cdec-arg-STATIONFILE">
+<span class="sig-name descname"><span class="pre">STATIONFILE</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_cdec-arg-STATIONFILE" title="Link to this definition"></a></dt>
+<dd><p>Optional argument(s)</p>
+</dd></dl>
+
 </section>
 </section>
 <section id="usgs-nwis">
 <h3>USGS (NWIS)<a class="headerlink" href="#usgs-nwis" title="Link to this heading"></a></h3>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">download_nwis</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">dest</span> <span class="n">DEST_DIR</span><span class="p">]</span> <span class="o">--</span><span class="n">start</span> <span class="n">START</span> <span class="p">[</span><span class="o">--</span><span class="n">end</span> <span class="n">END</span><span class="p">]</span>
-                     <span class="p">[</span><span class="o">--</span><span class="n">param</span> <span class="n">PARAM</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">stations</span> <span class="p">[</span><span class="n">STATIONS</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">overwrite</span><span class="p">]</span>
-                     <span class="p">[</span><span class="n">stationfile</span> <span class="o">...</span><span class="p">]</span>
+<section id="download-nwis">
+<h4>download_nwis<a class="headerlink" href="#download-nwis" title="Link to this heading"></a></h4>
+<p>CLI for downloading NWIS (National Water Information System).</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>download_nwis<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>STATIONFILE<span class="o">]</span>...
 </pre></div>
 </div>
-<section id="dms_datastore.download_nwis-create_arg_parser-positional-arguments">
-<h4>Positional Arguments<a class="headerlink" href="#dms_datastore.download_nwis-create_arg_parser-positional-arguments" title="Link to this heading"></a></h4>
-<dl class="option-list">
-<dt><kbd>stationfile</kbd></dt>
-<dd><p>CSV-format station file.</p>
-</dd>
-</dl>
-</section>
-<section id="dms_datastore.download_nwis-create_arg_parser-named-arguments">
-<h4>Named Arguments<a class="headerlink" href="#dms_datastore.download_nwis-create_arg_parser-named-arguments" title="Link to this heading"></a></h4>
-<dl class="option-list">
-<dt><kbd>--dest</kbd></dt>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-h">
+<span class="sig-name descname"><span class="pre">-h</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--help</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_nwis-h" title="Link to this definition"></a></dt>
+<dd><p>Show this message and exit.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-dest">
+<span class="sig-name descname"><span class="pre">--dest</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;dest_dir&gt;</span></span><a class="headerlink" href="#cmdoption-download_nwis-dest" title="Link to this definition"></a></dt>
 <dd><p>Destination directory for downloaded files.</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">'nwis_download'</span></code></p>
-</dd>
-<dt><kbd>--start</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-start">
+<span class="sig-name descname"><span class="pre">--start</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;start&gt;</span></span><a class="headerlink" href="#cmdoption-download_nwis-start" title="Link to this definition"></a></dt>
 <dd><p>Start time, format 2009-03-31 14:00</p>
-</dd>
-<dt><kbd>--end</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-end">
+<span class="sig-name descname"><span class="pre">--end</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;end&gt;</span></span><a class="headerlink" href="#cmdoption-download_nwis-end" title="Link to this definition"></a></dt>
 <dd><p>End time, format 2009-03-31 14:00</p>
-</dd>
-<dt><kbd>--param</kbd></dt>
-<dd><p>Parameter(s) to be downloaded, e.g.     00065 = gage height (ft.), 00060 = streamflow (cu ft/sec) and 00010 = water temperature in degrees Celsius.     See “<a class="reference external" href="http://help.waterdata.usgs.gov/codes-and-parameters/parameters">http://help.waterdata.usgs.gov/codes-and-parameters/parameters</a>” for complete listing.     (if not specified, all the available parameters will be downloaded)</p>
-</dd>
-<dt><kbd>--stations</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-param">
+<span class="sig-name descname"><span class="pre">--param</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;param&gt;</span></span><a class="headerlink" href="#cmdoption-download_nwis-param" title="Link to this definition"></a></dt>
+<dd><p>Parameter(s) to be downloaded, e.g. 00065 = gage height (ft.), 00060 = streamflow (cu ft/sec) and 00010 = water temperature in degrees Celsius. See “<a class="reference external" href="http://help.waterdata.usgs.gov/codes-and-parameters/parameters">http://help.waterdata.usgs.gov/codes-and-parameters/parameters</a>” for complete listing. (if not specified, all the available parameters will be downloaded)</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-stations">
+<span class="sig-name descname"><span class="pre">--stations</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;stations&gt;</span></span><a class="headerlink" href="#cmdoption-download_nwis-stations" title="Link to this definition"></a></dt>
 <dd><p>Id or name of one or more stations.</p>
-</dd>
-<dt><kbd>--overwrite</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-overwrite">
+<span class="sig-name descname"><span class="pre">--overwrite</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_nwis-overwrite" title="Link to this definition"></a></dt>
 <dd><p>Overwrite existing files (if False they will be skipped, presumably for speed)</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">False</span></code></p>
-</dd>
-</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-daily">
+<span class="sig-name descname"><span class="pre">--daily</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_nwis-daily" title="Link to this definition"></a></dt>
+<dd><p>Use the USGS OGC daily-values endpoint and write DMS1-compatible daily output.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-logdir">
+<span class="sig-name descname"><span class="pre">--logdir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;logdir&gt;</span></span><a class="headerlink" href="#cmdoption-download_nwis-logdir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-debug">
+<span class="sig-name descname"><span class="pre">--debug</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_nwis-debug" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-quiet">
+<span class="sig-name descname"><span class="pre">--quiet</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_nwis-quiet" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_nwis-arg-STATIONFILE">
+<span class="sig-name descname"><span class="pre">STATIONFILE</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_nwis-arg-STATIONFILE" title="Link to this definition"></a></dt>
+<dd><p>Optional argument(s)</p>
+</dd></dl>
+
 </section>
 </section>
 <section id="noaa">
 <h3>NOAA<a class="headerlink" href="#noaa" title="Link to this heading"></a></h3>
-<p><p>Script to download NOAA 6 minute water level data</p>
-</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">download_noaa</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">start</span> <span class="n">START</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">end</span> <span class="n">END</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">syear</span> <span class="n">SYEAR</span><span class="p">]</span>
-                     <span class="p">[</span><span class="o">--</span><span class="n">eyear</span> <span class="n">EYEAR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">param</span> <span class="n">PARAM</span><span class="p">]</span>
-                     <span class="p">[</span><span class="o">--</span><span class="n">stations</span> <span class="p">[</span><span class="n">STATIONS</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">dest</span> <span class="n">DEST_DIR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="nb">list</span><span class="p">]</span>
-                     <span class="p">[</span><span class="o">--</span><span class="n">overwrite</span><span class="p">]</span>
-                     <span class="p">[</span><span class="n">stationfile</span> <span class="o">...</span><span class="p">]</span>
+<section id="download-noaa">
+<h4>download_noaa<a class="headerlink" href="#download-noaa" title="Link to this heading"></a></h4>
+<p>Command line interface to download NOAA water level data.</p>
+<p>STATIONFILE: CSV-format station file(s).</p>
+<p>example usage:
+dms download_noaa –start 2020-01-01 –end 2020-12-31 –param water_level –dest noaa_data stationlist.txt</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>download_noaa<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>STATIONFILE<span class="o">]</span>...
 </pre></div>
 </div>
-<section id="dms_datastore.download_noaa-create_arg_parser-positional-arguments">
-<h4>Positional Arguments<a class="headerlink" href="#dms_datastore.download_noaa-create_arg_parser-positional-arguments" title="Link to this heading"></a></h4>
-<dl class="option-list">
-<dt><kbd>stationfile</kbd></dt>
-<dd><p>CSV-format station file.</p>
-</dd>
-</dl>
-</section>
-<section id="dms_datastore.download_noaa-create_arg_parser-named-arguments">
-<h4>Named Arguments<a class="headerlink" href="#dms_datastore.download_noaa-create_arg_parser-named-arguments" title="Link to this heading"></a></h4>
-<dl class="option-list">
-<dt><kbd>--start</kbd></dt>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-start">
+<span class="sig-name descname"><span class="pre">--start</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;start&gt;</span></span><a class="headerlink" href="#cmdoption-download_noaa-start" title="Link to this definition"></a></dt>
 <dd><p>First date to download</p>
-</dd>
-<dt><kbd>--end</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-end">
+<span class="sig-name descname"><span class="pre">--end</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;end&gt;</span></span><a class="headerlink" href="#cmdoption-download_noaa-end" title="Link to this definition"></a></dt>
 <dd><p>Last date to download, inclusive</p>
-</dd>
-<dt><kbd>--syear</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-syear">
+<span class="sig-name descname"><span class="pre">--syear</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;syear&gt;</span></span><a class="headerlink" href="#cmdoption-download_noaa-syear" title="Link to this definition"></a></dt>
 <dd><p>First year to download</p>
-</dd>
-<dt><kbd>--eyear</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-eyear">
+<span class="sig-name descname"><span class="pre">--eyear</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;eyear&gt;</span></span><a class="headerlink" href="#cmdoption-download_noaa-eyear" title="Link to this definition"></a></dt>
 <dd><p>Last year to download, inclusive to end of the year.</p>
-</dd>
-<dt><kbd>--param</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-param">
+<span class="sig-name descname"><span class="pre">--param</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;param&gt;</span></span><a class="headerlink" href="#cmdoption-download_noaa-param" title="Link to this definition"></a></dt>
 <dd><p>Product to download: water_level, predictions, water_temperature, conductivity.</p>
-</dd>
-<dt><kbd>--stations</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-stations">
+<span class="sig-name descname"><span class="pre">--stations</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;stations&gt;</span></span><a class="headerlink" href="#cmdoption-download_noaa-stations" title="Link to this definition"></a></dt>
 <dd><p>Id or name of one or more stations.</p>
-</dd>
-<dt><kbd>--dest</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-dest">
+<span class="sig-name descname"><span class="pre">--dest</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;dest_dir&gt;</span></span><a class="headerlink" href="#cmdoption-download_noaa-dest" title="Link to this definition"></a></dt>
 <dd><p>Destination directory for downloaded files.</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">'noaa_download'</span></code></p>
-</dd>
-<dt><kbd>--list</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-list">
+<span class="sig-name descname"><span class="pre">--list</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_noaa-list" title="Link to this definition"></a></dt>
 <dd><p>List known station ids.</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">False</span></code></p>
-</dd>
-<dt><kbd>--overwrite</kbd></dt>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-overwrite">
+<span class="sig-name descname"><span class="pre">--overwrite</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_noaa-overwrite" title="Link to this definition"></a></dt>
 <dd><p>Overwrite existing files (if False they will be skipped, presumably for speed</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">False</span></code></p>
-</dd>
-</dl>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-logdir">
+<span class="sig-name descname"><span class="pre">--logdir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;logdir&gt;</span></span><a class="headerlink" href="#cmdoption-download_noaa-logdir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-debug">
+<span class="sig-name descname"><span class="pre">--debug</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_noaa-debug" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-quiet">
+<span class="sig-name descname"><span class="pre">--quiet</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_noaa-quiet" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-h">
+<span class="sig-name descname"><span class="pre">-h</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--help</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_noaa-h" title="Link to this definition"></a></dt>
+<dd><p>Show this message and exit.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_noaa-arg-STATIONFILE">
+<span class="sig-name descname"><span class="pre">STATIONFILE</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_noaa-arg-STATIONFILE" title="Link to this definition"></a></dt>
+<dd><p>Optional argument(s)</p>
+</dd></dl>
+
 </section>
 </section>
 <section id="dwr-ncro">
@@ -275,50 +391,85 @@ so its interface is simpler, less flexible and different from the others.</p>
 #    :module: dms_datastore.download_ncro
 #    :func: create_arg_parser
 #    :prog: download_ncro.py</p>
+<section id="download-des">
+<h4>download_des<a class="headerlink" href="#download-des" title="Link to this heading"></a></h4>
+<p>CLI for downloading DES (DWR Environmental Services) data.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>download_des<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>STATIONFILE<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-dest">
+<span class="sig-name descname"><span class="pre">--dest</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;dest_dir&gt;</span></span><a class="headerlink" href="#cmdoption-download_des-dest" title="Link to this definition"></a></dt>
+<dd><p>Destination directory for downloaded files.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-start">
+<span class="sig-name descname"><span class="pre">--start</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;start&gt;</span></span><a class="headerlink" href="#cmdoption-download_des-start" title="Link to this definition"></a></dt>
+<dd><p>Start time, format 2009-03-31 14:00</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-end">
+<span class="sig-name descname"><span class="pre">--end</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;end&gt;</span></span><a class="headerlink" href="#cmdoption-download_des-end" title="Link to this definition"></a></dt>
+<dd><p>End time, format 2009-03-31 14:00</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-param">
+<span class="sig-name descname"><span class="pre">--param</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;param&gt;</span></span><a class="headerlink" href="#cmdoption-download_des-param" title="Link to this definition"></a></dt>
+<dd><p>Parameter(s) to be downloaded.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-stations">
+<span class="sig-name descname"><span class="pre">--stations</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;stations&gt;</span></span><a class="headerlink" href="#cmdoption-download_des-stations" title="Link to this definition"></a></dt>
+<dd><p>Id or name of one or more stations.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-overwrite">
+<span class="sig-name descname"><span class="pre">--overwrite</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_des-overwrite" title="Link to this definition"></a></dt>
+<dd><p>Overwrite existing files (if False they will be skipped, presumably for speed)</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-logdir">
+<span class="sig-name descname"><span class="pre">--logdir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;logdir&gt;</span></span><a class="headerlink" href="#cmdoption-download_des-logdir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-debug">
+<span class="sig-name descname"><span class="pre">--debug</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_des-debug" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-quiet">
+<span class="sig-name descname"><span class="pre">--quiet</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_des-quiet" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-h">
+<span class="sig-name descname"><span class="pre">-h</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--help</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_des-h" title="Link to this definition"></a></dt>
+<dd><p>Show this message and exit.</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_des-arg-STATIONFILE">
+<span class="sig-name descname"><span class="pre">STATIONFILE</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_des-arg-STATIONFILE" title="Link to this definition"></a></dt>
+<dd><p>Optional argument(s)</p>
+</dd></dl>
+
+</section>
 </section>
 <section id="dwr-des-dise">
 <h3>DWR-DES (DISE)<a class="headerlink" href="#dwr-des-dise" title="Link to this heading"></a></h3>
 <p>DWR Division of Environmental Services has been renamed but the name has not yet been updated here.
 These web services are internal to DWR. External users can get reformatted/screened data from our group or request data
 from DWR liasons who are identified on CDEC on a per-station basis.</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">usage</span><span class="p">:</span> <span class="n">download_des</span> <span class="p">[</span><span class="o">-</span><span class="n">h</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">dest</span> <span class="n">DEST_DIR</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">start</span> <span class="n">START</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">end</span> <span class="n">END</span><span class="p">]</span>
-                    <span class="p">[</span><span class="o">--</span><span class="n">param</span> <span class="n">PARAM</span><span class="p">]</span> <span class="p">[</span><span class="o">--</span><span class="n">stations</span> <span class="p">[</span><span class="n">STATIONS</span> <span class="o">...</span><span class="p">]]</span> <span class="p">[</span><span class="o">--</span><span class="n">overwrite</span><span class="p">]</span>
-                    <span class="p">[</span><span class="n">stationfile</span> <span class="o">...</span><span class="p">]</span>
-</pre></div>
-</div>
-<section id="dms_datastore.download_des-create_arg_parser-positional-arguments">
-<h4>Positional Arguments<a class="headerlink" href="#dms_datastore.download_des-create_arg_parser-positional-arguments" title="Link to this heading"></a></h4>
-<dl class="option-list">
-<dt><kbd>stationfile</kbd></dt>
-<dd><p>CSV-format station file.</p>
-</dd>
-</dl>
-</section>
-<section id="dms_datastore.download_des-create_arg_parser-named-arguments">
-<h4>Named Arguments<a class="headerlink" href="#dms_datastore.download_des-create_arg_parser-named-arguments" title="Link to this heading"></a></h4>
-<dl class="option-list">
-<dt><kbd>--dest</kbd></dt>
-<dd><p>Destination directory for downloaded files.</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">'des_download'</span></code></p>
-</dd>
-<dt><kbd>--start</kbd></dt>
-<dd><p>Start time, format 2009-03-31 14:00</p>
-</dd>
-<dt><kbd>--end</kbd></dt>
-<dd><p>End time, format 2009-03-31 14:00</p>
-</dd>
-<dt><kbd>--param</kbd></dt>
-<dd><p>Parameter(s) to be downloaded.</p>
-</dd>
-<dt><kbd>--stations</kbd></dt>
-<dd><p>Id or name of one or more stations.</p>
-</dd>
-<dt><kbd>--overwrite</kbd></dt>
-<dd><p>Overwrite existing files (if False they will be skipped, presumably for speed)</p>
-<p>Default: <code class="docutils literal notranslate"><span class="pre">False</span></code></p>
-</dd>
-</dl>
-</section>
 </section>
 </section>
 </section>
@@ -328,7 +479,7 @@ from DWR liasons who are identified on CDEC on a per-station basis.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="station_info.html" class="btn btn-neutral float-left" title="Station Database and Queries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="read_data_meta.html" class="btn btn-neutral float-right" title="Reading Time Series and Metadata" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="commands.html" class="btn btn-neutral float-right" title="dms_datastore Command Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

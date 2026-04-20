@@ -1,0 +1,220 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dropbox Data Processing System &mdash; dms_datastore 0.6.24.dev5+g8dd1423ef.d20260420 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=bfe2e5e8"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Reading Time Series and Metadata" href="read_data_meta.html" />
+    <link rel="prev" title="dms_datastore Command Reference" href="commands.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            dms_datastore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Dropbox Data Processing System</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-components">Key Components</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-it-works">How it works</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration-specification">Configuration Specification</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-classes-and-functions">Key Classes and Functions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#output">Output</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#additional-notes">Additional Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">dms_datastore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Dropbox Data Processing System</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/dropbox.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="dropbox-data-processing-system">
+<h1>Dropbox Data Processing System<a class="headerlink" href="#dropbox-data-processing-system" title="Link to this heading"></a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The Dropbox Data Processing System is a component of the DMS Datastore package that
+facilitates collection, transformation, and storage of time-series data using a
+configuration-driven workflow.</p>
+</section>
+<section id="key-components">
+<h2>Key Components<a class="headerlink" href="#key-components" title="Link to this heading"></a></h2>
+<ol class="arabic">
+<li><p><code class="docutils literal notranslate"><span class="pre">dropbox_data.py</span></code></p>
+<p>Main processing script that reads a YAML specification file and processes
+data according to the defined rules.</p>
+</li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropbox_spec.yaml</span></code></p>
+<p>YAML configuration that defines data sources, collection parameters, and
+metadata inference rules.</p>
+</li>
+</ol>
+</section>
+<section id="how-it-works">
+<h2>How it works<a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h2>
+<p>The processing follows these steps:</p>
+<ol class="arabic simple">
+<li><p>Read a YAML specification.</p></li>
+<li><p>For each entry: locate files, read time-series, augment with metadata,
+and write standardized output files.</p></li>
+</ol>
+</section>
+<section id="usage">
+<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h2>
+<p>Basic usage from Python:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.dropbox_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">dropbox_data</span>
+<span class="n">dropbox_data</span><span class="p">(</span><span class="s2">&quot;path/to/dropbox_spec.yaml&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Or run as a module:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">dms_datastore</span><span class="o">.</span><span class="n">dropbox_data</span>
+</pre></div>
+</div>
+</section>
+<section id="configuration-specification">
+<h2>Configuration Specification<a class="headerlink" href="#configuration-specification" title="Link to this heading"></a></h2>
+<p>Typical keys in the spec include <code class="docutils literal notranslate"><span class="pre">dropbox_home</span></code>, <code class="docutils literal notranslate"><span class="pre">dest</span></code>, and a <code class="docutils literal notranslate"><span class="pre">data</span></code> list
+with entries containing <code class="docutils literal notranslate"><span class="pre">collect</span></code> and <code class="docutils literal notranslate"><span class="pre">metadata</span></code>. The spec also supports
+<code class="docutils literal notranslate"><span class="pre">metadata_infer</span></code> rules using regular expressions.</p>
+<p>Example configuration snippet:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">-</span> <span class="n">name</span><span class="p">:</span> <span class="n">USGS</span> <span class="n">Aquarius</span> <span class="n">flows</span>
+  <span class="n">skip</span><span class="p">:</span> <span class="kc">False</span>
+  <span class="n">collect</span><span class="p">:</span>
+    <span class="n">name</span><span class="p">:</span> <span class="n">file_search</span>
+    <span class="n">recursive_search</span><span class="p">:</span> <span class="kc">True</span>
+    <span class="n">file_pattern</span><span class="p">:</span> <span class="s2">&quot;Discharge.ft^3_s.velq@*.EntireRecord.csv&quot;</span>
+    <span class="n">location</span><span class="p">:</span> <span class="s2">&quot;//cnrastore-bdo/.../dropbox/usgs_aquarius_request_2020/**&quot;</span>
+    <span class="n">reader</span><span class="p">:</span> <span class="n">read_ts</span>
+  <span class="n">metadata</span><span class="p">:</span>
+    <span class="n">station_id</span><span class="p">:</span> <span class="n">infer_from_agency_id</span>
+    <span class="n">source</span><span class="p">:</span> <span class="n">aquarius</span>
+    <span class="n">agency</span><span class="p">:</span> <span class="n">usgs</span>
+    <span class="n">param</span><span class="p">:</span> <span class="n">flow</span>
+    <span class="n">sublocation</span><span class="p">:</span> <span class="n">default</span>
+    <span class="n">unit</span><span class="p">:</span> <span class="n">ft</span><span class="o">^</span><span class="mi">3</span><span class="o">/</span><span class="n">s</span>
+  <span class="n">metadata_infer</span><span class="p">:</span>
+    <span class="n">regex</span><span class="p">:</span> <span class="o">.*@</span><span class="p">(</span><span class="o">.*</span><span class="p">)</span>\<span class="o">.</span><span class="n">EntireRecord</span><span class="o">.</span><span class="n">csv</span>
+    <span class="n">groups</span><span class="p">:</span>
+      <span class="mi">1</span><span class="p">:</span> <span class="n">agency_id</span>
+</pre></div>
+</div>
+</section>
+<section id="key-classes-and-functions">
+<h2>Key Classes and Functions<a class="headerlink" href="#key-classes-and-functions" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCollector</span></code> — handles file discovery based on patterns.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">get_spec</span></code> — loads and caches the YAML spec.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">populate_meta</span></code> — enriches metadata using the station database.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">infer_meta</span></code> — extracts metadata from filenames via regex.</p></li>
+</ul>
+</section>
+<section id="output">
+<h2>Output<a class="headerlink" href="#output" title="Link to this heading"></a></h2>
+<p>Processed files are saved in the destination directory. Filenames follow the
+pattern <code class="docutils literal notranslate"><span class="pre">{source}_{station_id}_{agency_id}_{param}.csv</span></code> and may be chunked by year.</p>
+</section>
+<section id="additional-notes">
+<h2>Additional Notes<a class="headerlink" href="#additional-notes" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Relies on a station database for lookups.</p></li>
+<li><p>Standardizes time-series to include a <cite>value</cite> column and metadata headers.</p></li>
+<li><p>Files may be year-sharded for easier management.</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="commands.html" class="btn btn-neutral float-left" title="dms_datastore Command Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="read_data_meta.html" class="btn btn-neutral float-right" title="Reading Time Series and Metadata" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Eli Ateljevich, CA DWR.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

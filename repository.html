@@ -6,22 +6,22 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Time Series Repositories &mdash; dms_datastore 0.4.5+1.g3d9eed9 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+  <title>Time Series Repositories &mdash; dms_datastore 0.6.24.dev5+g8dd1423ef.d20260420 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=eb5c8c5c"></script>
+      <script src="_static/documentation_options.js?v=bfe2e5e8"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Caching and Archiving for Time Series Dataframes" href="notebooks/cache.html" />
+    <link rel="next" title="Cache Round-Trip Example with Metadata" href="notebooks/cache.html" />
     <link rel="prev" title="Reading Time Series and Metadata" href="read_data_meta.html" /> 
 </head>
 
@@ -51,9 +51,32 @@
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
 <li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Processing System</a></li>
 <li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Time Series Repositories</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#populating">Populating</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#core-concepts">Core Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#repository-configuration">Repository Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#key-terminology">Key terminology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#source-priority-configuration">Source Priority Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#filename-templates-and-interpretation">Filename Templates and Interpretation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#registry-station-dbase-csv">Registry (station_dbase.csv)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#inventory-system">Inventory System</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#file-inventory-repo-file-inventory">File inventory (<code class="docutils literal notranslate"><span class="pre">repo_file_inventory</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-inventory-repo-data-inventory">Data inventory (<code class="docutils literal notranslate"><span class="pre">repo_data_inventory</span></code>)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#populating-the-repository">Populating the Repository</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#read-ts-repo"><code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#write-ts-csv"><code class="docutils literal notranslate"><span class="pre">write_ts_csv</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#metadata-modes">Metadata modes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#end-to-end-flow">End-to-End Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#design-principles">Design Principles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#architectural-evolution-notes">Architectural Evolution Notes</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
@@ -85,8 +108,284 @@
              
   <section id="time-series-repositories">
 <h1>Time Series Repositories<a class="headerlink" href="#time-series-repositories" title="Link to this heading"></a></h1>
-<section id="populating">
-<h2>Populating<a class="headerlink" href="#populating" title="Link to this heading"></a></h2>
+<p>This page describes the design of the repository system for developers and advanced
+users who need to build inventory tools, implement downloaders, or integrate with
+registry metadata.</p>
+<section id="core-concepts">
+<h2>Core Concepts<a class="headerlink" href="#core-concepts" title="Link to this heading"></a></h2>
+<p>The repository system is built around four elements:</p>
+<ol class="arabic simple">
+<li><p><strong>Repository Configuration</strong> — describes how a directory of files becomes structured data</p></li>
+<li><p><strong>Filename Interpretation</strong> — maps filenames ↔ structured metadata</p></li>
+<li><p><strong>Registry</strong> (<code class="docutils literal notranslate"><span class="pre">station_dbase.csv</span></code>) — authoritative station metadata</p></li>
+<li><p><strong>Inventory &amp; I/O</strong> — reading, writing, and summarising datasets</p></li>
+</ol>
+<p>These form a strict, deterministic pipeline:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>files → interpret_fname → metadata → registry join → inventory / read_ts_repo
+</pre></div>
+</div>
+</section>
+<section id="repository-configuration">
+<h2>Repository Configuration<a class="headerlink" href="#repository-configuration" title="Link to this heading"></a></h2>
+<p>A repo configuration defines how a directory of files is interpreted as structured data.</p>
+<p>Example <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code> repo block:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">root</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">//.../repo/continuous/formatted</span>
+<span class="nt">registry</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">continuous</span>
+
+<span class="nt">site_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">station_id</span>
+<span class="nt">provider_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">source</span>
+<span class="nt">provider_resolution_mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">by_registry_column</span>
+
+<span class="nt">filename_templates</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv&quot;</span>
+
+<span class="nt">search</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">use_source_slot</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
+<span class="w">  </span><span class="nt">shard_style</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">auto</span>
+
+<span class="nt">parse</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">style</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">legacy</span>
+</pre></div>
+</div>
+<p>Required fields: <code class="docutils literal notranslate"><span class="pre">root</span></code>, <code class="docutils literal notranslate"><span class="pre">registry</span></code>, <code class="docutils literal notranslate"><span class="pre">site_key</span></code>, <code class="docutils literal notranslate"><span class="pre">provider_key</span></code>,
+<code class="docutils literal notranslate"><span class="pre">provider_resolution_mode</span></code>, <code class="docutils literal notranslate"><span class="pre">filename_templates</span></code>. Missing any of these is an error.</p>
+<section id="key-terminology">
+<h3>Key terminology<a class="headerlink" href="#key-terminology" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">site_key</span></code></dt><dd><p>Logical identity of a location (e.g., <code class="docutils literal notranslate"><span class="pre">station_id</span></code>). Used for registry joins,
+inventory grouping, and read lookups.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">provider_key</span></code></dt><dd><p>Data provenance (e.g., <code class="docutils literal notranslate"><span class="pre">source</span></code>, formerly <code class="docutils literal notranslate"><span class="pre">agency</span></code>). Used for distinguishing
+file families and applying priority ordering.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">provider_resolution_mode</span></code></dt><dd><p>Defines how conflicts are resolved when multiple providers supply data for the
+same station. Typical mode: <code class="docutils literal notranslate"><span class="pre">by_registry_column</span></code>.</p>
+</dd>
+</dl>
+</section>
+<section id="source-priority-configuration">
+<h3>Source Priority Configuration<a class="headerlink" href="#source-priority-configuration" title="Link to this heading"></a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">source_priority</span></code> block in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code> specifies preferred data
+sources per agency-managed station group:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">source_priority</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">ncro</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">&#39;ncro&#39;</span><span class="p p-Indicator">,</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dwr_ncro</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;ncro&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">des</span><span class="p">:</span><span class="w">     </span><span class="p p-Indicator">[</span><span class="s">&#39;des&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dwr_des</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;des&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">usgs</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">&#39;usgs&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">noaa</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">&#39;noaa&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">usbr</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dwr_om</span><span class="p">:</span><span class="w">  </span><span class="p p-Indicator">[</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dwr</span><span class="p">:</span><span class="w">     </span><span class="p p-Indicator">[</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">ebmud</span><span class="p">:</span><span class="w">   </span><span class="p p-Indicator">[</span><span class="s">&#39;usgs&#39;</span><span class="p p-Indicator">,</span><span class="s">&#39;ebmud&#39;</span><span class="p p-Indicator">,</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
+</pre></div>
+</div>
+<p>For example, EBMUD station data is resolved by preferring USGS, then EBMUD, then CDEC.</p>
+</section>
+</section>
+<section id="filename-templates-and-interpretation">
+<h2>Filename Templates and Interpretation<a class="headerlink" href="#filename-templates-and-interpretation" title="Link to this heading"></a></h2>
+<p>Filename templates define the bidirectional mapping between metadata and filenames.</p>
+<p>Example template:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">source</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">station_id</span><span class="nd">@subloc</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">agency_id</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">param</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">year</span><span class="p">}</span><span class="o">.</span><span class="n">csv</span>
+</pre></div>
+</div>
+<p>Given <code class="docutils literal notranslate"><span class="pre">usgs_dsj_11313433_ec_2020.csv</span></code>, interpretation recovers:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">source</span><span class="p">:</span>     <span class="n">usgs</span>
+<span class="n">station_id</span><span class="p">:</span> <span class="n">dsj</span>
+<span class="n">subloc</span><span class="p">:</span>     <span class="n">default</span>
+<span class="n">agency_id</span><span class="p">:</span>  <span class="mi">11313433</span>
+<span class="n">param</span><span class="p">:</span>      <span class="n">ec</span>
+<span class="n">year</span><span class="p">:</span>       <span class="mi">2020</span>
+</pre></div>
+</div>
+<p>Design rules:</p>
+<ul class="simple">
+<li><p>Parsing is structural, not heuristic.</p></li>
+<li><p>Templates must support both rendering and interpretation.</p></li>
+<li><p>A filename that matches no template is an error.</p></li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> in <code class="docutils literal notranslate"><span class="pre">station_id&#64;subloc</span></code> is structural — <code class="docutils literal notranslate"><span class="pre">subloc</span></code> defaults to
+<code class="docutils literal notranslate"><span class="pre">&quot;default&quot;</span></code> when absent.</p></li>
+</ul>
+</section>
+<section id="registry-station-dbase-csv">
+<h2>Registry (station_dbase.csv)<a class="headerlink" href="#registry-station-dbase-csv" title="Link to this heading"></a></h2>
+<p>The registry provides authoritative metadata that enriches filename-derived fields.</p>
+<p>Flow:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>filename → parsed metadata → registry join → enriched metadata
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>The registry is authoritative; filenames are operational identifiers only.</p></li>
+<li><p>Registry data provides spatial, descriptive, and relationship metadata.</p></li>
+</ul>
+</section>
+<section id="inventory-system">
+<h2>Inventory System<a class="headerlink" href="#inventory-system" title="Link to this heading"></a></h2>
+<p>Inventory converts repository files into structured summaries.</p>
+<section id="file-inventory-repo-file-inventory">
+<h3>File inventory (<code class="docutils literal notranslate"><span class="pre">repo_file_inventory</span></code>)<a class="headerlink" href="#file-inventory-repo-file-inventory" title="Link to this heading"></a></h3>
+<p>Groups by <code class="docutils literal notranslate"><span class="pre">file_pattern</span></code>. Represents:</p>
+<ul class="simple">
+<li><p>Physical file families</p></li>
+<li><p>Shard coverage (years)</p></li>
+<li><p>Provider-specific datasets</p></li>
+</ul>
+</section>
+<section id="data-inventory-repo-data-inventory">
+<h3>Data inventory (<code class="docutils literal notranslate"><span class="pre">repo_data_inventory</span></code>)<a class="headerlink" href="#data-inventory-repo-data-inventory" title="Link to this heading"></a></h3>
+<p>Groups by <code class="docutils literal notranslate"><span class="pre">series_id</span></code>. Represents:</p>
+<ul class="simple">
+<li><p>Unique logical time series, independent of provider.</p></li>
+</ul>
+<p>A <code class="docutils literal notranslate"><span class="pre">series_id</span></code> is constructed from metadata:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[provider?] | site | subloc | param | modifier?
+</pre></div>
+</div>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Inventory type</p></th>
+<th class="head"><p>Groups by</p></th>
+<th class="head"><p>Purpose</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>File inventory</p></td>
+<td><p>file_pattern</p></td>
+<td><p>Filesystem view</p></td>
+</tr>
+<tr class="row-odd"><td><p>Data inventory</p></td>
+<td><p>series_id</p></td>
+<td><p>Logical dataset view</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="populating-the-repository">
+<h2>Populating the Repository<a class="headerlink" href="#populating-the-repository" title="Link to this heading"></a></h2>
+<p>The <a class="reference internal" href="commands.html"><span class="doc">dms_datastore Command Reference</span></a> page documents the full CLI workflow. A summary:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">populate_repo</span> <span class="o">--</span><span class="n">dest</span> <span class="o">&lt;</span><span class="n">raw_dir</span><span class="o">&gt;</span>
+<span class="n">reformat</span> <span class="o">--</span><span class="n">inpath</span> <span class="o">&lt;</span><span class="n">raw_dir</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">outpath</span> <span class="o">&lt;</span><span class="n">formatted_dir</span><span class="o">&gt;</span>
+<span class="n">usgs_multi</span> <span class="o">--</span><span class="n">fpath</span> <span class="o">&lt;</span><span class="n">formatted_dir</span><span class="o">&gt;</span>
+<span class="n">auto_screen</span> <span class="o">--</span><span class="n">fpath</span> <span class="o">&lt;</span><span class="n">formatted_dir</span><span class="o">&gt;</span> <span class="o">--</span><span class="n">dest</span> <span class="o">&lt;</span><span class="n">screened_dir</span><span class="o">&gt;</span>
+</pre></div>
+</div>
+</section>
+<section id="read-ts-repo">
+<h2><code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code><a class="headerlink" href="#read-ts-repo" title="Link to this heading"></a></h2>
+<p>The canonical function for reading a dataset from the repository.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.read_multi</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_ts_repo</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">&quot;dsj&quot;</span><span class="p">,</span> <span class="s2">&quot;ec&quot;</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="s2">&quot;formatted&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Responsibilities:</p>
+<ol class="arabic simple">
+<li><p>Resolve request → metadata search</p></li>
+<li><p>Match filename patterns</p></li>
+<li><p>Apply provider priority</p></li>
+<li><p>Read files and merge time shards</p></li>
+<li><p>Return time series</p></li>
+</ol>
+<p>Design principles:</p>
+<ul class="simple">
+<li><p><strong>Deterministic</strong> — same inputs always produce same outputs</p></li>
+<li><p><strong>No guessing</strong> — no implicit provider defaults</p></li>
+<li><p><strong>No silent fallback</strong> — fail on ambiguity</p></li>
+</ul>
+<p>See <a class="reference internal" href="read_data_meta.html"><span class="doc">Reading Time Series and Metadata</span></a> for full parameter reference and usage examples.</p>
+</section>
+<section id="write-ts-csv">
+<h2><code class="docutils literal notranslate"><span class="pre">write_ts_csv</span></code><a class="headerlink" href="#write-ts-csv" title="Link to this heading"></a></h2>
+<p>Canonical writer for repository CSV files.</p>
+<section id="metadata-modes">
+<h3>Metadata modes<a class="headerlink" href="#metadata-modes" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">None</span></code></dt><dd><p>Creates a minimal header (format + timestamp only).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">dict</span></code> (preferred)</dt><dd><p>Structured metadata dict. Must include or receive <code class="docutils literal notranslate"><span class="pre">format</span></code>. The dict is not mutated.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">string</span></code></dt><dd><p>Legacy/manual header, for migration purposes.</p>
+</dd>
+</dl>
+<p>Guarantees: stable formatting, idempotent round-trip, canonical YAML header.</p>
+</section>
+</section>
+<section id="end-to-end-flow">
+<h2>End-to-End Flow<a class="headerlink" href="#end-to-end-flow" title="Link to this heading"></a></h2>
+<p>Read path:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>request → read_ts_repo → pattern search → interpret_fname → read_ts → merged time series
+</pre></div>
+</div>
+<p>Inventory path:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>files → interpret_fname → metadata dataframe → groupby → registry join → inventory output
+</pre></div>
+</div>
+<p>Write path:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>time series + metadata → write_ts_csv → prep_header → CSV file
+</pre></div>
+</div>
+</section>
+<section id="design-principles">
+<h2>Design Principles<a class="headerlink" href="#design-principles" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt>Fail fast</dt><dd><p>Bad filenames → error. Bad config → error. No implicit recovery.</p>
+</dd>
+<dt>No hidden behavior</dt><dd><p>No implicit defaults, no guessing providers.</p>
+</dd>
+</dl>
+<p>Separation of concerns</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Concern</p></th>
+<th class="head"><p>Component</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Filename parsing</p></td>
+<td><p>interpret_fname</p></td>
+</tr>
+<tr class="row-odd"><td><p>Metadata enrichment</p></td>
+<td><p>registry</p></td>
+</tr>
+<tr class="row-even"><td><p>Dataset lookup</p></td>
+<td><p>read_ts_repo</p></td>
+</tr>
+<tr class="row-odd"><td><p>File writing</p></td>
+<td><p>write_ts_csv</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="architectural-evolution-notes">
+<h2>Architectural Evolution Notes<a class="headerlink" href="#architectural-evolution-notes" title="Link to this heading"></a></h2>
+<p>The repository system was refactored from an implicit agency-based model to a fully
+config-driven provider model. Key terminology changes:</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Old term</p></th>
+<th class="head"><p>New term</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>agency</p></td>
+<td><p>provider</p></td>
+<td><p>Generalizes provenance</p></td>
+</tr>
+<tr class="row-odd"><td><p>key_column</p></td>
+<td><p>site_key</p></td>
+<td><p>Explicit identity</p></td>
+</tr>
+<tr class="row-even"><td><p>source_priority</p></td>
+<td colspan="2"><p>provider_resolution_mode | Config-driven</p></td>
+</tr>
+</tbody>
+</table>
+<p>Configs <strong>must</strong> define <code class="docutils literal notranslate"><span class="pre">site_key</span></code>, <code class="docutils literal notranslate"><span class="pre">provider_key</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">provider_resolution_mode</span></code>. Misconfigured repos fail immediately — there is
+no fallback behavior.</p>
+<p>The legacy <code class="docutils literal notranslate"><span class="pre">parse.style</span> <span class="pre">=</span> <span class="pre">legacy</span></code> option remains for backward compatibility.</p>
 </section>
 </section>
 
@@ -95,7 +394,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="read_data_meta.html" class="btn btn-neutral float-left" title="Reading Time Series and Metadata" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="notebooks/cache.html" class="btn btn-neutral float-right" title="Caching and Archiving for Time Series Dataframes" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="notebooks/cache.html" class="btn btn-neutral float-right" title="Cache Round-Trip Example with Metadata" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

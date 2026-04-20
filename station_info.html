@@ -6,15 +6,15 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Station Database and Queries &mdash; dms_datastore 0.4.5+1.g3d9eed9 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+  <title>Station Database and Queries &mdash; dms_datastore 0.6.24.dev5+g8dd1423ef.d20260420 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=eb5c8c5c"></script>
+      <script src="_static/documentation_options.js?v=bfe2e5e8"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -49,8 +49,20 @@
 <li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Station Database and Queries</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Station Database and Queries</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#station-lookup">Station Lookup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#configuration-system">Configuration System</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#main-configuration-files">Main configuration files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#key-data-files">Key data files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configuration-api">Configuration API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#screen-configuration">Screen Configuration</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Processing System</a></li>
 <li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
 <li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
@@ -82,6 +94,79 @@
              
   <section id="station-database-and-queries">
 <h1>Station Database and Queries<a class="headerlink" href="#station-database-and-queries" title="Link to this heading"></a></h1>
+<section id="station-lookup">
+<h2>Station Lookup<a class="headerlink" href="#station-lookup" title="Link to this heading"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">station_info</span></code> command lets you search for stations by name fragment or ID:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ station_info francisco
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="commands.html"><span class="doc">dms_datastore Command Reference</span></a> for the full CLI reference.</p>
+</section>
+<section id="configuration-system">
+<h2>Configuration System<a class="headerlink" href="#configuration-system" title="Link to this heading"></a></h2>
+<p>The datastore uses YAML files and Python modules to manage station metadata,
+variable mappings, and screening configurations.</p>
+<section id="main-configuration-files">
+<h3>Main configuration files<a class="headerlink" href="#main-configuration-files" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code></dt><dd><p>The central configuration file. Defines paths to station databases, repository
+locations, source priorities, and screening configurations.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">dstore_config.py</span></code></dt><dd><p>Python module that reads the YAML configuration and exposes helper functions.</p>
+</dd>
+</dl>
+</section>
+<section id="key-data-files">
+<h3>Key data files<a class="headerlink" href="#key-data-files" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">station_dbase.csv</span></code></dt><dd><p>Master database of all stations. Key columns:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">id</span></code> — internal unique identifier</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">agency_id</span></code> — ID used by the collecting agency</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">name</span></code> — descriptive station name</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lat</span></code>, <code class="docutils literal notranslate"><span class="pre">lon</span></code> — geographic coordinates</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code> — projected coordinates (SCHISM mesh-corrected)</p></li>
+</ul>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">variable_mappings.csv</span></code></dt><dd><p>Maps agency-specific variable codes/names to standardized variable names used
+within the datastore.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">variable_definitions.csv</span></code></dt><dd><p>Defines standard variables with their units and descriptive information.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">station_subloc.csv</span></code></dt><dd><p>Defines sublocations (e.g., depths, sensor positions) for stations where the
+station ID alone is insufficient to identify a unique datastream.</p>
+</dd>
+</dl>
+</section>
+<section id="configuration-api">
+<h3>Configuration API<a class="headerlink" href="#configuration-api" title="Link to this heading"></a></h3>
+<p>The <code class="xref py py-mod docutils literal notranslate"><span class="pre">dstore_config</span></code> module exposes these functions:</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">station_dbase()</span></code></dt><dd><p>Returns the station database as a <a class="reference external" href="http://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v3.0.2)"><code class="xref py py-class docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code></a>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">sublocation_df()</span></code></dt><dd><p>Returns the sublocations table.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">configuration()</span></code></dt><dd><p>Returns the full configuration dictionary.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">config_file(label)</span></code></dt><dd><p>Returns the path to a named configuration file. Checks the current working
+directory first, then the built-in <code class="docutils literal notranslate"><span class="pre">config_data/</span></code> package directory.</p>
+</dd>
+</dl>
+<p>All functions cache their results to avoid repeated filesystem reads.</p>
+</section>
+<section id="screen-configuration">
+<h3>Screen Configuration<a class="headerlink" href="#screen-configuration" title="Link to this heading"></a></h3>
+<p>The screening configuration YAML (referenced by <code class="docutils literal notranslate"><span class="pre">screen_config</span></code> in
+<code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code>) drives <code class="xref py py-mod docutils literal notranslate"><span class="pre">auto_screen</span></code> and contains
+rule sets for:</p>
+<ul class="simple">
+<li><p><strong>Bounds checking</strong> — acceptable min/max values per variable</p></li>
+<li><p><strong>Spike detection</strong> — parameters for flagging data spikes</p></li>
+<li><p><strong>Repetition checking</strong> — rules for flagging suspicious repeated values</p></li>
+<li><p><strong>Custom screening functions</strong> — advanced algorithms for specific data types</p></li>
+</ul>
+</section>
+</section>
 </section>
 
 

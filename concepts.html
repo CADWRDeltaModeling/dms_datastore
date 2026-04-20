@@ -6,18 +6,454 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Concepts and Conventions &mdash; dms_datastore 0.4.5+1.g3d9eed9 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+  <title>Concepts and Conventions &mdash; dms_datastore 0.6.24.dev5+g8dd1423ef.d20260420 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=eb5c8c5c"></script>
+      <script src="_static/documentation_options.js?v=bfe2e5e8"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}`;
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        all_mermaids.forEach((el) => {
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+        await mermaid.run();
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+const load = async () => {
+    initStyles();
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...JSON.parse(
+                    `{"startOnLoad": false}`
+                ),
+                ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...JSON.parse(
+        `{"startOnLoad": false}`
+    ),
+    ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -48,9 +484,23 @@
 <ul class="current">
 <li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Concepts and Conventions</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Concepts and Conventions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#data-repository-structure">Data Repository Structure</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#data-repository-workflow">Data Repository Workflow</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#user-access">User Access</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#station-sublocation-and-datastream-concepts">Station, Sublocation, and Datastream Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#file-naming-conventions">File Naming Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#units-and-standardization">Units and Standardization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#known-challenges-and-exceptions">Known Challenges and Exceptions</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
 <li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Processing System</a></li>
 <li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
 <li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
@@ -82,6 +532,152 @@
              
   <section id="concepts-and-conventions">
 <h1>Concepts and Conventions<a class="headerlink" href="#concepts-and-conventions" title="Link to this heading"></a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
+<p>The overarching goal of this data organization effort is to retrieve data from data
+providers and store it in a common format, validate data (screened), and produce data
+suitable for applications such as boundary conditions (filled/aggregated or derived data),
+referred to as “processed” data. The system moves away from manually manipulated data
+in favor of standardized formats for programmatic access.</p>
+</section>
+<section id="data-repository-structure">
+<h2>Data Repository Structure<a class="headerlink" href="#data-repository-structure" title="Link to this heading"></a></h2>
+<p>The centralized data repository is housed in a file system-based share at
+<code class="docutils literal notranslate"><span class="pre">&lt;internal</span> <span class="pre">shared</span> <span class="pre">directory</span> <span class="pre">server&gt;\\Modeling_Data\\continuous_station_repo</span></code>.
+A mirrored copy is available at <a class="reference external" href="http://tinyurl.com/dmsdatastore">http://tinyurl.com/dmsdatastore</a>.</p>
+<p>Data flows through four distinct stages:</p>
+<dl class="simple">
+<dt><strong>Raw</strong></dt><dd><p>Data is stored exactly “as downloaded” without transformation or unit changes.
+Raw files are unique per datastream per time block.</p>
+</dd>
+<dt><strong>Formatted</strong></dt><dd><p>Data adheres to file naming conventions and includes prescribed metadata.
+Units are generally not changed at this stage.</p>
+</dd>
+<dt><strong>Screened</strong></dt><dd><p>Data has undergone QA/QC processes including flagging data rejected by providers
+or users. Units are standardized and consistent here.</p>
+</dd>
+<dt><strong>Processed</strong></dt><dd><p>Final stage data may have been filled by algorithms and is ready for specific
+applications like boundary conditions. These files are not necessarily unique
+per datastream.</p>
+</dd>
+</dl>
+<section id="data-repository-workflow">
+<h3>Data Repository Workflow<a class="headerlink" href="#data-repository-workflow" title="Link to this heading"></a></h3>
+<pre  class="mermaid">
+        flowchart LR
+ subgraph datasources [&quot;Data Sources&quot;]
+   direction LR
+    d1[&quot;USGS&quot;]
+    d2[&quot;DWR&quot;]
+    d3[&quot;NOAA&quot;]
+    d4[&quot;CDEC&quot;]
+    d5[&quot;USBr&quot;]
+ end
+ subgraph dropbox [&quot;Drop Box&quot;]
+ end
+ subgraph repograph [&quot;Repository&quot;]
+   C2[&quot;raw/&quot;]
+   D1[&quot;formatted/&quot;]
+   E1[&quot;screened/&quot;]
+   F1[&quot;processed/&quot;]
+ end
+ subgraph userqaqc [&quot;User QA/QC&quot;]
+        H[&quot;Flag Editing&quot;]
+        H-- updates user flag --&gt;E1
+ end
+    datasources --&gt; B(&quot;Download&quot;)
+    B --&gt; C2
+    C2 --&gt; D(&quot;Format&quot;)
+    D --&gt; D1
+    D1 --&gt; E(&quot;Automated Screening&quot;)
+    E --&gt; E1
+    E1 --&gt; F(&quot;Process&quot;)
+    F --&gt; F1
+    F1 --&gt; G[&quot;Modeling Applications &amp; Boundary Conditions&quot;]
+
+    dropbox --&gt; repograph
+    </pre></section>
+<section id="user-access">
+<h3>User Access<a class="headerlink" href="#user-access" title="Link to this heading"></a></h3>
+<p>Users typically have write access only to “incoming” subdirectories within <code class="docutils literal notranslate"><span class="pre">raw</span></code>,
+<code class="docutils literal notranslate"><span class="pre">screened</span></code>, and <code class="docutils literal notranslate"><span class="pre">processed</span></code> directories. Correctly formatted submissions are then
+ingested into the main, read-only directories. Users are generally not expected to access
+raw data directly; <code class="docutils literal notranslate"><span class="pre">formatted</span></code> data allows review of original downloaded values, and
+<code class="docutils literal notranslate"><span class="pre">screened</span></code> data includes user flags and consistent units.</p>
+</section>
+</section>
+<section id="station-sublocation-and-datastream-concepts">
+<h2>Station, Sublocation, and Datastream Concepts<a class="headerlink" href="#station-sublocation-and-datastream-concepts" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt><strong>Station</strong></dt><dd><p>A well-defined concept tied to a (location, institution) pair. Physical locations may
+vary slightly and different agencies at the same approximate location may have subtly
+different platforms. The <code class="docutils literal notranslate"><span class="pre">station_dbase.csv</span></code> contains station information including
+ID, agency ID, name, latitude, and longitude. These locations are corrected to fit
+the SCHISM mesh.</p>
+</dd>
+<dt><strong>Sublocation</strong></dt><dd><p>Used when a station ID alone does not uniquely identify a datastream — for example,
+top/bottom sensors or different programs within the same agency measuring the same
+variable. The <code class="docutils literal notranslate"><span class="pre">station_subloc.csv</span></code> table defines sublocations. The <code class="docutils literal notranslate"><span class="pre">subloc</span></code>
+concept generalizes depths and other ambiguities.</p>
+</dd>
+<dt><strong>Datastream</strong></dt><dd><p>Describes a single sensor and is uniquely identified by the combination of
+(station, sublocation, variable).</p>
+</dd>
+</dl>
+</section>
+<section id="file-naming-conventions">
+<h2>File Naming Conventions<a class="headerlink" href="#file-naming-conventions" title="Link to this heading"></a></h2>
+<p>Files follow the pattern:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">agency_dwrID</span><span class="p">[</span><span class="nd">@subloc</span><span class="p">]</span><span class="n">_agencyID_variable</span><span class="p">[</span><span class="n">_YYYY</span><span class="p">[</span><span class="n">_9999</span><span class="p">]]</span><span class="o">.</span><span class="n">csv</span>
+</pre></div>
+</div>
+<p>Example: <code class="docutils literal notranslate"><span class="pre">usgs_sjj&#64;bgc_11337190_turbidity_2016_2020.csv</span></code></p>
+<p>Components:</p>
+<dl class="simple">
+<dt><strong>agency</strong></dt><dd><p>The agency that collects the data, potentially including a high-level program name
+(e.g., <code class="docutils literal notranslate"><span class="pre">dwr_des</span></code>).</p>
+</dd>
+<dt><strong>dwr ID and sublocation</strong></dt><dd><p>The DWR station ID, followed by <code class="docutils literal notranslate"><span class="pre">&#64;subloc</span></code> if a sublocation exists (e.g.,
+<code class="docutils literal notranslate"><span class="pre">anh&#64;north</span></code>). The <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> symbol is structural.</p>
+</dd>
+<dt><strong>agency_id</strong></dt><dd><p>The identifier used by the collecting agency (e.g., <code class="docutils literal notranslate"><span class="pre">11337190</span></code> for USGS).</p>
+</dd>
+<dt><strong>variable</strong></dt><dd><p>Standardized variable name (e.g., <code class="docutils literal notranslate"><span class="pre">turbidity</span></code>, <code class="docutils literal notranslate"><span class="pre">temp</span></code>, <code class="docutils literal notranslate"><span class="pre">ec&#64;daily</span></code>).</p>
+</dd>
+<dt><strong>_YYYY_9999</strong></dt><dd><p>Time shard. <code class="docutils literal notranslate"><span class="pre">9999</span></code> means the file is open-ended (actively updated).</p>
+</dd>
+</dl>
+<p>Files use <code class="docutils literal notranslate"><span class="pre">#</span></code> for comments, <code class="docutils literal notranslate"><span class="pre">,</span></code> as separator, and ISO/CF compliant timestamps
+(e.g., <code class="docutils literal notranslate"><span class="pre">2009-02-10T00:00</span></code>). Metadata is included as <code class="docutils literal notranslate"><span class="pre">key:</span> <span class="pre">value</span></code> pairs in the
+<code class="docutils literal notranslate"><span class="pre">#</span></code>-commented header.</p>
+</section>
+<section id="units-and-standardization">
+<h2>Units and Standardization<a class="headerlink" href="#units-and-standardization" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><strong>CF Compliance</strong>: Variable names and units are intended to be CF (Climate and
+Forecast) compliant wherever possible.</p></li>
+<li><p><strong>Stage and flow</strong>: feet (ft) and cubic feet per second (cfs) respectively.</p></li>
+<li><p><strong>All other variables</strong>: SI units (e.g., °C for temperature).</p></li>
+<li><p><strong>PSU exception</strong>: Practical Salinity Unit is technically a ratio and not a true unit.</p></li>
+<li><p><strong>Specific Conductivity (EC)</strong>: Always normalized to 25°C (µS/cm at 25°C).</p></li>
+</ul>
+</section>
+<section id="known-challenges-and-exceptions">
+<h2>Known Challenges and Exceptions<a class="headerlink" href="#known-challenges-and-exceptions" title="Link to this heading"></a></h2>
+<dl class="simple">
+<dt><strong>WDL Station IDs</strong></dt><dd><p>WDL station IDs may not match the canonical <code class="docutils literal notranslate"><span class="pre">station_id</span></code> due to appended <code class="docutils literal notranslate"><span class="pre">&quot;00&quot;</span></code>
+or <code class="docutils literal notranslate"><span class="pre">&quot;Q&quot;</span></code> suffixes. An internal alias is used as the <code class="docutils literal notranslate"><span class="pre">station_id</span></code> to ensure
+uniqueness.</p>
+</dd>
+<dt><strong>SWP/CVP Exports</strong></dt><dd><p>Exports are calculated differently for hourly vs. instantaneous values, producing
+distinct datasets. These different calculations are treated as “sublocations”.</p>
+</dd>
+<dt><strong>USGS Multiple Instruments</strong></dt><dd><p>USGS may have multiple instruments measuring the same variable for one station ID
+due to different programs or sublocations. The <code class="docutils literal notranslate"><span class="pre">raw/</span></code> directory can store dual
+versions for QA/QC, though the processed set should ideally be unified.</p>
+</dd>
+</dl>
+</section>
 </section>
 
 

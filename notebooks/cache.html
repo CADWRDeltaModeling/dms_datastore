@@ -6,16 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Caching and Archiving for Time Series Dataframes &mdash; dms_datastore 0.4.5+1.g3d9eed9 documentation</title>
-      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=e59714d7" />
+  <title>Cache Round-Trip Example with Metadata &mdash; dms_datastore 0.6.24.dev5+g8dd1423ef.d20260420 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
       <link rel="stylesheet" type="text/css" href="../_static/nbsphinx-code-cells.css?v=2aa19091" />
 
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=eb5c8c5c"></script>
+      <script src="../_static/documentation_options.js?v=bfe2e5e8"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -53,16 +53,12 @@
 <li class="toctree-l1"><a class="reference internal" href="../concepts.html">Concepts and Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../station_info.html">Station Database and Queries</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../download_data.html">Downloading Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../commands.html">dms_datastore Command Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../dropbox.html">Dropbox Data Processing System</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../read_data_meta.html">Reading Time Series and Metadata</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../repository.html">Time Series Repositories</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Local Caching</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#Accelerating-a-fetch">Accelerating a fetch</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#Archiving">Archiving</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#Import-Necessary-Libraries">Import Necessary Libraries</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#Function-Definition-with-Caching">Function Definition with Caching</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#Using-the-Caching-System">Using the Caching System</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#Saving-Cache-to-CSV">Saving Cache to CSV</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#Reloading-Cached-Data-from-CSV">Reloading Cached Data from CSV</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#Features">Features</a></li>
 </ul>
 </li>
 </ul>
@@ -81,7 +77,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Caching and Archiving for Time Series Dataframes</li>
+      <li class="breadcrumb-item active">Cache Round-Trip Example with Metadata</li>
       <li class="wy-breadcrumbs-aside">
             <a href="../_sources/notebooks/cache.ipynb.txt" rel="nofollow"> View page source</a>
       </li>
@@ -91,110 +87,78 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="Caching-and-Archiving-for-Time-Series-Dataframes">
-<h1>Caching and Archiving for Time Series Dataframes<a class="headerlink" href="#Caching-and-Archiving-for-Time-Series-Dataframes" title="Link to this heading"></a></h1>
-<p>This notebook demonstrates the use of a caching system for small python projects designed to solve the following problems:</p>
+  <section id="Cache-Round-Trip-Example-with-Metadata">
+<h1>Cache Round-Trip Example with Metadata<a class="headerlink" href="#Cache-Round-Trip-Example-with-Metadata" title="Link to this heading"></a></h1>
+<p>This notebook demonstrates how to use the enhanced caching system that:</p>
 <ul class="simple">
-<li><p>Avoid repeats of expensive reading and processing chores using the diskcache library (for speed)</p></li>
-<li><p>Provide automatic csv file backup of data in addition retrieve processed elevation data efficiently.</p></li>
+<li><p>Caches DataFrames based on selected function arguments</p></li>
+<li><p>Saves and reloads cached content via CSV with full metadata</p></li>
+<li><p>Supports recovery of clean data frames with datetime indexing</p></li>
 </ul>
-<section id="Accelerating-a-fetch">
-<h2>Accelerating a fetch<a class="headerlink" href="#Accelerating-a-fetch" title="Link to this heading"></a></h2>
-<p>Let’s say you commonly find yourself writing a code like this to take care of repeat downloading or processing chores. Maybe you are retrieving from models or observed data, and then doing some light processing:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">get_data</span><span class="p">(</span><span class="n">station</span><span class="p">,</span><span class="n">variable</span><span class="p">,</span><span class="nb">filter</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">):</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station</span><span class="p">,</span><span class="n">variable</span><span class="p">)</span>
-    <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;value&#39;</span><span class="p">]</span>
-    <span class="k">if</span> <span class="nb">filter</span> <span class="o">==</span> <span class="s2">&quot;none&quot;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">df</span>
-    <span class="k">elif</span> <span class="nb">filter</span> <span class="o">==</span> <span class="s2">&quot;cosine_lanczos&quot;</span><span class="p">:</span>
-        <span class="n">df</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">limit</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>     <span class="c1"># so that cosine_lanczos doesn&#39;t expand small gaps</span>
-        <span class="k">return</span> <span class="n">cosine_lanczos</span><span class="p">(</span><span class="n">df</span><span class="p">,</span><span class="s1">&#39;40H)</span>
-
-<span class="n">df0</span> <span class="o">=</span> <span class="n">get_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;mab&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">,</span> <span class="nb">filter</span><span class="o">=</span><span class="s2">&quot;cosine_lanczos&quot;</span><span class="p">)</span>
-<span class="c1"># ... do some plotting or further processing, etc</span>
+<section id="Features">
+<h2>Features<a class="headerlink" href="#Features" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p>Metadata headers: <code class="docutils literal notranslate"><span class="pre">cached_function</span></code>, <code class="docutils literal notranslate"><span class="pre">index_name</span></code>, <code class="docutils literal notranslate"><span class="pre">keys</span></code>, and <code class="docutils literal notranslate"><span class="pre">col_keys</span></code></p></li>
+<li><p>Optional preservation of some key fields in data via <code class="docutils literal notranslate"><span class="pre">col_keys</span></code></p></li>
+<li><p>Automatic datetime index recovery on reload</p></li>
+</ul>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[1]:
 </pre></div>
 </div>
-<p>The function <code class="docutils literal notranslate"><span class="pre">get_data</span></code> can be a tedious bottleneck, particularly if you are developing or re-running several times in a row. It may be reasonable for the read to take a little while the first time you are doing it and cajoling it. In this tutorial, we will describe a decorator that will greatly accelerate the second and later invocation. Even if <code class="docutils literal notranslate"><span class="pre">get_data</span></code> takes seconds, the next invocation will take tenths or hundredths.</p>
-<p>All you will need for optimal use is rename the function “get_data” something more reasonable for use as a csv file name (e.g. <code class="docutils literal notranslate"><span class="pre">project_data</span></code>) and use a decorator:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="nd">@cache_dataframe</span>
-<span class="k">def</span> <span class="nf">project_data</span><span class="p">(</span><span class="n">station</span><span class="p">,</span><span class="n">variable</span><span class="p">,</span><span class="nb">filter</span><span class="o">=</span><span class="s2">&quot;none&quot;</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot; Note that all three arguments must be called useing keyword argument syntax and all three are used as keys. You can cherry</span>
-<span class="sd">        pick this as will be shown later</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">pass</span>   <span class="c1"># replace with the original process or logic</span>
-    <span class="o">...</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.caching</span><span class="w"> </span><span class="kn">import</span> <span class="o">*</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-</section>
-<section id="Archiving">
-<h2>Archiving<a class="headerlink" href="#Archiving" title="Link to this heading"></a></h2>
-<p>The second service provided is that everything in the cache can be dumped into a sensible csv file. In the subsequent sections you will learn how to decorate your fetching function, dump the cache to csv, re-constitute the cache (fairly) automatically.</p>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="nd">@cache_dataframe</span><span class="p">(</span><span class="n">key_args</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">,</span> <span class="s2">&quot;variable&quot;</span><span class="p">])</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">ec_data</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">):</span>
+    <span class="c1"># Simulated time series</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="s2">&quot;2020-01-01&quot;</span><span class="p">,</span> <span class="n">periods</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;D&quot;</span><span class="p">)</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span> <span class="s2">&quot;station&quot;</span><span class="p">:</span> <span class="n">station</span><span class="p">,</span> <span class="s2">&quot;param&quot;</span><span class="p">:</span> <span class="n">variable</span><span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">df1</span> <span class="o">=</span> <span class="n">ec_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;vns&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)</span>
+<span class="n">df2</span> <span class="o">=</span> <span class="n">ec_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;vns&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;ec&quot;</span><span class="p">)</span>
+<span class="n">df3</span> <span class="o">=</span> <span class="n">ec_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;old&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;ec&quot;</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[7]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">cache_to_csv</span><span class="p">()</span>  <span class="c1"># Writes individual CSVs with function-specific metadata</span>
+<br/></pre></div>
+</div>
+</div>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[8]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">LocalCache</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+<span class="n">load_cache_csv</span><span class="p">(</span><span class="s2">&quot;ec_data.csv&quot;</span><span class="p">)</span>
+<br/></pre></div>
+</div>
+</div>
 <div class="nbinput docutils container">
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="o">%</span><span class="k">load_ext</span> autoreload
-<span class="o">%</span><span class="k">autoreload</span> 2
-</pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-The autoreload extension is already loaded. To reload it, use:
-  %reload_ext autoreload
-</pre></div></div>
-</div>
-</section>
-<section id="Import-Necessary-Libraries">
-<h2>Import Necessary Libraries<a class="headerlink" href="#Import-Necessary-Libraries" title="Link to this heading"></a></h2>
-<p>We import <code class="docutils literal notranslate"><span class="pre">pandas</span></code> for data manipulation and modules from <code class="docutils literal notranslate"><span class="pre">dms_datastore</span></code> which provide functionalities for reading time series data and caching mechanisms.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[18]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
-<span class="kn">from</span> <span class="nn">dms_datastore.read_multi</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="kn">from</span> <span class="nn">dms_datastore.caching</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="kn">from</span> <span class="nn">vtools</span> <span class="kn">import</span> <span class="n">cosine_lanczos</span>
-<br/></pre></div>
-</div>
-</div>
-</section>
-<section id="Function-Definition-with-Caching">
-<h2>Function Definition with Caching<a class="headerlink" href="#Function-Definition-with-Caching" title="Link to this heading"></a></h2>
-<p>Here we define a function <code class="docutils literal notranslate"><span class="pre">elev_data</span></code> that reads elevation data for a given station and variable, applies a cosine lanczos filter, and returns both the original and filtered data concatenated as a DataFrame. This function is decorated with <code class="docutils literal notranslate"><span class="pre">&#64;cache_dataframe</span></code> to enable caching of its results.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[32]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="nd">@cache_dataframe</span><span class="p">()</span>
-<span class="k">def</span> <span class="nf">elev_data</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">subloc</span><span class="p">):</span>
-    <span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">subloc</span><span class="p">)</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="mi">2012</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">):</span><span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="mi">2023</span><span class="p">,</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">)]</span>
-    <span class="n">filt</span> <span class="o">=</span> <span class="n">cosine_lanczos</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="s1">&#39;40H&#39;</span><span class="p">)</span>
-    <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">concat</span><span class="p">([</span><span class="n">data</span><span class="p">,</span><span class="n">filt</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-    <span class="n">out</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">,</span><span class="s2">&quot;filt&quot;</span><span class="p">]</span>
-    <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">round</span><span class="p">(</span><span class="mi">3</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">out</span>
-<br/></pre></div>
-</div>
-</div>
-</section>
-<section id="Using-the-Caching-System">
-<h2>Using the Caching System<a class="headerlink" href="#Using-the-Caching-System" title="Link to this heading"></a></h2>
-<p>We call the <code class="docutils literal notranslate"><span class="pre">elev_data</span></code> function with specific parameters to fetch data, which will be cached automatically due to our decorator. This step demonstrates fetching data for two different stations. The call for Martinez happens twice. The first invocation takes 10s, the second 0.2s.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[20]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">LocalCache</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span> <span class="c1"># Clear the cache</span>
-<span class="n">df1</span> <span class="o">=</span> <span class="n">elev_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;mrz&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">)</span>   <span class="c1"># Laborious</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">df1</span><span class="p">)</span>
-<span class="n">df2</span> <span class="o">=</span> <span class="n">elev_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;mal&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">)</span>
-<span class="n">df1</span> <span class="o">=</span> <span class="n">elev_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;mrz&quot;</span><span class="p">,</span><span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span><span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">)</span>     <span class="c1"># Cached</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">df1</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">df_reloaded</span> <span class="o">=</span> <span class="n">LocalCache</span><span class="o">.</span><span class="n">instance</span><span class="p">()[</span><span class="n">generate_cache_key</span><span class="p">(</span><span class="s2">&quot;ec_data&quot;</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="s2">&quot;vns&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)]</span>
+<span class="n">df_reloaded</span> <span class="o">=</span> <span class="n">coerce_datetime_index</span><span class="p">(</span><span class="n">df_reloaded</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">df_reloaded</span><span class="o">.</span><span class="n">dtypes</span><span class="p">)</span>
+<span class="n">df_reloaded</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
 <br/></pre></div>
 </div>
 </div>
@@ -203,254 +167,80 @@ The autoreload extension is already loaded. To reload it, use:
 </div>
 <div class="output_area docutils container">
 <div class="highlight"><pre>
-Cache instance created
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_1991.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_1992.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_1993.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_1994.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_1995.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_1996.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_1997.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_1998.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_1999.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2000.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2001.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2002.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2003.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2004.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2005.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2006.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2007.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2008.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2009.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2010.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2011.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2012.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2013.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2014.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2015.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2016.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2017.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2018.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2019.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2020.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2021.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2022.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2023.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mrz@upper_40_elev_2024.csv
-transition
- [None, None]
-here None None ts
-                      value
-datetime
-1991-01-26 18:45:00  -1.81
-1991-01-26 19:00:00  -1.53
-1991-01-26 19:15:00  -1.26
-1991-01-26 19:30:00  -0.98
-1991-01-26 19:45:00  -0.74
-...                    ...
-2024-07-03 06:15:00   0.56
-2024-07-03 06:30:00   0.47
-2024-07-03 06:45:00   0.50
-2024-07-03 07:00:00   0.67
-2024-07-03 07:15:00   0.84
-
-[1172307 rows x 1 columns]
-&lt;class &#39;pandas.core.frame.DataFrame&#39;&gt;
-meta is False
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-d:\delta\models\vtools3\vtools\functions\filter.py:31: FutureWarning: &#39;H&#39; is deprecated and will be removed in a future version, please use &#39;h&#39; instead.
-  cp = pd.tseries.frequencies.to_offset(cutoff_period)
-</pre></div></div>
-</div>
-<div class="nboutput docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-                     value  filt
-datetime
-2018-01-01 00:00:00   4.91   NaN
-2018-01-01 00:15:00   5.04   NaN
-2018-01-01 00:30:00   5.13   NaN
-2018-01-01 00:45:00   5.19   NaN
-2018-01-01 01:00:00   5.21   NaN
-...                    ...   ...
-2022-12-31 23:00:00   4.63   NaN
-2022-12-31 23:15:00   4.48   NaN
-2022-12-31 23:30:00   4.28   NaN
-2022-12-31 23:45:00   4.11   NaN
-2023-01-01 00:00:00   3.94   NaN
-
-[175297 rows x 2 columns]
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_1992.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_1993.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_1994.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_1995.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_1996.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_1997.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_1998.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_1999.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2000.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2001.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2002.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2003.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2004.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2005.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2006.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2007.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2008.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2009.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2010.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2011.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2012.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2013.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2014.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2015.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2016.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2017.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2018.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2019.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2020.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2021.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2022.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2023.csv
-//cnrastore-bdo/Modeling_Data/repo/continuous/screened\des_mal@upper_60_elev_2024.csv
-transition
- [None, None]
-here None None ts
-                      value
-datetime
-1992-08-04 14:00:00 -0.010
-1992-08-04 14:15:00  0.320
-1992-08-04 14:30:00  0.550
-1992-08-04 14:45:00  0.750
-1992-08-04 15:00:00  1.030
-...                    ...
-2024-07-03 06:15:00  2.024
-2024-07-03 06:30:00  1.981
-2024-07-03 06:45:00  1.802
-2024-07-03 07:00:00  1.665
-2024-07-03 07:15:00  1.577
-
-[1118950 rows x 1 columns]
-&lt;class &#39;pandas.core.frame.DataFrame&#39;&gt;
-meta is False
-                     value  filt
-datetime
-2018-01-01 00:00:00   4.91   NaN
-2018-01-01 00:15:00   5.04   NaN
-2018-01-01 00:30:00   5.13   NaN
-2018-01-01 00:45:00   5.19   NaN
-2018-01-01 01:00:00   5.21   NaN
-...                    ...   ...
-2022-12-31 23:00:00   4.63   NaN
-2022-12-31 23:15:00   4.48   NaN
-2022-12-31 23:30:00   4.28   NaN
-2022-12-31 23:45:00   4.11   NaN
-2023-01-01 00:00:00   3.94   NaN
-
-[175297 rows x 2 columns]
+value         int64
+station.1    object
+param        object
+dtype: object
 </pre></div></div>
 </div>
 <div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area stderr docutils container">
-<div class="highlight"><pre>
-d:\delta\models\vtools3\vtools\functions\filter.py:31: FutureWarning: &#39;H&#39; is deprecated and will be removed in a future version, please use &#39;h&#39; instead.
-  cp = pd.tseries.frequencies.to_offset(cutoff_period)
-</pre></div></div>
-</div>
-</section>
-<section id="Saving-Cache-to-CSV">
-<h2>Saving Cache to CSV<a class="headerlink" href="#Saving-Cache-to-CSV" title="Link to this heading"></a></h2>
-<p>After fetching and potentially caching the data, we proceed to save the cached data to CSV files. This ensures that we have a persistent copy of the cached data on disk.</p>
-<p>This can be agonizingly slow.</p>
-<div class="nbinput nblast docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[21]:
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="n">cache_to_csv</span><span class="p">()</span>
-<br/></pre></div>
-</div>
-</div>
-</section>
-<section id="Reloading-Cached-Data-from-CSV">
-<h2>Reloading Cached Data from CSV<a class="headerlink" href="#Reloading-Cached-Data-from-CSV" title="Link to this heading"></a></h2>
-<p>You can load the CSV files back into the cache. This way you can distribute the data as little data packs in csv form and then reconstitute.</p>
-<div class="nbinput docutils container">
-<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[31]:
-</pre></div>
-</div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><span></span><span class="c1"># Clear the cache</span>
-<span class="kn">import</span> <span class="nn">timeit</span>
-<span class="n">cache</span> <span class="o">=</span> <span class="n">LocalCache</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span>
-<span class="n">cache</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
 
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Loading cache from csv&quot;</span><span class="p">)</span>
-<span class="n">load_cache_csv</span><span class="p">(</span><span class="s1">&#39;elev_data.csv&#39;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Done&quot;</span><span class="p">)</span>
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
 
-<span class="c1"># Now try again</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Here is the data from the usual API&quot;</span><span class="p">)</span>
-<span class="n">df1</span> <span class="o">=</span> <span class="n">elev_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;mrz&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">)</span>
-
-
-<span class="nb">print</span><span class="p">(</span><span class="n">df1</span><span class="p">)</span>
-
-<span class="c1"># This is the code that directly pulls from the cache</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Here it is using nuts and bolts calls. Can&#39;t think of any obvious reason to do it this way&quot;</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">cache</span><span class="p">[</span><span class="n">generate_cache_key</span><span class="p">(</span><span class="s2">&quot;elev_data&quot;</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="s2">&quot;mrz&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">)])</span>
-<br/><br/><br/></pre></div>
-</div>
-</div>
-<div class="nboutput nblast docutils container">
-<div class="prompt empty docutils container">
-</div>
-<div class="output_area docutils container">
-<div class="highlight"><pre>
-Loading cache from csv
-Done
-Here is the data from the usual API
-                    station subloc variable  value  filt
-DatetimeIndex
-2018-01-01 00:00:00     mrz  upper     elev   4.91   NaN
-2018-01-01 00:15:00     mrz  upper     elev   5.04   NaN
-2018-01-01 00:30:00     mrz  upper     elev   5.13   NaN
-2018-01-01 00:45:00     mrz  upper     elev   5.19   NaN
-2018-01-01 01:00:00     mrz  upper     elev   5.21   NaN
-...                     ...    ...      ...    ...   ...
-2022-12-31 23:00:00     mrz  upper     elev   4.63   NaN
-2022-12-31 23:15:00     mrz  upper     elev   4.48   NaN
-2022-12-31 23:30:00     mrz  upper     elev   4.28   NaN
-2022-12-31 23:45:00     mrz  upper     elev   4.11   NaN
-2023-01-01 00:00:00     mrz  upper     elev   3.94   NaN
-
-[175297 rows x 5 columns]
-Here it is using nuts and bolts calls. Can&#39;t think of any obvious reason to do it this way
-                    station subloc variable  value  filt
-DatetimeIndex
-2018-01-01 00:00:00     mrz  upper     elev   4.91   NaN
-2018-01-01 00:15:00     mrz  upper     elev   5.04   NaN
-2018-01-01 00:30:00     mrz  upper     elev   5.13   NaN
-2018-01-01 00:45:00     mrz  upper     elev   5.19   NaN
-2018-01-01 01:00:00     mrz  upper     elev   5.21   NaN
-...                     ...    ...      ...    ...   ...
-2022-12-31 23:00:00     mrz  upper     elev   4.63   NaN
-2022-12-31 23:15:00     mrz  upper     elev   4.48   NaN
-2022-12-31 23:30:00     mrz  upper     elev   4.28   NaN
-2022-12-31 23:45:00     mrz  upper     elev   4.11   NaN
-2023-01-01 00:00:00     mrz  upper     elev   3.94   NaN
-
-[175297 rows x 5 columns]
-</pre></div></div>
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>value</th>
+      <th>station.1</th>
+      <th>param</th>
+    </tr>
+    <tr>
+      <th>datetime</th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>2020-01-01</th>
+      <td>0</td>
+      <td>vns</td>
+      <td>flow</td>
+    </tr>
+    <tr>
+      <th>2020-01-02</th>
+      <td>1</td>
+      <td>vns</td>
+      <td>flow</td>
+    </tr>
+    <tr>
+      <th>2020-01-03</th>
+      <td>2</td>
+      <td>vns</td>
+      <td>flow</td>
+    </tr>
+    <tr>
+      <th>2020-01-04</th>
+      <td>3</td>
+      <td>vns</td>
+      <td>flow</td>
+    </tr>
+    <tr>
+      <th>2020-01-05</th>
+      <td>4</td>
+      <td>vns</td>
+      <td>flow</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
 </div>
 </section>
 </section>

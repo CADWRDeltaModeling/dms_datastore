@@ -6,23 +6,459 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reading Time Series and Metadata &mdash; dms_datastore 0.4.5+1.g3d9eed9 documentation</title>
-      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=fa44fd50" />
-      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+  <title>Reading Time Series and Metadata &mdash; dms_datastore 0.6.24.dev5+g8dd1423ef.d20260420 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=eb5c8c5c"></script>
+      <script src="_static/documentation_options.js?v=bfe2e5e8"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+      <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.12.1/dist/mermaid.esm.min.mjs";
+
+
+
+
+
+const initStyles = () => {
+    const defaultStyle = document.createElement('style');
+    defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}`;
+    document.head.appendChild(defaultStyle);
+
+    const fullscreenStyle = document.createElement('style');
+    fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+    document.head.appendChild(fullscreenStyle);
+}
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    // We use a set of heuristics:
+    // 1. Check for common dark mode classes or attributes
+    // 2. Check computed background color brightness
+    if (document.documentElement.classList.contains('dark') ||
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        document.body.classList.contains('dark') ||
+        document.body.getAttribute('data-theme') === 'dark') {
+        // console.log("Dark theme detected via class/attribute");
+        return true;
+    }
+    if (document.documentElement.classList.contains('light') ||
+        document.documentElement.getAttribute('data-theme') === 'light' ||
+        document.body.classList.contains('light') ||
+        document.body.getAttribute('data-theme') === 'light') {
+        // console.log("Light theme detected via class/attribute");
+        return false;
+    }
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        // console.log("Dark theme detected via prefers-color-scheme");
+        return true;
+    }
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        // console.log("Background color brightness:", brightness);
+        return brightness < 128;
+    }
+    // console.log("No dark or light theme detected, defaulting to light theme");
+    return false;
+};
+
+let darkTheme = isDarkTheme();
+let modal = null;
+let modalContent = null;
+let previousScrollOffset = [window.scrollX, window.scrollY];
+
+const runMermaid = async (rerun) => {
+    console.log("Running mermaid diagrams, rerun =", rerun);
+    // clear all existing mermaid charts
+    let all_mermaids = document.querySelectorAll(".mermaid");
+
+    if (rerun) {
+        all_mermaids.forEach((el) => {
+            if(!el.hasAttribute("data-original-code")) {
+                // store original code
+                // console.log(`Storing original code for first run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+            if(el.getAttribute("data-processed") === "true") {
+                // remove and restore original
+                el.removeAttribute("data-processed");
+                // console.log(`Restoring original code for re-run: `, el.getAttribute('data-original-code'));
+                el.innerHTML = el.getAttribute('data-original-code');
+            } else {
+                // store original code
+                // console.log(`Storing original code for re-run: `, el.innerHTML);
+                el.setAttribute('data-original-code', el.innerHTML);
+            }
+        });
+        await mermaid.run();
+    }
+
+    all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(() => runMermaid(false), 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(() => runMermaid(false), 200);
+        return;
+    }
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    if (modal !== null ) {
+        // Destroy existing modal
+        modal.remove();
+        modal = null;
+        modalContent = null;
+    }
+
+    modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            // Already processed, adjust button class if needed
+            const existingBtn = mermaidDiv.parentNode.querySelector('.mermaid-fullscreen-btn');
+            if (existingBtn) {
+                existingBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+            }
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+        container.appendChild(fullscreenBtn);
+    });
+};
+
+const load = async () => {
+    initStyles();
+
+    await runMermaid(true);
+
+    const reRunIfThemeChanges = async () => {
+        const newDarkTheme = isDarkTheme();
+        if (newDarkTheme !== darkTheme) {
+            darkTheme = newDarkTheme;
+            console.log("Theme change detected, re-running mermaid with", darkTheme ? "dark" : "default", "theme");
+            await mermaid.initialize(
+                {...JSON.parse(
+                    `{"startOnLoad": false}`
+                ),
+                ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+                }
+            );
+            await runMermaid(true);
+        }
+    };
+
+    // Update theme classes when theme changes
+    const themeObserver = new MutationObserver(reRunIfThemeChanges);
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    themeObserver.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+};
+
+
+
+
+
+console.log("Initializing mermaid with", darkTheme ? "dark" : "default", "theme");
+mermaid.initialize(
+    {...JSON.parse(
+        `{"startOnLoad": false}`
+    ),
+    ...{ darkMode: darkTheme, theme: darkTheme ? 'dark' : 'default' },
+    }
+);
+
+window.addEventListener("load", load);
+window.runMermaid = runMermaid;</script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="Time Series Repositories" href="repository.html" />
-    <link rel="prev" title="Downloading Data" href="download_data.html" /> 
+    <link rel="prev" title="Dropbox Data Processing System" href="dropbox.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -51,7 +487,27 @@
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
 <li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Data</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Reading Time Series and Metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Processing System</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Reading Time Series and Metadata</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#data-quality-and-flags">Data Quality and Flags</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#data-quality-flow">Data Quality Flow</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#data-screening-methods">Data Screening Methods</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#built-in-screening-functions">Built-in screening functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#additional-methods-from-vtools3">Additional methods from <code class="docutils literal notranslate"><span class="pre">vtools3</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#reading-data-with-read-ts-repo">Reading Data with <code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#function-parameters">Function parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example-retrieval-and-visualization">Example: retrieval and visualization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#caching-repeated-reads">Caching repeated reads</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 </ul>
@@ -82,13 +538,183 @@
              
   <section id="reading-time-series-and-metadata">
 <h1>Reading Time Series and Metadata<a class="headerlink" href="#reading-time-series-and-metadata" title="Link to this heading"></a></h1>
+<section id="data-quality-and-flags">
+<h2>Data Quality and Flags<a class="headerlink" href="#data-quality-and-flags" title="Link to this heading"></a></h2>
+<p>Data quality is tracked through two complementary concepts:</p>
+<dl class="simple">
+<dt><strong>Status</strong></dt><dd><p>Data can be <em>Accepted</em> (flagged by provider, or with a QAQC flag indicating
+attention) or <em>Provisional</em> (from a real-time source). The system prioritizes
+data from the “provider of record” (e.g., Water Data Library – WDL) over
+real-time sources (e.g., CDEC) for accepted data, while provisional data may
+come from real-time backups.</p>
+</dd>
+<dt><strong>Quality</strong></dt><dd><p>Includes <em>Provider quality</em> and <em>User quality</em>. Provider flags indicating bad
+data are honored and lead to values being set to <code class="docutils literal notranslate"><span class="pre">NaN</span></code>. <em>User quality</em> allows
+the project’s QA/QC process to signal bad data while preserving original values.
+The <code class="docutils literal notranslate"><span class="pre">user_flag</span></code> column in screened data marks anomalous records: <code class="docutils literal notranslate"><span class="pre">1</span></code> means
+anomalous, <code class="docutils literal notranslate"><span class="pre">0</span></code> (or <code class="docutils literal notranslate"><span class="pre">NA</span></code>) means the anomaly was overridden by a user.</p>
+</dd>
+</dl>
+<section id="data-quality-flow">
+<h3>Data Quality Flow<a class="headerlink" href="#data-quality-flow" title="Link to this heading"></a></h3>
+<pre  class="mermaid">
+        graph LR
+    A[Raw Data] --&gt; B{Provider Flags}
+    B --(Set to NaN)--&gt; C[Formatted Data]
+    C --&gt; D{Automated Screening}
+    D --&gt; E[User QA/QC &amp; Manual Review]
+    E --(Overrides auto flags, sets user_flag)--&gt; F[Screened Data]
+    F --&gt; G[Processed Data]
+    </pre></section>
+</section>
+<section id="data-screening-methods">
+<h2>Data Screening Methods<a class="headerlink" href="#data-screening-methods" title="Link to this heading"></a></h2>
+<p>The <code class="xref py py-mod docutils literal notranslate"><span class="pre">auto_screen</span></code> module performs YAML-specified screening
+protocols on time series data.</p>
+<section id="built-in-screening-functions">
+<h3>Built-in screening functions<a class="headerlink" href="#built-in-screening-functions" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">dip_test(ts,</span> <span class="pre">low,</span> <span class="pre">dip)</span></code></dt><dd><p>Checks for anomalies based on dips below a threshold.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">repeat_test(ts,</span> <span class="pre">max_repeat,</span> <span class="pre">lower_limit=None,</span> <span class="pre">upper_limit=None)</span></code></dt><dd><p>Identifies anomalies due to values repeating more than a specified number of times.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">short_run_test(ts,</span> <span class="pre">small_gap_len,</span> <span class="pre">min_run_len)</span></code></dt><dd><p>Flags small clusters of valid data points surrounded by larger gaps.</p>
+</dd>
+</dl>
+</section>
+<section id="additional-methods-from-vtools3">
+<h3>Additional methods from <code class="docutils literal notranslate"><span class="pre">vtools3</span></code><a class="headerlink" href="#additional-methods-from-vtools3" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">nrepeat(ts)</span></code></dt><dd><p>Returns the length of consecutive runs of repeated values.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">threshold(ts,</span> <span class="pre">bounds,</span> <span class="pre">copy=True)</span></code></dt><dd><p>Masks values outside specified bounds.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">bounds_test(ts,</span> <span class="pre">bounds)</span></code></dt><dd><p>Detects anomalies based on specified bounds.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">median_test(ts,</span> <span class="pre">...)</span> <span class="pre">/</span> <span class="pre">med_outliers(ts,</span> <span class="pre">...)</span></code></dt><dd><p>Detects outliers using a median filter.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">median_test_oneside(ts,</span> <span class="pre">...)</span></code></dt><dd><p>Uses a one-sided median filter for outlier detection.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">median_test_twoside(ts,</span> <span class="pre">...)</span></code></dt><dd><p>Similar to <code class="docutils literal notranslate"><span class="pre">med_outliers</span></code> but uses a two-sided median filter.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">gapdist_test_series(ts,</span> <span class="pre">smallgaplen=0)</span></code></dt><dd><p>Fills small gaps to facilitate gap analysis.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">steep_then_nan(ts,</span> <span class="pre">...)</span></code></dt><dd><p>Identifies outliers near large data gaps.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">despike(arr,</span> <span class="pre">n1=2,</span> <span class="pre">n2=20,</span> <span class="pre">block=10)</span></code></dt><dd><p>Implements an algorithm to remove spikes from data.</p>
+</dd>
+</dl>
+</section>
+</section>
+<section id="reading-data-with-read-ts-repo">
+<h2>Reading Data with <code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code><a class="headerlink" href="#reading-data-with-read-ts-repo" title="Link to this heading"></a></h2>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">read_ts_repo()</span></code> is the primary way to access data
+from the datastore. It handles file path construction, source prioritization,
+and data consolidation automatically.</p>
+<section id="basic-usage">
+<h3>Basic usage<a class="headerlink" href="#basic-usage" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.read_multi</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_ts_repo</span>
+
+<span class="c1"># Basic usage — retrieve data for a station and variable</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)</span>
+
+<span class="c1"># With sublocation — for stations where position matters</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;msd&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;bottom&quot;</span><span class="p">)</span>
+
+<span class="c1"># Filter to a date range after loading</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;mrz&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+    <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="mi">2018</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span><span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="mi">2023</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="p">]</span>
+
+<span class="c1"># Return metadata alongside data</span>
+<span class="n">data_with_meta</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="c1"># Override default source priority from config</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">,</span>
+                    <span class="n">provider_priority</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;usgs&quot;</span><span class="p">,</span> <span class="s2">&quot;cdec&quot;</span><span class="p">])</span>
+
+<span class="c1"># Use a custom repository location</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;msd&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span>
+                    <span class="n">repo</span><span class="o">=</span><span class="s2">&quot;/path/to/custom/repo&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="function-parameters">
+<h3>Function parameters<a class="headerlink" href="#function-parameters" title="Link to this heading"></a></h3>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">station_id</span></code></dt><dd><p>Station identifier as defined in the station database.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">variable</span></code></dt><dd><p>Standardized variable name (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;flow&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;elev&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;temp&quot;</span></code>).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">subloc</span></code></dt><dd><p>Optional sublocation identifier (e.g., <code class="docutils literal notranslate"><span class="pre">&quot;bottom&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;upper&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">&quot;bgc&quot;</span></code>).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">repo</span></code></dt><dd><p>Optional repository path. If <code class="docutils literal notranslate"><span class="pre">None</span></code>, uses the default from configuration.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">provider_priority</span></code></dt><dd><p>Source priority list. If <code class="docutils literal notranslate"><span class="pre">&quot;infer&quot;</span></code>, derives from configuration based on
+station type.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">meta</span></code></dt><dd><p>If <code class="docutils literal notranslate"><span class="pre">True</span></code>, returns metadata alongside the data.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">force_regular</span></code></dt><dd><p>Force the returned time series to have regular time intervals.</p>
+</dd>
+</dl>
+</section>
+<section id="example-retrieval-and-visualization">
+<h3>Example: retrieval and visualization<a class="headerlink" href="#example-retrieval-and-visualization" title="Link to this heading"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.read_multi</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_ts_repo</span>
+
+<span class="c1"># Get flow data for San Joaquin at Jersey Point</span>
+<span class="n">flow_data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="s2">&quot;flow&quot;</span><span class="p">)</span>
+
+<span class="c1"># Filter to 2020</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="s2">&quot;2020-01-01&quot;</span><span class="p">)</span>
+<span class="n">end</span>   <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="s2">&quot;2020-12-31&quot;</span><span class="p">)</span>
+<span class="n">flow_period</span> <span class="o">=</span> <span class="n">flow_data</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
+
+<span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">flow_period</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">flow_period</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;San Joaquin River Flow at Jersey Point (2020)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Flow (cfs)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+<section id="caching-repeated-reads">
+<h3>Caching repeated reads<a class="headerlink" href="#caching-repeated-reads" title="Link to this heading"></a></h3>
+<p>For repeated access to the same data the datastore provides the
+<code class="docutils literal notranslate"><span class="pre">&#64;cache_dataframe</span></code> decorator:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.read_multi</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_ts_repo</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.caching</span><span class="w"> </span><span class="kn">import</span> <span class="n">cache_dataframe</span>
+
+<span class="nd">@cache_dataframe</span><span class="p">()</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_filtered_flow</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Retrieve and process flow data with caching.&quot;&quot;&quot;</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">)</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">&#39;D&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+
+<span class="c1"># First call reads from repository</span>
+<span class="n">daily_flow</span> <span class="o">=</span> <span class="n">get_filtered_flow</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)</span>
+
+<span class="c1"># Subsequent calls use cached data</span>
+<span class="n">daily_flow</span> <span class="o">=</span> <span class="n">get_filtered_flow</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See also the <a class="reference internal" href="notebooks/cache.html"><span class="doc">Local Caching notebook</span></a> for a hands-on walkthrough.</p>
+</section>
+</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="download_data.html" class="btn btn-neutral float-left" title="Downloading Data" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="dropbox.html" class="btn btn-neutral float-left" title="Dropbox Data Processing System" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="repository.html" class="btn btn-neutral float-right" title="Time Series Repositories" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
