@@ -1,0 +1,39 @@
+
+data:
+  - name: daily
+    collect:
+      file_pattern: "{source}_{station_id}_{agency_id}_{param}_{syear}_{eyear}.csv"
+      location: "//cnrastore-bdo/Modeling_Data/repo_staging_auto/daily/raw"
+      recursive_search: false
+      reader: read_ts
+      selector: value
+
+    metadata:
+      station_id: infer_from_filename
+      source: infer_from_filename
+      agency_id: infer_from_filename
+      agency: registry_lookup
+      param: infer_from_filename
+      subloc: default
+      unit: ft^3/s
+      freq: D
+      time_zone: Etc/GMT+8
+      latitude: registry_lookup
+      longitude: registry_lookup
+      projection_x_coordinate: registry_lookup
+      projection_y_coordinate: registry_lookup
+      
+    output:
+      repo_name: daily_formatted
+      staging:
+        dir: staging
+        float_format: "%0.3f"
+        chunk_years: False
+      reconcile:
+        #repo_data_dir: ./fake_repo
+        prefer: staged
+        allow_new_series: true
+        inspection:
+          recent_years: 3
+          p3: 0.15
+          p10: 0.05      

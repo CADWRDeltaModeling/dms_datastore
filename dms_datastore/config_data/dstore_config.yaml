@@ -5,7 +5,7 @@ sublocations: station_subloc.csv
 ncro_inventory: ncro_inventory_full.csv
 
 daily_data_manifest: daily_data_manifest.csv
-
+daily_dropbox_spec: daily_dropbox.yaml
 
 file_deletion_list: non_15_min_files_checked.txt
 compare_excepts_formatted: compare_excepts_formatted.txt

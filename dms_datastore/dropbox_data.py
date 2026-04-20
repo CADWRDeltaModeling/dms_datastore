@@ -4,12 +4,13 @@ import pandas as pd
 import yaml
 import glob
 import click
+import dms_datastore.dstore_config
 from vtools import dst_st, ts_merge, ts_splice,ts_coarsen
 from omegaconf import OmegaConf
 from vtools.data.indexing import infer_freq_robust
 from dms_datastore.read_ts import read_ts, infer_freq_robust
 from dms_datastore.write_ts import write_ts_csv
-from dms_datastore.dstore_config import repo_registry, repo_config
+from dms_datastore.dstore_config import repo_registry, repo_config, config_file
 from dms_datastore.filename import interpret_fname, meta_to_filename, naming_spec
 from dms_datastore.reconcile_data import update_repo
 import logging
@@ -419,7 +420,7 @@ def _check_metadata(meta, repo_name):
         )
 
 
-def get_data(spec, selected_names=None):
+def apply_dropbox_workflow(spec, selected_names=None):
     logger.info("dropbox: loaded %d recipe entries", len(spec["data"]))
     always_skip = True
 
@@ -750,8 +751,13 @@ def get_data(spec, selected_names=None):
         )            
 
 def dropbox_data(spec_fname, selected_names=None):
+    spec_fname = (
+        spec_fname
+        if os.path.exists(spec_fname)
+        else config_file(spec_fname)
+    )
     spec = get_spec(spec_fname)
-    get_data(spec, selected_names=selected_names)
+    apply_dropbox_workflow(spec, selected_names=selected_names)
 
 
 @click.command(name="dropbox")
@@ -759,7 +765,7 @@ def dropbox_data(spec_fname, selected_names=None):
     "--input",
     "spec_fname",
     required=True,
-    type=click.Path(exists=True, dir_okay=False, readable=True),
+    type=str,
     help="YAML file with dropbox specification.",)
 @click.option(
     "--name",
