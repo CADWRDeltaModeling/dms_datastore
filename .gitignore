@@ -22,6 +22,7 @@
 # csv files -- usually data
 **/*.csv
 !dms_datastore/config_data/ncro_inventory_full.csv
+!dms_datastore/config_data/daily_data_manifest.csv
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

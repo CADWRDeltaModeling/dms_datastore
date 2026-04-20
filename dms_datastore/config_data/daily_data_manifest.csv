@@ -1,0 +1,11 @@
+station_id,param,provider
+idb,flow,cdec
+inb,flow,cdec
+ccw,flow,cdec
+trp,flow,cdec
+hro,flow,cdec
+bks,flow,cdec
+bbi,flow,cdec
+ssw2,flow,usgs
+wbr,flow,usgs
+dto,flow,cdec
