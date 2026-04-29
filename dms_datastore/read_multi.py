@@ -96,7 +96,7 @@ def read_ts_repo(
     freq_resolver=None,
 ):
     if repo is None:
-        raise ValueError("repo must be provided explicitly to read_ts_repo")
+        repo = dstore_config.config.get("default_repo", "screened")
 
     if subloc is not None:
         if "@" in station_id:

@@ -13,6 +13,8 @@ des_rationalize_time_spec: des_rationalize_cfg.yaml
 
 repo_base: "//cnrastore-bdo/Modeling_Data/repo"
 
+default_repo: screened
+
 spot_check_spec: spot_check_spec.yaml
 
 # registry files available to repos
@@ -103,10 +105,11 @@ repos:
     registry: processed
     site_key: station_id
     provider_key: processor
-    provider_resolution: assume_unique     # This may have to be adjusted for cases like SF harmonic tides where there is a noaa and dwr version
+    provider_resolution_mode: assume_unique     # This may have to be adjusted for cases like SF harmonic tides where there is a noaa and dwr version
     filename_templates:
       - "{processor}_{station_id@subloc}_{param@modifier}.csv"
       - "{processor}_{station_id@subloc}_{param@modifier}_{year}.csv"
+      - "{processor}_{station_id@subloc}_{param@modifier}_{syear}_{eyear}.csv"
       - "{processor}_{station_id@subloc}_{param}_{year}.csv"
       - "{processor}_{station_id@subloc}_{param}.csv"
     file_key: [processor, station_id, subloc, param, modifier, shard]
