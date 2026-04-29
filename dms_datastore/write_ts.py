@@ -288,6 +288,7 @@ def write_ts_csv(
     overwrite_conventions=False,
     block_size=1,
     dtypes={"user_flag": "Int64"},
+    sep=",",
     **kwargs,
 ):
     """
@@ -353,7 +354,7 @@ def write_ts_csv(
                 tssub.to_csv(
                     outfile,
                     header=True,
-                    sep=",",
+                    sep=sep,
                     date_format="%Y-%m-%dT%H:%M:%S",
                     lineterminator="\n",
                     **kwargs,
@@ -369,7 +370,7 @@ def write_ts_csv(
         ts.to_csv(
             outfile,
             header=True,
-            sep=",",
+            sep=sep,
             date_format="%Y-%m-%dT%H:%M:%S",
             lineterminator="\n",
             **kwargs,
