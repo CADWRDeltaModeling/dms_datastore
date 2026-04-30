@@ -115,8 +115,8 @@ repos:
     file_key: [processor, station_id, subloc, param, modifier, shard]
     data_key: [station_id, subloc, param, modifier]
 
-  structures:
-    root: "//cnrastore-bdo/Modeling_Data/repo/structures"
+  structures_formatted:
+    root: "//cnrastore-bdo/Modeling_Data/repo/structures/formatted"
     registry: structures
     site_key: structure_id
     provider_key: processor

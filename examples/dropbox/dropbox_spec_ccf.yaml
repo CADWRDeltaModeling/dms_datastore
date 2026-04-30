@@ -9,7 +9,7 @@ data:
   - name: ccfb
     skip: False
     collect:
-      file_pattern: "CC_Gate_Positions*.csv"
+      file_pattern: "CC_Gate_Positions_*.csv"
       wildcard: time_overlap    # time_sharded | time_overlap | data | none. 
             # If time_sharded, indicates non-overlapping timestamps that uses year chunking. 
             # If time_overlap, indicates wildcards are ordered by date 20250531(lexicographic must = chronological)
@@ -50,22 +50,27 @@ data:
       unit: ft
       subloc: radial
       time_zone: ${target_tz}
-      time_zone_label: ${target_tz_label}   
+      time_zone_label: ${target_tz_label}  
       latitude: 37.8299         # projected will be inferred. User changes should be made to projected, not latitude/longitude. 
-      longitude: -121.55694
+      longitude: -121.55694     # what happens when this and registry entry have conflicting metadata for something like latitude.
+                                # seems like this prevails, but we should prevent conflicts.
 
     output:
-      repo_name: structures
-      staging:
+      repo_name: structures_formatted    # This is a pointer to an entry in dbase_config.yaml
+      staging:                           # This is where the read and transformed time series will be staged. 
+                                         # It will be used to update the repo, but that uses update_repo and may not mean a full replacement
         dir: ./drop_staging
         write_args:
           float_format: "%0.3f"
           chunk_years: False
       reconcile:
-        repo_data_dir: ./fake_repo/formatted
-        prefer: staged
+        #repo_data_dir: ./fake_repo/formatted     # This is a practice directory so you don't go overwriting a real repo while developing the recipe
+                                                  # When omitted the target location is the repo_root as configured in dbase_config.yaml
+        prefer: staged                            # This is an argument to the update process: 
+                                                  #    - staged means "prefer the new stuff we staged"
+                                                  #    - repo means "prefer the stuff in the repo, just top off with any new time stamps"
         allow_new_series: true
-        inspection:
-          recent_years: 3
-          p3: 0.15
-          p10: 0.05     
+        inspection:                               # update parameters. These should be included but seldom change
+          recent_years: 3                         # Up to 3 year old data will be checked whenever update is performed
+          p3: 0.15                                # probability of a spot check for 3-10 ago, differences will trigger full replacment of all years
+          p10: 0.05                               # pprobability of a spot check for data 10+ years old, differences will trigger full replacment of all years
