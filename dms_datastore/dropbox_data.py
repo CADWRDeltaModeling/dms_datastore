@@ -295,12 +295,20 @@ def _maybe_rename_value_column(ts, splice_args):
     """
     If splice_args requests a rename, do it here in a simple, explicit way.
 
+    Also auto-normalizes a univariate 'VALUE' column to lowercase 'value'
+    so that data from sources like CDEC that emit uppercase column names are
+    handled consistently without requiring explicit splice_args configuration.
+
     Supported:
       splice_args:
         rename: value        # rename single column to 'value'
       splice_args:
         rename: {old: new}   # dict rename
     """
+    # Auto-normalize 'VALUE' -> 'value' for univariate series
+    if "VALUE" in ts.columns and "value" not in ts.columns:
+        ts = ts.rename(columns={"VALUE": "value"})
+
     if not splice_args:
         return ts
     if "rename" not in splice_args:
