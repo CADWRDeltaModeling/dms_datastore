@@ -66,14 +66,14 @@ Lookup information on a station using a fragment of its name, standard id.::
 
   $ station_info francisco
   Matches:
-        station_id agency        agency_id                                                  name         x          y        lat         lon
+        station_id agency        agency_id                                                  name         x          y  agency_lat  agency_lon
   id
-  alk          alk   usgs  374938122251801  San Francisco Bay at Northeast Shore Alcatraz Island  550895.2  4186802.8  37.827222 -122.421667
-  dum          dum   usgs  373015122071000           South San Francisco Bay at Dumbarton Bridge  577828.8  4151167.7  37.504000 -122.119000
-  dumbr      dumbr   usgs  373025122065901             San Francisco Bay at Old Dumbarton Bridge  578096.0  4151478.4  37.506944 -122.116389
-  richb      richb   usgs  375607122264701       San Francisco Bay at Richmond-San Rafael Bridge  548648.5  4198778.5  37.935278 -122.446389
-  sffpx      sffpx   noaa          9414290                                         San Francisco  547094.8  4184503.1  37.806700 -122.465000
-  sfp17      sfp17   usgs  374811122235001                          San Francisco Bay at Pier 17  553143.4  4184169.8  37.803000 -122.397000
+  alk          alk   usgs  374938122251801  San Francisco Bay at Northeast Shore Alcatraz Island  550895.2  4186802.8   37.827222 -122.421667
+  dum          dum   usgs  373015122071000           South San Francisco Bay at Dumbarton Bridge  577828.8  4151167.7   37.504000 -122.119000
+  dumbr      dumbr   usgs  373025122065901             San Francisco Bay at Old Dumbarton Bridge  578096.0  4151478.4   37.506944 -122.116389
+  richb      richb   usgs  375607122264701       San Francisco Bay at Richmond-San Rafael Bridge  548648.5  4198778.5   37.935278 -122.446389
+  sffpx      sffpx   noaa          9414290                                         San Francisco  547094.8  4184503.1   37.806700 -122.465000
+  sfp17      sfp17   usgs  374811122235001                          San Francisco Bay at Pier 17  553143.4  4184169.8   37.803000 -122.397000
 
 Download data
 '''''''''''''
