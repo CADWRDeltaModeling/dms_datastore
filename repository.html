@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Time Series Repositories &mdash; dms_datastore 0.6.26.dev1+g5a6f01d8c.d20260430 documentation</title>
+  <title>Time Series Repositories &mdash; dms_datastore 0.6.26.dev2+g7f9540d33.d20260502 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -14,7 +14,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=210f8b2e"></script>
+      <script src="_static/documentation_options.js?v=91d80245"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -132,7 +132,6 @@ registry metadata.</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">root</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">//.../repo/continuous/formatted</span>
 <span class="nt">registry</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">continuous</span>
 
-<span class="nt">site_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">station_id</span>
 <span class="nt">provider_key</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">source</span>
 <span class="nt">provider_resolution_mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">by_registry_column</span>
 
@@ -147,13 +146,14 @@ registry metadata.</p>
 <span class="w">  </span><span class="nt">style</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">legacy</span>
 </pre></div>
 </div>
-<p>Required fields: <code class="docutils literal notranslate"><span class="pre">root</span></code>, <code class="docutils literal notranslate"><span class="pre">registry</span></code>, <code class="docutils literal notranslate"><span class="pre">site_key</span></code>, <code class="docutils literal notranslate"><span class="pre">provider_key</span></code>,
+<p>Required fields: <code class="docutils literal notranslate"><span class="pre">root</span></code>, <code class="docutils literal notranslate"><span class="pre">registry</span></code>, <code class="docutils literal notranslate"><span class="pre">provider_key</span></code>,
 <code class="docutils literal notranslate"><span class="pre">provider_resolution_mode</span></code>, <code class="docutils literal notranslate"><span class="pre">filename_templates</span></code>. Missing any of these is an error.</p>
+<p>The site identity column is always <code class="docutils literal notranslate"><span class="pre">station_id</span></code> and is not configurable.</p>
 <section id="key-terminology">
 <h3>Key terminology<a class="headerlink" href="#key-terminology" title="Link to this heading"></a></h3>
 <dl class="simple">
-<dt><code class="docutils literal notranslate"><span class="pre">site_key</span></code></dt><dd><p>Logical identity of a location (e.g., <code class="docutils literal notranslate"><span class="pre">station_id</span></code>). Used for registry joins,
-inventory grouping, and read lookups.</p>
+<dt><code class="docutils literal notranslate"><span class="pre">station_id</span></code></dt><dd><p>Universal identity column for all sites (stations, structures, synthetic locations).
+Used for registry joins, inventory grouping, and read lookups.</p>
 </dd>
 <dt><code class="docutils literal notranslate"><span class="pre">provider_key</span></code></dt><dd><p>Data provenance (e.g., <code class="docutils literal notranslate"><span class="pre">source</span></code>, formerly <code class="docutils literal notranslate"><span class="pre">agency</span></code>). Used for distinguishing
 file families and applying priority ordering.</p>
@@ -374,17 +374,18 @@ config-driven provider model. Key terminology changes:</p>
 <td><p>Generalizes provenance</p></td>
 </tr>
 <tr class="row-odd"><td><p>key_column</p></td>
-<td><p>site_key</p></td>
-<td><p>Explicit identity</p></td>
+<td><p>station_id (hardcoded)</p></td>
+<td><p>Universal identity column</p></td>
 </tr>
 <tr class="row-even"><td><p>source_priority</p></td>
 <td colspan="2"><p>provider_resolution_mode | Config-driven</p></td>
 </tr>
 </tbody>
 </table>
-<p>Configs <strong>must</strong> define <code class="docutils literal notranslate"><span class="pre">site_key</span></code>, <code class="docutils literal notranslate"><span class="pre">provider_key</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">provider_resolution_mode</span></code>. Misconfigured repos fail immediately — there is
-no fallback behavior.</p>
+<p>Configs <strong>must</strong> define <code class="docutils literal notranslate"><span class="pre">provider_key</span></code> and
+<code class="docutils literal notranslate"><span class="pre">provider_resolution_mode</span></code>. The site identity column (<code class="docutils literal notranslate"><span class="pre">station_id</span></code>) is
+hardcoded and no longer configurable. Misconfigured repos fail immediately —
+there is no fallback behavior.</p>
 <p>The legacy <code class="docutils literal notranslate"><span class="pre">parse.style</span> <span class="pre">=</span> <span class="pre">legacy</span></code> option remains for backward compatibility.</p>
 </section>
 </section>
