@@ -2,149 +2,165 @@
 
 ## Overview
 
-The Dropbox Data Processing System is a component of the DMS Datastore package designed to facilitate the collection, transformation, and storage of time-series data. It provides a flexible configuration-based mechanism to process data files from various sources and integrate them into a standardized repository format.
+The dropbox system reads unformatted time-series data files from arbitrary sources,
+applies transforms, attaches standardized metadata, and writes formatted CSV files
+into a staging area. Optionally it reconciles staged files into a repository.
 
-## Key Components
+The entry point is a YAML specification file (a "recipe") that describes one or more
+data ingestion tasks. Recipes use [OmegaConf](https://omegaconf.readthedocs.io/)
+for variable interpolation.
 
-### 1. `dropbox_data.py`
+## CLI
 
-This is the main processing script that handles data collection, metadata enrichment, and storage. It reads configuration from a YAML specification file and processes data according to the defined rules.
+```bash
+dms dropbox --input dropbox_spec.yaml                # run all entries
+dms dropbox --input dropbox_spec.yaml --name ccfb    # run one entry by name
+dms dropbox --input dropbox_spec.yaml --debug        # verbose logging
+dms dropbox --input dropbox_spec.yaml --logdir ./logs --quiet
+```
 
-### 2. `dropbox_spec.yaml`
+Options:
+- `--input` (required): Path to the YAML recipe file.
+- `--name` (repeatable): Run only the named recipe entry/entries.
+- `--logdir`: Directory for log files.
+- `--debug`: Enable debug-level logging.
+- `--quiet`: Suppress console output.
 
-This YAML configuration file defines data sources, collection parameters, and metadata specifications. It serves as the blueprint for how data should be processed.
-
-## How It Works
-
-The system follows these steps:
-
-1. Reads a YAML specification file
-2. For each data entry in the specification:
-   - Locates source files based on patterns and locations
-   - Reads time-series data
-   - Augments with metadata (either directly specified or inferred)
-   - Produces standardized output files in a designated location
-
-## Usage
-
-### Basic Usage
-
-To process data according to the specification:
+## Programmatic Use
 
 ```python
 from dms_datastore.dropbox_data import dropbox_data
-
-# Process data using the specification file
-dropbox_data("path/to/dropbox_spec.yaml")
+dropbox_data("dropbox_spec.yaml")
+dropbox_data("dropbox_spec.yaml", selected_names=["ccfb"])
 ```
 
-Alternatively, you can run the script directly:
-
-```bash
-python -m dms_datastore.dropbox_data
-```
-
-### Configuration Specification
-
-The `dropbox_spec.yaml` file has the following structure:
-
-- `dropbox_home`: Base directory for data processing
-- `dest`: Destination folder for processed files
-- `data`: List of data sources to process, each with:
-  - `name`: Descriptive name for the data source
-  - `skip`: Optional flag to skip processing (True/False)
-  - `collect`: Collection parameters including:
-    - `name`: Collection method name
-    - `file_pattern`: Pattern for matching files
-    - `location`: Source directory path
-    - `recursive_search`: Whether to search subdirectories
-    - `reader`: Reading method (e.g., "read_ts")
-    - `selector`: Column selector (optional)
-  - `metadata`: Static metadata fields including:
-    - `station_id`: Station identifier (or "infer_from_agency_id" for dynamic inference)
-    - `source`: Data source name
-    - `agency`: Agency name
-    - `param`: Parameter type (flow, temp, etc.)
-    - `sublocation`: Sub-location identifier
-    - `unit`: Measurement unit
-  - `metadata_infer`: Optional rules for inferring metadata from filenames:
-    - `regex`: Regular expression pattern
-    - `groups`: Mapping of regex groups to metadata fields
-
-## Example Configuration
-
-Below is an example entry from the configuration file:
+## Recipe Structure
 
 ```yaml
-- name: USGS Aquarius flows
-  skip: False
-  collect: 
-    name: file_search
-    recursive_search: True
-    file_pattern: "Discharge.ft^3_s.velq@*.EntireRecord.csv"
-    location: "//cnrastore-bdo/Modeling_Data/repo_staging/dropbox/usgs_aquarius_request_2020/**"
-    reader: read_ts
-  metadata:
-    station_id: infer_from_agency_id
-    source: aquarius
-    agency: usgs
-    param: flow
-    sublocation: default
-    unit: ft^3/s
-  metadata_infer:
-    regex: .*@(.*)\.EntireRecord.csv
-    groups:
-      1: agency_id
+# Top-level variables available via ${...} interpolation
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_staging/dropbox
+target_tz: "Etc/GMT+8"
+
+data:
+  - name: <unique recipe entry name>
+    skip: false                     # optional, set true to skip
+
+    collect:
+      file_pattern: "*.csv"         # glob or filename template (see below)
+      location: "${dropbox_home}/subdir"
+      recursive_search: false
+      reader: read_ts               # currently the only supported reader
+      reader_args: {}               # optional kwargs passed to reader
+      selector: null                # column name to select, or null
+      wildcard: null                # null | time_shard | time_overlap
+      merge_method: ts_splice       # ts_splice | ts_merge (for time_overlap)
+      merge_args: {}                # kwargs to merge function
+      splice_args: {}               # optional: {rename: value} or {rename: {old: new}}
+
+    transforms:                     # optional, applied in order
+      - dst_tz                      # string form (no args)
+      - name: coarsen               # dict form (with args)
+        args:
+          grid: 2min
+          preserve_vals: [0.0]
+
+    metadata:
+      station_id: <id>              # required (literal, infer_from_filename, or infer_from_agency_id)
+      subloc: default               # required
+      source: <source>              # required
+      agency: <agency>              # required (literal or registry_lookup)
+      param: <param>                # required
+      unit: <unit>                  # required
+      time_zone: Etc/GMT+8          # required
+      freq: infer                   # required (literal freq string, "infer", or None for irregular)
+      # Other fields as needed (station_name: registry_lookup, etc.)
+      # Coordinates are NOT allowed here — they are auto-populated from the registry.
+
+    output:
+      repo_name: formatted          # must match a repo in dstore_config.yaml
+      staging:
+        dir: ./drop_staging         # must exist; staged files written here
+        write_args:                 # optional kwargs to write_ts_csv
+          float_format: "%.4f"
+          chunk_years: false
+      reconcile:                    # optional; if present, staged files are reconciled into repo
+        #repo_data_dir: ./fake_repo # override target dir (omit to use repo root from config)
+        prefer: staged              # staged | repo
+        allow_new_series: true
+        inspection:
+          recent_years: 3
+          p3: 0.15
+          p10: 0.05
 ```
 
-## Key Classes and Functions
+## Metadata Sentinels
 
-### DataCollector
+Recipe metadata values can be:
+- **Literal**: `station_id: anh` — used as-is.
+- **`infer_from_filename`**: Parsed from the filename using the `file_pattern` template.
+- **`registry_lookup`**: Looked up from the station registry CSV by station_id or agency_id.
+  Supported fields: `station_name`, `agency`, `agency_id`.
+- **`infer_from_agency_id`**: Special value for `station_id` — resolves station_id from the
+  registry by matching `agency_id`.
 
-A class that handles file discovery based on specified patterns:
+## Coordinate Policy
 
-```python
-collector = DataCollector(name, location, file_pattern, recursive)
-files = collector.data_file_list()
-```
+Geospatial coordinates are **always auto-populated from the station registry** (e.g.
+`station_dbase.csv`). Recipe authors must not include coordinate fields in `metadata:`.
 
-### get_spec
+The following keys are banned in recipe metadata sections:
 
-Loads and caches the YAML specification:
+> `lat`, `lon`, `latitude`, `longitude`, `agency_lat`, `agency_lon`,
+> `x`, `y`, `projection_x_coordinate`, `projection_y_coordinate`
 
-```python
-spec = get_spec("dropbox_spec.yaml")
-```
+If any of these appear, the recipe will fail with an error directing the user to
+add the station to the registry instead.
 
-### populate_meta
+The registry provides:
+- `agency_lat` / `agency_lon` — agency-reported WGS84 coordinates (written to file
+  headers as `latitude` / `longitude`)
+- `x` / `y` — projected coordinates in EPSG:26910 (UTM Zone 10N), potentially
+  adjusted for accuracy (written as `projection_x_coordinate` / `projection_y_coordinate`)
 
-Enriches metadata using the station database:
+## Wildcard Modes
 
-```python
-meta_out = populate_meta(file_path, listing, metadata)
-```
+The `collect.wildcard` field controls how multiple files matching `file_pattern` are handled:
 
-### infer_meta
+- **omitted / null**: Pattern must match exactly one file.
+- **`time_shard`**: Pass the glob pattern directly to the reader (year-sharded/blocked files). Lexicographical sorting is assumed to match chronological.
+- **`time_overlap`**: Glob, read each file individually, then merge via `merge_method`.
 
-Extracts metadata from file names based on regex patterns:
+## Filename Templates (Inference Mode)
 
-```python
-metadata = infer_meta(file_path, listing)
-```
+When `file_pattern` contains `{field}` placeholders (e.g.
+`{source}_{station_id}_{agency_id}_{param}_{syear}_{eyear}.csv`), the system enters
+"inference mode": each matched file's name is parsed to extract metadata fields marked
+`infer_from_filename`. In this mode, `wildcard` must be omitted — each file produces
+a separate output.
 
-## Output
+## Transforms
 
-Processed files are saved in the destination directory (`dest`) specified in the configuration. Each file is named according to the pattern:
+Transforms are applied to the time series after reading (and after merging if applicable).
+Built-in transforms:
 
-```
-{source}_{station_id}_{agency_id}_{param}.csv
-```
+- **`dst_st` / `dst_tz`**: Convert from local (DST-aware) time to a fixed timezone.
+  Args: `src_tz`, `target_tz`.
+- **`coarsen`**: Reduce irregular high-frequency data to a regular grid.
+  Args: `grid`, `preserve_vals`, `qwidth`, `hyst`, `heartbeat_freq`.
 
-Files may be chunked by year depending on the specified options.
+Custom transforms can be registered via `register_transform(name, func)`.
 
-## Additional Notes
+## Failure Handling
 
-- The system relies on a station database for lookup of station details
-- Time-series data is standardized with a "value" column
-- Metadata includes geospatial coordinates and projection information
-- Files can be chunked by year for easier management of large datasets
+Each recipe entry is processed independently. If one fails, the error is logged and
+processing continues with the next entry. At the end, if any entries failed, a
+`RuntimeError` is raised listing all failed entry names. Use `--name <entry>` to
+rerun individual failures.
+
+## Examples
+
+See `examples/dropbox/` for working recipes:
+- `dropbox_spec.yaml` — single-file and wildcard patterns
+- `dropbox_spec_ccf.yaml` — structure gate data with transforms (coarsen, DST)
+- `dropbox_daily.yaml` — template-based inference mode for daily NWIS data
+

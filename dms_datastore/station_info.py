@@ -19,7 +19,7 @@ def station_info(search):
         return
 
     slookup = dstore_config.station_dbase()[
-        ["station_id", "agency", "agency_id", "name", "x", "y", "lat", "lon"]
+        ["station_id", "agency", "agency_id", "name", "x", "y", "agency_lat", "agency_lon"]
     ].copy()
 
     # Avoid ambiguity between index name and column label.
@@ -40,7 +40,7 @@ def station_info(search):
 
     print("Matches:")
     mlook = slookup.loc[
-        matches, ["station_id", "agency", "agency_id", "name", "x", "y", "lat", "lon"]
+        matches, ["station_id", "agency", "agency_id", "name", "x", "y", "agency_lat", "agency_lon"]
     ].sort_values(by="station_id")
 
     if mlook.shape[0] == 0:

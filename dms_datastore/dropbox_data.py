@@ -108,6 +108,22 @@ register_transform("dst_tz", _transform_dst_tz)
 
 _FILENAME_FIELD_SENTINELS = {"infer_from_filename", "registry_lookup"}
 
+_BANNED_COORDINATE_KEYS = {
+    "lat", "lon", "latitude", "longitude",
+    "agency_lat", "agency_lon",
+    "x", "y",
+    "projection_x_coordinate", "projection_y_coordinate",
+}
+
+_BANNED_COORDINATE_MSG = (
+    "Recipes require station entries in the repository registry "
+    "(e.g. station_dbase.csv) and coordinates must come from there. "
+    "Metadata entries are not allowed in dropbox recipes that would "
+    "intrude on that registry role: lat, lon, latitude, longitude, "
+    "agency_lat, agency_lon, x, y, projection_x_coordinate, "
+    "projection_y_coordinate"
+)
+
 
 def _metadata_uses_filename_inference(metadata):
     return any(value == "infer_from_filename" for value in (metadata or {}).values())
@@ -130,10 +146,6 @@ def _registry_lookup_value(row, field_name):
         "station_name": "name",
         "agency": "agency",
         "agency_id": "agency_id",
-        "latitude": "lat",
-        "longitude": "lon",
-        "projection_x_coordinate": "x",
-        "projection_y_coordinate": "y",
     }
     if field_name not in field_map:
         raise ValueError(f"registry_lookup is not supported for metadata field '{field_name}'")
@@ -146,9 +158,37 @@ def _registry_lookup_value(row, field_name):
     if pd.isna(val):
         raise ValueError(f"Station registry column '{src}' is null for station")
 
-    if field_name in ("latitude", "longitude", "projection_x_coordinate", "projection_y_coordinate"):
-        return float(val)
     return val
+
+
+def _populate_coordinates_from_registry(out, registry_row, name):
+    """Auto-populate coordinate metadata from the station registry row."""
+    if registry_row is None:
+        raise ValueError(
+            f"{name}: Cannot populate coordinates — station not found in registry."
+        )
+
+    def _get_float(col):
+        if col not in registry_row.index:
+            raise ValueError(
+                f"{name}: Station registry is missing column '{col}' required for coordinates"
+            )
+        val = registry_row[col]
+        if pd.isna(val):
+            raise ValueError(
+                f"{name}: Station registry column '{col}' is null for station"
+            )
+        return float(val)
+
+    out["latitude"] = _get_float("agency_lat")
+    out["longitude"] = _get_float("agency_lon")
+    out["projection_x_coordinate"] = _get_float("x")
+    out["projection_y_coordinate"] = _get_float("y")
+    out["projection_authority_id"] = "epsg:26910"
+    out["crs_note"] = (
+        "Reported lat-lon are agency provided. "
+        "Projected coordinates may have been revised based on additional information."
+    )
 
 
 def _infer_meta_from_template_path(fpath, listing):
@@ -203,6 +243,11 @@ def populate_meta(fpath, listing, repo_name, meta_out=None):
     name = listing.get("name", "<unnamed>")
     inferred = dict(meta_out or {})
 
+    # Reject coordinate keys in recipe metadata (must come from registry)
+    for field_name, raw_value in meta.items():
+        if field_name in _BANNED_COORDINATE_KEYS:
+            raise ValueError(f"{name}: {_BANNED_COORDINATE_MSG}")
+
     out = {}
     for field_name, raw_value in meta.items():
         if raw_value == "registry_lookup":
@@ -232,6 +277,9 @@ def populate_meta(fpath, listing, repo_name, meta_out=None):
     for field_name, raw_value in meta.items():
         if raw_value == "registry_lookup":
             out[field_name] = _resolve_metadata_value(field_name, raw_value, inferred, registry_row)
+
+    # Auto-populate coordinates from registry
+    _populate_coordinates_from_registry(out, registry_row, name)
 
     return out
 

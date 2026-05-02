@@ -20,7 +20,16 @@ default_repo: screened
 # The registry files provide supplementary metadata that can be used for provider resolution, 
 # geographical and other purposes.
 registries:
-  continuous: station_dbase.csv
+  continuous:
+    file: station_dbase.csv
+    # column_map: registry CSV column name -> canonical metadata key used in data file headers.
+    # Unmapped columns pass through by name (e.g. agency_id stays agency_id).
+    column_map:
+      name: station_name
+      lat: latitude
+      lon: longitude
+      x: projection_x_coordinate
+      y: projection_y_coordinate
   processed_synthetic: processed_registry.csv
   structures: structures_registry.csv
   daily: station_dbase.csv

@@ -1,36 +1,49 @@
 
-dropbox_home: //cnrastore-bdo/Modeling_Data/repo_staging/dropbox # can be used to set path like "{dropbox_home}/repo". Otherwise, not required.
-dest: &formatted output
+# Example dropbox specification — single-file and wildcard patterns.
+# Uses OmegaConf interpolation for paths.
+
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_staging/dropbox
 
 data:
   - name: Mokelumne
-    skip: False
-    dest: *formatted
     collect:
       file_pattern: "ebmud_wbr_flow*.csv"
-      location:   "{dropbox_home}/ebmud"  # This could be understood as a default
-      recursive_search: False
-      reader: read_ts    # Names, pointers to code etc. To be fleshed out
-      selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
-    metadata: 
+      location: "${dropbox_home}/ebmud"
+      recursive_search: false
+      reader: read_ts
+      wildcard: time_shard
+      selector: null
+    metadata:
       station_id: wbr
       source: ebmud
       agency: usgs
-      freq: infer   # None for irregular, "infer" for infer.
+      freq: infer
       param: flow
       unit: ft^3/s
-      sublocation: default
-
+      subloc: default
+      time_zone: Etc/GMT+8
+      # Coordinates are auto-populated from the station registry.
+    output:
+      repo_name: formatted
+      staging:
+        dir: ./drop_staging
+        write_args:
+          float_format: "%.4f"
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+        inspection:
+          recent_years: 3
+          p3: 0.15
+          p10: 0.05
 
   - name: USGS Aquarius flows
-    skip: True
-    dest: *formatted
-    collect: 
-      name: file_search
-      recursive_search: True
+    skip: true
+    collect:
       file_pattern: "Discharge.ft^3_s.velq@*.EntireRecord.csv"
-      location:   "//cnrastore-bdo/Modeling_Data/archive_repo/repo_staging/dropbox/usgs_aquarius_request_2020/**"   # This could be understood as a default
-      reader: read_ts                                            # Names, pointers to code etc. To be fleshed out
+      location: "${dropbox_home}/usgs_aquarius_request_2020"
+      recursive_search: true
+      reader: read_ts
       selector: Value
     metadata:
       station_id: infer_from_agency_id
@@ -38,64 +51,25 @@ data:
       agency: usgs
       freq: infer
       param: flow
-      sublocation: default
+      subloc: default
       unit: ft^3/s
+      time_zone: Etc/GMT+8
     metadata_infer:
       regex: .*@(.*)\.EntireRecord.csv
       groups:
         1: agency_id
+    output:
+      repo_name: formatted
+      staging:
+        dir: ./drop_staging
+        write_args:
+          float_format: "%.4f"
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+        inspection:
+          recent_years: 3
+          p3: 0.15
+          p10: 0.05
 
-  - name: Dayflow X2
-    skip: True  
-    collect: 
-      name: file_search
-      station_id: x2
-      recursive_search: False
-      file_pattern: "dayflow_1983_*.csv"
-      location:   "//cnrastore-bdo/Modeling_Data/dayflow"   # This could be understood as a default
-      reader: read_ts                                       # Names, pointers to code etc. To be fleshed out
-      selector: X2
-    metadata:
-      station_id: x2
-      source: dayflow
-      agency: dwr
-      param: dist
-      sublocation: default
-      unit: km
-
-  - name: Dayflow Flows
-    skip: True  
-    collect: 
-      name: parameterized_file_search
-      station_id: {id}
-      recursive_search: False
-      file_pattern: "dayflow_1983_*.csv"
-      location:   "//cnrastore-bdo/Modeling_Data/dayflow"   # This could be understood as a default
-      reader: read_ts                                       # Names, pointers to code etc. To be fleshed out
-      selector: OUT
-    metadata:
-      station_id: ndoi
-      source: dayflow
-      agency: dwr
-      param: flow
-      sublocation: default
-      unit: ft^3/s
-
-  - name: Dayflow EI
-    skip: True  
-    collect: 
-      name: file_search
-      station_id: ei
-      recursive_search: False
-      file_pattern: "dayflow_1983_*.csv"
-      location:   "//cnrastore-bdo/Modeling_Data/dayflow"   # This could be understood as a default
-      reader: read_ts                                       # Names, pointers to code etc. To be fleshed out
-      selector: OUT
-    metadata:
-      station_id: ndoi
-      source: dayflow
-      agency: dwr
-      param: flow
-      sublocation: default
-      unit: ft^3/s
 

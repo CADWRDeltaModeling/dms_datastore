@@ -596,8 +596,8 @@ def infer_internal_meta_for_file(fpath):
     meta_out["subloc"] = meta.get("subloc")
     meta_out["agency_id"] = meta["agency_id"]
     meta_out["station_name"] = slookup.loc[station_id, "name"]
-    meta_out["latitude"] = slookup.loc[station_id, "lat"]
-    meta_out["longitude"] = slookup.loc[station_id, "lon"]
+    meta_out["latitude"] = slookup.loc[station_id, "agency_lat"]
+    meta_out["longitude"] = slookup.loc[station_id, "agency_lon"]
     meta_out["projection_x_coordinate"] = slookup.loc[station_id, "x"]
     meta_out["projection_y_coordinate"] = slookup.loc[station_id, "y"]
     meta_out["projection_authority_id"] = "epsg:26910"

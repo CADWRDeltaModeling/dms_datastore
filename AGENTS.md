@@ -93,6 +93,15 @@ Ad hoc reading with pd.read_csv discouraged.
   * or they can take a string that evalues to a path using `config_file()` in `dbase_config.py`
   * for this reason the use of Path rather than str is often not preferred.
 
+### Coordinates
+
+Coordinates are the **single responsibility of the station registry** (`station_dbase.csv`).
+
+- Registry columns: `agency_lat`, `agency_lon` (WGS84, agency-reported), `x`, `y` (EPSG:26910, adjusted)
+- Output file headers use: `latitude`, `longitude`, `projection_x_coordinate`, `projection_y_coordinate`
+- Dropbox recipes **must not** contain literal coordinate values — they are auto-populated from the registry during processing. Any of `lat`, `lon`, `latitude`, `longitude`, `agency_lat`, `agency_lon`, `x`, `y`, `projection_x_coordinate`, `projection_y_coordinate` in a recipe metadata section will raise an error.
+- To fix missing or wrong coordinates, update the registry CSV — not the recipe.
+
 ## Tests
 
 - `tests/` — unit and integration tests with monkeypatched config; no real repo needed

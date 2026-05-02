@@ -40,6 +40,7 @@ data:
           hyst: 0.5
           heartbeat_freq: 60min    
     metadata: 
+      station_id: ccfb
       structure_id: ccfb
       agency_id: ccfb
       processor: dms
