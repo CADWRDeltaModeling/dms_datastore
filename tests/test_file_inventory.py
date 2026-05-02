@@ -6,7 +6,6 @@ def test_repo_file_inventory_groups_by_file_pattern(monkeypatch):
     repo_cfg = {
         "name": "formatted",
         "root": "/dummy",
-        "site_key": "station_id",
         "provider_key": "source",
         "data_key": ["station_id", "subloc", "param"],
     }
@@ -70,7 +69,6 @@ def test_repo_data_inventory_groups_by_series_id(monkeypatch):
     repo_cfg = {
         "name": "formatted",
         "root": "/dummy",
-        "site_key": "station_id",
         "provider_key": "source",
         "data_key": ["station_id", "subloc", "param"],
     }

@@ -52,7 +52,7 @@ A repo configuration should answer the following questions deterministically:
 
 ### `key_column`
 
-`key_column` is the logical identity key used to identify sites and is often the primary registry join key combining station databases with other items like sublocation tables. It identifies the registry entity (kind of like "station") to which a file belongs, but additional fields such as `subloc`, `param`, or `modifier` may still be needed to distinguish logical series within that entity.  This is all very abstract. In current work this key column is often `station_id`, and that column name is ubiquitous in the downloading and processing of continuous time series. However, library/client design should use the registry-named key, not hardcode that name, because for instance `structure_id`, may work better for hydraulic structures.
+`key_column` is the logical identity key used to identify sites and is the primary registry join key combining station databases with other items like sublocation tables. It identifies the registry entity ("station") to which a file belongs, but additional fields such as `subloc`, `param`, or `modifier` may still be needed to distinguish logical series within that entity. The key column is always `station_id` — this name is used universally across all repos including those for hydraulic structures and synthetic/processed sites.
 
 This key governs:
 

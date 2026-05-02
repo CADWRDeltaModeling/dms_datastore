@@ -91,7 +91,6 @@ def reset_module_state(monkeypatch, tmp_path):
             "formatted": {
                 "root": "formatted_root",
                 "registry": "stations",
-                "site_key": "station_id",
                 "provider_key": "source",
                 "provider_resolution_mode": "assume_unique",
                 "filename_templates": ["{source}_{station_id}_{param}.csv"],
@@ -99,7 +98,6 @@ def reset_module_state(monkeypatch, tmp_path):
             "processed": {
                 "root": str(processed_root),
                 "registry": "stations",
-                "site_key": "station_id",
                 "provider_key": "processor",
                 "provider_resolution_mode": "assume_unique",
                 "filename_templates": ["{processor}_{station_id}_{param}.csv"],
@@ -108,7 +106,6 @@ def reset_module_state(monkeypatch, tmp_path):
             },
             "no_registry": {
                 "root": str(processed_root),
-                "site_key": "station_id",
                 "provider_key": "processor",
                 "provider_resolution_mode": "assume_unique",
                 "filename_templates": ["{processor}_{station_id}_{param}.csv"],
@@ -247,7 +244,6 @@ def test_repo_config_requires_expected_keys(monkeypatch):
         "bad_repo",
         {
             "root": "formatted_root",
-            "site_key": "station_id",
             "provider_key": "source",
             "filename_templates": ["{source}_{station_id}_{param}.csv"],
         },
@@ -262,7 +258,6 @@ def test_repo_config_requires_expected_keys(monkeypatch):
     [
         {
             "root": "formatted_root",
-            "site_key": "station_id",
             "provider_key": "source",
             "provider_resolution_mode": "assume_unique",
             "filename_templates": ["{source}_{station_id}_{param}.csv"],
@@ -270,7 +265,6 @@ def test_repo_config_requires_expected_keys(monkeypatch):
         },
         {
             "root": "formatted_root",
-            "site_key": "station_id",
             "provider_key": "source",
             "provider_resolution_mode": "assume_unique",
             "filename_templates": ["{source}_{station_id}_{param}.csv"],
@@ -292,7 +286,6 @@ def test_repo_config_requires_filename_templates(monkeypatch, templates):
         "bad_repo",
         {
             "root": "formatted_root",
-            "site_key": "station_id",
             "provider_key": "source",
             "provider_resolution_mode": "assume_unique",
             "filename_templates": templates,
@@ -372,7 +365,6 @@ def test_resolve_repo_data_dir_rejects_configured_root_that_does_not_exist(monke
         {
             "root": "missing_root_dir",
             "registry": "stations",
-            "site_key": "station_id",
             "provider_key": "source",
             "provider_resolution_mode": "assume_unique",
             "filename_templates": ["{source}_{station_id}_{param}.csv"],
@@ -421,7 +413,7 @@ def test_registry_df_error_cases(registry_name, match):
 
 def test_repo_registry_uses_repo_site_key():
     df = cfgmod.repo_registry(repo="formatted")
-    assert df.index.name == "site_id"
+    assert df.index.name is None
     assert df.loc["old", "agency_id"] == "A2"
     
 def test_repo_registry_rejects_missing_site_key(monkeypatch):
@@ -431,7 +423,6 @@ def test_repo_registry_rejects_missing_site_key(monkeypatch):
         {
             "root": "formatted_root",
             "registry": "missing_key",
-            "site_key": "station_id",
             "provider_key": "source",
             "provider_resolution_mode": "assume_unique",
             "filename_templates": ["{source}_{station_id}_{param}.csv"],
@@ -452,7 +443,6 @@ def test_repo_registry_rejects_duplicate_site_key(monkeypatch):
         {
             "root": "formatted_root",
             "registry": "duplicates",
-            "site_key": "station_id",
             "provider_key": "source",
             "provider_resolution_mode": "assume_unique",
             "filename_templates": ["{source}_{station_id}_{param}.csv"],
@@ -461,7 +451,7 @@ def test_repo_registry_rejects_duplicate_site_key(monkeypatch):
 
     with pytest.raises(
         ValueError,
-        match="Registry duplicates has duplicate station_id keys",
+        match="duplicate station_id keys",
     ):
         cfgmod.repo_registry(repo="dup_repo")
 

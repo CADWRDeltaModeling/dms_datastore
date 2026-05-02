@@ -12,7 +12,7 @@ def naming_spec(repo=None, repo_cfg=None, templates=None):
     if repo_cfg is not None:
         return {
             "filename_templates": list(repo_cfg.get("filename_templates", [])),
-            "site_key": repo_cfg["site_key"],
+            "site_key": "station_id",
             "provider_key": repo_cfg.get("provider_key"),
             "name": repo_cfg.get("name"),
         }
@@ -22,7 +22,7 @@ def naming_spec(repo=None, repo_cfg=None, templates=None):
         rcfg = dstore_config.repo_config(repo)
         return {
             "filename_templates": list(rcfg.get("filename_templates", [])),
-            "site_key": rcfg["site_key"],
+            "site_key": "station_id",
             "provider_key": rcfg.get("provider_key"),
             "name": rcfg.get("name"),
         }
@@ -128,7 +128,7 @@ def build_repo_globs(
     if not templates:
         raise ValueError(f"Repo {repo_cfg.get('name')!r} has no filename_templates")
 
-    site_key = repo_cfg["site_key"]
+    site_key = "station_id"
     provider_key = repo_cfg.get("provider_key")
 
     if providers is None:
@@ -264,7 +264,7 @@ def _template_regex_from_template(template, *, key_column="station_id"):
 def _interpret_fname_template(fname, repo_cfg):
     fname = os.path.split(fname)[1]
     templates = repo_cfg.get("filename_templates", [])
-    site_key = repo_cfg.get("site_key", "station_id")
+    site_key = "station_id"
     if not templates:
         raise ValueError(
             f"Repo {repo_cfg.get('name')!r} has no filename_templates for template parse"

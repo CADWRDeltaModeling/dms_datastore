@@ -175,7 +175,7 @@ def _resolve_metadata_value(field_name, raw_value, inferred_meta, registry_row):
 
 def _registry_row_for_metadata(name, merged, repo_name):
     rcfg = repo_config(repo_name)
-    site_key = rcfg["site_key"]
+    site_key = "station_id"
     slookup = repo_registry(repo_name)
 
     if site_key in merged and merged[site_key] not in (None, "", "infer_from_filename"):
@@ -197,7 +197,7 @@ def _registry_row_for_metadata(name, merged, repo_name):
 
 def populate_meta(fpath, listing, repo_name, meta_out=None):
     rcfg = repo_config(repo_name)
-    site_key = rcfg["site_key"]
+    site_key = "station_id"
 
     meta = dict(listing.get("metadata", {}) or {})
     name = listing.get("name", "<unnamed>")
@@ -330,7 +330,7 @@ def _maybe_rename_value_column(ts, splice_args):
 
 def _check_metadata(meta, repo_name):
     rcfg = repo_config(repo_name)
-    site_key = rcfg["site_key"]
+    site_key = "station_id"
 
     required = [
         site_key,

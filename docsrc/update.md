@@ -21,7 +21,7 @@ The repo system has been moving from a partially hardcoded, partially legacy-dri
 - make repo config authoritative
 - eliminate hidden assumptions
 - generalize provenance using `provider_key`
-- use `site_key` instead of hardcoded site identity names
+- use `station_id` as the universal hardcoded site identity column
 - keep failure early and explicit
 
 ---
@@ -30,12 +30,13 @@ The repo system has been moving from a partially hardcoded, partially legacy-dri
 
 ### Current terms
 
-- `site_key`
+- `station_id` (hardcoded identity column)
 - `provider_key`
 - `provider_resolution_mode`
 
 ### Terms being phased out
 
+- `site_key` (removed — `station_id` is now universal)
 - `key_column`
 - hardcoded `source` / `agency` assumptions
 - legacy priority naming
@@ -50,14 +51,11 @@ Not every caller is fully migrated yet, but the direction is clear.
 
 The new required config concepts are:
 
-- `site_key`
 - `provider_key`
 - `provider_resolution_mode`
 - `filename_templates`
 
-Tests and mocked configs needed to be updated because older minimal repo fixtures no longer satisfy the new contract.
-
-A common source of failures during this work was stale test fixtures that still used older config shapes.
+The site identity column (`station_id`) is hardcoded and no longer part of config.
 
 ---
 
@@ -67,7 +65,7 @@ A common source of failures during this work was stale test fixtures that still 
 
 ### Main changes
 
-- naming specs now center on `site_key`
+- naming specs use `station_id` as the hardcoded site key
 - template parsing/rendering is more literal
 - optional `@` suffix handling is treated as structural
 - `@subloc` and `@modifier` are optional by design

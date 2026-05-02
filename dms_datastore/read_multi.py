@@ -45,7 +45,6 @@ def resolve_providers_for_repo(key, repo_cfg, provider_priority="infer"):
 
     if mode == "registry_column":
         registry = dstore_config.repo_registry(repo_cfg=repo_cfg)
-        site_key = repo_cfg["site_key"]
         bare_key = key.split("@", 1)[0]
 
         if bare_key not in registry.index:

@@ -101,7 +101,7 @@ Homepage = "https://github.com/CADWRDeltaModeling/dms_datastore"
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = ["dms_datastore"]
+include = ["dms_datastore", "dms_datastore.*"]
 exclude = ["docsrc"]
 
 [tool.setuptools_scm]
@@ -156,3 +156,4 @@ update_flagged_data = "dms_datastore.update_flagged_data:main"
 rationalize_time_partitions = "dms_datastore.rationalize_time_partitions:rationalize_time_partitions_cli"
 spot_check = "dms_datastore.spot_check:spot_check_cli"
 populate_daily = "dms_datastore.populate_daily:populate_daily_cli"
+process_elev = "dms_datastore.processed.process_elev_data:process_elev_cli"

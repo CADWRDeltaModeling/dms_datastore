@@ -402,31 +402,65 @@ def repo_registry(repo=None, repo_cfg=None):
     In contrast, :func:`registry_df` returns a raw table without
     any guarantees about identity or uniqueness.
     """
+    site_key = "station_id"
     cfg = coerce_repo_config(repo=repo, repo_cfg=repo_cfg)
-    registry_name = cfg.get("registry")
-    site_key = cfg["site_key"]
+    registry_names = cfg.get("registry")
 
-    if registry_name is None:
+    if registry_names is None:
         raise ValueError(f"Repo {cfg['name']!r} has no named registry")
 
-    db = registry_df(registry_name).copy()
+    if isinstance(registry_names, str):
+        registry_names = [registry_names]
 
-    if site_key not in db.columns:
-        raise ValueError(
-            f"Registry {registry_name} is missing key column {site_key}"
+    dfs = []
+    for rname in registry_names:
+        sub = registry_df(rname).copy()
+        if site_key not in sub.columns:
+            raise ValueError(
+                f"Registry {rname} is missing key column {site_key}"
+            )
+        sub[site_key] = (
+            sub[site_key].astype(str).str.replace("'", "", regex=True).str.strip()
         )
+        dfs.append(sub)
 
-    db[site_key] = (
-        db[site_key].astype(str).str.replace("'", "", regex=True).str.strip()
-    )
+    # Merge on common columns
+    if len(dfs) == 1:
+        db = dfs[0]
+    else:
+        common_cols = set(dfs[0].columns)
+        for sub in dfs[1:]:
+            common_cols &= set(sub.columns)
+        common_cols = sorted(common_cols)
+        if site_key not in common_cols:
+            raise ValueError(
+                f"Column {site_key!r} not in common columns across registries"
+            )
+
+        # Check for key overlap across sub-registries
+        all_keys = []
+        for i, sub in enumerate(dfs):
+            keys = set(sub[site_key].values)
+            overlap = keys & set(all_keys)
+            if overlap:
+                raise ValueError(
+                    f"Key overlap across registries: {sorted(overlap)}"
+                )
+            all_keys.extend(sub[site_key].values)
+
+        dfs = [sub[common_cols] for sub in dfs]
+        db = pd.concat(dfs, ignore_index=True)
 
     dup = db[site_key].duplicated()
     if dup.any():
-        raise ValueError(f"Registry {registry_name} has duplicate {site_key} keys")
+        duped = db.loc[dup, site_key].tolist()
+        raise ValueError(
+            f"Registry has duplicate {site_key} keys: {duped}"
+        )
 
     db = db.set_index(site_key, drop=False)
     db.index = db.index.astype(str)
-    db.index.name = "site_id"
+    db.index.name = None
     return db
 
 
@@ -487,7 +521,7 @@ def repo_config(repo_name):
 
     spec = dict(repos[repo_name])
 
-    required = ["site_key", "provider_key", "provider_resolution_mode", "filename_templates"]
+    required = ["provider_key", "provider_resolution_mode", "filename_templates"]
     missing = [k for k in required if k not in spec]
     if missing:
         raise ValueError(f"Repo {repo_name!r} missing required keys: {missing}")

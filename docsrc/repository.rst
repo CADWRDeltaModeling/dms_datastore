@@ -36,7 +36,6 @@ Example ``dstore_config.yaml`` repo block:
    root: //.../repo/continuous/formatted
    registry: continuous
 
-   site_key: station_id
    provider_key: source
    provider_resolution_mode: by_registry_column
 
@@ -50,15 +49,17 @@ Example ``dstore_config.yaml`` repo block:
    parse:
      style: legacy
 
-Required fields: ``root``, ``registry``, ``site_key``, ``provider_key``,
+Required fields: ``root``, ``registry``, ``provider_key``,
 ``provider_resolution_mode``, ``filename_templates``. Missing any of these is an error.
+
+The site identity column is always ``station_id`` and is not configurable.
 
 Key terminology
 ---------------
 
-``site_key``
-   Logical identity of a location (e.g., ``station_id``). Used for registry joins,
-   inventory grouping, and read lookups.
+``station_id``
+   Universal identity column for all sites (stations, structures, synthetic locations).
+   Used for registry joins, inventory grouping, and read lookups.
 
 ``provider_key``
    Data provenance (e.g., ``source``, formerly ``agency``). Used for distinguishing
@@ -275,13 +276,14 @@ config-driven provider model. Key terminology changes:
 +==================+========================+========================================+
 | agency           | provider               | Generalizes provenance                 |
 +------------------+------------------------+----------------------------------------+
-| key_column       | site_key               | Explicit identity                      |
+| key_column       | station_id (hardcoded) | Universal identity column              |
 +------------------+------------------------+----------------------------------------+
 | source_priority  | provider_resolution_mode | Config-driven                        |
 +------------------+------------------------+----------------------------------------+
 
-Configs **must** define ``site_key``, ``provider_key``, and
-``provider_resolution_mode``. Misconfigured repos fail immediately — there is
-no fallback behavior.
+Configs **must** define ``provider_key`` and
+``provider_resolution_mode``. The site identity column (``station_id``) is
+hardcoded and no longer configurable. Misconfigured repos fail immediately —
+there is no fallback behavior.
 
 The legacy ``parse.style = legacy`` option remains for backward compatibility.

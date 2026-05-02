@@ -11,7 +11,6 @@ def test_repo_config_from_named_repo(monkeypatch, tmp_path):
                 "processed": {
                     "root": str(root),
                     "registry": "processed",
-                    "site_key": "station_id",
                     "provider_key": "processor",
                     "provider_resolution_mode": "assume_unique",
                     "filename_templates": [
@@ -32,7 +31,6 @@ def test_repo_config_from_named_repo(monkeypatch, tmp_path):
 
     assert cfg["name"] == "processed"
     assert cfg["root"] == str(root)
-    assert cfg["site_key"] == "station_id"
     assert cfg["provider_key"] == "processor"
     assert cfg["provider_resolution_mode"] == "assume_unique"
     assert cfg["filename_templates"] == [

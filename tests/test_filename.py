@@ -52,7 +52,6 @@ def test_interpret_fname_template_with_agency_slot():
 def test_build_repo_globs_no_backend():
     repo_cfg = {
         "name": "processed",
-        "site_key": "station_id",
         "provider_key": "processor",
         "filename_templates": [
             "{processor}_{station_id@subloc}_{param@modifier}_{year}.csv",
@@ -253,7 +252,6 @@ def test_meta_to_filename_omits_optional_subloc_literal_site_key():
             "filename_templates": [
                 "{processor}_{station_id@subloc}_{param}_{year}.csv"
             ],
-            "site_key": "station_id",
             "provider_key": "processor",
         }
     )

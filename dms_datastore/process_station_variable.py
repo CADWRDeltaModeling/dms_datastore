@@ -282,9 +282,8 @@ def attach_agency_id(
         )
 
     repo_cfg = dstore_config.repo_config(repo_name)
-    registry_name = repo_cfg["registry"]
-    site_key = repo_cfg["site_key"]
-    registry = dstore_config.registry_df(registry_name).copy()
+    site_key = "station_id"
+    registry = dstore_config.repo_registry(repo_cfg=repo_cfg)
 
     if site_key not in registry.columns:
         raise ValueError(f"Registry site key column {site_key!r} not found")
@@ -298,7 +297,7 @@ def attach_agency_id(
         raise ValueError(f"Requested registry column(s) not found: {missing_cols}")
 
     lookup = registry[[site_key] + required_cols].copy()
-    lookup = lookup.rename(columns={site_key: "station_id"})
+    lookup = lookup.reset_index(drop=True)
 
     merged = df.merge(lookup, on="station_id", how="left")
 

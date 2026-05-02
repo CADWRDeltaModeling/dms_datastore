@@ -40,7 +40,6 @@ The repo configuration defines how a directory of files becomes structured data.
 root: //.../repo/continuous/formatted
 registry: continuous
 
-site_key: station_id
 provider_key: source
 provider_resolution_mode: by_registry_column
 
@@ -59,7 +58,6 @@ Every repo config must define:
 
 root
 registry
-site_key
 provider_key
 provider_resolution_mode
 filename_templates
@@ -67,9 +65,9 @@ filename_templates
 Missing any of these is an error.
 
 Key Concepts
-site_key
+station_id
 
-Logical identity of a location (e.g., station_id, structure_id)
+The universal identity column for all sites (stations, structures, synthetic locations).
 
 Used for:
 
@@ -314,7 +312,7 @@ It is intended as a bridge between sessions or for onboarding developers into ac
 | Old Term | New Term   | Notes |
 |----------|------------|------|
 | agency   | provider   | generalizes provenance |
-| key_column | site_key | explicit identity |
+| key_column | station_id (hardcoded) | universal identity column |
 | source_priority | provider_resolution_mode | config-driven |
 
 ---
@@ -325,11 +323,11 @@ It is intended as a bridge between sessions or for onboarding developers into ac
 
 Configs must define:
 
-- `site_key`
 - `provider_key`
 - `provider_resolution_mode`
+- `filename_templates`
 
-Tests enforce this strictly.
+The site identity column is always `station_id` and is no longer configurable.
 
 ---
 

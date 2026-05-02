@@ -123,7 +123,7 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None
     root = in_path if in_path is not None else repo_cfg["root"]
     registry = repo_registry(repo_cfg=repo_cfg)
 
-    site_key = repo_cfg["site_key"]
+    site_key = "station_id"
     provider_key = repo_cfg["provider_key"]
 
     allfiles = _inventory_files(root)
@@ -190,23 +190,12 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None
 
     grouped[site_key] = grouped[site_key].astype(str).str.strip()
 
-    if registry.index.name != site_key:
-        if site_key not in registry.columns:
-            raise ValueError(
-                f"Registry missing join key column {site_key!r}; "
-                f"columns are {registry.columns.tolist()}"
-            )
-        registry = registry.copy()
-        registry[site_key] = registry[site_key].astype(str).str.strip()
-        registry = registry.set_index(site_key, drop=False)
-    else:
-        registry = registry.copy()
-        registry.index = registry.index.astype(str)
-        if site_key in registry.columns:
-            registry[site_key] = registry[site_key].astype(str).str.strip()
+    # Registry is already indexed by station_id from repo_registry()
+    # Drop the station_id column before join to avoid pandas ambiguity
+    reg_for_join = registry.drop(columns=[site_key], errors="ignore")
 
     metastat = grouped.join(
-        registry,
+        reg_for_join,
         on=site_key,
         rsuffix="_registry",
         how="left",
@@ -251,7 +240,7 @@ def repo_file_inventory(repo=None, *, repo_cfg=None, in_path=None):
     root = in_path if in_path is not None else repo_cfg["root"]
     registry = repo_registry(repo_cfg=repo_cfg)
 
-    site_key = repo_cfg["site_key"]
+    site_key = "station_id"
 
     allfiles = _inventory_files(root)
     allmeta = _parse_inventory_meta(allfiles, repo_cfg=repo_cfg)
@@ -309,8 +298,11 @@ def repo_file_inventory(repo=None, *, repo_cfg=None, in_path=None):
             f"Cannot join registry: grouped inventory missing site key {site_key!r}"
         )
 
+    # Drop the station_id column before join to avoid pandas ambiguity
+    reg_for_join = registry.drop(columns=[site_key], errors="ignore")
+
     metastat = grouped.join(
-        registry,
+        reg_for_join,
         on=site_key,
         rsuffix="_registry",
         how="left",
