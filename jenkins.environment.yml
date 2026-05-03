@@ -1,14 +1,14 @@
 name: dms_datastore
 channels:
-  - cadwr-dms
   - conda-forge
+  - cadwr-dms
   - nodefaults
 dependencies:
   - python=3.12
   - pip
   - beautifulsoup4
-  - dask
-  - numba
+  - dask>=2024
+  - numba>=2.0
   - scipy
   - tqdm
   - openpyxl

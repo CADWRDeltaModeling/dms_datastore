@@ -180,8 +180,8 @@ def _populate_coordinates_from_registry(out, registry_row, name):
             )
         return float(val)
 
-    out["latitude"] = _get_float("agency_lat")
-    out["longitude"] = _get_float("agency_lon")
+    out["latitude"] = _get_float("lat")
+    out["longitude"] = _get_float("lon")
     out["projection_x_coordinate"] = _get_float("x")
     out["projection_y_coordinate"] = _get_float("y")
     out["projection_authority_id"] = "epsg:26910"

@@ -1,14 +1,17 @@
 name: dms_datastore
 channels:
-  - cadwr-dms
   - conda-forge
+  - cadwr-dms
   - nodefaults
 dependencies:
   - python=3.12
   - pip
   - beautifulsoup4
-  - dask
-  - numba
+  - dask>=0.6.24
+  - numpy>=2.0
+  - pandas>=2  
+  - numba>=0.61
+  - vtools3>=3.9.21  
   - scipy
   - tqdm
   - openpyxl
@@ -17,11 +20,8 @@ dependencies:
   - paramiko # for sftp cimis requests
   - tabula-py>=2.9.0 # for pdf parsing
   - jpype1
-  - numpy
-  - pandas>=2
   - cfgrib
   - xarray
-  - vtools3
   - pyyaml
   - gdal
   - pytz # a new hrrr dependency ?

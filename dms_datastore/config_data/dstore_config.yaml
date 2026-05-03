@@ -15,10 +15,15 @@ spot_check_spec: spot_check_spec.yaml
 default_repo: screened
 
 
-# aliases for registry files available to repos in their "registry"
+# registry files available to repos and identified in their `registry` field.
 # these will be looked for in the dbase_config directory and are expected to be csv files. 
 # The registry files provide supplementary metadata that can be used for provider resolution, 
-# geographical and other purposes.
+# geographical and other purposes. The `column_map` field allows you to map from the column names
+# in the registry file to canonical metadata keys that are used in the data file headers and 
+# elsewhere in the config. The `crs` field specifies coordinate reference systems for geospatial 
+# data in the registry. If registries are joined as they are in the processed directory,
+# the column_map and crs fields for each registry will be applied to the relevant columns before merging.
+# and the crs must be compatible across registries.
 registries:
   continuous:
     file: station_dbase.csv
@@ -30,6 +35,9 @@ registries:
       lon: longitude
       x: projection_x_coordinate
       y: projection_y_coordinate
+    crs:
+      geographic: "epsg:4269"        # applies to latitude/longitude
+      projected: "epsg:26910"        # applies to projection_x_coordinate/projection_y_coordinate
   processed_synthetic: processed_registry.csv
   structures: structures_registry.csv
   daily: station_dbase.csv

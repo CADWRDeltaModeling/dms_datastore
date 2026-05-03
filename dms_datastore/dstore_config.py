@@ -54,6 +54,9 @@ __all__ = [
     "repo_root",
     "resolve_repo_data_dir",
     "repo_names",
+    "registry_spec",
+    "registry_column_map",
+    "registry_crs",
     "registry_df",
     "repo_registry",
     "source_priority_group",
@@ -412,6 +415,23 @@ def repo_registry(repo=None, repo_cfg=None):
     if isinstance(registry_names, str):
         registry_names = [registry_names]
 
+    # Validate CRS consistency across sub-registries
+    if len(registry_names) > 1:
+        crs_values = []
+        for rname in registry_names:
+            crs = registry_crs(rname)
+            if crs is not None:
+                crs_values.append((rname, crs))
+        if len(crs_values) > 1:
+            first_name, first_crs = crs_values[0]
+            for other_name, other_crs in crs_values[1:]:
+                if other_crs != first_crs:
+                    raise ValueError(
+                        f"CRS mismatch across registries: "
+                        f"{first_name} declares {first_crs} but "
+                        f"{other_name} declares {other_crs}"
+                    )
+
     dfs = []
     for rname in registry_names:
         sub = registry_df(rname).copy()
@@ -424,19 +444,10 @@ def repo_registry(repo=None, repo_cfg=None):
         )
         dfs.append(sub)
 
-    # Merge on common columns
+    # Merge registries (union of columns, no key overlap allowed)
     if len(dfs) == 1:
         db = dfs[0]
     else:
-        common_cols = set(dfs[0].columns)
-        for sub in dfs[1:]:
-            common_cols &= set(sub.columns)
-        common_cols = sorted(common_cols)
-        if site_key not in common_cols:
-            raise ValueError(
-                f"Column {site_key!r} not in common columns across registries"
-            )
-
         # Check for key overlap across sub-registries
         all_keys = []
         for i, sub in enumerate(dfs):
@@ -448,7 +459,6 @@ def repo_registry(repo=None, repo_cfg=None):
                 )
             all_keys.extend(sub[site_key].values)
 
-        dfs = [sub[common_cols] for sub in dfs]
         db = pd.concat(dfs, ignore_index=True)
 
     dup = db[site_key].duplicated()
@@ -547,6 +557,39 @@ def repo_config(repo_name):
     _repo_cache[repo_name] = spec
     return spec
 
+def registry_spec(registry_name):
+    """
+    Return the raw registry specification dict for a named registry.
+
+    If the registry is declared as a bare string (legacy), returns
+    ``{"file": <string>}``.
+    """
+    registries = config.get("registries", {})
+    if registry_name not in registries:
+        raise ValueError(f"Registry not found: {registry_name}")
+    spec = registries[registry_name]
+    if isinstance(spec, str):
+        return {"file": spec}
+    return dict(spec)
+
+
+def registry_column_map(registry_name):
+    """
+    Return the column_map for a named registry, or empty dict if unset.
+    """
+    spec = registry_spec(registry_name)
+    return dict(spec.get("column_map", {}) or {})
+
+
+def registry_crs(registry_name):
+    """
+    Return the crs dict for a named registry, or None if unset.
+    """
+    spec = registry_spec(registry_name)
+    crs = spec.get("crs", None)
+    return dict(crs) if crs else None
+
+
 def registry_df(registry_name):
     """
     Load a raw registry table by name.
@@ -604,7 +647,9 @@ def registry_df(registry_name):
     if registry_name not in registries:
         raise ValueError(f"Registry not found: {registry_name}")
 
-    reg_path = _resolve_config_path(registries[registry_name])
+    spec = registries[registry_name]
+    fname = spec["file"] if isinstance(spec, dict) else spec
+    reg_path = _resolve_config_path(fname)
     if not os.path.exists(reg_path):
         raise ValueError(f"Registry file not found: {reg_path}")
 
