@@ -147,7 +147,7 @@ repos:
     provider_resolution_order:                  
       bbid: ["cdec"]                    # ncro is prioritized over cdec
       usgs: ["usgs"]
-      dwr: ["dwr", "cdec"]
+      dwr: ["dayflow", "dwr", "cdec"]   # for dayflow, we prioritize dwr over cdec since dwr is more likely to have the full historical record whereas cdec may be missing older data.
       ebmud: ["usgs", "ebmud", "cdec"]
     filename_templates:
       - "{source}_{station_id@subloc}_{agency_id}_{param}.csv"
@@ -156,5 +156,23 @@ repos:
     data_key: [station_id, subloc, param]                # sufficient to describe a stream/series of data
 
 
+  daily_screened:
+    root: "//cnrastore-bdo/Modeling_Data/repo/daily/formatted"
+    registry: continuous  # aliases the station data base that provides supplementary metadata like geolocation and agency
+    provider_key: source  # provider is the agency mainly involved in delivering the data. 
+                          # Generic for "source" (datamart) "agency" (collecting agency) and
+#                         #  "processor" (group synthesizing, manipulating or filling data)
+    provider_resolution_mode: assume_unique   # way of differentiating data that cover 
+                                                # the same logical data set from two providers
+    filename_templates:
+      -   "{agency}_{station_id@subloc}_{agency_id}_{param}.csv"
+    file_key: [agency, station_id, subloc, param]        # sufficient key to identify a file/wildcard group. 
+                                                                # shard is conceptual
+    data_key: [station_id, subloc, param]                # sufficient to describe a stream/series of data
+
+
+
+
 screen_config_v20230126: screen_config_v20230126.yaml
 screen_config: screen_config_v20230126.yaml
+screen_config_daily: screen_config_daily.yaml

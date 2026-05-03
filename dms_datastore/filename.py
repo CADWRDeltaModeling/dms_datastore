@@ -436,6 +436,24 @@ def _drop_shard_tokens(template):
     template = template.replace("_{year}", "")
     return template
 
+
+def fname_implies_chunking(template):
+    """Return the chunking style implied by the year tokens in a filename template.
+
+    Returns
+    -------
+    str
+        ``"none"``    – no year token; data written to a single monolithic file.
+        ``"single"``  – ``{year}`` token; one file per calendar year.
+        ``"blocked"`` – ``{syear}``/``{eyear}`` tokens; one file per year-range block.
+    """
+    tokens = set(_template_tokens(template))
+    if "syear" in tokens or "eyear" in tokens:
+        return "blocked"
+    if "year" in tokens:
+        return "single"
+    return "none"
+
     raise ValueError(f"Unsupported parse style {style!r}")
 
 

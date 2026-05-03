@@ -30,7 +30,9 @@ def to_wildcard(fname, remove_provider=False):
         if re2.match(fname):
             out = fname[:-8] + "*" + fname[-4:]
         else:
-            raise ValueError(f"Filename does not match expected shard pattern: {fname}")
+            # Non-sharded filename (e.g. daily data): no year tokens to wildcard.
+            # Return the filename as-is (optionally with provider wildcarded).
+            out = fname
 
     if remove_provider:
         outparts = out.split("_")
@@ -156,13 +158,15 @@ def repo_data_inventory(repo=None, *, repo_cfg=None, in_path=None, registry=None
     if "modifier" in metadf.columns:
         agg["modifier"] = "first"
 
+    has_year = False
     if "syear" in metadf.columns and "eyear" in metadf.columns:
         agg["syear"] = "min"
         agg["eyear"] = "max"
+        has_year = True
     elif "year" in metadf.columns:
         agg["year"] = ["min", "max"]
-    else:
-        raise ValueError("No year columns found in parsed inventory metadata")
+        has_year = True
+    # Non-sharded daily files have no year column — that is acceptable.
 
     grouped = metadf.groupby(["series_id"], dropna=False).agg(agg)
 

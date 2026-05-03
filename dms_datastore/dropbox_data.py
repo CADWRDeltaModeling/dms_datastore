@@ -117,11 +117,11 @@ _BANNED_COORDINATE_KEYS = {
 
 _BANNED_COORDINATE_MSG = (
     "Recipes require station entries in the repository registry "
-    "(e.g. station_dbase.csv) and coordinates must come from there. "
+    "(e.g. station_dbase.csv) and coordinates must come from there to avoid inconsistencies. "
     "Metadata entries are not allowed in dropbox recipes that would "
     "intrude on that registry role: lat, lon, latitude, longitude, "
     "agency_lat, agency_lon, x, y, projection_x_coordinate, "
-    "projection_y_coordinate"
+    "projection_y_coordinate unless they are being populated via registry_lookup from the registry."
 )
 
 
@@ -146,11 +146,12 @@ def _registry_lookup_value(row, field_name):
         "station_name": "name",
         "agency": "agency",
         "agency_id": "agency_id",
+        "latitude": "lat",
+        "longitude": "lon",
+        "projection_x_coordinate": "x",
+        "projection_y_coordinate": "y",
     }
-    if field_name not in field_map:
-        raise ValueError(f"registry_lookup is not supported for metadata field '{field_name}'")
-
-    src = field_map[field_name]
+    src = field_map.get(field_name, field_name)
     if src not in row.index:
         raise ValueError(f"Station registry is missing column '{src}' required for '{field_name}'")
 
@@ -186,8 +187,8 @@ def _populate_coordinates_from_registry(out, registry_row, name):
     out["projection_y_coordinate"] = _get_float("y")
     out["projection_authority_id"] = "epsg:26910"
     out["crs_note"] = (
-        "Reported lat-lon are agency provided. "
-        "Projected coordinates may have been revised based on additional information."
+        "Field agency_lat-agency_lon are agency provided. "
+        "Projected coordinates and lat-lon may have been revised based on additional information."
     )
 
 
@@ -245,7 +246,7 @@ def populate_meta(fpath, listing, repo_name, meta_out=None):
 
     # Reject coordinate keys in recipe metadata (must come from registry)
     for field_name, raw_value in meta.items():
-        if field_name in _BANNED_COORDINATE_KEYS:
+        if field_name in _BANNED_COORDINATE_KEYS and raw_value != "registry_lookup":
             raise ValueError(f"{name}: {_BANNED_COORDINATE_MSG}")
 
     out = {}

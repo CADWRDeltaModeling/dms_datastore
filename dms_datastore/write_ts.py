@@ -60,7 +60,10 @@ def _sanitize_yaml_value(x):
         for k, v in x.items():
             key = str(k)
 
-            if key == "original_header" and isinstance(v, str):
+            # Convert year-like string fields to ints so YAML emits unquoted numbers.
+            if key in ("year", "syear", "eyear") and isinstance(v, str) and v.isdigit():
+                out[key] = int(v)
+            elif key == "original_header" and isinstance(v, str):
                 # normalize trailing whitespace/newlines and force block style
                 out[key] = LiteralStr(v.rstrip("\n"))
             else:

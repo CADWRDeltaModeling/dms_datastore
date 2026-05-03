@@ -101,7 +101,8 @@ def download_station_data(
                 f"?Stations={cdec_id}&SensorNums={code}&dur_code={dur}"
                 f"&Start={stime}&End={etime}"
             )
-
+            logger.debug(f"Querying CDEC for station {station} parameter {p} sensor code {z} duration code {dur}")
+            logger.debug(f"CDEC query URL: {station_query}")
             maxattempt = 5
             station_html = ""
             for iattempt in range(maxattempt):

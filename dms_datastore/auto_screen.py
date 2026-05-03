@@ -18,7 +18,7 @@ from dms_datastore.read_multi import *
 from dms_datastore.dstore_config import *
 from dms_datastore.inventory import *
 from dms_datastore.write_ts import *
-from dms_datastore.filename import meta_to_filename
+from dms_datastore.filename import meta_to_filename, _template_tokens, fname_implies_chunking
 from schimpy.station import *
 import geopandas as gpd
 import numpy as np
@@ -144,6 +144,7 @@ def plot_anomalies(
     if plot_dest == "interactive":
         plt.show()
     else:
+        os.makedirs(plot_dest, exist_ok=True)
         fname = os.path.join(plot_dest, ff)
         plt.savefig(f"{fname}.png")
     plt.close(fig)
@@ -165,7 +166,9 @@ def filter_inventory_(inventory, stations, params):
     return inventory
 
 def auto_screen(
-    fpath="formatted",
+    output_naming,
+    repo="formatted",
+    fpath=None,
     config=None,
     dest="screened",
     stations=None,
@@ -184,6 +187,21 @@ def auto_screen(
 
     dest : str
         Path for screened data
+
+    output_naming : str
+        Required. Controls how output filenames are constructed.  Two forms are
+        accepted:
+
+        * A repo name such as ``"screened"`` – look up that repo's filename
+          templates and provider_key for naming purposes only (data are still
+          written to *dest*, not into the repo).
+        * A literal template string such as
+          ``"{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"`` –
+          used directly, ignoring any repo config.
+
+        Source and output repos typically differ in provider key
+        (e.g. ``{source}`` in ``formatted`` vs ``{agency}`` in ``screened``),
+        so there is no useful default.
 
     stations : list
         List of stations
@@ -208,9 +226,9 @@ def auto_screen(
     active = start_station is None
     station_db = station_dbase()
 
-    source_repo = "formatted"
+    source_repo = repo
     actual_fpath = fpath if fpath is not None else repo_root(source_repo)
-    inventory = repo_data_inventory(repo="formatted",in_path=actual_fpath) # repo is the config repo, in_path is the data storage location
+    inventory = repo_data_inventory(repo=source_repo, in_path=actual_fpath) # repo is the config repo, in_path is the data storage location
     inventory = filter_inventory_(inventory, stations, params)
     failed_read = []
 
@@ -238,7 +256,7 @@ def auto_screen(
         fetcher = custom_fetcher(agency)
         # these may be lists
         try:
-            # logger.debug(f"fetching {fpath},{station_id},{param}")
+            # logger.debug(f"fetching {actual_fpath},{station_id},{param}")
             meta_ts = fetcher(source_repo, station_id, param, subloc=subloc, data_path=actual_fpath)
         except Exception as e:
             logger.warning(f"Read failed for {actual_fpath}, {station_id}, {param}, {subloc}, storage loc = {actual_fpath}")
@@ -262,7 +280,8 @@ def auto_screen(
         proto = context_config(screen_config, station_id, subloc, param)
         do_plot = plot_dest is not None
         subloc_label = "" if subloc == "default" else subloc
-        plot_label = f"{station_info['name']}_{station_id}@{subloc_label}_{param}"
+        subloc_suffix = f"@{subloc_label}" if subloc_label else ""
+        plot_label = f"{station_info['name']}_{station_id}{subloc_suffix}_{param}"
         screened = screener(
             ts,
             station_id,
@@ -277,27 +296,41 @@ def auto_screen(
         if "value" in screened.columns:
             screened = screened[["value", "user_flag"]]
         meta["screen"] = proto
-        
-        # Build output filename using configured naming spec for screened repo
+
+        # Resolve the naming config for output files.
+        # output_naming is either a literal template string or a repo name.
+        if "{" in output_naming:
+            # Literal template string — wrap in a minimal spec dict.
+            _out_rcfg = {"filename_templates": [output_naming], "provider_key": None, "name": "<explicit>"}
+        else:
+            # Repo name supplied for naming purposes only.
+            _out_rcfg = repo_config(output_naming)
+
+        _provider_key = _out_rcfg.get("provider_key", "agency")
+        _first_template = (_out_rcfg.get("filename_templates") or [""])[0]
+        chunk_style = fname_implies_chunking(_first_template)
+        chunk_years = chunk_style != "none"
+
+        # Build output filename.  Include both agency and source so the template
+        # can use whichever provider key it needs regardless of source repo convention.
         output_meta = {
             "agency": agency,
+            "source": meta.get("source", agency),
             "station_id": station_id,
             "subloc": subloc_actual if subloc_actual != "default" else None,
             "param": param,
             "agency_id": row.agency_id,
         }
-        # Add year info if available from metadata
-        if "year" in meta:
+        if chunk_style == "single" and "year" in meta:
             output_meta["year"] = meta["year"]
-        elif "syear" in meta and "eyear" in meta:
+        elif chunk_style == "blocked" and "syear" in meta and "eyear" in meta:
             output_meta["syear"] = meta["syear"]
             output_meta["eyear"] = meta["eyear"]
-        
-        # Get output without shard so that chunk_years will not append one and have it be redundant
-        output_fname = meta_to_filename(output_meta, repo="screened",include_shard=False)
+
+        output_fname = meta_to_filename(output_meta, repo_cfg=_out_rcfg, include_shard=not chunk_years)
         output_fpath = os.path.join(dest, output_fname)
         logger.debug(f"start write for {output_fpath} with meta {meta}")
-        write_ts_csv(screened, output_fpath, meta, chunk_years=True)
+        write_ts_csv(screened, output_fpath, meta, chunk_years=chunk_years)
         logger.debug("end write")
 
 
@@ -371,16 +404,20 @@ def context_config(screen_config, station_id, subloc, param):
     region_file = screen_config["regions"]["region_file"]
     logger.debug(f"Region file: {region_file}")
 
-    if not (os.path.exists(region_file)):
-        region_file = os.path.join(screen_config["config_dir"], region_file)
+    # Only perform spatial lookup when there are regions beyond "region_file" and "default"
+    active_regions = [k for k in screen_config["regions"] if k not in ("region_file", "default")]
+    if active_regions:
+        if not (os.path.exists(region_file)):
+            region_file = os.path.join(screen_config["config_dir"], region_file)
 
-    # Search for applicable region
-    logger.debug(f"station_id: {station_id}, subloc: {subloc}, param: {param}")
-    x = station_info.loc[station_id, "x"]
-    y = station_info.loc[station_id, "y"]
-    region = spatial_config(region_file, x, y)
-
-    region_name = region.name.item()
+        # Search for applicable region
+        logger.debug(f"station_id: {station_id}, subloc: {subloc}, param: {param}")
+        x = station_info.loc[station_id, "x"]
+        y = station_info.loc[station_id, "y"]
+        region = spatial_config(region_file, x, y)
+        region_name = region.name.item()
+    else:
+        region_name = "default"
 
     config = copy.deepcopy(screen_config)
     update_global = None
@@ -548,13 +585,32 @@ def test_single(fname):  # not maintained
     "--fpath",
     type=str,
     default=None,
-    help="Directory containing data",
+    help="Directory containing data if not inferred from repo (repo_root)",
+)
+@click.option(
+    "--repo",
+    type=str,
+    default="formatted",
+    help="Repo name (formatted, screened, daily_formatted, daily_screened, etc.). Used to determine source naming spec and optionally source location. Can be used instead of fpath if data location is as expected based on repo config.",
+)
+@click.option(
+    "--output-naming",
+    type=str,
+    required=True,
+    help=(
+        "Required. How to name output files. Accepts a repo name (e.g. 'screened') "
+        "whose filename templates and provider_key are used for naming only — data go "
+        "to --dest, not into the repo — or a literal template string such as "
+        "'{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv'. "
+        "There is no default because source and output repos typically differ in "
+        "provider key (e.g. {source} in formatted vs {agency} in screened)."
+    ),
 )
 @click.option(
     "--dest",
     type=str,
     required=True,
-    help="Destination directory for screened data",
+    help="Destination directory for screened data. Usually a working directory rather than a repo name.",
 )
 @click.option(
     "--stations",
@@ -584,7 +640,7 @@ def test_single(fname):  # not maintained
 @click.option("--debug", is_flag=True)
 @click.option("--quiet", is_flag=True)
 @click.help_option("-h", "--help")
-def auto_screen_cli(config, fpath, dest, stations, params, plot_dest, start_station,
+def auto_screen_cli(config, fpath, repo, output_naming, dest, stations, params, plot_dest, start_station,
                     logdir=None, debug=False, quiet=False):
     """Auto-screen individual files or whole repos."""
     level, console = resolve_loglevel(
@@ -599,7 +655,6 @@ def auto_screen_cli(config, fpath, dest, stations, params, plot_dest, start_stat
           logfile_prefix="auto_screen"
     )     
     
-    repo = fpath
     stations_list = list(stations) if stations else None
     params_list = list(params) if params else None
 
@@ -609,9 +664,11 @@ def auto_screen_cli(config, fpath, dest, stations, params, plot_dest, start_stat
         config = config_file(config)
 
     auto_screen(
-        fpath=repo,
+        repo=repo,
+        fpath=fpath,
         config=config,
         dest=dest,
+        output_naming=output_naming,
         stations=stations_list,
         params=params_list,
         plot_dest=plot_dest,

@@ -76,6 +76,8 @@ DIVERSN,cdec,110,flow,
 DIS OXY,cdec,61,do,
 EL COND,cdec,100,ec,
 EL CONDB,cdec,102,ec,
+DAILYX2,cdec,145,kmdist,
+DAILYX2,cdec,14400,kmdist,
 PH VAL,cdec,62,ph,
 CHLORPH,cdec,28,chl,Is this code chl correct?
 RIVST88,cdec,141,elev,
