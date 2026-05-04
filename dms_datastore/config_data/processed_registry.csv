@@ -1,0 +1,3 @@
+station_id,name,agency,lat,lon,x,y,comment
+ndoi,Calculated Net Delta Outflow Index,dayflow,38.059000,-122.025000,585534.7,4212809.9,Concatenates Dayflow estimate with CDEC DTO with spike removal
+x2,Calculated X2,dayflow,38.059000,-122.025000,585534.7,4212809.9,Concatenates Dayflow estimate with CDEC CX2 with spike removal
