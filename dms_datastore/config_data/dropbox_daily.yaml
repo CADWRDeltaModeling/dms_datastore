@@ -1,10 +1,15 @@
 
+modeling_data: //cnrastore-bdo/Modeling_Data
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_staging_auto/dropbox
+target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
+target_tz_label: PST 
+
 data:
+
   - name: daily
     collect:
       file_pattern: "{source}_{station_id}_{agency_id}_flow_{syear}_{eyear}.csv"
-      #location: "//cnrastore-bdo/Modeling_Data/repo_staging_auto/daily/raw"
-      location: ./raw
+      location: "//cnrastore-bdo/Modeling_Data/repo_staging_auto/daily/raw"
       recursive_search: false
       reader: read_ts
       selector: value
@@ -18,7 +23,8 @@ data:
       subloc: default
       unit: ft^3/s
       freq: D
-      time_zone: Etc/GMT+8
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
       latitude: registry_lookup
       longitude: registry_lookup
       projection_x_coordinate: registry_lookup
@@ -40,13 +46,54 @@ data:
           recent_years: 3
           p3: 0.15
           p10: 0.05      
-          
+
+# This recipe operates on the scraped website from EBMUD. One of the daily time series from populate_daily
+# will catch occasional updates from USGS. A third recipe is in 
+  - name: moke ebmud
+    collect:
+      file_pattern: "mokelumne_flow_*.csv"
+      location: "${dropbox_home}/mokelumne"
+      recursive_search: false
+      reader: read_ts
+      wildcard: time_shard
+      selector: null
+    metadata:
+      station_id: wbr
+      source: ebmud
+      agency_id: registry_lookup
+      agency: registry_lookup      
+      freq: D
+      param: flow
+      unit: ft^3/s
+      subloc: default
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      projection_x_coordinate: registry_lookup
+      projection_y_coordinate: registry_lookup
+      agency_lat: registry_lookup
+      agency_lon: registry_lookup
+      # Coordinates are auto-populated from the station registry.
+    output:
+      repo_name: daily_formatted
+      staging:
+        dir: ./staging
+        write_args:
+          float_format: "%.4f"
+      reconcile:
+        prefer: repo
+        allow_new_series: true
+        inspection:
+          recent_years: 3
+          p3: 0.15
+          p10: 0.05
+
           
   - name: daily_cx2
     collect:
       file_pattern: "{source}_{station_id}_{agency_id}_kmdist_{syear}_{eyear}.csv"
-      #location: "//cnrastore-bdo/Modeling_Data/repo_staging_auto/daily/raw"
-      location: ./raw
+      location: "//cnrastore-bdo/Modeling_Data/repo_staging_auto/daily/raw"
       recursive_search: false
       reader: read_ts
       selector: value

@@ -354,9 +354,10 @@ def _maybe_rename_value_column(ts, splice_args):
       splice_args:
         rename: {old: new}   # dict rename
     """
-    # Auto-normalize 'VALUE' -> 'value' for univariate series
-    if "VALUE" in ts.columns and "value" not in ts.columns:
-        ts = ts.rename(columns={"VALUE": "value"})
+    # Auto-normalize any case variant of 'value' -> 'value' for univariate series
+    value_cols = [c for c in ts.columns if c.lower() == "value" and c != "value"]
+    if value_cols:
+        ts = ts.rename(columns={c: "value" for c in value_cols})
 
     if not splice_args:
         return ts
