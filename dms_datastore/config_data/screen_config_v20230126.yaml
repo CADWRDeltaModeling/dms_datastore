@@ -1218,13 +1218,13 @@ stations:
         modify_steps:
           - method: median_test_twoside
             args:
-              level : 1
+              level : 5
               filt_len : 7
               scale: 10000. # 1/40 of peak flow
           - method: median_test_oneside
             label: median_oneside_forward
             args:
-              level : 1
+              level : 5
               filt_len : 5
               scale: 10000.
               reverse: False
@@ -1233,8 +1233,42 @@ stations:
             args:
               filt_len : 5
               scale: 10000
-              level : 1
+              level : 5
               reverse: True          
+
+
+
+  vns: 
+    params:  
+      elev:
+        inherits_global: True
+        omit_steps:
+          - repeat_test
+      flow: 
+        inherits_global: True
+        omit_steps:
+          - repeat_test
+        modify_steps:
+          - method: median_test_twoside
+            args:
+              level : 5
+              filt_len : 7
+              scale: 10000. # 1/40 of peak flow
+          - method: median_test_oneside
+            label: median_oneside_forward
+            args:
+              level : 5
+              filt_len : 5
+              scale: 10000.
+              reverse: False
+          - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
+            label: median_oneside_rev
+            args:
+              filt_len : 5
+              scale: 10000
+              level : 5
+              reverse: True 
+
           
   yby: 
     params:
@@ -1267,21 +1301,21 @@ stations:
         modify_steps:
           - method: median_test_twoside
             args:
-              level : 1
+              level : 5
               filt_len : 7
-              scale: 10000. # 1/40 of peak flow
+              scale: 1000. # 1/40 of peak flow
           - method: median_test_oneside
             label: median_oneside_forward
             args:
-              level : 1
+              level : 5
               filt_len : 5
-              scale: 10000.
+              scale: 1000.
               reverse: False
           - method: median_test_oneside  #median_test(ts.diff(1),filt_len=3,quantiles=(0.005,0.995),level=8)
             label: median_oneside_rev
             args:
               filt_len : 5
-              scale: 10000
-              level : 1
+              scale: 1000
+              level : 5
               reverse: True    
           
