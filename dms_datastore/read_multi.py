@@ -1,5 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+Multi-file time series reading and repository access.
+
+Provides :func:`read_ts_repo` for looking up and reading time series from a
+configured repository by station ID and variable, and lower-level helpers
+(:func:`ts_multifile`, :func:`ts_multifile_read`) for reading and merging sets
+of files matched by glob patterns.
+
+Data in dms_datastore flows through four stages: raw → formatted → screened →
+processed.  :func:`read_ts_repo` targets the ``"screened"`` tier by default.
+"""
 
 import os
 import glob
@@ -20,6 +31,23 @@ __all__ = ["read_ts_repo", "ts_multifile_read", "resolve_providers_for_repo"]
 
 
 def infer_source_priority(station_id):
+    """Infer source priority list for a station from the config.
+
+    Looks up the station's agency in the station database and returns the
+    corresponding priority list from the config ``source_priority`` or
+    ``source_priority_groups`` mapping.
+
+    Parameters
+    ----------
+    station_id : str
+        Station identifier, optionally with subloc suffix (``station@subloc``).
+
+    Returns
+    -------
+    list of str or None
+        Ordered list of provider/agency codes in preference order, or ``None``
+        if the station's agency is not found in the config priority mapping.
+    """
     if "source_priority" in dstore_config.config:
         priorities = dstore_config.config["source_priority"]
     else:
@@ -31,6 +59,36 @@ def infer_source_priority(station_id):
 
 
 def resolve_providers_for_repo(key, repo_cfg, provider_priority="infer"):
+    """Determine the ordered list of data providers for a repository lookup.
+
+    Combines the user-supplied *provider_priority* with the repo's configured
+    ``provider_resolution_mode`` to return an ordered list of provider labels
+    (e.g. ``['cdec', 'usgs']``) used for file-pattern filtering.
+
+    Parameters
+    ----------
+    key : str
+        Station key, optionally with subloc suffix (``station@subloc``).
+    repo_cfg : dict
+        Repository configuration dict as returned by
+        ``dstore_config.repo_config()``.
+    provider_priority : "infer" or None or str or list of str, optional
+        ``"infer"`` (default) delegates to the repo's resolution mode.
+        Pass ``None`` to skip provider filtering.
+        Pass a single provider string or list of strings to override.
+
+    Returns
+    -------
+    list of str or None
+        Ordered provider list, or ``None`` when provider filtering should be
+        skipped (i.e. assume a unique match exists).
+
+    Raises
+    ------
+    ValueError
+        If the registry is missing the required provider resolution column, or
+        if the ``provider_resolution_mode`` is not supported.
+    """
     if provider_priority != "infer":
         if provider_priority is None:
             return None
@@ -75,6 +133,18 @@ def resolve_providers_for_repo(key, repo_cfg, provider_priority="infer"):
 
 
 def fahren2cel(ts):
+    """Convert a temperature time series from Fahrenheit to Celsius.
+
+    Parameters
+    ----------
+    ts : pandas.DataFrame
+        Time series with values in degrees Fahrenheit.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Time series rounded to 2 decimal places with values in degrees Celsius.
+    """
     tsout = fahrenheit_to_celsius(ts)
     tsout = tsout.round(2)
     return tsout
@@ -94,6 +164,99 @@ def read_ts_repo(
     data_path=None,
     freq_resolver=None,
 ):
+    """Read time series data from a configured repository by station and variable.
+
+    Resolves the repository root, builds file-name glob patterns, and merges
+    all matching files using :func:`ts_multifile`.  Source priority and
+    provider resolution are applied automatically unless overridden.
+
+    Parameters
+    ----------
+    station_id : str
+        Station identifier.  May include a subloc suffix as
+        ``station@subloc`` (mutually exclusive with the *subloc* argument).
+    variable : str
+        Variable name (e.g. ``"flow"``, ``"ec"``).  May include a modifier
+        as ``variable@modifier`` (e.g. ``"ec@daily"``).
+    subloc : str or None, optional
+        Sub-location label (e.g. ``"bottom"``).  When provided, it is
+        appended to *station_id* as ``station_id@subloc``.  Cannot be used
+        when *station_id* already contains ``@``.
+    repo : str or None, optional
+        Repository name as defined in ``dstore_config.yaml`` (e.g.
+        ``"screened"``, ``"processed"``).  Defaults to the
+        ``default_repo`` config key, which is typically ``"screened"``.
+    provider_priority : "infer" or None or str or list of str, optional
+        Controls which data provider(s) are considered when multiple
+        providers have files for the same station.  ``"infer"`` (default)
+        delegates to the repo's ``provider_resolution_mode``.  Pass ``None``
+        to skip provider filtering, or a string/list to override explicitly.
+    start : str or pandas.Timestamp or None, optional
+        Inclusive start date/time for the returned series.
+    end : str or pandas.Timestamp or None, optional
+        Inclusive end date/time for the returned series.
+    meta : bool, optional
+        If ``True``, return a tuple ``(list_of_metadata_dicts, DataFrame)``
+        instead of just the DataFrame.  Default ``False``.
+    force_regular : bool, optional
+        Passed to :func:`read_ts`.  If ``True`` (default), each file is
+        read with a regular time index enforced.  Everything in the
+        ``"screened"`` tier is already regular; set to ``False`` only for
+        irregular repos such as ``"structures"``.
+    modifier : str or None, optional
+        Variable modifier (e.g. ``"daily"``).  Alternative to encoding the
+        modifier directly in *variable*.
+    data_path : str or None, optional
+        Override the repository root directory.  If ``None`` (default),
+        the root is taken from the repo config.
+    freq_resolver : str or dict or None, optional
+        Strategy for reconciling files with different time-step frequencies.
+        Recognised string shortcuts:
+
+        * ``"interp_to_finer"`` — interpolate all series to the finest freq.
+        * ``"as_freq_finer"`` — resample (``asfreq``) to the finest freq.
+        * ``"interp_to_coarser"`` — interpolate to the coarsest freq.
+        * ``"as_freq_coarser"`` — resample to the coarsest freq.
+        * ``"interp_to_latest"`` — interpolate to the freq of the last file.
+        * ``"as_freq_latest"`` — resample to the freq of the last file.
+
+        Dict form: ``{"target": "finer"|"coarser"|"latest",
+        "method": "interp"|"asfreq"}`` or
+        ``{"target_freq": "<freq>", "method": "interp"|"asfreq"}``.
+
+        Default ``None`` raises ``ValueError`` when frequencies differ.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Merged and trimmed time series with a ``datetime`` index.
+    tuple
+        When ``meta=True``, a tuple ``(list_of_metadata_dicts, DataFrame)``.
+        ``None`` is returned when no files are found.
+
+    Raises
+    ------
+    ValueError
+        If *subloc* is provided alongside a *station_id* that already
+        contains ``@``.
+
+    See Also
+    --------
+    ts_multifile : Lower-level multi-file reader.
+    read_ts : Single-file reader.
+
+    Examples
+    --------
+    Read screened flow data for a station:
+
+    >>> from dms_datastore import read_ts_repo
+    >>> ts = read_ts_repo("sac", "flow")
+
+    Read EC from the processed repo over a date range:
+
+    >>> ts = read_ts_repo("anh@north", "ec", repo="processed",
+    ...                   start="2020-01-01", end="2021-01-01")
+    """
     if repo is None:
         repo = dstore_config.config.get("default_repo", "screened")
 
@@ -142,6 +305,22 @@ def read_ts_repo(
 
 
 def detect_dms_unit(fname):
+    """Read the unit from a DMS CSV file header and return a canonical label.
+
+    Parameters
+    ----------
+    fname : str or path-like
+        Path to a DMS-format CSV file with a YAML front-matter header.
+
+    Returns
+    -------
+    unit : str or None
+        Canonical unit string (e.g. ``"microS/cm"``, ``"ft^3/s"``,
+        ``"deg_c"``, ``"meters"``), or the raw unit string if unrecognised.
+    transform : callable or None
+        A function ``f(DataFrame) -> DataFrame`` to convert the data to the
+        canonical unit, or ``None`` if no conversion is needed.
+    """
     meta = read_yaml_header(fname)
     unit = meta["unit"] if "unit" in meta else None
     if unit in ["FNU", "NTU"]:
@@ -159,6 +338,25 @@ def detect_dms_unit(fname):
 
 
 def filter_date(metafname, start=None, end=None):
+    """Decide whether a parsed file name falls entirely outside a date window.
+
+    Parameters
+    ----------
+    metafname : dict
+        Parsed file-name metadata as returned by :func:`interpret_fname`.
+        Must contain a ``"year"`` key to trigger year-based filtering;
+        files without this key are never filtered.
+    start : str, pandas.Timestamp, or None, optional
+        Start of the date window (inclusive).  ``None`` means no lower bound.
+    end : str, pandas.Timestamp, or None, optional
+        End of the date window (inclusive).  ``None`` means no upper bound.
+
+    Returns
+    -------
+    bool
+        ``True`` if the file's year lies entirely outside ``[start, end]``
+        and should be skipped; ``False`` otherwise.
+    """
     start = pd.to_datetime(start)
     end = pd.to_datetime(end)
     if "year" in metafname:
@@ -177,6 +375,19 @@ def filter_date(metafname, start=None, end=None):
 
 
 def _freq_to_label(freq):
+    """Normalise a frequency value to its canonical offset string.
+
+    Parameters
+    ----------
+    freq : str, pandas offset, or None
+        Frequency to normalise.
+
+    Returns
+    -------
+    str or None
+        ``pandas`` offset string (e.g. ``"15min"``, ``"h"``), or ``None``
+        if *freq* is ``None``.
+    """
     if freq is None:
         return None
     try:
@@ -187,12 +398,37 @@ def _freq_to_label(freq):
 
 
 def _freq_to_offset(freq):
+    """Convert a frequency value to a pandas ``DateOffset``.
+
+    Parameters
+    ----------
+    freq : str, pandas offset, or None
+        Frequency to convert.
+
+    Returns
+    -------
+    pandas.DateOffset or None
+        Corresponding offset object, or ``None`` if *freq* is ``None``.
+    """
     if freq is None:
         return None
     return pd.tseries.frequencies.to_offset(freq)
 
 
 def _series_freq_label(ts):
+    """Return the canonical frequency label for a time series index.
+
+    Parameters
+    ----------
+    ts : pandas.Series or pandas.DataFrame
+        Time series whose index frequency is to be inspected.
+
+    Returns
+    -------
+    str or None
+        Canonical offset string (e.g. ``"15min"``), or ``None`` if the
+        index has no regular frequency.
+    """
     freq = getattr(ts.index, "freq", None)
     if freq is None:
         return None
@@ -200,6 +436,33 @@ def _series_freq_label(ts):
 
 
 def _choose_target_freq(freq_labels, mode, ordered_items):
+    """Select a target frequency from a list of candidate frequencies.
+
+    Parameters
+    ----------
+    freq_labels : list of str
+        Unique frequency labels present across the series to merge.
+    mode : {"finer", "coarser", "latest"}
+        Selection strategy:
+        * ``"finer"`` — choose the smallest (finest) interval.
+        * ``"coarser"`` — choose the largest (coarsest) interval.
+        * ``"latest"`` — choose the frequency of the last item in
+          *ordered_items*.
+    ordered_items : list of dict
+        Ordered list of ``{"ts": ..., "freq_label": ..., ...}`` dicts,
+        used only when *mode* is ``"latest"``.
+
+    Returns
+    -------
+    pandas.DateOffset
+        The selected target frequency offset.
+
+    Raises
+    ------
+    ValueError
+        If any frequency label cannot be converted to an offset, or if
+        *mode* is not recognised.
+    """
     offsets = [_freq_to_offset(f) for f in freq_labels]
     if any(x is None for x in offsets):
         raise ValueError(
@@ -230,12 +493,34 @@ def _choose_target_freq(freq_labels, mode, ordered_items):
 
 
 def _transform_asfreq(ts, target_freq):
+    """Resample a time series to *target_freq* using ``asfreq``.
+
+    Parameters
+    ----------
+    ts : pandas.DataFrame
+        Input time series.
+    target_freq : pandas.DateOffset or str
+        Target frequency.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Time series resampled to *target_freq* with gaps filled by ``NaN``.
+    """
     return ts.asfreq(target_freq)
 
 def _decimal_places_from_value(v):
-    """
-    Infer decimal places from a numeric value by converting through string form.
-    Returns None for NaN/non-finite values.
+    """Infer decimal places from a numeric value via its string representation.
+
+    Parameters
+    ----------
+    v : float or int
+        Numeric value to inspect.
+
+    Returns
+    -------
+    int or None
+        Number of decimal places, or ``None`` for NaN/non-finite values.
     """
     if pd.isna(v):
         return None
@@ -250,11 +535,22 @@ def _decimal_places_from_value(v):
 
 
 def _infer_series_decimal_places(ts, max_places=4):
-    """
-    Infer a typical decimal precision from observed (non-NaN) source values.
+    """Infer typical decimal precision from observed non-NaN values.
 
-    Uses the median number of decimal places across all numeric values, capped
-    to max_places.
+    Uses the median number of decimal places across all numeric values,
+    capped to *max_places*.
+
+    Parameters
+    ----------
+    ts : pandas.Series or pandas.DataFrame
+        Input time series.
+    max_places : int, optional
+        Upper bound on the returned precision.  Default 4.
+
+    Returns
+    -------
+    int or None
+        Inferred decimal places, or ``None`` if no non-NaN values are present.
     """
     vals = ts.to_numpy().ravel()
     places = [_decimal_places_from_value(v) for v in vals]
@@ -268,6 +564,25 @@ def _infer_series_decimal_places(ts, max_places=4):
     return max(0, min(inferred, max_places))
 
 def _transform_interp(ts, target_freq):
+    """Interpolate a time series to a regular grid at *target_freq*.
+
+    The output grid is aligned to the target frequency (not to the first
+    observed timestamp).  Source precision is inferred and used to round
+    the interpolated values.
+
+    Parameters
+    ----------
+    ts : pandas.DataFrame
+        Input time series.  Must have a ``DatetimeIndex``.
+    target_freq : pandas.DateOffset or str
+        Target frequency for the output grid.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Time series on a regular grid at *target_freq*, with values
+        rounded to the inferred source precision.
+    """
     # infer source precision before interpolation
     round_places = _infer_series_decimal_places(ts)
 
@@ -294,6 +609,30 @@ def _transform_interp(ts, target_freq):
 
 
 def _parse_freq_resolver(freq_resolver):
+    """Parse a *freq_resolver* specification into an internal tuple.
+
+    Parameters
+    ----------
+    freq_resolver : None, str, or dict
+        * ``None`` — no resolution; raises if frequencies differ.
+        * ``str`` — one of the recognised shortcut strings
+          (e.g. ``"interp_to_finer"``, ``"as_freq_coarser"``).
+        * ``dict`` — explicit specification with keys ``"target"``
+          (``"finer"``, ``"coarser"``, or ``"latest"``), ``"method"``
+          (``"interp"`` or ``"asfreq"``), and optional ``"target_freq"``
+          for an explicit frequency override.
+
+    Returns
+    -------
+    tuple
+        ``(target_mode, method)`` or ``("explicit", method, target_offset)``.
+
+    Raises
+    ------
+    ValueError
+        If *freq_resolver* is an unrecognised string or dict, or is not
+        one of the supported types.
+    """
     if freq_resolver is None:
         return None
 
@@ -338,6 +677,32 @@ def _parse_freq_resolver(freq_resolver):
 
 
 def _resolve_frequency_transition(ordered_items, freq_resolver):
+    """Determine the target frequency and transform needed to reconcile series.
+
+    Inspects the frequency labels of all items.  If all frequencies are
+    identical no transform is needed.  Otherwise, *freq_resolver* is parsed
+    to select a target frequency and a transformation callable.
+
+    Parameters
+    ----------
+    ordered_items : list of dict
+        Each dict must contain ``"freq_label"`` (str or None).
+    freq_resolver : None, str, or dict
+        Frequency resolution specification; see :func:`_parse_freq_resolver`.
+
+    Returns
+    -------
+    target_freq : pandas.DateOffset or None
+        The resolved target frequency, or ``None`` if items is empty.
+    transform : callable or None
+        Function ``f(DataFrame, DateOffset) -> DataFrame`` to apply, or
+        ``None`` if no transform is needed.
+
+    Raises
+    ------
+    ValueError
+        If frequencies differ and *freq_resolver* is ``None``.
+    """
     freq_labels = [item["freq_label"] for item in ordered_items]
     unique = []
     for f in freq_labels:
@@ -373,6 +738,33 @@ def _resolve_frequency_transition(ordered_items, freq_resolver):
 
 
 def _apply_freq_resolution(ordered_items, freq_resolver):
+    """Apply frequency resolution to a list of time series items.
+
+    If all series share the same frequency, the list is returned unchanged.
+    Otherwise the appropriate transform is applied to each item, producing
+    a new list at the reconciled target frequency.
+
+    Parameters
+    ----------
+    ordered_items : list of dict
+        Each dict must contain at minimum ``"ts"`` (DataFrame) and
+        ``"freq_label"`` (str or None).
+    freq_resolver : None, str, or dict
+        Frequency resolution specification; see :func:`_parse_freq_resolver`.
+
+    Returns
+    -------
+    resolved_items : list of dict
+        Items with ``"ts"`` and ``"freq_label"`` updated to the target
+        frequency (or the original list if no transform was needed).
+    target_freq : pandas.DateOffset or None
+        The resolved target frequency.
+
+    Raises
+    ------
+    ValueError
+        If the resolver fails to produce a single reconciled frequency.
+    """
     target_freq, transform = _resolve_frequency_transition(ordered_items, freq_resolver)
     if target_freq is None:
         return ordered_items, None
@@ -579,28 +971,64 @@ def ts_multifile_read(
     end=None,
     freq_resolver=None,
 ):
-    """
-    Read and merge multiple time series files with optional transformations.
+    """Read and merge multiple time series files with optional per-file transforms.
+
+    Similar to :func:`ts_multifile` but accepts explicit transformation
+    callables instead of performing automatic unit detection.  When multiple
+    columns are present in a file and no *selector* is given, the column
+    mean is used.
 
     Parameters
     ----------
     pats : str or list of str
-        File patterns for time series data.
-    transforms : list of callable, optional
-        Transformation functions to apply to each file.
-    selector : str, optional
-        Column name to select if multiple columns exist.
-    column_name : str, optional
-        New column name for the output.
-    start : str, pandas.Timestamp, or None, optional
-        Start date for filtering data.
-    end : str, pandas.Timestamp, or None, optional
-        End date for filtering data.
+        One or more glob patterns whose matching files form a time series.
+    transforms : list of callable or None, optional
+        One callable per pattern; each is applied to the DataFrame read
+        from that pattern.  ``None`` entries skip the transform.  If
+        ``None`` (default), no transforms are applied.
+    selector : str or None, optional
+        Column to select when a file contains multiple data columns.
+        When ``None`` and multiple columns are present, the column mean
+        is taken.
+    column_name : str or None, optional
+        Rename the single output column after selection.
+    start : str or pandas.Timestamp or None, optional
+        Inclusive start date/time for the returned series.
+    end : str or pandas.Timestamp or None, optional
+        Inclusive end date/time for the returned series.
+    freq_resolver : str or dict or None, optional
+        Strategy for reconciling mismatched time-step frequencies.
+        Recognised string shortcuts:
+
+        * ``"interp_to_finer"`` — interpolate all series to the finest freq.
+        * ``"as_freq_finer"`` — resample (``asfreq``) to the finest freq.
+        * ``"interp_to_coarser"`` — interpolate to the coarsest freq.
+        * ``"as_freq_coarser"`` — resample to the coarsest freq.
+        * ``"interp_to_latest"`` — interpolate to the freq of the last file.
+        * ``"as_freq_latest"`` — resample to the freq of the last file.
+
+        Dict form: ``{"target": "finer"|"coarser"|"latest",
+        "method": "interp"|"asfreq"}`` or
+        ``{"target_freq": "<freq>", "method": "interp"|"asfreq"}``.
+
+        Default ``None`` raises ``ValueError`` when frequencies differ.
 
     Returns
     -------
     pandas.DataFrame
-        Merged time series data.
+        Merged time series with a ``datetime`` index.
+
+    Raises
+    ------
+    ValueError
+        If no files match any of the provided patterns.
+        If duplicate timestamps are found within a single file.
+        If frequencies differ across files and no *freq_resolver* is given.
+
+    See Also
+    --------
+    ts_multifile : Similar function with automatic unit detection.
+    read_ts_repo : High-level repository accessor.
     """
 
     if not isinstance(pats, list):
