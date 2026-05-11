@@ -538,7 +538,8 @@ def ncro_fetcher(repo, station_id, param, subloc, data_path=None):
         repo=repo,
         data_path=data_path,
         meta=True,
-        force_regular=True
+        force_regular=True,
+        freq_resolver="as_freq_finer",
     )
 
 def general_fetcher(repo, station_id, param, subloc, data_path=None):
@@ -549,7 +550,8 @@ def general_fetcher(repo, station_id, param, subloc, data_path=None):
         repo=repo,
         data_path=data_path,
         meta=True,
-        force_regular=True
+        force_regular=True,
+        freq_resolver="as_freq_finer",
     )
 
 def custom_fetcher(agency):
