@@ -95,6 +95,57 @@ repos:
     # Multiple files (different sources) may map to the same data_key
     data_key: [station_id, subloc, param]
 
+  proprietary_formatted:
+    root: "//cnrastore-bdo/Modeling_Data/repo/continuous/proprietary/formatted"
+
+    # Registry providing supplementary metadata (e.g., agency, location) for stations
+    registry: continuous   # this is an alias set up above for station_dbase.csv. 
+                        
+    # Depending on settings for the repo, multiple sources (e.g., ncro, cdec) may supply the same time series
+    # For instance Bacon Island conductance is observed by NCRO but distributed both by NCRO (QA/QC'd data on Water Data Library)
+    # and on CDEC (realtime, not QA/QC). This field, in this case {source} appears in the filename template
+    # (typically first slot) and drives globbing and merge order
+    provider_key: source
+
+    # Strategy for resolving multiple providers for the same data_key if allwed. 
+    # Possibilities: 
+    # assume_unique: only one provider allowed in a repo (no resolution needed). See screened.
+    # registry_column: use registry metadata to determine preferred providers
+    provider_resolution_mode: registry_column
+
+    # Registry column used to decide provider selection policy
+    # Example: station_id → agency gives you the id of the observing agency, which is unique and a good basis for
+    # prioritizing various sources. Used in provider_resolution_order.
+    provider_resolution_column: agency
+
+    # Mapping from registry value → ordered list of preferred providers (this is the generic term, in this case it is {source})
+    # Example: if agency = ncro, prefer ncro then cdec in the {source} slot
+    # The keys must match the provider_resolution_column values (agency) and mapped values must match the provider_key field (here: source)
+    provider_resolution_order:
+      ncro: ["ncro", "cdec"]
+      dwr_ncro: ["ncro"]
+      des: ["des"]
+      dwr_des: ["des"]
+      usgs: ["usgs"]
+      noaa: ["noaa"]
+      usbr: ["usbr", "cdec"]
+      dwr_om: ["cdec"]
+      dwr: ["dwr", "cdec"]
+      ebmud: ["usgs", "ebmud", "cdec"]
+
+    # Filename template
+    # {source} is the provider_key and disambiguates multiple files for the same data_key
+    filename_templates:
+      - "{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
+
+    # File identity: uniquely identifies a physical file (includes provider dimension)
+    # shard is conceptual (e.g., year or syear/eyear depending on template)
+    file_key: [source, station_id, subloc, param, shard]
+
+    # Data identity: uniquely identifies a logical time series independent of provider
+    # Multiple files (different sources) may map to the same data_key
+    data_key: [station_id, subloc, param]
+
 
   screened:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
