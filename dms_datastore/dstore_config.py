@@ -542,11 +542,14 @@ def repo_config(repo_name):
         )
 
     spec["name"] = repo_name
-    spec["root"] = (
-        _resolve_config_path(spec["root"])
-        if not os.path.exists(spec["root"])
-        else spec["root"]
-    )
+    if not os.path.exists(spec["root"]):
+        if "alt" in spec:
+            if os.path.exists(spec["alt"]):
+                spec["root"] = spec["alt"]
+            else:
+                spec["root"] = _resolve_config_path(spec["root"])
+        else:
+            spec["root"] = _resolve_config_path(spec["root"])
 
     templates = spec.get("filename_templates", [])
     if not templates:
