@@ -52,12 +52,12 @@ jobs:
         if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
           echo "Tag push (${GITHUB_REF_NAME}); enabling upload."
           conda config --set anaconda_upload yes
-          conda build -m conda.recipe/variant.yaml -c cadwr-dms -c conda-forge \
+          conda-build -m conda.recipe/variant.yaml -c cadwr-dms -c conda-forge \
             --user cadwr-dms --token "$ANACONDA_CHANNEL_UPLOAD_TOKEN" conda.recipe
         else
           echo "Branch push (${GITHUB_REF_NAME}); building without upload."
           conda config --set anaconda_upload no
-          conda build -m conda.recipe/variant.yaml -c cadwr-dms -c conda-forge conda.recipe
+          conda-build -m conda.recipe/variant.yaml -c cadwr-dms -c conda-forge conda.recipe
         fi
 
 
