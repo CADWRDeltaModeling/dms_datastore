@@ -1,6 +1,6 @@
-repo: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed/"
-screened: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened/"
-processed: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed/"
+repo: //cnrastore-bdo/Modeling_Data/repo/continuous/processed/
+screened: //cnrastore-bdo/Modeling_Data/repo/continuous/screened/
+processed: //cnrastore-bdo/Modeling_Data/repo/continuous/processed/
 
 yolo:
   start_date: 2022-01-01 00:00
@@ -23,3 +23,9 @@ sjr:
   data_sources: 
     vns_flow: usgs_vns_11303500_flow_*.csv
     msd_flow: ncro_msd__b95820q_flow_*.csv
+ccf:
+  start_date: 2022-01-01 00:00
+  end_date: 2025-08-01 00:00
+  output:
+    - //cnrastore-bdo/Modeling_Data/repo/continuous/proprietary/processed/ccf_ele_up.csv
+    - //cnrastore-bdo/Modeling_Data/repo/continuous/proprietary/processed/ccf_ele_down.csv
