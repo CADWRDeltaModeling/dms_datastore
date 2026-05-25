@@ -243,22 +243,7 @@ def _template_regex_from_template(template, *, key_column="station_id"):
 
     pieces.append(re.escape(template[last:]))
     pieces.append("$")
-    return re.compile("".join(pieces))
-
-
-def _template_regex_from_template(template, *, key_column="station_id"):
-    pieces = ["^"]
-    last = 0
-
-    for m in _TEMPLATE_TOKEN_RE.finditer(template):
-        pieces.append(re.escape(template[last:m.start()]))
-        token = m.group(1)
-        pieces.append(_token_regex(token, key_column))
-        last = m.end()
-
-    pieces.append(re.escape(template[last:]))
-    pieces.append("$")
-    return re.compile("".join(pieces))
+    return re.compile("".join(pieces), re.IGNORECASE)
 
 
 def _interpret_fname_template(fname, repo_cfg):

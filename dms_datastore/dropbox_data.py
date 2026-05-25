@@ -60,11 +60,13 @@ class DataCollector(object):
         self.recursive = recursive
 
     def data_file_list(self):
-        fpath = os.path.join(self.location, self.file_pattern)
+        fpath = self.data_file_glob()
         return glob.glob(fpath, recursive=self.recursive)
 
     def data_file_glob(self):
         """Return the glob pattern (not expanded)."""
+        if self.recursive:
+            return os.path.join(self.location, "**", self.file_pattern)
         return os.path.join(self.location, self.file_pattern)
 
 
@@ -107,6 +109,11 @@ register_transform("dst_tz", _transform_dst_tz)
 
 
 _FILENAME_FIELD_SENTINELS = {"infer_from_filename", "registry_lookup"}
+
+
+class UnregisteredStationError(ValueError):
+    """Raised when a file cannot be matched to any entry in the station registry."""
+    pass
 
 _BANNED_COORDINATE_KEYS = {
     "lat", "lon", "latitude", "longitude",
@@ -223,13 +230,13 @@ def _registry_row_for_metadata(name, merged, repo_name):
         sid = str(merged[site_key]).strip()
         if sid in slookup.index:
             return slookup.loc[sid]
-        raise ValueError(f"{name}: {site_key} '{sid}' not found in registry for repo {repo_name!r}")
+        raise UnregisteredStationError(f"{name}: {site_key} '{sid}' not found in registry for repo {repo_name!r}")
 
     if "agency_id" in merged and merged["agency_id"] not in (None, "", "infer_from_filename"):
         aid = str(merged["agency_id"]).strip()
         hits = slookup[slookup["agency_id"].astype(str).str.strip() == aid]
         if hits.empty:
-            raise ValueError(f"{name}: agency_id '{aid}' not found in registry for repo {repo_name!r}")
+            raise UnregisteredStationError(f"{name}: agency_id '{aid}' not found in registry for repo {repo_name!r}")
         if len(hits) > 1:
             raise ValueError(f"{name}: agency_id '{aid}' matched multiple rows in registry for repo {repo_name!r}")
         return hits.iloc[0]
@@ -268,7 +275,7 @@ def populate_meta(fpath, listing, repo_name, meta_out=None):
         slookup = repo_registry(repo_name)
         hits = slookup[slookup["agency_id"].astype(str).str.strip() == str(out["agency_id"]).strip()]
         if hits.empty:
-            raise ValueError(f"{name}: agency_id '{out['agency_id']}' not found in registry for repo {repo_name!r}.")
+            raise UnregisteredStationError(f"{name}: agency_id '{out['agency_id']}' not found in registry for repo {repo_name!r}.")
         if len(hits) > 1:
             raise ValueError(f"{name}: agency_id '{out['agency_id']}' matched multiple rows in registry for repo {repo_name!r}.")
         out[site_key] = hits.index[0]
@@ -478,7 +485,7 @@ def _check_metadata(meta, repo_name):
         )
 
 
-def apply_dropbox_workflow(spec, selected_names=None):
+def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
     logger.info("dropbox: loaded %d recipe entries", len(spec["data"]))
     always_skip = True
 
@@ -510,10 +517,27 @@ def apply_dropbox_workflow(spec, selected_names=None):
             dest = staging_cfg.get("dir", None)
             if dest is None:
                 raise ValueError(f"{name}: missing required 'output.staging.dir'")
+            logger.debug(
+                "dropbox: listing=%s staging dir raw=%r resolved=%s",
+                name, dest, os.path.abspath(dest)
+            )
             if not os.path.exists(dest):
-                raise ValueError(f"{name}: output.staging.dir does not exist: {dest}")
+                raise ValueError(
+                    f"{name}: output.staging.dir does not exist: {dest!r}\n"
+                    f"  Resolved path : {os.path.abspath(dest)}\n"
+                    f"  Working dir   : {os.getcwd()}"
+                )
 
             reconcile_cfg = output.get("reconcile", None)
+            if isinstance(reconcile_cfg, dict) and "repo_data_dir" in reconcile_cfg:
+                raise ValueError(
+                    f"{name}: 'repo_data_dir' must be set under 'output', not under "
+                    "'output.reconcile'. Move it up one level in the YAML:\n"
+                    "  output:\n"
+                    "    repo_data_dir: <path>\n"
+                    "    reconcile:\n"
+                    "      ..."
+                )
 
             file_pattern = item["file_pattern"]
             location = item["location"]
@@ -575,10 +599,14 @@ def apply_dropbox_workflow(spec, selected_names=None):
                         f"{name}: filename/template inference mode does not support collect.wildcard; omit it"
                     )
                 template_glob = _template_to_glob(file_pattern)
-                matched = sorted(glob.glob(os.path.join(location, template_glob), recursive=collector.recursive))
+                if collector.recursive:
+                    fglob = os.path.join(location, "**", template_glob)
+                else:
+                    fglob = os.path.join(location, template_glob)
+                matched = sorted(glob.glob(fglob, recursive=collector.recursive))
                 if not matched:
                     raise ValueError(
-                        f"{name}: filename template matched no files: {os.path.join(location, template_glob)}"
+                        f"{name}: filename template matched no files: {fglob}"
                     )
                 per_file_results = []
                 for fpath in matched:
@@ -693,15 +721,24 @@ def apply_dropbox_workflow(spec, selected_names=None):
             outputs_to_write = []
 
             if inference_mode:
+                unregistered_files = []
                 for meta_source_path, ts in per_file_results:
                     ts = _apply_transforms(ts, transforms)
-                    inferred_meta = _infer_meta_from_template_path(meta_source_path, listing)
-                    meta_out = populate_meta(
-                        meta_source_path,
-                        listing,
-                        repo_name=repo_name,
-                        meta_out=inferred_meta,
-                    )
+                    try:
+                        inferred_meta = _infer_meta_from_template_path(meta_source_path, listing)
+                        meta_out = populate_meta(
+                            meta_source_path,
+                            listing,
+                            repo_name=repo_name,
+                            meta_out=inferred_meta,
+                        )
+                    except UnregisteredStationError as e:
+                        logger.warning(
+                            "dropbox: listing=%s unregistered file=%s: %s",
+                            name, meta_source_path, e,
+                        )
+                        unregistered_files.append(meta_source_path)
+                        continue
 
                     if meta_out["freq"] == "infer":
                         meta_out["freq"] = infer_freq_robust(ts.index)
@@ -711,6 +748,20 @@ def apply_dropbox_workflow(spec, selected_names=None):
 
                     _check_metadata(meta_out, repo_name)
                     outputs_to_write.append((ts, meta_out))
+                if unregistered_files:
+                    if omit_unregistered:
+                        logger.warning(
+                            "dropbox: listing=%s omitting %d unregistered file(s):\n%s",
+                            name, len(unregistered_files),
+                            "\n".join(f"  {f}" for f in unregistered_files),
+                        )
+                    else:
+                        raise ValueError(
+                            f"{name}: {len(unregistered_files)} file(s) could not be matched to a "
+                            f"registry entry. Unregistered files:\n"
+                            + "\n".join(f"  {f}" for f in unregistered_files)
+                            + "\nRe-run with --omit-unregistered to skip these and stage the rest."
+                        )
             else:
                 if len(series_list) == 1:
                     ts = series_list[0]
@@ -761,7 +812,7 @@ def apply_dropbox_workflow(spec, selected_names=None):
                 # Physical destination for reconcile writes/reads:
                 # - explicit scratch/debug path if provided
                 # - otherwise configured root for repo_name
-                repo_data_dir = reconcile_cfg.get("repo_data_dir", repo_name)
+                repo_data_dir = output.get("repo_data_dir", repo_name)
                 logger.info(
                     "dropbox: listing=%s reconcile staged_dir=%s repo_target=%s",
                     name, dest, repo_data_dir
@@ -776,6 +827,7 @@ def apply_dropbox_workflow(spec, selected_names=None):
                     p3=inspection_cfg.get("p3", 0.15),
                     p10=inspection_cfg.get("p10", 0.05),
                 )
+            successes.append(name)
         except Exception as e:
             logger.exception("dropbox: FAILED listing=%s", name)
             failures.append(
@@ -808,14 +860,15 @@ def apply_dropbox_workflow(spec, selected_names=None):
             "Use --name <recipe> to rerun and repair individual entries."
         )            
 
-def dropbox_data(spec_fname, selected_names=None):
+def dropbox_data(spec_fname, selected_names=None, omit_unregistered=False):
     spec_fname = (
         spec_fname
         if os.path.exists(spec_fname)
         else config_file(spec_fname)
     )
+    logger.info("dropbox: loading spec file: %s", os.path.abspath(spec_fname))
     spec = get_spec(spec_fname)
-    apply_dropbox_workflow(spec, selected_names=selected_names)
+    apply_dropbox_workflow(spec, selected_names=selected_names, omit_unregistered=omit_unregistered)
 
 
 @click.command(name="dropbox")
@@ -834,7 +887,10 @@ def dropbox_data(spec_fname, selected_names=None):
 @click.option("--logdir", type=click.Path(path_type=Path), default=None, help="Optional log directory.")
 @click.option("--debug", is_flag=True, help="Enable debug logging and per-file output.")
 @click.option("--quiet", is_flag=True, help="Disable console logging.")
-def dropbox_cli(spec_fname,selected_names, logdir, debug, quiet): 
+@click.option("--omit-unregistered", "omit_unregistered", is_flag=True,
+              help="In inference mode, skip files with no registry match and stage the rest. "
+                   "Without this flag, any unregistered files cause the recipe to fail.")
+def dropbox_cli(spec_fname, selected_names, logdir, debug, quiet, omit_unregistered):
     """Read unformatted data files and write formatted CSV files per dropbox spec."""
     level, console = resolve_loglevel(debug=debug, quiet=quiet)
     configure_logging(
@@ -843,8 +899,12 @@ def dropbox_cli(spec_fname,selected_names, logdir, debug, quiet):
         console=console,
         logdir=logdir,
     )
-    dropbox_data(spec_fname,selected_names)
+    dropbox_data(spec_fname, selected_names, omit_unregistered=omit_unregistered)
 
 
 if __name__ == "__main__":
-    dropbox_cli()
+    try:
+        dropbox_cli()
+    except Exception as e:
+        logger.exception("dropbox: CLI failed on some recipes")
+        sys.exit(1)
