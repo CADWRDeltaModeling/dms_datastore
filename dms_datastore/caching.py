@@ -7,7 +7,7 @@ import functools
 import urllib.parse
 import atexit
 import click
-
+import inspect
 
 class LocalCache:
     _instance = None
@@ -90,7 +90,7 @@ def cache_dataframe(key_args=None):
     """
 
 
-import inspect
+
 
 
 def cache_dataframe(key_args=None):
@@ -103,8 +103,6 @@ def cache_dataframe(key_args=None):
         Names of arguments to include in the cache key. If None, use all named arguments.
     """
 
-
-import inspect
 
 
 def cache_dataframe(key_args=None):
