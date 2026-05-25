@@ -2,51 +2,21 @@
 # Example dropbox specification — single-file and wildcard patterns.
 # Uses OmegaConf interpolation for paths.
 
-dropbox_home: //cnrastore-bdo/Modeling_Data/repo_staging/dropbox
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_staging_auto/dropbox
 
 data:
-  - name: Mokelumne
-    collect:
-      file_pattern: "ebmud_wbr_flow*.csv"
-      location: "${dropbox_home}/ebmud"
-      recursive_search: false
-      reader: read_ts
-      wildcard: time_shard
-      selector: null
-    metadata:
-      station_id: wbr
-      source: ebmud
-      agency: usgs
-      freq: infer
-      param: flow
-      unit: ft^3/s
-      subloc: default
-      time_zone: Etc/GMT+8
-      # Coordinates are auto-populated from the station registry.
-    output:
-      repo_name: formatted
-      staging:
-        dir: ./drop_staging
-        write_args:
-          float_format: "%.4f"
-      reconcile:
-        prefer: staged
-        allow_new_series: true
-        inspection:
-          recent_years: 3
-          p3: 0.15
-          p10: 0.05
 
   - name: USGS Aquarius flows
-    skip: true
+    skip: false
     collect:
-      file_pattern: "Discharge.ft^3_s.velq@*.EntireRecord.csv"
-      location: "${dropbox_home}/usgs_aquarius_request_2020"
+      file_pattern: "Discharge.ft^3_s.velq@{agency_id}.EntireRecord.csv"
+      location: "W:/projects/usgs/usgs_aquarius_request_2020"
       recursive_search: true
       reader: read_ts
       selector: Value
     metadata:
       station_id: infer_from_agency_id
+      agency_id: infer_from_filename        # <-- add this; triggers inference mode
       source: aquarius
       agency: usgs
       freq: infer
@@ -54,22 +24,20 @@ data:
       subloc: default
       unit: ft^3/s
       time_zone: Etc/GMT+8
-    metadata_infer:
-      regex: .*@(.*)\.EntireRecord.csv
-      groups:
-        1: agency_id
     output:
       repo_name: formatted
+      repo_data_dir: ./fake_repo/formatted
       staging:
         dir: ./drop_staging
         write_args:
-          float_format: "%.4f"
+          float_format: "%.1f"
+          chunk_years: true
       reconcile:
         prefer: staged
         allow_new_series: true
-        inspection:
-          recent_years: 3
-          p3: 0.15
-          p10: 0.05
+        inspection:                               # update parameters. These should be included but seldom change
+          recent_years: 3                         # Up to 3 year old data will be checked whenever update is performed
+          p3: 0.15                                # probability of a spot check for 3-10 ago, differences will trigger full replacment of all years
+          p10: 0.05                               # probability of a spot check for data 10+ years old, differences will trigger full replacment of all years
 
 
