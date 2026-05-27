@@ -238,7 +238,10 @@ def process_multivariate_usgs(repo="formatted", data_path=None, pat=None, rescan
     logger.info("Entering process_multivariate_usgs")
     actual_fpath = data_path if data_path is not None else repo_root(repo)
     # todo: straighten out fpath and pat stuff
-    with tempfile.TemporaryDirectory() as tmpdir:
+    # Create the temp dir on the same drive/filesystem as the destination so that
+    # large outputs do not exhaust the system temp partition (e.g. C:\ on Windows).
+    parent_dir = os.path.dirname(os.path.abspath(actual_fpath))
+    with tempfile.TemporaryDirectory(dir=parent_dir) as tmpdir:
         if pat is None:
             pat = os.path.join(actual_fpath, "usgs*.csv")
         else:
