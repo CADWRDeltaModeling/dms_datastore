@@ -4,7 +4,6 @@
 import os
 import pandas as pd
 import datetime
-import tabula  # for PDF parsing
 import requests
 from . import store_utils as utils
 import click
@@ -25,6 +24,12 @@ def download_dcc(base_dir):
     pdfname = os.path.join(base_dir, fname.split(".")[0] + ".pdf")
     with open(pdfname, "wb") as fh:
         fh.write(response.content)
+    try:
+        import tabula
+    except ImportError:
+        raise ImportError(
+            "tabula-py is required for download_dcc. Install it with: pip install tabula-py"
+        )
     pages = tabula.read_pdf(
         pdfname, pages="all", guess=False, encoding="ISO-8859-1"  # for windows maybe?
     )  # columns=['date','time', 'action', 'remarks'])

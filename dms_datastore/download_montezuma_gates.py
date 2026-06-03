@@ -3,7 +3,6 @@ import pandas as pd
 import datetime
 import os
 import click
-import tabula
 from . import store_utils as utils
 
 
@@ -42,6 +41,12 @@ def download_and_parse_archived_pdf(base_dir="data/raw/montezuma_gate_log"):
         fh.write(response.content)
 
     # Parse the PDF using tabula-py
+    try:
+        import tabula
+    except ImportError:
+        raise ImportError(
+            "tabula-py is required for download_montezuma_gates. Install it with: pip install tabula-py"
+        )
     dfs = tabula.read_pdf(
         pdf_fname, pages="all", multiple_tables=True, encoding="ISO-8859-1"
     )  # for windows maybe?)
