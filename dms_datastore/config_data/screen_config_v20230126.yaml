@@ -1245,10 +1245,14 @@ stations:
         omit_steps:
           - repeat_test
       flow: 
-        inherits_global: True
+        inherits_global: True 
         omit_steps:
-          - repeat_test
+          - repeat_test  
         modify_steps:
+          - method : bounds_test
+            apply_immediately: True
+            args:
+              bounds: [-50000.,50000.]
           - method: median_test_twoside
             args:
               level : 5
