@@ -33,7 +33,6 @@ dependencies = [
     "beautifulsoup4",
     "tqdm",
 	"pytz",
-	"tabula",
     "requests",
     "httpx",
     "boto3",
@@ -56,6 +55,9 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pandoc"
+]
+pdf = [
+    "tabula-py>=2.9.0"
 ]
 # These are the tools needed to perform documentation
 doc = [
