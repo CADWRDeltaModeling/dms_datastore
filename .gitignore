@@ -90,3 +90,4 @@ target/
 .python-version
 
 dms_datastore/_version.py
+dms_datastore/_version.py
