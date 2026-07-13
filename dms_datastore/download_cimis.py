@@ -42,21 +42,29 @@ logger = logging.getLogger(__name__)
 class CIMIS:
     def __init__(self, base_dir=".", password="xxx"):
         self.set_base_dir(base_dir)
-        # Create an SSH client
+        self._password = password
+        self._connect()
+
+    def _connect(self):
+        """Establish (or re-establish) the SSH/SFTP connection."""
         ssh = paramiko.SSHClient()
-        # Load system SSH keys
-        # ssh.load_system_host_keys()
-        # Add the server's SSH key automatically if missing
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        # Connect to the server
         ssh.connect(
             hostname="sftpcimis.water.ca.gov",
             username="sftpcimis",
-            password=password,
-        )  #
-        # Open an SFTP session
+            password=self._password,
+        )
         self.ssh = ssh
         self.sftp = ssh.open_sftp()
+
+    def _reconnect(self):
+        """Close any stale connection and reconnect."""
+        logger.warning("SFTP socket closed; reconnecting…")
+        try:
+            self.ssh.close()
+        except Exception:
+            pass
+        self._connect()
 
     def close(self):
         self.ssh.close()
@@ -111,8 +119,17 @@ class CIMIS:
         try:
             self.sftp.get(remotefile, localfile)
         except Exception as ex:
-            logging.error(f"Error downloading {remotefile}: {ex}")
-            raise ex
+            msg = str(ex)
+            if "Socket is closed" in msg or "SSH session not active" in msg:
+                self._reconnect()
+                try:
+                    self.sftp.get(remotefile, localfile)
+                except Exception as ex2:
+                    logging.error(f"Error downloading {remotefile}: {ex2}")
+                    raise ex2
+            else:
+                logging.error(f"Error downloading {remotefile}: {ex}")
+                raise ex
         return localfile
 
     def download_zipped(self, year, hourly=True):
@@ -224,7 +241,6 @@ class CIMIS:
                 )
             except Exception as ex:
                 logging.warning(f"Error downloading station {month}: {ex}")
-                raise ex
 
     def download_current_month(self, stations, hourly=True):
         if hourly:
