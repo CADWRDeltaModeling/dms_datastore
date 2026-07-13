@@ -357,6 +357,9 @@ class CIMIS:
                 dfd = None
             if dfd is not None:
                 df = pd.concat([df, dfd])
+        # Sort by time and remove any duplicate timestamps, keeping the last
+        # (most recently downloaded) row for each timestamp.
+        df = df[~df.index.duplicated(keep="last")].sort_index()
         return df
 
     def _with_timeindex(self, df, hourly):
@@ -526,10 +529,12 @@ def merge_with_existing(existing_dir, new_dir, hourly=True):
         dfn = pd.read_csv(file, index_col=0, parse_dates=True)
         if os.path.exists(existing_file):
             dfe = pd.read_csv(existing_file, index_col=0, parse_dates=True)
-            # Combine the two DataFrames and remove duplicates
-            combined = pd.concat([dfe, dfn]).drop_duplicates(
-                keep="last"
-            )  # Keeps the last occurrence
+            # Combine the two DataFrames. drop_duplicates() compares column
+            # values and would silently keep both rows when the same timestamp
+            # has updated values (e.g. CIMIS back-corrections). Use index-based
+            # deduplication instead, preferring the last (newer) occurrence.
+            combined = pd.concat([dfe, dfn])
+            combined = combined[~combined.index.duplicated(keep="last")].sort_index()
             combined.to_csv(existing_file)
         else:
             logging.warning(f"File {existing_file} does not exist so writing new file")
