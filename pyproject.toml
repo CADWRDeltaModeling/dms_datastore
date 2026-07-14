@@ -125,7 +125,10 @@ dms_datastore = [
 [tool.pytest.ini_options]
 norecursedirs = [".*", "*.egg*", "build", "dist", "conda.recipe"]
 addopts = "--junitxml=junit.xml --ignore setup.py --ignore run_test.py --tb native --strict-markers --durations=20"
-markers = ["serial: execute test serially (to avoid race conditions)"]
+markers = [
+    "serial: execute test serially (to avoid race conditions)",
+    "integration: tests that require network access or external credentials",
+]
 
 [project.scripts]
 dms = "dms_datastore.__main__:cli"

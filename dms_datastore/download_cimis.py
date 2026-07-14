@@ -333,40 +333,43 @@ class CIMIS:
                 f"Station Number {station_number}: No data found after 2014"
             )
             dfa = None
-        # concat
-        df = pd.concat([df for df in [dfb, dfa] if df is not None])
-        df = self._with_timeindex(df, hourly)
+        # concat historical archives (either or both may be absent)
+        _archive_parts = [p for p in [dfb, dfa] if p is not None]
+        df = self._with_timeindex(pd.concat(_archive_parts), hourly) if _archive_parts else None
+
         if load_current_year:
             try:
                 dfc = self.load_station_for_current_year(
                     station_number, hourly, self.CIMIS_DOWNLOAD_DIR
                 )
             except Exception as ex:
-                # add logging here to capture exception
                 logging.warning(ex)
                 dfc = None
             if dfc is not None:
-                df = pd.concat([df, dfc])
+                df = pd.concat([df, dfc]) if df is not None else dfc
             try:
                 dfd = self.load_station_for_current_month(
                     station_number, hourly, self.CIMIS_DOWNLOAD_DIR
                 )
             except Exception as ex:
-                # add logging here to capture exception
                 logging.warning(ex)
                 dfd = None
             if dfd is not None:
-                df = pd.concat([df, dfd])
+                df = pd.concat([df, dfd]) if df is not None else dfd
+
+        if df is None:
+            logging.warning(f"Station Number {station_number}: no data found in any period")
+            return pd.DataFrame()
+
         # Sort by time and remove any duplicate timestamps, keeping the last
         # (most recently downloaded) row for each timestamp.
-        df = df[~df.index.duplicated(keep="last")].sort_index()
-        return df
+        return df[~df.index.duplicated(keep="last")].sort_index()
 
     def _with_timeindex(self, df, hourly):
         if hourly:
             df["time"] = df["Date"] + df["Hour   (PST)"].map(" {:04d}".format)
             # make time index
-            pat = "(?P<month>\d+)/(?P<day>\d+)/(?P<year>\d+) (?P<hour>\d{2})(?P<minute>\d{2})"
+            pat = r"(?P<month>\d+)/(?P<day>\d+)/(?P<year>\d+) (?P<hour>\d{2})(?P<minute>\d{2})"
             dft = df["time"].str.extract(pat, expand=True)
             dft.columns = ["month", "day", "year", "h", "m"]
             dft = dft[["year", "month", "day", "h", "m"]]

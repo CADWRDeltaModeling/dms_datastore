@@ -91,3 +91,4 @@ target/
 
 dms_datastore/_version.py
 dms_datastore/_version.py
+cache_tests/cache.db
