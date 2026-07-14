@@ -28,7 +28,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "vtools3",
+    "vtools3>=3.10",
     "pyyaml",
     "beautifulsoup4",
     "tqdm",
