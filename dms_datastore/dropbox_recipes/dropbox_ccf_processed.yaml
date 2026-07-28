@@ -1,0 +1,55 @@
+
+repo_home: //cnrastore-bdo/Modeling_Data/
+target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
+target_tz_label: PST
+
+
+data:
+  - name: ccfb_processed
+    skip: False
+    collect:
+      # Input is the reduced datetime,ndup,height product written by
+      # `dms process_ccfb_gate_height` (a proper DMS-format CSV with header).
+      # A single file, so no wildcard semantics are used.
+      file_pattern: "ccf_processed.csv"
+      location:   "${repo_home}/hydraulic_structures/processed"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: False      # structures data are irregular
+      selector: null               # keep all data columns (ndup, height)
+    metadata:
+      station_id: ccfb
+      structure_id: ccfb
+      agency_id: ccfb
+      processor: dms
+      agency: dwr
+      source: dwr
+      freq: None   # None for irregular, "infer" for infer.
+      param: height
+      unit: ft
+      subloc: radial
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup        # coordinates are provided by the registry and cannot be supplied here in a way that might contradict
+      longitude: registry_lookup       # 'registry_lookup' is just a marker for clarity on this point
+
+    output:
+      repo_name: structures_processed          # This is a pointer to an entry in dbase_config.yaml
+      staging:                           # This is where the read and transformed time series will be staged.
+                                         # It will be used to update the repo, but that uses update_repo and may not mean a full replacement
+        dir: ${repo_home}/hydraulic_structures/incoming/drop_staging_processed
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      reconcile:
+        #repo_data_dir: ${repo_home}/repo/structures/processed     # This is a practice directory so you don't go overwriting a real repo while developing the recipe
+                                                  # When omitted the target location is the repo_root as configured in dbase_config.yaml
+        prefer: staged                            # This is an argument to the update process:
+                                                  #    - staged means "prefer the new stuff we staged"
+                                                  #    - repo means "prefer the stuff in the repo, just top off with any new time stamps"
+        allow_new_series: true
+        inspection:                               # update parameters. These should be included but seldom change
+          recent_years: 3                         # Up to 3 year old data will be checked whenever update is performed
+          p3: 0.15                                # probability of a spot check for 3-10 ago, differences will trigger full replacment of all years
+          p10: 0.05                               # pprobability of a spot check for data 10+ years old, differences will trigger full replacment of all years

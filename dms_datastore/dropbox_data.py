@@ -10,7 +10,7 @@ from omegaconf import OmegaConf
 from vtools.data.indexing import infer_freq_robust
 from dms_datastore.read_ts import read_ts, infer_freq_robust
 from dms_datastore.write_ts import write_ts_csv
-from dms_datastore.dstore_config import repo_registry, repo_config, config_file
+from dms_datastore.dstore_config import repo_registry, repo_config, resolve_dropbox_recipe
 from dms_datastore.filename import interpret_fname, meta_to_filename, naming_spec
 from dms_datastore.reconcile_data import update_repo
 import logging
@@ -101,10 +101,50 @@ def _transform_coarsen(
         heartbeat_freq=heartbeat_freq,
     )
 
+
+def _transform_trim_data(ts, *, side="both", criterion="all_nan", **kwargs):
+    """Trim leading and/or trailing missing rows from a series.
+
+    Parameters
+    ----------
+    side : {"first", "last", "both"}
+        Which edge(s) to trim contiguous qualifying rows from.
+    criterion : {"all_nan", "any_nan"}
+        A row qualifies for trimming when *all* values are NaN
+        (``all_nan``) or when *any* value is NaN (``any_nan``).  For a
+        single-column series the two are equivalent.
+    """
+    if kwargs:
+        raise ValueError(f"trim_data transform got unexpected args: {sorted(kwargs.keys())}")
+    if side not in ("first", "last", "both"):
+        raise ValueError(f"trim_data: side must be one of first|last|both, got {side!r}")
+    if criterion not in ("all_nan", "any_nan"):
+        raise ValueError(f"trim_data: criterion must be one of all_nan|any_nan, got {criterion!r}")
+
+    isna = ts.isna()
+    if isna.ndim == 1:
+        qualifies = isna
+    else:
+        qualifies = isna.all(axis=1) if criterion == "all_nan" else isna.any(axis=1)
+
+    keep = (~qualifies).to_numpy()
+    if not keep.any():
+        # Every row qualifies; there is no data to anchor a trim.
+        return ts.iloc[0:0]
+
+    first_keep = int(keep.argmax())
+    last_keep = len(keep) - 1 - int(keep[::-1].argmax())
+
+    start = first_keep if side in ("first", "both") else 0
+    stop = last_keep + 1 if side in ("last", "both") else len(ts)
+    return ts.iloc[start:stop]
+
+
 # register built-ins
 register_transform("dst_st", _transform_dst_st)
 register_transform("coarsen", _transform_coarsen)
 register_transform("dst_tz", _transform_dst_tz)
+register_transform("trim_data", _transform_trim_data)
 
 
 
@@ -521,11 +561,23 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                 "dropbox: listing=%s staging dir raw=%r resolved=%s",
                 name, dest, os.path.abspath(dest)
             )
-            if not os.path.exists(dest):
-                raise ValueError(
-                    f"{name}: output.staging.dir does not exist: {dest!r}\n"
-                    f"  Resolved path : {os.path.abspath(dest)}\n"
-                    f"  Working dir   : {os.getcwd()}"
+            if not os.path.isdir(dest):
+                # staging.dir is a scratch/output location. Create the leaf
+                # directory when its parent exists. A missing parent is the real
+                # signal of a wrong or unmounted path, so fail loudly there.
+                parent = os.path.dirname(os.path.normpath(dest)) or "."
+                if not os.path.isdir(parent):
+                    raise ValueError(
+                        f"{name}: output.staging.dir cannot be created because its "
+                        f"parent directory does not exist: {dest!r}\n"
+                        f"  Resolved path : {os.path.abspath(dest)}\n"
+                        f"  Missing parent: {os.path.abspath(parent)}\n"
+                        f"  Working dir   : {os.getcwd()}\n"
+                        "  Check that the drive/share is mounted and the path is correct."
+                    )
+                os.makedirs(dest, exist_ok=True)
+                logger.info(
+                    "dropbox: listing=%s created staging dir %s", name, dest
                 )
 
             reconcile_cfg = output.get("reconcile", None)
@@ -826,6 +878,9 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                     recent_years=inspection_cfg.get("recent_years", 3),
                     p3=inspection_cfg.get("p3", 0.15),
                     p10=inspection_cfg.get("p10", 0.05),
+                    regular=repo_config(repo_name).get("regular", True),
+                    dtypes=repo_config(repo_name).get("dtypes"),
+                    float_format=repo_config(repo_name).get("float_format"),
                 )
             successes.append(name)
         except Exception as e:
@@ -864,7 +919,7 @@ def dropbox_data(spec_fname, selected_names=None, omit_unregistered=False):
     spec_fname = (
         spec_fname
         if os.path.exists(spec_fname)
-        else config_file(spec_fname)
+        else resolve_dropbox_recipe(spec_fname)
     )
     logger.info("dropbox: loading spec file: %s", os.path.abspath(spec_fname))
     spec = get_spec(spec_fname)

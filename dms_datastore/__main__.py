@@ -30,6 +30,7 @@ from dms_datastore.rationalize_time_partitions import rationalize_time_partition
 from dms_datastore.spot_check import spot_check_cli
 from dms_datastore.populate_daily import populate_daily_cli
 from dms_datastore.processed.process_elev_data import process_elev_cli
+from dms_datastore.processed.process_ccfb_gate_height import process_ccfb_gate_height_cli
 
 @click.group(help="DMS CLI tools for data processing and extraction.")
 @click.help_option("-h", "--help")  # Add the help option at the group level
@@ -70,6 +71,7 @@ cli.add_command(rationalize_time_partitions_cli, "rationalize_time_partitions")
 cli.add_command(populate_daily_cli, "populate_daily")
 cli.add_command(spot_check_cli, "spot_check")
 cli.add_command(process_elev_cli, "process_elev")
+cli.add_command(process_ccfb_gate_height_cli, "process_ccfb_gate_height")
 
 
 if __name__ == "__main__":

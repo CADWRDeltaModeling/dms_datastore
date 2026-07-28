@@ -120,6 +120,7 @@ dms_datastore = [
     "config_data/*.prj",
     "config_data/*.dbf",
     "config_data/*.txt",
+    "dropbox_recipes/*.yaml",
 ]
 
 [tool.pytest.ini_options]
@@ -163,3 +164,4 @@ rationalize_time_partitions = "dms_datastore.rationalize_time_partitions:rationa
 spot_check = "dms_datastore.spot_check:spot_check_cli"
 populate_daily = "dms_datastore.populate_daily:populate_daily_cli"
 process_elev = "dms_datastore.processed.process_elev_data:process_elev_cli"
+process_ccfb_gate_height = "dms_datastore.processed.process_ccfb_gate_height:process_ccfb_gate_height_cli"

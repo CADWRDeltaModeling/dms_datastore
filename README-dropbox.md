@@ -20,11 +20,32 @@ dms dropbox --input dropbox_spec.yaml --logdir ./logs --quiet
 ```
 
 Options:
-- `--input` (required): Path to the YAML recipe file.
+- `--input` (required): The recipe to run. This may be either a path to a YAML
+  recipe file (absolute or relative to the current directory), or the bare name
+  of a recipe bundled with the package (e.g. `dropbox_daily` or
+  `dropbox_daily.yaml`). See [Recipe Resolution](#recipe-resolution) below.
 - `--name` (repeatable): Run only the named recipe entry/entries.
 - `--logdir`: Directory for log files.
 - `--debug`: Enable debug-level logging.
 - `--quiet`: Suppress console output.
+
+## Recipe Resolution
+
+Recipes are centralized in the bundled `dms_datastore/dropbox_recipes/`
+directory, so bare recipe names resolve identically whether the package is
+installed in development mode (`pip install -e .`) or as a deployed wheel. This
+directory is intentionally separate from `config_data/`.
+
+`--input` (and the `dropbox_data()` argument) is resolved in this order, first
+match wins:
+
+1. The value as given, if it is an existing file path (absolute or relative to
+   the current working directory). This preserves file-based usage.
+2. `./dropbox_recipes/<name>` — a project-local override directory in the cwd.
+3. `<package>/dropbox_recipes/<name>` — the bundled recipes.
+
+A `.yaml` extension is appended automatically when the name has none. To add a
+new shared recipe, drop a `.yaml` file into `dms_datastore/dropbox_recipes/`.
 
 ## Programmatic Use
 

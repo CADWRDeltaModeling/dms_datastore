@@ -1,10 +1,11 @@
 
-#modeling_data: //cnrastore-bdo/Modeling_Data
-dropbox_home: ${oc.env:modeling_data}/repo_staging_auto/dropbox
+modeling_data: //cnrastore-bdo/Modeling_Data
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_staging_auto/dropbox
 target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
 target_tz_label: PST 
 
 data:
+
   - name: daily
     collect:
       file_pattern: "{source}_{station_id}_{agency_id}_flow_{syear}_{eyear}.csv"

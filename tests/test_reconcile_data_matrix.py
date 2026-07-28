@@ -328,6 +328,71 @@ def test_update_repo_plan_repo_irregular_replaced(tmp_path: Path) -> None:
     assert actions[0].action == "replace_write"
 
 
+def _mk_irregular_values_staged() -> pd.DataFrame:
+    # Overlaps the repo at 00:15 (same value) and extends past it.
+    idx = pd.to_datetime(["2024-01-01 00:15", "2024-01-01 00:40", "2024-01-01 01:05"])
+    df = pd.DataFrame({"value": [3.0, 4.0, 5.0]}, index=idx)
+    df.index.name = "datetime"
+    return df
+
+
+def test_update_repo_plan_irregular_topoff_splices(tmp_path: Path) -> None:
+    """With regular=False, an irregular repo is topped off (spliced), not replaced."""
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_foo_123_flow_2024.csv"
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\n"
+
+    write_ts_csv(_mk_irregular_values(), repo / f, metadata=meta, chunk_years=False)
+    write_ts_csv(_mk_irregular_values_staged(), staged / f, metadata=meta, chunk_years=False)
+
+    actions = update_repo(
+        str(staged), str(repo),
+        now=NOW, p10=1.0, p3=1.0,
+        regular=False,
+        plan=True,
+    )
+    assert len(actions) == 1
+    assert actions[0].action == "splice_write"
+
+
+def test_update_repo_apply_irregular_topoff(tmp_path: Path) -> None:
+    """Irregular top-off preserves history, appends new steps, and does not shuffle."""
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    f = "cdec_foo_123_flow_2024.csv"
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\n"
+
+    write_ts_csv(_mk_irregular_values(), repo / f, metadata=meta, chunk_years=False)
+    write_ts_csv(_mk_irregular_values_staged(), staged / f, metadata=meta, chunk_years=False)
+
+    update_repo(
+        str(staged), str(repo),
+        now=NOW, p10=1.0, p3=1.0,
+        regular=False,
+        prefer="staged",
+        plan=False,
+    )
+
+    out = pd.read_csv(repo / f, comment="#", parse_dates=["datetime"], index_col="datetime")
+    expected_idx = pd.to_datetime(
+        ["2024-01-01 00:00", "2024-01-01 00:10", "2024-01-01 00:15",
+         "2024-01-01 00:40", "2024-01-01 01:05"]
+    )
+    assert list(out.index) == list(expected_idx)
+    assert out.index.is_monotonic_increasing
+    assert out.index.duplicated().sum() == 0
+    # historical repo value preserved, new staged value appended
+    assert out.loc["2024-01-01 00:00", "value"] == 1.0
+    assert out.loc["2024-01-01 00:40", "value"] == 4.0
+
+
 def test_update_flagged_plan_freq_mismatch_quarantine(tmp_path: Path) -> None:
     staged = tmp_path / "staging"
     repo = tmp_path / "repo"

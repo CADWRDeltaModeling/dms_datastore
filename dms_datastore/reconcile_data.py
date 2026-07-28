@@ -45,7 +45,7 @@ from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 import shutil
 import numpy as np
 import pandas as pd
-from vtools import ts_merge
+from vtools import ts_merge, ts_splice
 from vtools.data.indexing import compare_regular_freq
 from dms_datastore.inventory import to_wildcard
 from dms_datastore.read_ts import extract_commented_header
@@ -404,6 +404,7 @@ def _write_preserving_header(
     dest_path: str,
     header_text: str,
     date_format: str = "%Y-%m-%dT%H:%M:%S",
+    float_format: Optional[str] = None,
 ) -> None:
     os.makedirs(os.path.dirname(dest_path) or ".", exist_ok=True)
     if header_text and not header_text.endswith("\n"):
@@ -413,7 +414,14 @@ def _write_preserving_header(
     with open(dest_path, "w", encoding="utf-8", newline="\n") as f:
         if header_text:
             f.write(header_text)
-        df.to_csv(f, header=True, sep=",", date_format=date_format, lineterminator="\n",)
+        df.to_csv(
+            f,
+            header=True,
+            sep=",",
+            date_format=date_format,
+            float_format=float_format,
+            lineterminator="\n",
+        )
 
 
 # -----------------------------
@@ -981,6 +989,9 @@ def update_repo(
     atol: float = 0.0,
     rtol: float = 0.0,
     freq_mismatch: str = "quarantine",
+    regular: bool = True,
+    dtypes: Optional[dict] = None,
+    float_format: Optional[str] = None,
     plan: bool = False,
 ) -> List[ReconcileAction]:
     """ Reconcile staged vs repo time-series CSV files (formatted/processed tiers).
@@ -1017,6 +1028,21 @@ def update_repo(
     atol, rtol : float, default 0.0, 0.0
         Tolerances for parsed-data comparisons. If both are zero, comparisons are
         exact.
+    regular : bool, default True
+        Whether the repo holds regular (evenly-sampled) data. When True, files
+        are read force-regular and reconciled with regular-frequency checks.
+        When False (irregular repos such as structures), files are read as
+        irregular, the frequency-mismatch gate is skipped, and top-off is
+        applied with ``ts_splice`` so irregular steps are stitched by time
+        rather than shuffled into a union index.
+    dtypes : dict or None, optional
+        Per-column dtype overrides forwarded to ``read_ts`` (e.g.
+        ``{"ndup": "Int64"}``) so integer columns are preserved through the
+        read/splice/write round-trip instead of being coerced to float.
+    float_format : str or None, optional
+        Format string (e.g. ``"%.3f"``) applied to float columns when writing
+        reconciled files, so output keeps uniform precision matching the
+        original products. ``None`` uses pandas' default repr.
     plan : bool, default False
         If True, return planned actions without writing.
 
@@ -1056,7 +1082,11 @@ def update_repo(
         raise ValueError("prefer must be 'repo' or 'staged'")
     if freq_mismatch not in ["quarantine", "replace"]:
         raise ValueError("freq_mismatch must be 'quarantine' or 'replace'")
-    
+
+    # Optional per-column dtype overrides (e.g. {"ndup": "Int64"}) so integer
+    # columns are preserved through the read/splice/write round-trip.
+    read_kwargs = {} if dtypes is None else {"dtypes": dtypes}
+
     repo_dir = dstore_config.resolve_repo_data_dir(repo_or_path=repo_dir)
 
 
@@ -1125,21 +1155,21 @@ def update_repo(
             )
 
             try:
-                sdf = read_ts(spath, force_regular=True)
+                sdf = read_ts(spath, force_regular=regular, **read_kwargs)
             except Exception as e:
                 logger.warning("Failed to read staged file %s: %s", spath, e)
                 _quarantine_file(spath)
                 continue
 
             try:
-                rdf = read_ts(rpath, force_regular=True)
+                rdf = read_ts(rpath, force_regular=regular, **read_kwargs)
             except NotImplementedError as e:
                 if "force_regular but could not discover freq" in str(e):
                     logger.warning(
                         "Repo file could not be regularized; rereading irregular for frequency classification: %s",
                         rpath,
                     )
-                    rdf = read_ts(rpath, force_regular=False)
+                    rdf = read_ts(rpath, force_regular=False, **read_kwargs)
                 else:
                     raise
             except Exception as e:
@@ -1163,7 +1193,16 @@ def update_repo(
                 logger.error(e, stack_info=True, exc_info=True)
                 raise
 
-            status, freq_reason, sfreq, rfreq = compare_regular_freq(sdf, rdf)
+            if regular:
+                status, freq_reason, sfreq, rfreq = compare_regular_freq(sdf, rdf)
+            else:
+                # Irregular repos (e.g. structures): skip regular-frequency
+                # classification, which would spuriously flag a frequency
+                # mismatch on genuinely irregular data. Fall through to the
+                # normal index-based reconcile; the splice is applied with
+                # ts_splice so irregular steps are stitched, not shuffled.
+                status, freq_reason, sfreq, rfreq = "both_regular_same", None, None, None
+
             if status == "dst_irregular":
                 logger.warning(
                     "Destination irregular; replacing whole file: "
@@ -1346,7 +1385,7 @@ def update_repo(
             df = _read_csv_timeseries(a.staged_path)
             if df.index.name is None:
                 df.index.name = "datetime"
-            _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head)
+            _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head, float_format=float_format)
 
         elif a.action == "replace_write":
             if a.repo_path is None:
@@ -1358,7 +1397,7 @@ def update_repo(
             df = _read_csv_timeseries(a.staged_path)
             if df.index.name is None:
                 df.index.name = "datetime"
-            _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head)
+            _write_preserving_header(df=df, dest_path=a.repo_path, header_text=head, float_format=float_format)
 
         elif a.action == "quarantine_skip":
             if a.staged_path is not None:
@@ -1376,26 +1415,31 @@ def update_repo(
             if a.repo_path is None or (not os.path.exists(a.repo_path)):
                 dest = os.path.join(repo_dir, os.path.basename(a.staged_path))
                 head = extract_commented_header(a.staged_path)
-                df = read_ts(a.staged_path, force_regular=True)
-                _write_preserving_header(df=df, dest_path=dest, header_text=head)
+                df = read_ts(a.staged_path, force_regular=regular, **read_kwargs)
+                _write_preserving_header(df=df, dest_path=dest, header_text=head, float_format=float_format)
                 continue
 
             head = extract_commented_header(a.repo_path)
 
-            sdf = read_ts(a.staged_path, force_regular=True)
+            sdf = read_ts(a.staged_path, force_regular=regular, **read_kwargs)
             try:
-                rdf = read_ts(a.repo_path, force_regular=True)
+                rdf = read_ts(a.repo_path, force_regular=regular, **read_kwargs)
             except NotImplementedError:
-                rdf = read_ts(a.repo_path, force_regular=False)
+                rdf = read_ts(a.repo_path, force_regular=False, **read_kwargs)
 
-            if prefer == "repo":
+            if not regular:
+                # Irregular top-off: stitch by time patches so irregular steps
+                # are not interleaved into a shuffled union index.
+                transition = "prefer_first" if prefer == "repo" else "prefer_last"
+                merged = ts_splice([rdf, sdf], transition=transition, preserve_freq=False)
+            elif prefer == "repo":
                 merged = ts_merge([rdf, sdf], strict_priority=True)
             elif prefer == "staged":
                 merged = ts_merge([sdf, rdf], strict_priority=True)
             else:
                 raise ValueError("prefer must be 'repo' or 'staged'")
 
-            _write_preserving_header(df=merged, dest_path=a.repo_path, header_text=head)
+            _write_preserving_header(df=merged, dest_path=a.repo_path, header_text=head, float_format=float_format)
 
         else:
             raise ValueError(f"Unknown action {a.action}")

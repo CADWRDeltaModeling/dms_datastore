@@ -179,6 +179,21 @@ repos:
   structures_formatted:
     root: "//cnrastore-bdo/Modeling_Data/repo/structures/formatted"
     registry: structures
+    regular: false           # structures data are irregular (gated/stepped)
+    float_format: "%.3f"     # uniform precision on reconcile writes
+    provider_key: processor
+    provider_resolution_mode: assume_unique
+    filename_templates:
+      - "{processor}_{station_id@subloc}_{param@modifier}.csv"
+      - "{processor}_{station_id@subloc}_{param@modifier}_{year}.csv"
+
+  structures_processed:
+    root: "//cnrastore-bdo/Modeling_Data/repo/structures/processed"
+    registry: structures
+    regular: false           # structures data are irregular (gated/stepped)
+    float_format: "%.3f"     # uniform precision on reconcile writes
+    dtypes:                  # preserve integer columns through reconcile round-trips
+      ndup: Int64
     provider_key: processor
     provider_resolution_mode: assume_unique
     filename_templates:

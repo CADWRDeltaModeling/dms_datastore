@@ -1716,9 +1716,13 @@ def csv_retrieve_ts(
     # complex cases. It correctly handles the situation where all the
     # items in selector are floats, all the items in qaqc_selector are alphanumeric
     coltypes = {} if dtypes is None else dtypes.copy()
-    if len(coltypes.keys()) == 0 and selector is None:
-        # None provided. Seems like this might fail for non-data columns if included
-        coltypes = float
+    if selector is None:
+        # dms1-style read with no explicit selector. With no dtype overrides,
+        # fall back to reading every column as float (legacy behavior). If the
+        # caller supplied dtypes, honor them and let pandas infer the remaining
+        # columns so integer columns (e.g. 'ndup') are preserved.
+        if len(coltypes.keys()) == 0:
+            coltypes = float
     else:
         if qaqc_selector is None:
             for s in selector:

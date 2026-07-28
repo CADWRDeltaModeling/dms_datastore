@@ -60,10 +60,12 @@ __all__ = [
     "registry_df",
     "repo_registry",
     "source_priority_group",
+    "resolve_dropbox_recipe",
 ]
 
 config = None
 localdir = os.path.join(os.path.split(__file__)[0], "config_data")
+recipedir = os.path.join(os.path.split(__file__)[0], "dropbox_recipes")
 
 with open(os.path.join(localdir, "dstore_config.yaml"), "r") as stream:
     config = yaml.load(stream, Loader=yaml.FullLoader)
@@ -246,6 +248,83 @@ def config_file(label):
         raise ValueError(f"Config label not found: {label}")
     fname = config[label]
     return _resolve_config_path(fname)
+
+
+def resolve_dropbox_recipe(name):
+    """
+    Resolve a dropbox recipe YAML to an existing filesystem path.
+
+    Recipes are centralized in the bundled ``dropbox_recipes`` package
+    directory so that they resolve identically for a development install
+    (``pip install -e .``) and a deployed wheel. This resolver is intentionally
+    separate from :func:`config_file`: its argument is a filename (with or
+    without a ``.yaml`` extension), not a top-level configuration label.
+
+    Parameters
+    ----------
+    name : str
+        An explicit path to a recipe file, or the bare name of a recipe bundled
+        in ``dropbox_recipes`` (e.g. ``"dropbox_daily"`` or
+        ``"dropbox_daily.yaml"``).
+
+    Returns
+    -------
+    str
+        Existing filesystem path to the recipe.
+
+    Raises
+    ------
+    ValueError
+        Raised if ``name`` is ``None`` or cannot be resolved to an existing
+        file.
+
+    Notes
+    -----
+    Resolution order (first existing match wins):
+
+    1. ``name`` as given, if it is an existing path (absolute or relative to the
+       current working directory). This preserves file-based ``--input`` usage.
+    2. ``<cwd>/dropbox_recipes/<name>`` — a project-local override directory.
+    3. ``<package>/dropbox_recipes/<name>`` — the bundled recipes.
+
+    A ``.yaml`` extension is appended automatically when ``name`` has no
+    extension.
+    """
+    if name is None:
+        raise ValueError("Dropbox recipe name cannot be None")
+
+    candidates = [name]
+    root, ext = os.path.splitext(name)
+    if not ext:
+        candidates.append(name + ".yaml")
+
+    searched = []
+    for candidate in candidates:
+        # 1. Explicit existing path (absolute or cwd-relative).
+        if os.path.isabs(candidate):
+            searched.append(candidate)
+            if os.path.exists(candidate):
+                return candidate
+            continue
+        if os.path.exists(candidate):
+            return candidate
+        searched.append(candidate)
+
+        # 2. Project-local override directory under the cwd.
+        cwd_recipe = os.path.join("dropbox_recipes", candidate)
+        searched.append(cwd_recipe)
+        if os.path.exists(cwd_recipe):
+            return cwd_recipe
+
+        # 3. Bundled package recipes.
+        pkg_recipe = os.path.join(recipedir, candidate)
+        searched.append(pkg_recipe)
+        if os.path.exists(pkg_recipe):
+            return pkg_recipe
+
+    raise ValueError(
+        f"Dropbox recipe not found: {name}. Searched: {searched}"
+    )
 
 
 # -----------------------------------------------------------------------------
