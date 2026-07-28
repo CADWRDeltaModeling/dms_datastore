@@ -1,358 +1,126 @@
 #!/usr/bin/env python
-import datetime as dtm
-import os
-import numpy as np
-import vtools.functions.unit_conversions as units
-import matplotlib.pylab as plt
-from dms_datastore.read_ts import *
-from shutil import copyfile
-import numpy as np
-import pandas as pd
-import pytz
+"""Reduce CCFB five-gate radial heights to the processed (ndup, height) product.
 
-""" Preprocess CCF data from Wonderware to dated SCHISM format
-1.	Get the latest gate open and closure height file from Wonderware but only for the gap between the last forecast and this one -- don’t overwrite data that has already been corrected for DST. Wonderware is well behaved, and it will be assumed here that this file is complete and needs no backup plan. You can log in at .  You will use your water domain username and password. 
-https://csbis.water.ca.gov
-2. Select Query from the initial menu and then the SQL tab. You eventually will want to change the start time (the one with DateTime >=) but you don't need to do it every time and some overlap helps prevent errors when integrating old and new data.
+The upstream steps (Wonderware retrieval, DST correction, coarsening and
+formatting) now happen elsewhere and produce the formatted five-gate product in
+the ``structures_formatted`` repo, e.g.
+``//cnrastore-bdo/Modeling_Data/repo/structures/formatted/dms_ccfb@radial_height.csv``
+with columns ``gate_1 .. gate_5``.
 
-This is the query -- you will need to cahnge
-SET QUOTED_IDENTIFIER OFF
-SELECT * FROM OPENQUERY(INSQL, "SELECT DateTime = convert(nvarchar, DateTime, 20),[DTHST.CCFB_GATE01.POS_FT],[DTHST.CCFB_GATE02.POS_FT], [DTHST.CCFB_GATE03.POS_FT], [DTHST.CCFB_GATE04.POS_FT], [DTHST.CCFB_GATE05.POS_FT]
-FROM WideHistory
-WHERE wwRetrievalMode = 'Cyclic'
-AND wwResolution = 120000
-AND wwVersion = 'Latest'
-AND DateTime >= '20251201 00:00:00.000'
-AND DateTime <= '20260119 20:00:00.000'")
-2.	Save. The save button makes csv in wonderware. I use ccf_gate_height_wonderware_2023_9999.csv 
+This step reads that product and reduces the per-gate heights to two columns:
 
-3. The preprocessor will correct the file for DST, match date/number format to the one used for schism and append to the existing. It will also trim redundant entries and reformat. Run process_ccfb_gate_height. At that point,you would append to prior files in GitHub and in Modeling_Data. We tend to find problems and fix them. 
+* ``ndup``   -- number of gates open above ``thresh_open``
+* ``height`` -- mean height of the open gates
 
-The dataprep work area no longer reconstructs the entire history of CCF, because this involvoes onerous switching between methods during the pre-Wonderware/SAP era. 
-
-Sample usage:
-process_ccfb_gate_height.py --infile //cnrastore-bdo/Modeling_Data/clifton_court/ccf_gate_height_wonderware_2023.csv --basefile D:/Delta/BayDeltaSCHISM/data/time_history/ccfb_gate.th --transition 2023-01-02 --outfile ccfb_gate_20230208.th
-python process_ccfb_gate_height.py --infile gate_height_wonderware_2025b.csv --outfile ccfb_gate_20250610.th
+Units remain **feet** (no unit conversion is applied here).  The output is
+written as a DMS-format CSV via :func:`write_ts_csv` and belongs in the
+``structures_processed`` structures repo (moved there separately, e.g. via dropbox).
 """
+import logging
+from pathlib import Path
+
+import click
+import pandas as pd
+
+from dms_datastore.read_multi import read_ts_repo
+from dms_datastore.write_ts import write_ts_csv
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
+
+logger = logging.getLogger(__name__)
+
+# Threshold (ft) above which a gate is considered in use; filters noise.
+THRESH_OPEN = 0.03
 
 
-def read_wonderware(infile):
-    """ Read a gate height file from Wonderware and convert to PST
-    
+def reduce_gate_height(gates, thresh_open=THRESH_OPEN):
+    """Reduce a five-gate height frame to ``ndup`` and mean ``height`` (feet).
+
     Parameters
     ----------
-    infile : str
-    path to the Wonderware file
+    gates : pandas.DataFrame
+        Frame of per-gate heights (columns ``gate_1 .. gate_5``) in feet.
+    thresh_open : float, optional
+        Height (ft) above which a gate is counted as open.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Frame with columns ``ndup`` (Int64), ``height`` (float, feet), and an
+        empty ``comment`` column matching the processed-repo schema.
     """
-    
-    ts = pd.read_csv(infile,sep=",",comment="#",parse_dates=["DateTime"],
-                     index_col="DateTime",dtype=float,na_values=["(null)"])    
-    pst = 'ETC/GMT+8'
-    pdt = 'US/Pacific'
+    height_sum = gates.sum(axis=1)  # sum before ndup is computed
+    ndup = (gates > thresh_open).sum(axis=1)
+    height = height_sum.divide(ndup, axis="index", fill_value=0.0).round(3)
+    df = pd.DataFrame({"ndup": ndup.astype("Int64"), "height": height})
+    df.loc[df.ndup == 0, "height"] = 0.0
+    df["comment"] = pd.NA
+    df.index.name = "datetime"
+    return df
 
 
-    ts.index = ts.index.tz_localize(pdt,nonexistent="shift_backward",ambiguous="infer").tz_convert(pst)
-    #ts.index = ts.index.floor("1min")
-    #ts = ts[~ts.index.duplicated(keep="first")]
-    ts.index = ts.index.tz_localize(None)
-    return ts
+def process_ccfb_gate_height(start=None, end=None, thresh_open=THRESH_OPEN):
+    """Read the formatted five-gate product and reduce it to ndup/height.
 
-
-def ccf_trim(df,outfile):
-    """ Trim a dataframe containing gate heights to eliminate near-duplicates """
-    gatecols = ["gate01","gate02","gate03","gate04","gate05"]
-    df.columns = gatecols
-    df = df.astype(float)
-    # Get rid of duplicate indexes (less than 1 second apart)
-    df = df[~df.index.duplicated(keep='first')]
-    df.sort_index(inplace=True)
-    # Trim near-duplicate times and then duplicate data
-    df2 = df.asfreq('2min',method='pad')
-
-    #df2=df2.apply(np.round, args=[2])
-    df2 = df2.round(2)
-    df2=df2.loc[~df2.isnull().any(axis=1)]
-    #df2.where((df2 > 0.1
-
-    # Workaround to a problem in drop_duplicates()
-    #if (df2.iloc[0,:] == 0.).all():
-    #    df2.iloc[0,4]=1.e-6
-    #if (df2.iloc[-1,:] == 0.).all():
-    #    df2.iloc[-1,3]=1.e-6
-
-    df2sum = df2.sum(axis=1)
-    df2dup = (df2 == 0.).all(axis=1) & (df2 == df2.shift(1)).all(axis=1)
-    df2dup  |= (df2sum != 0.) & ((df2 - df2.shift(1)).abs() <= 0.01).all(axis=1)
-    df2 = df2.loc[~df2dup,:]
-    df2.to_csv(outfile,float_format="%.4f")
-    return df2
-
-
-# todo: changed from 5 to 1
-no_gates_used = 2
-
-def write_ccf_th(fname,df):
-    #datetime      install  ndup  op_down   op_up     elev	  width	   height
-    df.index.name = "datetime"  
-    df["elev"] = "-4.0244"
-    df["width"] = "6.096"
-    df["op_down"] = "1.0"
-    df["op_up"] = "0.0"
-    df["ndup"] = df.ndup.astype(int)
-    df["install"] = int(1) 
-    df[["install","ndup","op_down","op_up","elev","width","height"]].to_csv(fname,sep=" ",float_format="%.3f",date_format="%Y-%m-%dT%H:%M")
-    
-
-
-
-################ Below here until the next set of ### is detritus that may be useful for infering gates from flow 
-################ Older versions of process_ccfb_gate_height are potentially useful for seeing the way the 
-################ longer history has been synthesized, but probably are not too useful
-    
-
-def ccfb_th_line(tm,nduplicate,height):
-    """ Create a time history line by filling in values that are always the same"""
-    ngvd_m=0.70
-    datestr = tm.strftime("%Y-%m-%dT%H:%M")
-    install = 1
-    op_down = 1.0
-    op_up   = 0.0
-    width   = units.ft_to_m(20)
-    elev    = units.ft_to_m(-15.5) + ngvd_m
-    if height < 0.0:
-        raise ValueError("Negative gate height not allowed")
-    if height == -0.000:
-        height = 0.0
-    # Gets rid of unsightly "-0.000" entries
-    startline = "{0} {1} {2} {3} {4} {5} {6} {7:6.3f}\n"
-    finalline = startline.format(datestr,install,int(nduplicate),\
-                                 op_down,op_up,elev,width,abs(height))
-    return finalline
-
-def write_th(ts,thfile):
-    """Convert a csv file with date,heights to an irregular time series"""
-    print("out",thfile)
-    with open(thfile,"w") as outfile:
-        for el in ts:
-            nduplicate = el.value[0]
-            aveheight = el.value[1]
-            outfile.write(ccfb_th_line(el.time,nduplicate,aveheight))    
-    
-    
-def invert_flow(flow,x1,x2):
-    """ Invert a flow into a gate height with no information on up/down stage 
-        Formula is x2*h*h + x1 *h - flow = 0
+    Returns
+    -------
+    tuple
+        ``(reduced_dataframe, metadata_dict)`` where the metadata is carried
+        forward from the source formatted file so units and station identity
+        are preserved.
     """
-    safe_flow = np.minimum(np.maximum(0.,flow.data),(x1*x1)/(-4.*x2))
-    m = np.sqrt(x1*x1 + 4.*x2*safe_flow)
-    hgate = 0.*flow
-    hgate_minus = (-x1-m)/(2.*x2)
-    hgate_plus = (-x1+m)/(2.*x2)
-    hgate.data = np.minimum(hgate_minus,hgate_plus)
-    hgate.data = np.minimum(16.5,hgate.data)
-    return hgate    
+    meta_list, gates = read_ts_repo(
+        "ccfb",
+        "height",
+        subloc="radial",
+        repo="structures_formatted",
+        force_regular=False,
+        start=start,
+        end=end,
+        meta=True,
+    )
+    reduced = reduce_gate_height(gates, thresh_open=thresh_open)
+    metadata = dict(meta_list[0]) if meta_list else {}
+    return reduced, metadata
 
-   
 
-   
-def read_gate_height(datafile,thresh_open=0.03):
-    """Convert a csv file with date,heights to a bivariate irregular time series of #duplicates and height
-       thresh_open is the threshold at which gate is considered in use, which can filter a lot of noise
+@click.command("process_ccfb_gate_height")
+@click.option("--outfile", type=click.Path(path_type=Path),
+              default="dms_ccfb@radial_height.csv", show_default=True,
+              help="Output CSV path for the processed ndup/height product.")
+@click.option("--start", type=str, default=None,
+              help="Optional inclusive start time.")
+@click.option("--end", type=str, default=None,
+              help="Optional inclusive end time.")
+@click.option("--thresh-open", type=float, default=THRESH_OPEN, show_default=True,
+              help="Height (ft) above which a gate is counted as open.")
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs",
+              help="Directory for log files.")
+@click.option("--debug", is_flag=True, help="Enable debug logging.")
+@click.option("--quiet", is_flag=True, help="Suppress console output.")
+@click.help_option("-h", "--help")
+def process_ccfb_gate_height_cli(outfile, start, end, thresh_open, logdir, debug, quiet):
+    """Reduce the CCFB five-gate radial heights to the processed ndup/height CSV.
+
+    Reads the formatted five-gate product from the ``structures_formatted`` repo
+    and writes ``datetime,ndup,height`` (heights in feet) as a DMS-format CSV.
     """
-    lastmin=-1
-    df = pd.read_csv(datafile,sep=",",index_col=0,parse_dates=[0],header=0,na_values=["(null)"],dtype=float)
-    height_sum = df.sum(axis=1)  # don't move this without care
-    df["ndup"] = (df>thresh_open).sum(axis=1)
-    df["height"] = height_sum.divide(df.ndup,axis="index",fill_value=0.)*units.FT2M
-    df.loc[df.ndup == 0,'height'] = 0.
-    return df[["ndup","height"]]
-   
-
-def combine_heights(heights, height_q,forced=[]):
-    """ Merge two irregular series based on whether they cover the same day.
-        If the first series has entries in a day, it bumps the second. 
-        Dates in forced are ones in which the second priority is used regardless of coverage by the first
-        #todo: Should have generically named args and be moved to VTools
-    """
-    if len(forced) > 0:
-        if type(forced[0] == dtm.datetime):
-            forced = [d.date() for d in forced]
-    series_vals={}
-    days_covered = set()
-    for ht in heights:
-        if np.isnan(ht.value[0]): continue
-        if not ht.time.date() in forced: 
-            days_covered.add(ht.time.date())
-            series_vals[ht.time] = ht.value
-
-    for htq in height_q:
-        htqdate = htq.time.date()
-        if not htqdate in days_covered:
-            series_vals[htq.time] = (no_gates_used,htq.value)
-        
-    times = series_vals.keys()
-    times.sort()
-    vals = []
-    for t in times:
-        vals.append(series_vals[t])
-    
-    data = np.array(vals)
-    gate_ts = its(times,data)
-   
-    return gate_ts
-    
-
-                    
-      
-def timing_data(stime,etime):
-    source = "data/forecast.dss"
-    select = "B=CHWST000,C=POS,F=DSM2-20150901-91A"
-    usewindow = (stime,etime)
-    ts=dss_retrieve_ts(source,select,usewindow,unique=True)
-    return ts 
-
-def heights_inverted_hourly(hills_csv):
-    """ Processes a csv file of stages and Hills flows into a gate height.
-        The Hills Eq are very inaccurate, but this inversion can help in cases when in/out stage
-        and a calculated Hills flow were retained as data but the actual gate heights were not.
-        All five gates are assumed to be operated equally.
-        
-        The lines of the csv file look like this: Datetime, up stage, down stage, Hills-calculated flow
-        2008-01-01 00:00,0.004,-0.494,5597.588
-    """
-    heights=[]
-    times=[]
-    with open(hills_csv,"r") as f:
-        for line in f:
-            if line and len(line) > 4:
-                d,zup,zdown,flow = line.strip().split(",")
-                timestamp = dtm.datetime.strptime(d,"%Y-%m-%d %H:%M")
-                height = invert_hills_flow(float(flow),float(zup),float(zdown))
-                heights.append(height)
-                times.append(timestamp)
-    ts = its(times,heights)
-    return its2rts(ts,hours(1))
+    level, console = resolve_loglevel(debug=debug, quiet=quiet)
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=logdir,
+        logfile_prefix="process_ccfb_gate_height",
+    )
+    reduced, metadata = process_ccfb_gate_height(
+        start=pd.Timestamp(start) if start else None,
+        end=pd.Timestamp(end) if end else None,
+        thresh_open=thresh_open,
+    )
+    logger.info("Reduced %d rows; last time %s", len(reduced), reduced.last_valid_index())
+    write_ts_csv(reduced, str(outfile), metadata=metadata)
+    logger.info("Wrote %s", outfile)
 
 
-#################
-#################
-
-
-
-
-
-def create_arg_parser():
-    # Argument parsing not really ready yet
-    import argparse
-    parser = argparse.ArgumentParser(
-        description='Convert a csv file with date and five CCFB heights to *.th file.')
-    parser.add_argument('--infile', type=str,
-                        help='name of the input csv file containing CCFB heights from wonderware')
-    parser.add_argument('--basefile',type=str,default=None,
-                        help='name of prior file to append')
-    parser.add_argument('--transition',type=lambda x: pd.to_datetime(x),default=None,
-                        help='Date of transition. This is first day to start using the new data. Default is to truncate the last day of the base file to midnight so any improvements in that file are retained')
-    parser.add_argument('--appendfile',type=str,default=None,
-                        help='name of prediction file to append')
-    parser.add_argument('--append_transition',type=lambda x: pd.to_datetime(x),
-                        default=None,
-                        help='Date of transition to secondary file for predictions. This is the first time to use the prediction data. Default is to use the last moment of the new data')
-    parser.add_argument('--outfile', type=str,default="",
-                        help='name of output *.th file')
-    parser.add_argument('--preprocess', type=bool,default=True,
-                        help='preprocess Wonderware file for time zone and sparsity, default true')
-    parser.add_argument('--prepro_out',type=str,help="name of intermediate output file for preprocessor",default="ccf_prepro.csv")
-    return parser
-    
-def main():
-    parser = create_arg_parser()
-    args = parser.parse_args()
-    infile=args.infile
-    thfile = args.outfile
-    preprocess = args.preprocess
-    intermediate = args.prepro_out 
-    basefile = args.basefile
-    transition = args.transition
-    appendfile = args.appendfile
-    append_transition = args.append_transition
-    # Check that prepend and append files exist
-    if basefile == thfile:
-        raise ValueError("basefile and outfile must be different")
-    if basefile is not None:
-        if not os.path.exists(basefile): 
-            raise ValueError(f"If used, basefile ({appendfile}) must exist as a file")
-    if appendfile == thfile:
-        raise ValueError("appendfile and outfile must be different")
-    if appendfile is not None:
-        if not os.path.exists(appendfile): 
-            raise ValueError(f"If used, appendfile ({appendfile}) must exist as a file")
-
-
-    ## start work
-    if preprocess:
-        ts = read_wonderware(infile)
-        ccf_trim(ts,intermediate)
-        infile = intermediate
-    # Read in heights directly and return a time series of heights
-    height_ts = read_gate_height(infile)
-
-    if basefile is not None:
-        print(f"prepending {basefile}")
-        backup = f"ccf_pre_base_backup_{pd.Timestamp.now().strftime('%Y%m%d%H%M')}.csv"
-
-        print(f"creating backup {backup}")
-        copyfile(basefile,backup)
-        existing = pd.read_csv(basefile,sep=r"\s+",index_col=0,comment="#",
-                               parse_dates=[0],header=0)[["ndup","height"]]
-        
-        if transition is None: 
-            transition = existing.last_valid_index().floor('D')
-        height_ts = pd.concat((existing.loc[slice(None,transition),["ndup","height"]],
-                               height_ts.loc[slice(transition,None),["ndup","height"]]),axis=0) 
-        duplicatetime = height_ts.index.duplicated(keep='first')
-        nduplicatetime = duplicatetime.sum()
-        print(f"nduplicatetime for prepending {nduplicatetime}")
-        if nduplicatetime > 1: 
-            print("base grafting process created more than one duplicate")
-        else:
-            if nduplicatetime == 1:
-                height_ts = height_ts[~duplicatetime]
-    if appendfile is not None:
-        print(f"appending {appendfile}")
-        pred  = pd.read_csv(appendfile,sep=r"\s+",index_col=0,comment="#",
-                            parse_dates=[0],header=0)[["ndup","height"]]
-        if append_transition is None: 
-            append_transition = height_ts.last_valid_index()
-            print(f"Append transition time {append_transition}")
-        height_ts = pd.concat(
-               (height_ts.loc[slice(None,append_transition),["ndup","height"]],
-                pred.loc[slice(append_transition,None),["ndup","height"]]),axis=0) 
-        duplicatetime = height_ts.index.duplicated(keep='first')
-        nduplicatetime = duplicatetime.sum()
-        print(f"nduplicatetime for appending {nduplicatetime}")
-        if nduplicatetime > 1: 
-            print("appending process created more than one duplicate")
-        else:
-            if nduplicatetime == 1:
-                height_ts = height_ts[~duplicatetime]
-    print("writing")
-    print(height_ts.last_valid_index())
-    write_ccf_th(thfile,height_ts)
-
-        
-
-        
-if __name__=="__main__":
-    main()    
-    #dfa = pd.read_csv("ccfb_gate_20241106.th",sep=r"\s+",index_col=0,parse_dates=[0],header=0)
-    #dfb = pd.read_csv("d:/Delta/BayDeltaSCHISM/data/time_history/ccfb_gate.th",sep="\s+",index_col=0,parse_dates=[0],header=0)
-    #fig,ax = plt.subplots(1)
-    #ax.step(dfa.index,dfa.height.values,where="post")
-    #ax.step(dfb.index,dfb.height.values,where="post")
-    #ax.legend(["new","orig"])
-    #plt.show()
-    
-    
-#process_ccfb_gate_height.py --infile gate_height_wonderware_2023.csv --transition 2023-01-01 --outfile ccfb_gate_2025a.th
-#python process_ccfb_gate_height.py --infile gate_height_wonderware_2025b.csv --outfile ccfb_gate_20250410.th
-    
+if __name__ == "__main__":
+    process_ccfb_gate_height_cli()
