@@ -7,7 +7,7 @@ target_tz_label: PST
 
 
 data:
-  - name: ccf_elev
+  - name: clc_elev
     skip: False
     collect:
       file_pattern: "CC_Water_Levels_2025*.csv"

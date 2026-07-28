@@ -1,32 +1,33 @@
 
 
-dropbox_home: //cnrastore-bdo/Modeling_Data/
+dropbox_home: temp/dropbox   # This is a placeholder. In practice, this would be set to the actual path of the dropbox home directory on the user's system.
+modeling_data: //cnrastore-bdo/Modeling_Data/
 target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
-target_tz_label: PST 
+target_tz_label: PST
 
 
 data:
-  - name: ccfb
+  - name: clc_elev
     skip: False
     collect:
-      file_pattern: "CC_Gate_Positions_*.csv"
+      file_pattern: "CC_Water_Levels_2025*.csv"
       wildcard: time_overlap    # time_sharded | time_overlap | data | none. 
             # If time_sharded, indicates non-overlapping timestamps that uses year chunking. 
             # If time_overlap, indicates wildcards are ordered by date 20250531(lexicographic must = chronological)
             # If data, represents different station/variable. Look for metadata in the file and station lists. 
             # If none, a wildcard is an error. # todo: test
-      location:   "${dropbox_home}/hydraulic_structures/incoming"  # This could be understood as a default
+      location:   "${modeling_data}/hydraulic_structures/incoming"  # This could be understood as a default
       recursive_search: False
       reader: read_ts    # Names, pointers to code etc. To be fleshed out
       reader_args: 
-         names: ["datetime", "gate_1","gate_2","gate_3","gate_4","gate_5"]
+         names: ["datetime", "up_elev","down_elev"]
          na_values: ["(null)", "null", "NULL", ""]
          hint: "resort"
          force_regular: False
       merge_method: "ts_splice" # We will not call read_ts on wildcard, but rather glob and read and creat list of dfs
       merge_args: 
          transition: prefer_first
-      selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
+      selector: down_elev  # Usually a column name. When read_last_resort_csv is used, use null.
     transforms:
       - name: dst_tz      # SCADA is delivered local time. Often this is not needed from better data sources
         args:
@@ -40,32 +41,33 @@ data:
           hyst: 0.5
           heartbeat_freq: 60min    
     metadata: 
-      station_id: ccfb
-      structure_id: ccfb
-      agency_id: ccfb
+      station_id: clc
+      agency_id: clc
       processor: dms
       agency: dwr
       source: dwr
       freq: None   # None for irregular, "infer" for infer.
-      param: height
+      param: elev
       unit: ft
-      subloc: radial
+      subloc: down
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}  
-      latitude: registry_lookup        # coordinates are provided by the registry and cannot be supplied here in a way that might contradict 
-      longitude: registry_lookup       # 'registry_lookup' is just a marker for clarity on this point
+      latitude: registry_lookup         # projected will be inferred. User changes should be made to projected, not latitude/longitude. 
+      longitude: registry_lookup     # what happens when this and registry entry have conflicting metadata for something like latitude.
+                                # seems like this prevails, but we should prevent conflicts.
 
     output:
-      repo_name: structures_formatted    # This is a pointer to an entry in dbase_config.yaml
+      # repo_data_dir: ${modeling_data}/repo/continuous/proprietary/formatted     # This is a practice directory so you don't go overwriting a real repo while developing the recipe
+                                                  # When omitted the target location is the repo_root as configured in dstore_config.yaml
+      repo_name: proprietary_formatted   # This is a pointer to an entry in dstore_config.yaml
       staging:                           # This is where the read and transformed time series will be staged. 
                                          # It will be used to update the repo, but that uses update_repo and may not mean a full replacement
-        dir: ${dropbox_home}/repo_staging_auto/dropbox/ccf@radialgate
+        dir: ${modeling_data}/repo/continuous/proprietary/staging
         write_args:
           float_format: "%0.3f"
-          chunk_years: False
+          chunk_years: True
       reconcile:
-        repo_data_dir: ${dropbox_home}/repo/structures/formatted     # This is a practice directory so you don't go overwriting a real repo while developing the recipe
-                                                  # When omitted the target location is the repo_root as configured in dbase_config.yaml
+        
         prefer: staged                            # This is an argument to the update process: 
                                                   #    - staged means "prefer the new stuff we staged"
                                                   #    - repo means "prefer the stuff in the repo, just top off with any new time stamps"
