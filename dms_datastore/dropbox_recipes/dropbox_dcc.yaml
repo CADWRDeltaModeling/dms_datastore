@@ -1,0 +1,61 @@
+# "dcc" is for consolidating Delta Cross Channel gate ops
+dropbox_home : //cnrastore-bdo/Modeling_Data/
+
+dcc_dropbox_path : repo_staging_auto/dropbox/dcc/data/converted/dxc_gate
+dcc_repo_data_dir: ${dropbox_home}/${dcc_dropbox_path}
+
+dcc_staging_dir: ${dropbox_home}/repo_staging_auto/dropbox/dcc@tmp
+
+target_tz: "Etc/GMT+8"
+target_tz_label: PST
+
+data:
+  - name: dcc
+    skip: False
+    collect:
+      file_pattern: "Ccgates*.csv"
+      wildcard: time_overlap
+      location: "${dropbox_home}${dcc_dropbox_path}"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+        force_regular: False
+        hint: resort
+        dtypes:
+          action: str
+          comments: str
+      selector: [action, comments]
+    transforms:
+      - name: dst_tz # Timezone should be aligned already, adding just in case.
+        args:
+          src_tz: US/Pacific
+          target_tz: ${target_tz}
+
+    metadata:
+      station_id: dcc
+      structure_id: dcc
+      agency_id: dcc
+      processor: dms
+      agency: dwr
+      source: dwr
+      freq: None
+      param: action
+      unit: state
+      subloc: default
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+
+    output:
+      repo_name: structures_formatted
+      repo_data_dir: ${dcc_repo_data_dir}
+      staging:
+        dir : ${dcc_staging_dir}
+      reconcile:
+        prefer: repo
+        allow_new_series: true
+        inspection:
+          recent_years: 3
+          p3: 0.15
+          p10: 0.05
