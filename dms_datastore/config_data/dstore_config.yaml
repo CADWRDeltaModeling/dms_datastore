@@ -192,8 +192,14 @@ repos:
     registry: structures
     regular: false           # structures data are irregular (gated/stepped)
     float_format: "%.3f"     # uniform precision on reconcile writes
-    dtypes:                  # preserve integer columns through reconcile round-trips
+    dtypes:                  # preserve non-float columns through reconcile round-trips
       ndup: Int64
+      flashboards: str       # ops-log categorical columns (dms_smscg_ops.csv)
+      gate_1: str
+      gate_2: str
+      gate_3: str
+      action: str
+      remarks: str
     provider_key: processor
     provider_resolution_mode: assume_unique
     filename_templates:

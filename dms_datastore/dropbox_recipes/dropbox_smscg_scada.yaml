@@ -1,0 +1,83 @@
+# SMSCG SCADA flavor: Wonderware/MSCK observed gate heights (radial gates)
+# Reads raw SCADA data with actual measured gate positions in feet
+# Source: MSCK_Data_*.csv or similar SCADA exports
+# Pattern: raw → structures_formatted (per-gate frame with 2-min adaptive coarsening)
+#
+# Use: dms dropbox --input dropbox_smscg_scada.yaml
+#      dms dropbox --input dropbox_smscg_scada.yaml --name smscg_scada
+
+repo_home: //cnrastore-bdo/Modeling_Data/
+target_tz: "Etc/GMT+8"    # POSIX sign reversed: PST
+target_tz_label: PST
+
+data:
+  - name: smscg_scada
+    skip: False
+    collect:
+      # Match MSCK export files (time_overlap: overlapping daily/periodic files)
+      # Adapt file_pattern to match your source naming convention
+      file_pattern: "MSCK_Data_*.csv"
+      wildcard: time_overlap    # lexicographic order = chronological
+      location: "${repo_home}/hydraulic_structures/incoming"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+        hint: "resort"
+        names: ["datetime", "gate_1","gate_2","gate_3"]
+        usecols: ["datetime","gate_1","gate_2","gate_3"]
+        na_values: ["(null)", "null", "NULL", ""]
+        force_regular: False    # CRITICAL: gate data is irregular; never read with force_regular=True
+      merge_method: "ts_splice"    # concat overlapping time_overlap files
+      merge_args:
+        transition: prefer_first
+      selector: ["gate_1","gate_2","gate_3"]
+
+    # select only the 3 gate columns
+    
+    transforms:
+      # Step 1: Convert from local DST time (Wonderware) to PST
+      - name: dst_tz
+        args:
+          src_tz: US/Pacific
+          target_tz: ${target_tz}
+      
+      # Step 2: Coarsen to adaptive 2-min grid with smart preservation of transitions
+      # This is what shapes the final series; do NOT apply asfreq after this
+      - name: coarsen
+        args:
+          grid: 2min            # output sampling interval
+          preserve_vals: [0.0]  # snap to fully-closed state + its boundaries
+          qwidth: 0.01          # quantization (ft)
+          hyst: 0.5             # hysteresis (ft): only re-quantize when value moves > 0.5*qwidth
+          heartbeat_freq: 60min # force keep-alive sample hourly during idle periods
+    
+    metadata:
+      station_id: smscg
+      subloc: radial          # sublocation distinguishes radial gates from flashboard/boatlock
+      source: dms
+      agency: dwr
+      processor: dms          # who processed the data
+      param: height
+      unit: ft
+      freq: None              # None for irregular; "infer" for regular
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      # Coordinates are auto-populated from structures_registry.csv; do NOT specify them here
+      latitude: registry_lookup
+      longitude: registry_lookup
+
+    output:
+      repo_name: structures_formatted    # target repo from dstore_config.yaml
+      staging:
+        dir: ${repo_home}/hydraulic_structures/incoming/drop_staging
+        write_args:
+          float_format: "%.3f"
+          chunk_years: False
+      reconcile:
+        # Omit repo_data_dir to use the default from repo config
+        prefer: staged        # prefer newly staged over stale repo data
+        allow_new_series: true
+        inspection:
+          recent_years: 3
+          p3: 0.15
+          p10: 0.05

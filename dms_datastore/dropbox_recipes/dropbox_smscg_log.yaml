@@ -1,0 +1,79 @@
+# SMSCG LOG flavor: Incoming operational log from CNRA Open Data Portal
+# Reads idealized gate mode operations (Tidal/Open/Closed) with flashboard & action notes
+# Source: smscg-log.csv (auto-expanding feed, unvetted)
+# Pattern: raw → merge with canonical → structures_processed/dms_smscg_ops.csv (prefer canonical where overlap)
+#
+# Use: dms dropbox --input dropbox_smscg_log.yaml --name smscg_log
+
+repo_home: //cnrastore-bdo/Modeling_Data/
+target_tz: "Etc/GMT+8"    # POSIX sign reversed: PST
+target_tz_label: PST
+
+
+data:
+  - name: smscg_log
+    skip: False
+    collect:
+      # Incoming operational log from CNRA Open Data Portal
+      file_pattern: "smscg-log.csv"
+      location: "${repo_home}/repo_staging_auto/dropbox/smcg/data/converted/montezuma_gate_log"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+        hint: "resort"
+        # Rename incoming columns (UPPERCASE, spaces) to canonical (lowercase, underscores)
+        names: ["datetime", "flashboards", "gate_1", "gate_2", "gate_3", "action", "remarks"]
+        # Ops-log columns are categorical strings; without this the selector below
+        # would force them to float ("could not convert string to float: 'Open'")
+        dtypes:
+          flashboards: str
+          gate_1: str
+          gate_2: str
+          gate_3: str
+          action: str
+          remarks: str
+        na_values: ["(null)", "null", "NULL", ""]
+        force_regular: False    # ops log is event-driven, not regularly sampled
+      
+      # Keep all columns (datetime-indexed ops log, not just heights)
+      selector: ["flashboards", "gate_1", "gate_2", "gate_3", "action", "remarks"]
+      
+      # Merge incoming onto canonical with prefer_first: keep existing rows where dates overlap, append new
+      merge_method: "ts_splice"
+      merge_args:
+        transition: prefer_first
+
+    transforms:
+      - name: add_column
+        args:
+          name: user_remarks
+          dtype: string
+          default: null
+
+
+    metadata:
+      station_id: smscg
+      source: dms
+      agency: dwr
+      processor: dms          # who processed the data
+      param: ops
+      unit: mode              # categorical: gate modes and actions, not numeric
+      freq: None              # None for irregular; ops log is event-driven
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      # Coordinates are auto-populated from structures_registry.csv; do NOT specify them here
+      latitude: registry_lookup
+      longitude: registry_lookup
+
+
+    output:
+      repo_name: structures_processed    # target repo from dstore_config.yaml
+      staging:
+        dir: ${repo_home}/repo_staging_auto/dropbox/smcg/staging
+        write_args:
+          float_format: "%.3f"
+          chunk_years: False
+      reconcile:
+        # Omit repo_data_dir to use the default from repo config
+        prefer: repo        # prefer newly staged over stale repo data
+        allow_new_series: true

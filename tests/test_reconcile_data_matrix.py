@@ -207,6 +207,44 @@ def test_user_patch_applies_explicit_on_equal_values(tmp_path: Path) -> None:
     assert out["user_flag"].astype("Int64").iloc[0] == 1
 
 
+def test_update_repo_preserves_repo_only_columns(tmp_path: Path) -> None:
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+
+    idx = pd.date_range("2024-01-01", periods=2, freq="D")
+    idx.name = "datetime"
+
+    repo_df = pd.DataFrame(
+        {
+            "flashboards": ["OUT", "IN"],
+            "gate_1": ["Open", "Open"],
+            "gate_2": ["Open", "Open"],
+            "gate_3": ["Open", "Open"],
+            "action": ["Flashboards Removed", "Flashboards Installed"],
+            "remarks": ["", ""],
+            "user_remarks": ["manual note", pd.NA],
+        },
+        index=idx,
+    )
+    repo_df["user_remarks"] = repo_df["user_remarks"].astype("string")
+
+    staged_df = repo_df.drop(columns=["user_remarks"]).copy()
+
+    f = "dms_smscg_ops.csv"
+    meta = "station_id: smscg\nparam: ops\nunit: mode\nsource: dms\nagency: dwr\n"
+    write_ts_csv(repo_df, repo / f, metadata=meta, chunk_years=False)
+    write_ts_csv(staged_df, staged / f, metadata=meta, chunk_years=False)
+
+    actions = update_repo(str(staged), str(repo), now=NOW, regular=True, plan=False)
+
+    assert actions
+    out = pd.read_csv(repo / f, comment="#", parse_dates=["datetime"], index_col="datetime")
+    assert "user_remarks" in out.columns
+    assert out["user_remarks"].iloc[0] == "manual note"
+
+
 NOW = pd.Timestamp("2026-02-08")
 
 

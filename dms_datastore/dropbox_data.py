@@ -12,7 +12,7 @@ from dms_datastore.read_ts import read_ts, infer_freq_robust
 from dms_datastore.write_ts import write_ts_csv
 from dms_datastore.dstore_config import repo_registry, repo_config, resolve_dropbox_recipe
 from dms_datastore.filename import interpret_fname, meta_to_filename, naming_spec
-from dms_datastore.reconcile_data import update_repo
+from dms_datastore.reconcile_data import update_repo, _series_id_from_name
 import logging
 from pathlib import Path
 from dms_datastore.logging_config import configure_logging, resolve_loglevel
@@ -140,11 +140,29 @@ def _transform_trim_data(ts, *, side="both", criterion="all_nan", **kwargs):
     return ts.iloc[start:stop]
 
 
+def _transform_add_column(ts, *, name, default=None, dtype=None, **kwargs):
+    if kwargs:
+        raise ValueError(f"add_column transform got unexpected args: {sorted(kwargs.keys())}")
+    if not isinstance(name, str) or not name:
+        raise ValueError("add_column transform requires a non-empty string 'name'")
+    if name in ts.columns:
+        raise ValueError(f"add_column transform cannot add existing column {name!r}")
+
+    value = pd.Series(default if default is not None else pd.NA, index=ts.index)
+    if dtype is not None:
+        value = value.astype(dtype)
+
+    ts = ts.copy()
+    ts[name] = value
+    return ts
+
+
 # register built-ins
 register_transform("dst_st", _transform_dst_st)
 register_transform("coarsen", _transform_coarsen)
 register_transform("dst_tz", _transform_dst_tz)
 register_transform("trim_data", _transform_trim_data)
+register_transform("add_column", _transform_add_column)
 
 
 
@@ -431,18 +449,20 @@ def _check_metadata(meta, repo_name):
 
     required = [
         site_key,
-        "subloc",
         "source",
         "agency",
         "param",
         "unit",
         "time_zone",
     ]
+    # subloc is optional; omit it (or set to None) for series without sublocation
+    optional = ["subloc"]
+    
     # Explicitly forbid legacy key
     if "sublocation" in meta:
         raise ValueError(
             "Metadata key 'sublocation' is no longer supported. "
-            "Use 'subloc' instead (e.g., 'default', 'upper', 'lower')."
+            "Use 'subloc' instead (e.g., 'default', 'upper', 'lower', or omit for None)."
         )
     for k in required:
         if k not in meta:
@@ -465,7 +485,9 @@ def _check_metadata(meta, repo_name):
     _require_lower("agency")
     _require_lower("param")
     _require_lower(site_key)
-    subloc = meta["subloc"]
+    
+    # subloc is optional; if omitted or None, use "default"
+    subloc = meta.get("subloc", None)
 
     if subloc is None or str(subloc).strip().lower() in ["", "none"]:
         meta["subloc"] = "default"
@@ -853,9 +875,14 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                 name, len(outputs_to_write), dest
             )
             write_args = dict(staging_cfg.get("write_args", {"float_format": "%.4f"}) or {})
+            # Track the exact series this recipe produces so reconcile is scoped
+            # to them and does not sweep in unrelated files sharing the staging dir
+            # (stale artifacts, manual backups, or other recipes' outputs).
+            produced_series = set()
             for ts, meta_out in outputs_to_write:
-                fname_out = meta_to_filename(meta_out, repo=repo_name, include_shard=False)
-                fname_out = os.path.join(dest, fname_out)
+                fname_base = meta_to_filename(meta_out, repo=repo_name, include_shard=False)
+                produced_series.add(_series_id_from_name(fname_base, remove_source=False))
+                fname_out = os.path.join(dest, fname_base)
                 write_ts_csv(ts, fname_out, metadata=meta_out, **write_args)
 
             if reconcile_cfg is not None:
@@ -881,6 +908,7 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                     regular=repo_config(repo_name).get("regular", True),
                     dtypes=repo_config(repo_name).get("dtypes"),
                     float_format=repo_config(repo_name).get("float_format"),
+                    only_series=produced_series,
                 )
             successes.append(name)
         except Exception as e:

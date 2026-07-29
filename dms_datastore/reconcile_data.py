@@ -40,7 +40,7 @@ import os
 import re
 from dataclasses import dataclass
 from glob import glob
-from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Iterable, List, Mapping, Optional, Sequence, Set, Tuple
 
 import shutil
 import numpy as np
@@ -992,6 +992,7 @@ def update_repo(
     regular: bool = True,
     dtypes: Optional[dict] = None,
     float_format: Optional[str] = None,
+    only_series: Optional[Set[str]] = None,
     plan: bool = False,
 ) -> List[ReconcileAction]:
     """ Reconcile staged vs repo time-series CSV files (formatted/processed tiers).
@@ -1043,6 +1044,15 @@ def update_repo(
         Format string (e.g. ``"%.3f"``) applied to float columns when writing
         reconciled files, so output keeps uniform precision matching the
         original products. ``None`` uses pandas' default repr.
+    only_series : set[str] or None, optional
+        If provided, reconcile *only* the staged series whose identity (as
+        computed by :func:`_series_id_from_name`, i.e. shard-agnostic) is in this
+        set; all other files in ``staged_dir`` are ignored. Intended for callers
+        that share a staging directory across products (e.g. the dropbox
+        pipeline passes the exact series it just wrote) so that stale files from
+        earlier runs, deliberate manual backups, or other recipes' outputs are
+        not swept into the repo as phantom series. ``None`` (default) preserves
+        the historical whole-directory behavior used by the batch CLI.
     plan : bool, default False
         If True, return planned actions without writing.
 
@@ -1094,6 +1104,23 @@ def update_repo(
     repo_files = _list_csv_files(repo_dir, pattern=pattern)
     staged_map = _index_by_series_and_shard(staged_files, remove_source=remove_source)
     repo_map = _index_by_series_and_shard(repo_files, remove_source=remove_source)
+
+    # Optionally restrict reconcile to an explicit set of series identities.
+    # Callers that write into a *shared* staging directory (notably the dropbox
+    # pipeline) pass the exact series they just produced so that unrelated files
+    # already in that directory -- stale artifacts from earlier runs whose
+    # metadata changed, deliberate manual backups (e.g. "...- Copy.csv"), or the
+    # staged outputs of other recipes -- are NOT swept into the repo as phantom
+    # series. The set contains series identities as produced by
+    # ``_series_id_from_name`` (i.e. shard-agnostic), so all year shards of an
+    # included series are retained. Default None preserves the historical
+    # whole-directory behavior relied on by the batch CLI.
+    if only_series is not None:
+        staged_map = {
+            sid: shards
+            for sid, shards in staged_map.items()
+            if sid in only_series
+        }
 
     actions: List[ReconcileAction] = []
     n_candidates = 0
@@ -1463,6 +1490,7 @@ def update_flagged_data(
     value_reference: str = "staged",
     explicit_conflict: str = "prefer_repo",
     freq_mismatch: str = "quarantine",
+    only_series: Optional[Set[str]] = None,
     plan: bool = False,
     max_workers: int = 4,
 ) -> List[ReconcileAction]:
@@ -1487,6 +1515,13 @@ def update_flagged_data(
 
     Writes preserve the existing repo header (metadata) whenever possible.
     Vetting is multithreaded, while writes remain serial and deterministic.
+
+    The optional ``only_series`` argument (a set of shard-agnostic series
+    identities as produced by :func:`_series_id_from_name`) restricts reconcile
+    to those series, ignoring any other files in ``staged_dir``. This mirrors
+    :func:`update_repo` and lets callers that share a staging directory avoid
+    sweeping in stale artifacts, manual backups, or other products' outputs.
+    ``None`` (default) preserves the historical whole-directory behavior.
     """
     if max_workers < 1:
         raise ValueError("max_workers must be >= 1")
@@ -1506,6 +1541,16 @@ def update_flagged_data(
     repo_files = _list_csv_files(repo_dir, pattern=pattern)
     staged_map = _index_by_series_and_shard(staged_files, remove_source=remove_source)
     repo_map = _index_by_series_and_shard(repo_files, remove_source=remove_source)
+
+    # See update_repo: optionally restrict reconcile to an explicit set of series
+    # identities so a shared staging directory's unrelated files are not swept in.
+    # Default None preserves the historical whole-directory behavior.
+    if only_series is not None:
+        staged_map = {
+            sid: shards
+            for sid, shards in staged_map.items()
+            if sid in only_series
+        }
 
     jobs: List[Tuple[str, str, str, Optional[str]]] = []
     for series_id, staged_shards in staged_map.items():

@@ -367,6 +367,14 @@ def read_dms1(
     return ts
 
 
+def _reject_caller_dtypes(reader_name, kwargs):
+    if kwargs.get("dtypes") is not None:
+        raise IOError(
+            f"{reader_name} cannot be used with caller-supplied dtypes; "
+            "let read_ts fall through to a different reader for this file format."
+        )
+
+
 def is_ncro_json(fname):
     with open(fname, "r") as f:
         first_line = f.readline()
@@ -558,6 +566,7 @@ def read_cdec2(
     #    raise ValueError(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
+    _reject_caller_dtypes("read_cdec2", kwargs)
     dateformat = "%Y%m%d %H%M"
     ts = csv_retrieve_ts(
         fpath_pattern,
@@ -693,6 +702,7 @@ def read_wdl2(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
 
+    _reject_caller_dtypes("read_wdl2", kwargs)
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -734,6 +744,7 @@ def read_wdl3(
     #    raise ValueError(
     #        "selector argument is for API compatability. This is not a multivariate format, selector not allowed"
     #    )
+    _reject_caller_dtypes("read_wdl3", kwargs)
     try:
         ts = csv_retrieve_ts(
             fpath_pattern,
@@ -955,6 +966,8 @@ def usgs_data_columns1(fname):
 def read_usgs1(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
+    _reject_caller_dtypes("read_usgs1", kwargs)
+
     TZCOL = "tz_cd"
     if selector is None:
         selector = usgs_data_columns1
@@ -1140,6 +1153,7 @@ def is_usgs2(fname):
 def read_usgs2(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
+    _reject_caller_dtypes("read_usgs2", kwargs)
     tzcol = "TZCD"
     if selector is None:
         selector = "VALUE"
@@ -1214,6 +1228,7 @@ def is_usgs_csv1(fname):
 def read_usgs_csv1(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
+    _reject_caller_dtypes("read_usgs_csv1", kwargs)
     if selector is None:
         selector = "Value"
     qaselect = ["Approval Level"]
