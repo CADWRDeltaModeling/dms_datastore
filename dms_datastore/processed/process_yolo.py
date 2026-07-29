@@ -1,5 +1,9 @@
+import logging
 import os
 import os.path as osp
+from pathlib import Path
+
+import click
 import pandas as pd
 
 import matplotlib.pyplot as plt
@@ -10,6 +14,9 @@ from vtools.functions.error_detect import *
 import yaml
 from dms_datastore.read_multi import read_ts_repo
 from dms_datastore.write_ts import write_ts_csv
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
+
+logger = logging.getLogger(__name__)
 
 lisbon_elev_top = 11.5
 lisbon_flow_top = 4000.0
@@ -381,32 +388,78 @@ def process_yolo_effective_flow(toe_raw, lisbon_elev, sdate, edate):
     return (yolo_data_all["toe_eff"], yolo_data_all["yolo_eff"])
 
 
-if __name__ == "__main__":
-    sdate = pd.to_datetime('2020-01-01 00:00:00')
-    edate = pd.to_datetime('2026-01-01 00:00:00')
-    yolo_outfile = 'yolo_flow.csv'
-    ytoe_outfile = 'ytoe_flow.csv'
+def process_yolo(start, end):
+    """Compute effective Toe Drain and Yolo Bypass flow estimates.
 
-    lisbon_flow_raw, lisbon_elev = get_lisbon(sdate, edate)
-    lisbon_flow = fill_lisbon_flow(lisbon_flow_raw, sdate, edate)
+    Parameters
+    ----------
+    start : pandas.Timestamp
+        Start of the period over which Lisbon flow/elevation and the Yolo
+        Bypass total flow estimate are read and combined.
+    end : pandas.Timestamp
+        End of the period over which Lisbon flow/elevation and the Yolo
+        Bypass total flow estimate are read and combined.
+
+    Returns
+    -------
+    tuple of (pandas.Series, pandas.Series)
+        A 2-tuple ``(toe_final, yolo_final)`` of the effective Toe Drain
+        flow and effective Yolo Bypass flow series, indexed by datetime.
+    """
+    lisbon_flow_raw, lisbon_elev = get_lisbon(start, end)
+    lisbon_flow = fill_lisbon_flow(lisbon_flow_raw, start, end)
     yolo_toe_raw = lisbon_flow.copy()
 
     toe_final, yolo_final = process_yolo_effective_flow(
-        yolo_toe_raw, lisbon_elev, sdate, edate
+        yolo_toe_raw, lisbon_elev, start, end
     )
     if toe_final.isnull().any() or yolo_final.isnull().any():
         raise ValueError(
             "There are missing values in the final Toe Drain or Yolo flow data."
         )
+    return toe_final, yolo_final
 
-    print("Processing for yolo flow complete.")
-    print(
-        "Writing output files...\n\
-          processed_output/yolo_flow.csv\n\
-          processed_output/ytoe_flow.csv"
+
+@click.command("process_yolo")
+@click.option("--yolo-outfile", type=click.Path(path_type=Path),
+              default="yolo_flow.csv", show_default=True,
+              help="Output CSV path for the processed Yolo Bypass flow product.")
+@click.option("--ytoe-outfile", type=click.Path(path_type=Path),
+              default="ytoe_flow.csv", show_default=True,
+              help="Output CSV path for the processed effective Toe Drain flow product.")
+@click.option("--start", type=str, default="2020-01-01", show_default=True,
+              help="Inclusive start time.")
+@click.option("--end", type=str, default="2026-01-01", show_default=True,
+              help="Inclusive end time.")
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs",
+              help="Directory for log files.")
+@click.option("--debug", is_flag=True, help="Enable debug logging.")
+@click.option("--quiet", is_flag=True, help="Suppress console output.")
+@click.help_option("-h", "--help")
+def process_yolo_cli(yolo_outfile, ytoe_outfile, start, end, logdir, debug, quiet):
+    """Compute effective Toe Drain and Yolo Bypass flow and write processed CSVs.
+
+    Reads Lisbon flow/elevation and related stations from the repo, derives
+    effective Toe Drain and Yolo Bypass flow, and writes
+    ``datetime,value`` DMS-format CSVs for each.
+    """
+    level, console = resolve_loglevel(debug=debug, quiet=quiet)
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=logdir,
+        logfile_prefix="process_yolo",
     )
-    script_dir = osp.dirname(osp.abspath(__file__))
-    output_dir = osp.join(script_dir, "processed_output")
-    os.makedirs(output_dir, exist_ok=True)
-    write_ts_csv(toe_final, osp.join(output_dir, ytoe_outfile))
-    write_ts_csv(yolo_final, osp.join(output_dir, yolo_outfile))
+    sdate = pd.Timestamp(start)
+    edate = pd.Timestamp(end)
+    toe_final, yolo_final = process_yolo(sdate, edate)
+    logger.info("Processing for yolo flow complete.")
+    write_ts_csv(toe_final, str(ytoe_outfile))
+    write_ts_csv(yolo_final, str(yolo_outfile))
+    logger.info("Wrote %s", ytoe_outfile)
+    logger.info("Wrote %s", yolo_outfile)
+
+
+if __name__ == "__main__":
+    process_yolo_cli()
