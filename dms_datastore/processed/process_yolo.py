@@ -455,8 +455,25 @@ def process_yolo_cli(yolo_outfile, ytoe_outfile, start, end, logdir, debug, quie
     edate = pd.Timestamp(end)
     toe_final, yolo_final = process_yolo(sdate, edate)
     logger.info("Processing for yolo flow complete.")
-    write_ts_csv(toe_final, str(ytoe_outfile))
-    write_ts_csv(yolo_final, str(yolo_outfile))
+
+    base_meta = {
+        "agency": "dms",
+        "units": "cfs",
+        "comment": "Derived from lis/lbtoe/yby/rye/mir flow and lis elev "
+                   "(see dms_datastore.processed.process_yolo)",
+    }
+    ytoe_meta = {
+        **base_meta,
+        "variable": "flow",
+        "agency_station_name": "Effective Toe Drain flow (Lisbon-based)",
+    }
+    yolo_meta = {
+        **base_meta,
+        "variable": "flow",
+        "agency_station_name": "Effective Yolo Bypass flow",
+    }
+    write_ts_csv(toe_final, str(ytoe_outfile), metadata=ytoe_meta)
+    write_ts_csv(yolo_final, str(yolo_outfile), metadata=yolo_meta)
     logger.info("Wrote %s", ytoe_outfile)
     logger.info("Wrote %s", yolo_outfile)
 

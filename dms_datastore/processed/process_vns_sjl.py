@@ -293,17 +293,34 @@ def process_vns_sjl_cli(flow_outfile, ec_outfile, elev_outfile,
         logdir=logdir,
         logfile_prefix="process_vns_sjl",
     )
+    base_meta = {"agency": "dms"}
+
     if not skip_flow:
         filled_vnl = process_vernalis_flow(
             pd.Timestamp(flow_fit_start), pd.Timestamp(flow_fit_end),
             pd.Timestamp(flow_fill_start), pd.Timestamp(flow_fill_end),
         )
-        write_ts_csv(filled_vnl, str(flow_outfile))
+        flow_meta = {
+            **base_meta,
+            "variable": "flow",
+            "units": "cfs",
+            "agency_station_name": "Vernalis (vns) flow, gap-filled from Mossdale (msd) "
+                                    "via Dynamic Factor Model (dfm_trimbur_rw)",
+        }
+        write_ts_csv(filled_vnl, str(flow_outfile), metadata=flow_meta)
         logger.info("Wrote %s", flow_outfile)
 
     if not skip_ec:
         filled_sjr = process_vernalis_ec(pd.Timestamp(ec_start), pd.Timestamp(ec_end))
-        write_ts_csv(filled_sjr, str(ec_outfile))
+        ec_meta = {
+            **base_meta,
+            "variable": "ec",
+            "units": "uS/cm",
+            "agency_station_name": "San Joaquin River near Vernalis (sjr) EC, gap-filled "
+                                    "from CDEC Vernalis (ver) via Dynamic Factor Model "
+                                    "(dfm_trimbur_rw)",
+        }
+        write_ts_csv(filled_sjr, str(ec_outfile), metadata=ec_meta)
         logger.info("Wrote %s", ec_outfile)
 
     if not skip_elev:
@@ -311,7 +328,15 @@ def process_vns_sjl_cli(flow_outfile, ec_outfile, elev_outfile,
             pd.Timestamp(elev_fit_start), pd.Timestamp(elev_fit_end),
             pd.Timestamp(elev_fill_start), pd.Timestamp(elev_fill_end),
         )
-        write_ts_csv(filled_sjl, str(elev_outfile))
+        elev_meta = {
+            **base_meta,
+            "variable": "elev",
+            "units": "ft",
+            "agency_station_name": "SJR Lathrop (sjl) elevation, gap-filled from Burns "
+                                    "Cutoff/Turner Cut (bdt) via Dynamic Factor Model "
+                                    "(dfm_trimbur_rw)",
+        }
+        write_ts_csv(filled_sjl, str(elev_outfile), metadata=elev_meta)
         logger.info("Wrote %s", elev_outfile)
 
 
