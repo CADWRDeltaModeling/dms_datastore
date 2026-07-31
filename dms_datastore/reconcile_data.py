@@ -1306,9 +1306,23 @@ def update_repo(
             # only "both_regular_same" falls through to normal reconcile
 
             if list(sdf.columns) != list(rdf.columns):
+                repo_only = [c for c in rdf.columns if c not in sdf.columns]
+                staged_only = [c for c in sdf.columns if c not in rdf.columns]
+                detail = []
+                if repo_only:
+                    detail.append(f"present in repo but missing from staged: {repo_only}")
+                if staged_only:
+                    detail.append(f"present in staged but missing from repo: {staged_only}")
+                if not detail:
+                    detail.append("columns differ only in order")
                 raise ValueError(
                     f"Column mismatch for {series_id} shard {shard}: "
-                    f"repo={list(rdf.columns)} staged={list(sdf.columns)}"
+                    f"{'; '.join(detail)}. repo={list(rdf.columns)} "
+                    f"staged={list(sdf.columns)}. Reconcile requires the staged "
+                    "and repo column sets to match; repo-only columns are not "
+                    "auto-preserved. Add the missing column(s) to the staged "
+                    "series with an 'add_column' transform in the recipe so the "
+                    "schemas align."
                 )
 
             common_idx = sdf.index.intersection(rdf.index)
