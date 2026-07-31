@@ -163,6 +163,7 @@ def read_ts_repo(
     modifier=None,
     data_path=None,
     freq_resolver=None,
+    dtypes=None,
 ):
     """Read time series data from a configured repository by station and variable.
 
@@ -225,6 +226,16 @@ def read_ts_repo(
         ``{"target_freq": "<freq>", "method": "interp"|"asfreq"}``.
 
         Default ``None`` raises ``ValueError`` when frequencies differ.
+
+    dtypes : None or "infer" or dict, optional
+        Column dtype handling for the generic dms1/CSV reader.  Only the
+        flexible readers honor this; rigid, format-specific readers ignore
+        it.  ``None`` (default) uses any ``dtypes`` mapping declared in the
+        file's metadata header, otherwise coerces value columns to float.
+        ``"infer"`` lets pandas infer every column dtype (useful for
+        categorical/string columns such as gate-mode ops logs that have no
+        header ``dtypes``).  A dict (e.g. ``{"gate_1": "str"}``) overrides
+        specific columns and lets pandas infer the rest.
 
     Returns
     -------
@@ -300,6 +311,7 @@ def read_ts_repo(
         force_regular=force_regular,
         repo=repo_cfg.get("name"),
         freq_resolver=freq_resolver,
+        dtypes=dtypes,
     )
     return retval
 
@@ -809,7 +821,8 @@ def ts_multifile(
     meta=False,
     force_regular=True,
     repo=None,
-    freq_resolver=None
+    freq_resolver=None,
+    dtypes=None,
 ):
     """
     Read and merge/splice multiple time series files based on provided patterns.
@@ -830,6 +843,11 @@ def ts_multifile(
         Whether to return metadata.
     force_regular : bool, optional
         Whether to enforce a regular time step.
+    dtypes : None or "infer" or dict, optional
+        Column dtype handling forwarded to :func:`read_ts` for the generic
+        dms1/CSV reader.  ``None`` (default) uses header-declared dtypes or
+        coerces value columns to float; ``"infer"`` lets pandas infer all
+        column dtypes; a dict overrides specific columns.
 
     Returns
     -------
@@ -843,6 +861,7 @@ def ts_multifile(
     if not (isinstance(pats, list)):
         pats = [pats]
 
+    pats_in = list(pats)  # keep original patterns for diagnostics
     units = []
     metas = []
     some_files = False
@@ -850,7 +869,7 @@ def ts_multifile(
     for fp in pats:
         tsfiles = sorted(glob.glob(fp))
         if len(tsfiles) == 0:
-            print(f"No files for pattern {fp}")
+            logger.debug("No files for pattern %s", fp)
             continue
         else:
             pats_revised.append(fp)
@@ -863,7 +882,7 @@ def ts_multifile(
         some_files = True
     pats = pats_revised
     if not some_files:
-        print(f"No files for pats")
+        logger.warning("No files found for any of the patterns: %s", pats_in)
         return None
 
 
@@ -880,7 +899,7 @@ def ts_multifile(
             if filter_date(metafname, start, end):
                 continue
 
-            ts = read_ts(tsfile, force_regular=force_regular)
+            ts = read_ts(tsfile, force_regular=force_regular, dtypes=dtypes)
 
             dup_mask = ts.index.duplicated(keep=False)
             if dup_mask.any():

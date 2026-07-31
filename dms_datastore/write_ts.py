@@ -187,12 +187,51 @@ def _is_year_metadata_map(metadata):
     # If all keys look like years, treat as year-mapped metadata.
     return True
 
-def _prepare_single_metadata_header(metadata, format_version):
+def _portable_dtype_name(dtype):
+    """Map a pandas dtype to a portable name for the file header."""
+    kind = getattr(dtype, "kind", None)
+    if kind == "f":
+        return "float"
+    if kind in ("i", "u"):
+        return "Int64"
+    if kind == "b":
+        return "bool"
+    # object, string, category, datetime-like extras, etc.
+    return "str"
+
+
+def _header_dtypes_from_frame(ts):
+    """Non-float column dtypes worth recording in the header.
+
+    Only columns that would be corrupted by the reader's default float coercion
+    are emitted (categorical/string, integer, boolean). The universal
+    ``user_flag`` column is excluded because the screened reader handles it
+    explicitly and emitting it everywhere would churn every file header.
+    """
+    out = {}
+    for col in ts.columns:
+        if col == "user_flag":
+            continue
+        name = _portable_dtype_name(ts[col].dtype)
+        if name == "float":
+            continue
+        out[col] = name
+    return out
+
+
+def _prepare_single_metadata_header(metadata, format_version, header_dtypes=None):
     if metadata is None:
-        return (
-            f"# format: {format_version}\n"
-            f"# date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}\n"
-        )
+        if not header_dtypes:
+            return (
+                f"# format: {format_version}\n"
+                f"# date_formatted: {pd.Timestamp.now().strftime('%Y-%m-%dT%H:%M:%S')}\n"
+            )
+        ordered = {
+            "format": format_version,
+            "date_formatted": pd.Timestamp.now().strftime("%Y-%m-%dT%H:%M:%S"),
+            "dtypes": dict(header_dtypes),
+        }
+        return prep_header(ordered, format_version=format_version)
 
     if isinstance(metadata, dict):
         if "format" in metadata:
@@ -224,12 +263,17 @@ def _prepare_single_metadata_header(metadata, format_version):
             if k not in ("format", "date_formatted"):
                 ordered[k] = v
 
+        # Record non-float column dtypes so the reader can round-trip them
+        # without coercion, unless the caller already supplied a dtypes block.
+        if header_dtypes and "dtypes" not in ordered:
+            ordered["dtypes"] = dict(header_dtypes)
+
         return prep_header(ordered, format_version=format_version)
 
     return prep_header(metadata, format_version=format_version)
 
 
-def _prepare_metadata_header_for_year(metadata, year, format_version):
+def _prepare_metadata_header_for_year(metadata, year, format_version, header_dtypes=None):
     """
     Accept either:
       - one metadata payload for all shards
@@ -247,9 +291,9 @@ def _prepare_metadata_header_for_year(metadata, year, format_version):
             raise ValueError(
                 f"Per-year metadata for {year} must be dict or str, got {type(per_year)}"
             )
-        return _prepare_single_metadata_header(per_year, format_version)
+        return _prepare_single_metadata_header(per_year, format_version, header_dtypes=header_dtypes)
 
-    return _prepare_single_metadata_header(metadata, format_version)
+    return _prepare_single_metadata_header(metadata, format_version, header_dtypes=header_dtypes)
 
 def _shard_has_enough_data(tssub, min_points=16):
     """
@@ -319,6 +363,10 @@ def write_ts_csv(
         if dtype_col in ts.columns:
             ts[dtype_col] = ts[dtype_col].astype(dtype)
 
+    # Record non-float column dtypes in the header so the reader preserves
+    # categorical/string/integer columns instead of coercing them to float.
+    header_dtypes = _header_dtypes_from_frame(ts)
+
     if chunk_years:
         effective_bounds = _effective_chunk_bounds(ts, block_size=block_size)
         single_year_label = block_size == 1
@@ -350,6 +398,7 @@ def write_ts_csv(
                 metadata,
                 year=bnd[0],
                 format_version=format_version,
+                header_dtypes=header_dtypes,
             )
 
             with open(newfname, "w", newline="\n", encoding="utf-8") as outfile:
@@ -363,7 +412,7 @@ def write_ts_csv(
                     **kwargs,
                 )
     else:
-        meta_header = _prepare_single_metadata_header(metadata, format_version)
+        meta_header = _prepare_single_metadata_header(metadata, format_version, header_dtypes=header_dtypes)
 
         if isinstance(fpath, (str, bytes, os.PathLike)):
             outfile = open(fpath, "w", newline="\n",encoding="utf-8")

@@ -274,7 +274,36 @@ def read_yaml_header(fpath):
 
     """
     header = extract_commented_header(fpath)
-    return parse_yaml_header(header)
+    if not header.strip():
+        raise ValueError(
+            f"File {fpath} has no commented YAML front-matter header "
+            f"(expected '#'-prefixed metadata before the data rows)"
+        )
+    try:
+        return parse_yaml_header(header)
+    except ValueError as exc:
+        raise ValueError(f"Malformed header in {fpath}: {exc}") from exc
+
+
+def _dtypes_from_header(fpath_pattern):
+    """Return the optional ``dtypes`` mapping declared in a dms1 file header.
+
+    The header may carry a ``dtypes`` mapping (e.g. categorical/string columns
+    such as gate modes) so the reader can preserve them instead of coercing to
+    float.  The first file matching *fpath_pattern* is inspected.  Returns
+    ``None`` when no file matches or no ``dtypes`` mapping is present.
+    """
+    matches = sorted(glob.glob(fpath_pattern))
+    if not matches:
+        return None
+    try:
+        meta = read_yaml_header(matches[0])
+    except ValueError:
+        return None
+    dtypes = meta.get("dtypes")
+    if isinstance(dtypes, dict) and dtypes:
+        return dict(dtypes)
+    return None
 
 
 def is_dms1_screen(fname):
@@ -340,6 +369,13 @@ def read_dms1(
     fpath_pattern, start=None, end=None, selector=None, force_regular=True, nrows=None, freq=None, **kwargs
 ):
     fpath_pattern = str(fpath_pattern)
+    if kwargs.get("dtypes") is None:
+        # No explicit caller override: adopt any dtypes declared in the file
+        # header so categorical/string columns round-trip without coercion.
+        kwargs.pop("dtypes", None)
+        header_dtypes = _dtypes_from_header(fpath_pattern)
+        if header_dtypes:
+            kwargs["dtypes"] = header_dtypes
     ts = csv_retrieve_ts(
         fpath_pattern,
         start,
@@ -1530,6 +1566,12 @@ def read_ts(
     ts = None
     reader_count = 0
     last_reader_tried = None
+    # dtypes (header-declared, an explicit mapping, or "infer") only makes sense
+    # for the flexible CSV readers. The rigid, format-specific readers have fixed
+    # column layouts and reject caller-supplied dtypes, so we never forward it to
+    # them (doing so would spuriously skip the correct reader).
+    dtypes = kwargs.pop("dtypes", None)
+    flexible_readers = {"read_dms1", "read_last_resort_csv"}
     for reader in readers:
         last_reader_tried = reader.__name__
         if hint is not None:
@@ -1545,6 +1587,9 @@ def read_ts(
                 if freq not in ["None", None]:
                     raise ValueError("freq must be None or 'None' if force_regular is False")
                 freq = None # convert from text
+            reader_kwargs = dict(kwargs)
+            if reader.__name__ in flexible_readers:
+                reader_kwargs["dtypes"] = dtypes
             ts = reader(
                 fpath,
                 start,
@@ -1553,7 +1598,7 @@ def read_ts(
                 force_regular=force_regular,
                 nrows=nrows,
                 freq=freq,
-                **kwargs,
+                **reader_kwargs,
             )
             return ts
         except IOError as e:
@@ -1632,6 +1677,27 @@ def _decode_context(path, pos, window=32):
         f.seek(start)
         chunk = f.read(2 * window)
     return " ".join(f"{b:02x}" for b in chunk)
+
+
+def _is_float_coercion_error(exc):
+    """True when *exc* is pandas' failure to cast a text column to float."""
+    msg = str(exc)
+    return (
+        "could not convert string to float" in msg
+        or "Cannot cast array data" in msg
+    )
+
+
+def _float_coercion_error(path, exc):
+    """Build an actionable error for a failed float coercion during read."""
+    return ValueError(
+        f"Failed to coerce a column to float while reading {path}: {exc}\n"
+        "For files read from strict institutional formats, this likely "
+        "represents a data bug. For files read with the generic reader with "
+        "mixed-type columns, you can either specify dtypes directly in the file "
+        "metadata header (a 'dtypes' mapping) or pass dtypes=\"infer\" in the "
+        "call to read_ts or read_ts_repo, if you think that is correct."
+    )
 
 
 def csv_retrieve_ts(
@@ -1730,8 +1796,14 @@ def csv_retrieve_ts(
     # This essentially forces the client code to define dtypes for all
     # complex cases. It correctly handles the situation where all the
     # items in selector are floats, all the items in qaqc_selector are alphanumeric
-    coltypes = {} if dtypes is None else dtypes.copy()
-    if selector is None:
+    infer_dtypes = isinstance(dtypes, str) and dtypes == "infer"
+    coltypes = {} if (dtypes is None or infer_dtypes) else dtypes.copy()
+    if infer_dtypes:
+        # Non-default sniffing: let pandas infer every column dtype rather than
+        # coercing to float. Useful for categorical/string columns (e.g. gate
+        # modes in an ops log) that have no dtypes declared in the header.
+        coltypes = None
+    elif selector is None:
         # dms1-style read with no explicit selector. With no dtype overrides,
         # fall back to reading every column as float (legacy behavior). If the
         # caller supplied dtypes, honor them and let pandas infer the remaining
@@ -1799,6 +1871,10 @@ def csv_retrieve_ts(
                     f"Nearby bytes: {context}\n\n"
                     "File is likely cp1252/latin-1 encoded."
                 ) from e
+            except (ValueError, TypeError) as e:
+                if not _is_float_coercion_error(e):
+                    raise
+                raise _float_coercion_error(m, e) from e
 
 
             if header is None:
@@ -1839,6 +1915,10 @@ def csv_retrieve_ts(
                     f"Nearby bytes: {context}\n\n"
                     "File is likely cp1252/latin-1 encoded."
                 ) from e
+            except (ValueError, TypeError) as e:
+                if not _is_float_coercion_error(e):
+                    raise
+                raise _float_coercion_error(m, e) from e
             
         if qaqc_selector is not None:
             # It is costly to try to handle blanks differently for both data
