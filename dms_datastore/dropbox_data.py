@@ -844,14 +844,32 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                     merge_args = item.get("merge_args", {}) or {}
 
                     if merge_method == "ts_splice":
-                        ts = ts_splice(series_list, **merge_args)
+                        merge_fn = ts_splice
                     elif merge_method == "ts_merge":
-                        ts = ts_merge(series_list, **merge_args)
+                        merge_fn = ts_merge
                     else:
                         raise ValueError(
                             f"{name}: merge_method must be 'ts_splice' or 'ts_merge', "
                             f"got '{merge_method}'"
                         )
+
+                    try:
+                        ts = merge_fn(series_list, **merge_args)
+                    except KeyError as e:
+                        msg = str(e)
+                        if "non-monotonic" in msg or "sort the index" in msg:
+                            raise ValueError(
+                                f"{name}: {merge_method} failed on a non-monotonic time index "
+                                f"(original error: {msg}). This usually means a raw source file "
+                                f"spans a daylight-saving fall-back, so its naive local timestamps "
+                                f"jump backward (e.g. 01:59 -> 01:00) and contain duplicate labels "
+                                f"before any timezone conversion. The dropbox pipeline combines "
+                                f"files BEFORE applying transforms, so the 'dst_tz' transform cannot "
+                                f"repair this ahead of the merge. Provide a single pre-cleaned, "
+                                f"DST-adjusted source file (as done for SMSCG), or disambiguate the "
+                                f"fall-back at read time, then re-run."
+                            ) from e
+                        raise
 
                 ts = _apply_transforms(ts, transforms)
                 inferring_meta = "metadata_infer" in listing
