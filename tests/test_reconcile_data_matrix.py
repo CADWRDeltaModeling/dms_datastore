@@ -207,7 +207,7 @@ def test_user_patch_applies_explicit_on_equal_values(tmp_path: Path) -> None:
     assert out["user_flag"].astype("Int64").iloc[0] == 1
 
 
-def test_update_repo_preserves_repo_only_columns(tmp_path: Path) -> None:
+def test_update_repo_rejects_repo_only_columns_informatively(tmp_path: Path) -> None:
     staged = tmp_path / "staging"
     repo = tmp_path / "repo"
     staged.mkdir()
@@ -237,12 +237,25 @@ def test_update_repo_preserves_repo_only_columns(tmp_path: Path) -> None:
     write_ts_csv(repo_df, repo / f, metadata=meta, chunk_years=False)
     write_ts_csv(staged_df, staged / f, metadata=meta, chunk_years=False)
 
-    actions = update_repo(str(staged), str(repo), now=NOW, regular=True, plan=False)
+    # Ops-log columns are categorical strings; the reconcile caller (dropbox
+    # pipeline) supplies these dtypes from the repo config so read_ts does not
+    # force them to float. Mirror that here rather than relying on inference.
+    ops_dtypes = {
+        "flashboards": str,
+        "gate_1": str,
+        "gate_2": str,
+        "gate_3": str,
+        "action": str,
+        "remarks": str,
+        "user_remarks": str,
+    }
 
-    assert actions
-    out = pd.read_csv(repo / f, comment="#", parse_dates=["datetime"], index_col="datetime")
-    assert "user_remarks" in out.columns
-    assert out["user_remarks"].iloc[0] == "manual note"
+    # Reconcile does not auto-preserve repo-only columns. It must reject the
+    # mismatch with an actionable message pointing at the add_column transform.
+    with pytest.raises(ValueError, match="add_column"):
+        update_repo(
+            str(staged), str(repo), now=NOW, regular=False, dtypes=ops_dtypes, plan=False
+        )
 
 
 NOW = pd.Timestamp("2026-02-08")

@@ -888,6 +888,31 @@ def ts_multifile(
 
     bigts = []  # list of merged time series, one per pattern
 
+    def _assert_non_overlapping_shards(pattern_items, pattern):
+        """Fail fast when shards for one pattern overlap in valid-data time."""
+        windows = []
+        for item in pattern_items:
+            ts = item["ts"]
+            lo = ts.first_valid_index()
+            hi = ts.last_valid_index()
+            if lo is None or hi is None:
+                continue
+            windows.append((lo, hi, item["path"]))
+
+        windows.sort(key=lambda row: row[0])
+
+        for i in range(len(windows) - 1):
+            lo0, hi0, path0 = windows[i]
+            lo1, hi1, path1 = windows[i + 1]
+            if lo1 <= hi0:
+                raise ValueError(
+                    "Overlapping shard windows detected for pattern "
+                    f"{pattern}:\n"
+                    f"  {path0}: [{lo0}, {hi0}]\n"
+                    f"  {path1}: [{lo1}, {hi1}]\n"
+                    "Shards in read_ts_repo are expected to be non-overlapping."
+                )
+
     for fp, utrans in zip(pats, units):  # loop through patterns
         items = []
         tsfiles = sorted(glob.glob(fp))
@@ -950,7 +975,11 @@ def ts_multifile(
 
         items, _ = _apply_freq_resolution(items, freq_resolver)
 
-        patfull = ts_merge(list(reversed([item["ts"] for item in items])))
+        if len(items) == 1:
+            patfull = items[0]["ts"]
+        else:
+            _assert_non_overlapping_shards(items, fp)
+            patfull = ts_merge(list(reversed([item["ts"] for item in items])))
         bigts.append(patfull)
 
     if len(bigts) == 0:

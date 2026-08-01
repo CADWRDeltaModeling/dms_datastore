@@ -11,6 +11,64 @@ target_tz: "Etc/GMT+8"    # POSIX sign reversed: PST
 target_tz_label: PST
 
 data:
+  - name: radial_init
+    # One-time backfill of the historical Wonderware radial-gate record
+    # (2020-06-09 .. 2025), already PST-converted and column-renamed. Loads the
+    # full history into structures_formatted before the incremental MSCK feed
+    # (smscg_scada) takes over. Set skip: true once this has run successfully.
+    skip: True
+    collect:
+      # Single semi-raw history file; already has canonical header
+      #   DateTime,gate_1,gate_2,gate_3,flow,vel,up_elev,down_elev
+      file_pattern: "dms_smscg_radial_2020_2025.csv"
+      location: "${repo_home}/hydraulic_structures/smscg"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+        hint: "resort"
+        na_values: ["(null)", "null", "NULL", ""]
+        force_regular: False    # CRITICAL: gate data is irregular; never read with force_regular=True
+      # Keep only the three radial-gate height columns (drop flow/vel/levels)
+      selector: ["gate_1", "gate_2", "gate_3"]
+
+    transforms:
+      # No dst_tz: source is already PST. Coarsen to the adaptive 2-min grid so
+      # the backfill matches the shape/precision of the incremental MSCK feed.
+      - name: coarsen
+        args:
+          grid: 2min            # output sampling interval
+          preserve_vals: [0.0]  # snap to fully-closed state + its boundaries
+          qwidth: 0.01          # quantization (ft)
+          hyst: 0.5             # hysteresis (ft): only re-quantize when value moves > 0.5*qwidth
+          heartbeat_freq: 60min # force keep-alive sample hourly during idle periods
+
+    metadata:
+      station_id: smscg
+      subloc: radial          # same series as smscg_scada (radial gate heights)
+      source: dms
+      agency: dwr
+      processor: dms
+      param: height
+      unit: ft
+      freq: None              # None for irregular
+      time_zone: ${target_tz} # source already PST; metadata only, no conversion
+      time_zone_label: ${target_tz_label}
+      # Coordinates are auto-populated from structures_registry.csv; do NOT specify them here
+      latitude: registry_lookup
+      longitude: registry_lookup
+
+    output:
+      repo_name: structures_formatted    # target repo from dstore_config.yaml
+      staging:
+        dir: ${repo_home}/hydraulic_structures/incoming/drop_staging
+        write_args:
+          float_format: "%.3f"
+          chunk_years: False
+      reconcile:
+        # Omit repo_data_dir to use the default from repo config
+        prefer: staged        # backfill wins when initializing the series
+        allow_new_series: true
+
   - name: smscg_scada
     skip: False
     collect:

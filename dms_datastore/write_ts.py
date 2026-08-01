@@ -415,15 +415,24 @@ def write_ts_csv(
         meta_header = _prepare_single_metadata_header(metadata, format_version, header_dtypes=header_dtypes)
 
         if isinstance(fpath, (str, bytes, os.PathLike)):
-            outfile = open(fpath, "w", newline="\n",encoding="utf-8")
+            with open(fpath, "w", newline="\n", encoding="utf-8") as outfile:
+                outfile.write(meta_header)
+                ts.to_csv(
+                    outfile,
+                    header=True,
+                    sep=sep,
+                    date_format="%Y-%m-%dT%H:%M:%S",
+                    lineterminator="\n",
+                    **kwargs,
+                )
         else:
             outfile = fpath
-        outfile.write(meta_header)
-        ts.to_csv(
-            outfile,
-            header=True,
-            sep=sep,
-            date_format="%Y-%m-%dT%H:%M:%S",
-            lineterminator="\n",
-            **kwargs,
-        )
+            outfile.write(meta_header)
+            ts.to_csv(
+                outfile,
+                header=True,
+                sep=sep,
+                date_format="%Y-%m-%dT%H:%M:%S",
+                lineterminator="\n",
+                **kwargs,
+            )

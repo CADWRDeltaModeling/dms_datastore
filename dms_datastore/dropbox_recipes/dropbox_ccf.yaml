@@ -5,6 +5,66 @@ target_tz_label: PST
 
 
 data:
+  - name: ccfb_init
+    # One-time backfill of the historical CCFB radial-gate record, years 2020-2023.
+    # Source files gate_height_wonderware_pst_YYYY.csv are the DST-cleaned outputs
+    # of make_wonderware_pst.py (naive PST; raw yearly SCADA files span the Nov
+    # fall-back and are non-monotonic, which breaks the pre-transform ts_splice).
+    # Later years (2024x/2025x) are already covered in the repo. Loads 2020-2023
+    # into structures_formatted; the incremental CC_Gate_Positions feed (ccfb)
+    # tops off going forward. Set skip: true once this has run successfully.
+    skip: False
+    collect:
+      file_pattern: "gate_height_wonderware_pst_*.csv"
+      wildcard: time_overlap    # lexicographic order = chronological (pst_2020 < pst_2021 < ...)
+      location: "${repo_home}/clifton_court/gate_height_wonderware"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "gate_1","gate_2","gate_3","gate_4","gate_5"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: False
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_first
+      selector: null  # read_last_resort_csv: keep all (renamed) columns
+    transforms:
+      # No dst_tz: source is already naive PST (converted by make_wonderware_pst.py).
+      - name: coarsen
+        args:
+          grid: 2min
+          preserve_vals: [0.0]
+          qwidth: 0.01
+          hyst: 0.5
+          heartbeat_freq: 60min
+    metadata:
+      station_id: ccfb
+      structure_id: ccfb
+      agency_id: ccfb
+      processor: dms
+      agency: dwr
+      source: dwr
+      freq: None   # None for irregular
+      param: height
+      unit: ft
+      subloc: radial          # same series as ccfb (radial gate heights)
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+
+    output:
+      repo_name: structures_formatted
+      staging:
+        dir: ${repo_home}/hydraulic_structures/incoming/drop_staging
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      reconcile:
+        prefer: staged                            # backfill wins when initializing the series
+        allow_new_series: true
+
   - name: ccfb
     skip: False
     collect:

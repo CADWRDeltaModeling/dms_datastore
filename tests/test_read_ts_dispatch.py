@@ -1,9 +1,15 @@
 from pathlib import Path
 
+import importlib
+
 import pandas as pd
 import pytest
 
-import dms_datastore.read_ts as rt
+# NOTE: ``import dms_datastore.read_ts as rt`` would bind ``rt`` to the
+# re-exported ``read_ts`` *function* (the package __init__ does
+# ``from dms_datastore.read_ts import *``, which shadows the submodule
+# attribute). Use importlib to obtain the module object itself.
+rt = importlib.import_module("dms_datastore.read_ts")
 
 
 def test_read_usgs1_rejects_caller_dtypes(tmp_path: Path) -> None:

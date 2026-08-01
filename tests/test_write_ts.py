@@ -84,3 +84,17 @@ def test_write_ts_csv_stringio_series():
     )
     assert list(roundtrip.index) == list(s.index)
     assert list(roundtrip["value"]) == list(s.values)
+
+
+def test_write_ts_csv_path_rewrite_closes_file(tmp_path):
+    index = pd.date_range("2024-01-01", periods=3, freq="h", name="datetime")
+    df = pd.DataFrame({"value": [1.0, 2.0, 3.0]}, index=index)
+    out = tmp_path / "rewrite.csv"
+
+    # Rewriting the same path should not fail due to leaked file handles.
+    write_ts_csv(df, out)
+    write_ts_csv(df, out)
+
+    assert out.exists()
+    text = out.read_text(encoding="utf-8")
+    assert "# format: dwr-dms-1.0" in text
