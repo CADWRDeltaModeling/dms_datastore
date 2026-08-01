@@ -75,7 +75,7 @@ repos:
       dwr_ncro: ["ncro"]
       des: ["des"]
       dwr_des: ["des"]
-      usgs: ["usgs"]
+      usgs: ["usgs","ebmud"]
       noaa: ["noaa"]
       usbr: ["usbr", "cdec"]
       dwr_om: ["cdec"]
@@ -126,7 +126,7 @@ repos:
       dwr_ncro: ["ncro"]
       des: ["des"]
       dwr_des: ["des"]
-      usgs: ["usgs"]
+      usgs: ["usgs","ebmud"]
       noaa: ["noaa"]
       usbr: ["usbr", "cdec"]
       dwr_om: ["cdec"]
@@ -218,7 +218,7 @@ repos:
     provider_resolution_column: agency          # consult the registry column
     provider_resolution_order:                  
       bbid: ["cdec"]                    # ncro is prioritized over cdec
-      usgs: ["usgs"]
+      usgs: ["usgs", "ebmud"]           # usgs preferred, ebmud as fallback (e.g. wbr flow distributed by both)
       dwr: ["dayflow", "dwr", "cdec"]   # for dayflow, we prioritize dwr over cdec since dwr is more likely to have the full historical record whereas cdec may be missing older data.
       ebmud: ["usgs", "ebmud", "cdec"]
     filename_templates:

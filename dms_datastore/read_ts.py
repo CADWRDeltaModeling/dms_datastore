@@ -281,7 +281,10 @@ def read_yaml_header(fpath):
         )
     try:
         return parse_yaml_header(header)
-    except ValueError as exc:
+    except Exception as exc:
+        # Non-DMS files (e.g., USGS RDB) can have comment headers that are
+        # not valid YAML. Normalize parser failures to ValueError so callers
+        # probing for optional metadata can safely fall back.
         raise ValueError(f"Malformed header in {fpath}: {exc}") from exc
 
 
@@ -295,6 +298,8 @@ def _dtypes_from_header(fpath_pattern):
     """
     matches = sorted(glob.glob(fpath_pattern))
     if not matches:
+        return None
+    if not is_dms1(matches[0]):
         return None
     try:
         meta = read_yaml_header(matches[0])
