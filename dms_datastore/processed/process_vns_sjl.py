@@ -6,6 +6,7 @@ import click
 import pandas as pd
 
 import matplotlib.pyplot as plt
+import numpy as np
 from vtools import *
 from vtools import ts_merge
 from dms_datastore.read_ts import *
@@ -71,18 +72,16 @@ def process_vernalis_flow(fit_start, fit_end, fill_start, fill_end):
     #First fill vnl gaps with residual interpolation for gaps when msd data present
     print("Filling gaps in Vernalis flow using Dynamic Factor Model...")
     dfm_trimbur_rw = fill_from_neighbor(vnl_usgs.squeeze(), msd_ncro.squeeze(), method='dfm_trimbur_rw')
-    blob = dfm_pack_params(dfm_trimbur_rw["model_info"])
-    save_dfm_params(blob, "dfm_trimbur_rw_vns_msd.yaml")
+    fitted_params = dfm_pack_params(dfm_trimbur_rw["model_info"])
 
-    # load saved parameters and fill data from 2005 - 2025
-    blob2 = load_dfm_params("dfm_trimbur_rw_vns_msd.yaml")
+    # load saved parameters and fill data
     vnl_usgs_all = read_ts_repo(station_id='vns', variable='flow',start=fill_start,end=fill_end)
     vnl_usgs_all = vnl_usgs_all.interpolate(limit=4)
     msd_ncro_all = read_ts_repo(station_id='msd', variable='flow',start=fill_start,end=fill_end)
     msd_ncro_all = msd_ncro_all.interpolate(limit=20)
     msd_ncro_all = cosine_lanczos(msd_ncro_all, hours(40))[fill_start:fill_end]
     msd_ncro_all = msd_ncro_all.shift(lag_steps)
-    res_reuse = fill_from_neighbor(vnl_usgs_all.squeeze(), msd_ncro_all.squeeze(), method='dfm_trimbur_rw', params=blob2)
+    res_reuse = fill_from_neighbor(vnl_usgs_all.squeeze(), msd_ncro_all.squeeze(), method='dfm_trimbur_rw', params=fitted_params)
 
     filled_vnl = res_reuse['yhat']
     filled_vnl = ts_merge([vnl_usgs_all.squeeze(), filled_vnl.squeeze()],names='value')
@@ -93,9 +92,11 @@ def process_vernalis_flow(fit_start, fit_end, fill_start, fill_end):
     logger.info("No missing values in the final filled Vernalis flow data.")
     filled_vnl.index.name = 'datetime'
     filled_vnl.name = 'value'
+    filled_vnl = np.round(filled_vnl, 2)  # round to 2 decimal places for flow
+
     return filled_vnl
 
-def process_vernalis_ec(start, end):
+def process_vernalis_ec(fit_start, fit_end, fill_start, fill_end):
     """Fill gaps in San Joaquin River electrical conductivity (EC) near Vernalis.
 
     USGS EC at station ``sjr`` and CDEC EC at station ``ver`` are each
@@ -126,11 +127,11 @@ def process_vernalis_ec(start, end):
         If missing values remain in the filled EC series after merging the
         USGS and CDEC data sources.
     """
-    sjr_ec = read_ts_repo(station_id='sjr', variable='ec', start=start, end=end)
+    sjr_ec = read_ts_repo(station_id='sjr', variable='ec', start=fit_start, end=fit_end)
     sjr_ec = sjr_ec.mask((sjr_ec < 25.0) | (sjr_ec > 1425.0))
     sjr_ec = sjr_ec.interpolate(limit=200)
 
-    ts_cdec = read_ts_repo(station_id='ver', variable='ec', start=start, end=end)
+    ts_cdec = read_ts_repo(station_id='ver', variable='ec', start=fit_start, end=fit_end)
     ts_cdec = ts_cdec.mask((ts_cdec < 25.0) | (ts_cdec > 1425.0))
     ts_cdec = ts_cdec.interpolate(limit=150)
 
@@ -139,9 +140,19 @@ def process_vernalis_ec(start, end):
     print("Filling gaps in Vernalis ec using Dynamic Factor Model...")
 
     dfm_trimbur_rw = fill_from_neighbor(sjr_ec.squeeze(), ts_cdec.squeeze(), method='dfm_trimbur_rw')
-    filled_sjr = dfm_trimbur_rw['yhat']
+    sjr_ec_all = read_ts_repo(station_id='sjr', variable='ec', start=fill_start, end=fill_end)
+    sjr_ec_all = sjr_ec_all.mask((sjr_ec_all < 25.0) | (sjr_ec_all > 1425.0))
+    sjr_ec_all = sjr_ec_all.interpolate(limit=200)
+    ts_cdec_all = read_ts_repo(station_id='ver', variable='ec', start=fill_start, end=fill_end)
+    ts_cdec_all = ts_cdec_all.mask((ts_cdec_all < 25.0) | (ts_cdec_all > 1425.0))
+    ts_cdec_all = ts_cdec_all.interpolate(limit=150)
+    ts_cdec_all = ts_cdec_all.shift(lag_steps)
+    # prams must be a packed blob (with 'transformed'), not the raw model_info dict
+    fitted_params = dfm_pack_params(dfm_trimbur_rw["model_info"])
+    res_reuse = fill_from_neighbor(sjr_ec_all.squeeze(), ts_cdec_all.squeeze(), method='dfm_trimbur_rw', params=fitted_params)
+    filled_sjr = res_reuse['yhat']
+    filled_sjr = ts_merge([sjr_ec_all.squeeze(), filled_sjr.squeeze()],names='value')
 
-    filled_sjr = ts_merge([sjr_ec.squeeze(), filled_sjr.squeeze()],names='value')
 
     if filled_sjr.isnull().sum().sum() > 0:
         raise ValueError("Warning: There are {} missing values in the San Joaquin River EC after merging USGS and " \
@@ -149,6 +160,8 @@ def process_vernalis_ec(start, end):
     logger.info("No missing values in the final merged San Joaquin River EC data.")
     filled_sjr.index.name = 'datetime'
     filled_sjr.name = 'value'
+    filled_sjr = np.round(filled_sjr, 2)  # round to 2 decimal places for EC
+
     return filled_sjr
 
 
@@ -245,17 +258,21 @@ def process_sjl_ele(fit_start, fit_end, fill_start, fill_end):
 @click.option("--elev-outfile", type=click.Path(path_type=Path),
               default="sjr_lathrop_elevation.csv", show_default=True,
               help="Output CSV path for the gap-filled SJR Lathrop elevation product.")
-@click.option("--flow-fit-start", type=str, default="2020-01-01", show_default=True,
+@click.option("--flow-fit-start", type=str, default="2010-01-01", show_default=True,
               help="Start of the window used to fit the Vernalis flow filling model.")
-@click.option("--flow-fit-end", type=str, default="2025-09-01", show_default=True,
+@click.option("--flow-fit-end", type=str, default="2020-10-01", show_default=True,
               help="End of the window used to fit the Vernalis flow filling model.")
-@click.option("--flow-fill-start", type=str, default="2005-01-01", show_default=True,
+@click.option("--flow-fill-start", type=str, default="2020-01-01", show_default=True,
               help="Start of the window over which Vernalis flow is filled.")
-@click.option("--flow-fill-end", type=str, default="2025-09-01", show_default=True,
+@click.option("--flow-fill-end", type=str, default="2026-01-01", show_default=True,
               help="End of the window over which Vernalis flow is filled.")
-@click.option("--ec-start", type=str, default="2020-01-01", show_default=True,
+@click.option("--ec-fit-start", type=str, default="2010-01-01", show_default=True,
+              help="Start of the window used to fit the Vernalis EC filling model.")
+@click.option("--ec-fit-end", type=str, default="2020-01-01", show_default=True,
+              help="End of the window used to fit the Vernalis EC filling model.")
+@click.option("--ec-fill-start", type=str, default="2020-01-01", show_default=True,
               help="Start of the window over which Vernalis EC is filled.")
-@click.option("--ec-end", type=str, default="2025-09-01", show_default=True,
+@click.option("--ec-fill-end", type=str, default="2026-01-01", show_default=True,
               help="End of the window over which Vernalis EC is filled.")
 @click.option("--elev-fit-start", type=str, default="2002-01-01", show_default=True,
               help="Start of the window used to fit the SJR Lathrop elevation filling model.")
@@ -275,7 +292,7 @@ def process_sjl_ele(fit_start, fit_end, fill_start, fill_end):
 @click.help_option("-h", "--help")
 def process_vns_sjl_cli(flow_outfile, ec_outfile, elev_outfile,
                          flow_fit_start, flow_fit_end, flow_fill_start, flow_fill_end,
-                         ec_start, ec_end,
+                         ec_fit_start, ec_fit_end, ec_fill_start, ec_fill_end,
                          elev_fit_start, elev_fit_end, elev_fill_start, elev_fill_end,
                          skip_flow, skip_ec, skip_elev,
                          logdir, debug, quiet):
@@ -307,11 +324,15 @@ def process_vns_sjl_cli(flow_outfile, ec_outfile, elev_outfile,
             "agency_station_name": "Vernalis (vns) flow, gap-filled from Mossdale (msd) "
                                     "via Dynamic Factor Model (dfm_trimbur_rw)",
         }
-        write_ts_csv(filled_vnl, str(flow_outfile), metadata=flow_meta)
-        logger.info("Wrote %s", flow_outfile)
+        # write_ts_csv(filled_vnl, str(flow_outfile), metadata=flow_meta)
+        # logger.info("Wrote %s", flow_outfile)
+        filled_vnl.to_csv(str(flow_outfile), index=True, header=True)
 
     if not skip_ec:
-        filled_sjr = process_vernalis_ec(pd.Timestamp(ec_start), pd.Timestamp(ec_end))
+        filled_sjr = process_vernalis_ec(
+            pd.Timestamp(ec_fit_start), pd.Timestamp(ec_fit_end),
+            pd.Timestamp(ec_fill_start), pd.Timestamp(ec_fill_end),
+        )
         ec_meta = {
             **base_meta,
             "variable": "ec",
@@ -320,8 +341,9 @@ def process_vns_sjl_cli(flow_outfile, ec_outfile, elev_outfile,
                                     "from CDEC Vernalis (ver) via Dynamic Factor Model "
                                     "(dfm_trimbur_rw)",
         }
-        write_ts_csv(filled_sjr, str(ec_outfile), metadata=ec_meta)
-        logger.info("Wrote %s", ec_outfile)
+        # write_ts_csv(filled_sjr, str(ec_outfile), metadata=ec_meta)
+        # logger.info("Wrote %s", ec_outfile)
+        filled_sjr.to_csv(str(ec_outfile), index=True, header=True)
 
     if not skip_elev:
         filled_sjl = process_sjl_ele(
@@ -342,4 +364,13 @@ def process_vns_sjl_cli(flow_outfile, ec_outfile, elev_outfile,
 
 if __name__ == "__main__":
     process_vns_sjl_cli()
+    # process_vernalis_flow(
+    #     pd.Timestamp("2010-01-01"), pd.Timestamp("2020-01-01"),
+    #     pd.Timestamp("2020-01-01"), pd.Timestamp("2026-01-01"),
+    # )
+
+    # process_vernalis_ec(
+    #     pd.Timestamp("2010-01-01"), pd.Timestamp("2020-01-01"),
+    #     pd.Timestamp("2020-01-01"), pd.Timestamp("2026-01-01"),
+    #)
     
