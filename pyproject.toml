@@ -168,3 +168,4 @@ process_ccfb_gate_height = "dms_datastore.processed.process_ccfb_gate_height:pro
 process_ccfb_waterlevel = "dms_datastore.processed.process_ccfb_waterlevel:process_ccfb_waterlevel_cli"
 process_yolo = "dms_datastore.processed.process_yolo:process_yolo_cli"
 process_vns_sjl = "dms_datastore.processed.process_vns_sjl:process_vns_sjl_cli"
+process_flow = "dms_datastore.processed.new_process_flow:process_flow_cli"

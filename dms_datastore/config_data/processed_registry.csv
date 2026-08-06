@@ -1,3 +1,17 @@
 station_id,name,agency,lat,lon,x,y,comment
 ndoi,Calculated Net Delta Outflow Index,dayflow,38.059000,-122.025000,585534.7,4212809.9,Concatenates Dayflow estimate with CDEC DTO with spike removal
 x2,Calculated X2,dayflow,38.059000,-122.025000,585534.7,4212809.9,Concatenates Dayflow estimate with CDEC CX2 with spike removal
+cvp,CVP Export Flow (Tracy Pumping Plant),usbr,37.816643,-121.558644,626865.0,4186450.0,Interpolated 15-min CVP export flow derived from CDEC station trp
+ccc,CCWD Rock Slough Diversion Flow,ccwd,37.996274,-121.701902,613977.7,4206196.5,Filled CCWD Rock Slough diversion flow derived from CDEC station inb
+cccoldr,CCWD Old River Diversion Flow,ccwd,37.885779,-121.575998,625220.4,4194097.8,Filled CCWD Old River diversion flow derived from CDEC station idb
+moke,Mokelumne River Flow,usgs,38.158612,-121.302495,648720.0,4224775.0,Filled Mokelumne River flow derived from USGS station wbr
+consumnes,Consumnes River Flow,usgs,38.500280,-121.044171,670551.0,4263137.0,Filled Consumnes River flow derived from USGS station mhb
+saci,Calculated Sacramento River at I Street Flow,dwr_ncro,38.588631,-121.505355,630173.3,4272187.3,Calculated Sacramento River flow using fpt and afo data
+sack,Sacramento River at K Street Flow,usgs,38.456020,-121.501343,630762.5,4257477.0,Filled Sacramento River flow derived from USGS station fpt
+american,American River Flow,usgs,38.635559,-121.226667,654346.1,4277827.0,Filled American River flow derived from USGS station afo
+calaveras,Calaveras River Flow,usace,38.152000,-120.812000,691714.5,4224941.8,Filled Calaveras River flow derived from USACE station nhg
+yolo,Calculated Yolo Bypass Flow,dwr_ncro,38.371868,-121.666292,616559.6,4247917.6,Effective Yolo Bypass flow estimate derived from station lis
+ytoe,Calculated Effective Toe Drain Flow,dwr_ncro,38.4765208,-121.5887458,623093.9,4259621.1,Effective Toe Drain flow estimate derived from station lis
+swp,SWP Export Flow (Harvey O Banks PP),dwr,37.826832,-121.594517,623690.4,4187532.5,Filled SWP export flow derived from DWR station hro
+napa,Napa River Flow,usgs,38.368520,-122.303213,560869.0,4246934.1,Filled Napa River flow derived from USGS station napr
+coyote,Coyote Creek Flow,usgs,37.422436,-121.927362,594910.0,4142276.1,Filled Coyote Creek flow derived from USGS station coycr

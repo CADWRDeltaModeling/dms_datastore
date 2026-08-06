@@ -281,8 +281,6 @@ dar,B95423,Drainage at Arbor Road,639210.3,4181357.4,37.76896,-121.41941,37.7689
 wwc,wwc,Woodward Cut,626991.5,4197231.4,37.913768,-121.555312,37.914053,-121.555311,,,dwr_ncro,1,Special Flow Study for 2021 False River Barrier Installation
 rrcn,rrcn,Railroad Cut North,626914.5,4200211.1,37.940626,-121.555662,37.9406278,-121.5556612,,,dwr_ncro,1,Special Flow Study for 2021 False River Barrier Installation
 rrcs,rrcs,Railroad Cut South,626846.1,4200085.2,37.939501,-121.556462,37.9395028,-121.5564612,,,dwr_ncro,1,Special Flow Study for 2021 False River Barrier Installation
-x2,x2,Daily X2 Calculation,626846.1,4200085.2,37.939501,-121.556462,37.83330,-122.41670,,,dayflow,1,Calculated X2
-ndoi,ndoi,Net Delta Outflow Index,626846.1,4200085.2,37.939501,-121.556462,37.83330,-122.41670,,,dayflow,1,
 odtw,B9537700,Old River Downstream of Tracy Wildlife,634801.6,4184519.2,37.798109,-121.468861,37.798111,-121.468861,,,dwr_ncro,1,Post-MSS moved from OAAD
 god2,11455740,Suisun Slough Near Benicia,580516.9,4219949.2,38.123797,-122.081386,38.12379722,-122.0813861,,,usgs,1,DWR measures WQ at GOD
 bbi,bbi,Byron Bethany Irrigation District Diversion,626951.9,4187911.4,37.829798,-121.5574,37.8298,-121.5574,,BBI,bbid,1,

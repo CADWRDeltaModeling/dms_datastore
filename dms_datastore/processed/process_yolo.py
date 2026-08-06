@@ -22,7 +22,7 @@ lisbon_elev_top = 11.5
 lisbon_flow_top = 4000.0
 
 
-def process_yolo_cache_slough():
+def process_yolo_cache_slough(sdate, edate):
     """Compute the southern (Cache Slough minus Miner) estimate of Yolo Bypass flow.
 
     Cache Slough flow at Ryer Island (station ``rye``) is interpolated,
@@ -48,7 +48,6 @@ def process_yolo_cache_slough():
         The 4-day low-pass-filtered southern estimate of Yolo Bypass flow,
         indexed by datetime.
     """
-
     # RYE station is the newer station
     cache_ryer = read_ts_repo(station_id="rye", variable="flow", start=sdate, end=edate)
     cache_ryer = cache_ryer.interpolate(limit=60)
@@ -62,9 +61,10 @@ def process_yolo_cache_slough():
     miner = read_ts_repo(station_id="mir", variable="flow", start=sdate, end=edate)
     miner = miner.interpolate(limit=60)
     miner = cosine_lanczos(miner, hours(40))
-    yolo_south = cache_interp.sub(miner.squeeze(), axis=0)
-    yolo_south_4d = cosine_lanczos(yolo_south, days(4))
-
+    yolo_south = cache_interp.sub(miner.squeeze(), axis=0).loc[sdate:edate]
+    # hours(96) rather than days(4): pd.offsets.Day isn't a Tick in this pandas
+    # version, so pd.Timedelta(days(4)) fails inside vtools' cosine_lanczos.
+    yolo_south_4d = cosine_lanczos(yolo_south, hours(24 * 4))
     return yolo_south_4d
 
 
@@ -215,7 +215,7 @@ def fill_lisbon_flow(lisbon_flow_unfilled, sdate, edate):
     return lisbon_flow_filled
 
 
-def fill_yolototal(yolo_total_raw):
+def fill_yolototal(yolo_total_raw, sdate, edate):
     """Fill gaps in the total Yolo Bypass flow estimate.
 
     Missing values in ``yolo_total_raw`` (the northern Woodland + Sac Weir
@@ -237,7 +237,7 @@ def fill_yolototal(yolo_total_raw):
         ``yolo_total_raw``.
     """
     yolo_total_filled = yolo_total_raw.copy()
-    yolo_total_optional = process_yolo_cache_slough().reindex(yolo_total_raw.index)
+    yolo_total_optional = process_yolo_cache_slough(sdate, edate).reindex(yolo_total_raw.index)
     yolo_total_filled[yolo_total_raw.isnull()] = yolo_total_optional[
         yolo_total_raw.isnull()
     ]
@@ -343,7 +343,7 @@ def process_yolo_effective_flow(toe_raw, lisbon_elev, sdate, edate):
     yolo_total_raw = est_yolo_woodland_sacweir(sdate, edate).reindex(
         yolo_data_all.index
     )
-    yolo_total_filled = fill_yolototal(yolo_total_raw)
+    yolo_total_filled = fill_yolototal(yolo_total_raw,sdate, edate)
     yolo_data_all["yolo_total"] = yolo_total_filled
 
     # This adjustment keeps the full_yolo interpretation correct, but values
@@ -422,10 +422,12 @@ def process_yolo(start, end):
 
 @click.command("process_yolo")
 @click.option("--yolo-outfile", type=click.Path(path_type=Path),
-              default="yolo_flow.csv", show_default=True,
+              default=r"\\cnrastore-bdo\Modeling_Data\repo_processing_scratch\yolo_flow.csv",
+              show_default=True,
               help="Output CSV path for the processed Yolo Bypass flow product.")
 @click.option("--ytoe-outfile", type=click.Path(path_type=Path),
-              default="ytoe_flow.csv", show_default=True,
+              default=r"\\cnrastore-bdo\Modeling_Data\repo_processing_scratch\ytoe_flow.csv",
+              show_default=True,
               help="Output CSV path for the processed effective Toe Drain flow product.")
 @click.option("--start", type=str, default="2020-01-01", show_default=True,
               help="Inclusive start time.")
@@ -456,24 +458,8 @@ def process_yolo_cli(yolo_outfile, ytoe_outfile, start, end, logdir, debug, quie
     toe_final, yolo_final = process_yolo(sdate, edate)
     logger.info("Processing for yolo flow complete.")
 
-    base_meta = {
-        "agency": "dms",
-        "units": "cfs",
-        "comment": "Derived from lis/lbtoe/yby/rye/mir flow and lis elev "
-                   "(see dms_datastore.processed.process_yolo)",
-    }
-    ytoe_meta = {
-        **base_meta,
-        "variable": "flow",
-        "agency_station_name": "Effective Toe Drain flow (Lisbon-based)",
-    }
-    yolo_meta = {
-        **base_meta,
-        "variable": "flow",
-        "agency_station_name": "Effective Yolo Bypass flow",
-    }
-    write_ts_csv(toe_final, str(ytoe_outfile), metadata=ytoe_meta)
-    write_ts_csv(yolo_final, str(yolo_outfile), metadata=yolo_meta)
+    toe_final.to_csv(str(ytoe_outfile), index_label="datetime", header=["value"])
+    yolo_final.to_csv(str(yolo_outfile), index_label="datetime", header=["value"])
     logger.info("Wrote %s", ytoe_outfile)
     logger.info("Wrote %s", yolo_outfile)
 
