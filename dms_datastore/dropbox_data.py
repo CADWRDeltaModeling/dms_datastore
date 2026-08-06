@@ -199,6 +199,20 @@ def _metadata_uses_registry_lookup(metadata):
     return any(value == "registry_lookup" for value in (metadata or {}).values())
 
 
+def _is_none_token(value):
+    """True for Python None or a case-insensitive 'none'/'null' string.
+
+    YAML's ``null`` keyword parses to Python ``None``, but a bare, unquoted
+    ``none``/``None`` is parsed by YAML as the *string* ``"none"``/``"None"``
+    (not a null literal). Recipe authors reasonably expect either spelling to
+    mean "no value", so fields that accept an omitted/null sentinel should be
+    checked with this helper rather than a strict ``is None`` test.
+    """
+    if value is None:
+        return True
+    return isinstance(value, str) and value.strip().lower() in ("none", "null")
+
+
 def _pattern_is_template(pattern):
     return isinstance(pattern, str) and "{" in pattern and "}" in pattern
 
@@ -634,7 +648,9 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
             collector = DataCollector("dummy", location, file_pattern, recursive)
             wildcard = item.get(
                 "wildcard", None
-            )  # expected: time_shard | time_overlap | None
+            )  # expected: time_shard | time_overlap | none
+            if _is_none_token(wildcard):
+                wildcard = None
             uses_filename_inference = _metadata_uses_filename_inference(listing.get("metadata", {}))
             uses_registry_lookup = _metadata_uses_registry_lookup(listing.get("metadata", {}))
             uses_template_pattern = _pattern_is_template(file_pattern)
@@ -787,7 +803,7 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
 
             else:
                 raise ValueError(
-                    f"{name}: collect.wildcard must be 'time_shard', 'time_overlap', or omitted; got '{wildcard}'"
+                    f"{name}: collect.wildcard must be 'time_shard', 'time_overlap', 'none', or omitted; got '{wildcard}'"
                 )
 
             # --- Combine if needed (combine BEFORE transforms to avoid creating duplicate
@@ -818,7 +834,7 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                     if meta_out["freq"] == "infer":
                         meta_out["freq"] = infer_freq_robust(ts.index)
 
-                    if meta_out["freq"] is None or meta_out["freq"] == "None":
+                    if _is_none_token(meta_out["freq"]):
                         meta_out["freq"] = "irregular"
 
                     _check_metadata(meta_out, repo_name)
@@ -884,7 +900,7 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                 if meta_out["freq"] == "infer":
                     meta_out["freq"] = infer_freq_robust(ts.index)
 
-                if meta_out["freq"] is None or meta_out["freq"] == "None":
+                if _is_none_token(meta_out["freq"]):
                     meta_out["freq"] = "irregular"
 
                 _check_metadata(meta_out, repo_name)
