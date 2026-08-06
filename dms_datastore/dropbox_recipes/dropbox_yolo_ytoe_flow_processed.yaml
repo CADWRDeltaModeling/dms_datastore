@@ -38,7 +38,7 @@ data:
       subloc: default
       freq: infer   # must be "infer" here since reader_args.force_regular is True
       param: flow
-      unit: cfs
+      unit: f^3/s
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}
       latitude: registry_lookup
@@ -85,7 +85,7 @@ data:
       subloc: default
       freq: infer   # must be "infer" here since reader_args.force_regular is True
       param: flow
-      unit: cfs
+      unit: f^3/s
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}
       latitude: registry_lookup

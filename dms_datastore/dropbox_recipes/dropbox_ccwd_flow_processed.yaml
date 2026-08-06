@@ -36,7 +36,7 @@ data:
       subloc: default
       freq: infer  # None for irregular, "infer" for infer.
       param: flow
-      unit: cfs
+      unit: f^3/s
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}
       latitude: registry_lookup
@@ -83,7 +83,7 @@ data:
       subloc: default
       freq: infer
       param: flow
-      unit: cfs
+      unit: f^3/s
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}
       latitude: registry_lookup
@@ -130,7 +130,7 @@ data:
       subloc: default
       freq: infer
       param: flow
-      unit: cfs
+      unit: f^3/s
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}
       latitude: registry_lookup
