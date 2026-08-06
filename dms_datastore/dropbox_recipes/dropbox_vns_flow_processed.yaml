@@ -11,7 +11,7 @@ data:
     skip: False
     collect:
       file_pattern: "vns_flow.csv"
-      wildcard: time_overlap    # time_sharded | time_overlap | data | none.
+      wildcard: time_shard   # time_sharded | time_overlap | data | none.
             # If time_sharded, indicates non-overlapping timestamps that uses year chunking.
             # If time_overlap, indicates wildcards are ordered by date 20250531(lexicographic must = chronological)
             # If data, represents different station/variable. Look for metadata in the file and station lists.
@@ -23,7 +23,7 @@ data:
          names: ["datetime", "value"]
          na_values: ["(null)", "null", "NULL", ""]
          hint: "resort"
-         force_regular: False
+         force_regular: True
       merge_method: "ts_splice" # We will not call read_ts on wildcard, but rather glob and read and creat list of dfs
       merge_args:
          transition: prefer_last
@@ -31,18 +31,20 @@ data:
     transforms: #no transforms on daily data needed
     metadata:
       station_id: vns
-      agency_id: vns
+      agency_id: usgs
       source: usgs
       agency: usgs
       processor: dms   # required by the 'processed' repo filename templates
       subloc: default
-      freq: None   # None for irregular, "infer" for infer.
+      freq: infer  # None for irregular, "infer" for infer.
       param: flow
       unit: cfs
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}
       latitude: registry_lookup
       longitude: registry_lookup
+      process_method: Gap-filled via Dynamic Factor Model using nearby station msd, after range-masking and lag alignment
+      process_script: process_vns_sjl.py
 
     output:
       repo_name: processed   # pointer to an entry in dstore_config.yaml
@@ -54,8 +56,4 @@ data:
       repo_data_dir: ${dropbox_home}
       reconcile:
         prefer: staged
-        allow_new_series: true
-        inspection:
-          recent_years: 3
-          p3: 0.15
-          p10: 0.05
+        allow_new_series: False

@@ -11,7 +11,7 @@ data:
     skip: False
     collect:
       file_pattern: "sjr_ec.csv"
-      wildcard: time_overlap    # time_sharded | time_overlap | data | none. 
+      wildcard: time_shard    # time_sharded | time_overlap | data | none. 
             # If time_sharded, indicates non-overlapping timestamps that uses year chunking. 
             # If time_overlap, indicates wildcards are ordered by date 20250531(lexicographic must = chronological)
             # If data, represents different station/variable. Look for metadata in the file and station lists. 
@@ -30,17 +30,20 @@ data:
       selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
     transforms: #no transforms on daily data needed
     metadata: 
+      agency: ncro
       station_id: vns
       source: ncro
       processor: dms   # required by the 'processed' repo filename templates
       subloc: default
-      freq: 15min   # None for irregular, "infer" for infer.
+      freq: infer   # None for irregular, "infer" for infer.
       param: ec
       unit: us/cm
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}   
       latitude: registry_lookup
       longitude: registry_lookup
+      process_method: Gap-filled via Dynamic Factor Model using nearby station vns, after range-masking and lag alignment
+      process_script: process_vns_sjl.py
 
     output:
       repo_name: processed   # pointer to an entry in dstore_config.yaml
@@ -52,8 +55,4 @@ data:
       repo_data_dir: ${dropbox_home}
       reconcile:
         prefer: staged
-        allow_new_series: true
-        inspection:
-          recent_years: 3
-          p3: 0.15
-          p10: 0.05      
+        allow_new_series: false
