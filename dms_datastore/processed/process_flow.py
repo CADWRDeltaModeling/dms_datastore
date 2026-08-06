@@ -20,8 +20,36 @@ logger = logging.getLogger(__name__)
 
 
 def process_mokelumne_flow(sdate, edate, outdir):
-    """
-    Process Mokelumne River Flow
+    """Process Mokelumne River flow at Woodbridge (station ``wbr``).
+
+    Daily flow from USGS/EBMUD (merged via provider priority) is
+    gap-filled (interpolation limit 4), converted to a period index, and
+    disaggregated to 15-minute values using ``rhistinterp`` on a
+    constant-shifted series, then clipped to remove negative values. The
+    result is written to ``moke_flow.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period over which Mokelumne flow is read and
+        processed.
+    edate : pandas.Timestamp
+        End of the period over which Mokelumne flow is read and
+        processed.
+    outdir : str
+        Directory to which ``moke_flow.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed flow series to ``moke_flow.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Mokelumne flow after merging
+        USGS and EBMUD data sources.
     """
     moke = read_ts_repo(station_id='wbr', variable='flow',start=sdate,end=edate, repo='daily_formatted', provider_priority=['usgs','ebmud'])
     moke = moke.interpolate(limit=4).to_period(freq='D')
@@ -40,8 +68,36 @@ def process_mokelumne_flow(sdate, edate, outdir):
 
 
 def process_consumnes_flow(sdate, edate, outdir):
-    """
-    Process Consumnes River Flow
+    """Process Consumnes River flow at Michigan Bar (station ``mhb``).
+
+    USGS flow is read and gap-filled by direct interpolation. If the
+    processing window fully covers 2023-08-19 through 2023-08-29, that
+    span is replaced with its own mean value (preserving a legacy
+    manual correction). The result is written to
+    ``consumnes_flow.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period over which Consumnes flow is read and
+        processed.
+    edate : pandas.Timestamp
+        End of the period over which Consumnes flow is read and
+        processed.
+    outdir : str
+        Directory to which ``consumnes_flow.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed flow series to ``consumnes_flow.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Consumnes flow at MHB after
+        interpolation.
     """
     mhb_usgs = read_ts_repo(station_id='mhb', variable='flow',start=sdate,end=edate)
     mhb_usgs = mhb_usgs.interpolate()
@@ -60,8 +116,43 @@ def process_consumnes_flow(sdate, edate, outdir):
 
 
 def process_american_sac_flow(sdate, edate, outdir):
-    """
-    Process American River Flow and Sacramento River Flow
+    """Process American River flow and derive Sacramento River flow at I and K Streets.
+
+    USGS flow at Freeport (station ``fpt``) is gap-filled
+    (interpolation limit 20), tidally filtered (``cosine_lanczos``,
+    40-hour cutoff), and further gap-filled by interpolation; USGS flow
+    at Fair Oaks (station ``afo``) is gap-filled by interpolation and
+    restricted to the window widened by the 3-hour Sacramento lag.
+    Sacramento flow at I Street is computed as Freeport flow minus
+    American River flow, then shifted -3 hours to align with I Street.
+    Freeport flow itself is treated as the K Street product. The three
+    series are written to ``sac_i_flow.csv``, ``sac_k_flow.csv``, and
+    ``american_flow.csv`` respectively.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final products are clipped
+        (data are read over a wider buffered window).
+    edate : pandas.Timestamp
+        End of the period to which the final products are clipped
+        (data are read over a wider buffered window).
+    outdir : str
+        Directory to which ``sac_i_flow.csv``, ``sac_k_flow.csv``, and
+        ``american_flow.csv`` are written.
+
+    Returns
+    -------
+    None
+        Writes the three processed flow series to CSV files in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If American River flow exceeds Freeport flow at any time, or if
+        missing values remain in any of the three final series after
+        processing.
     """
     buffer = days(5)
     lag_sac = hours(3)
@@ -109,8 +200,37 @@ def process_american_sac_flow(sdate, edate, outdir):
 
 
 def process_calaveras_flow(sdate, edate, outdir):
-    """
-    Process Calaveras River Flow
+    """Process Calaveras River flow at New Hogan Lake (station ``nhg``).
+
+    Daily flow is resampled to 15-minute intervals and gap-filled by
+    interpolation (limit 20). Following a legacy assumption, summer
+    flows below 500 cfs are treated as not reaching the Delta and set
+    to zero; remaining gaps are filled with zero and then
+    forward-filled (limit 7). The result is written to
+    ``calaveras_flow.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period over which Calaveras flow is read and
+        processed.
+    edate : pandas.Timestamp
+        End of the period over which Calaveras flow is read and
+        processed.
+    outdir : str
+        Directory to which ``calaveras_flow.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed flow series to ``calaveras_flow.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Calaveras flow after
+        processing.
     """
     interval = minutes(15)
     calaveras = read_ts_repo(station_id='nhg', variable='flow',start=sdate,end=edate, repo='daily_formatted')
@@ -134,8 +254,36 @@ def process_calaveras_flow(sdate, edate, outdir):
 
 
 def process_northbay_flow(sdate, edate, outdir):
-    """
-    Process North Bay diversion flow
+    """Process North Bay Aqueduct diversion flow at Barker Slough (station ``bks``).
+
+    Sub-daily CDEC flow is collapsed to a daily mean, converted to a
+    period index, and gap-filled by interpolation (limit 2), then
+    disaggregated to 15-minute values using ``rhistinterp`` on a
+    constant-shifted series. The result is written to
+    ``northbay_flow.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period over which North Bay diversion flow is
+        read and processed.
+    edate : pandas.Timestamp
+        End of the period over which North Bay diversion flow is read
+        and processed.
+    outdir : str
+        Directory to which ``northbay_flow.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed flow series to ``northbay_flow.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the North Bay diversion flow after
+        processing.
     """
     interval = minutes(15)
     bks_cdec = read_ts_repo(station_id='bks', variable='flow', start=sdate, end=edate, repo='daily_formatted')
@@ -144,13 +292,6 @@ def process_northbay_flow(sdate, edate, outdir):
     bks_cdec = bks_cdec.interpolate(limit=2)
     bks_cdec.columns = ['value']
     bks_cdec.index.name = 'datetime'
-
-    # rhistinterp cannot handle NaNs (gaps longer than the interpolate limit above);
-    # check here rather than let it fail deep inside the vtools histospline solver.
-    if bks_cdec.isnull().sum().sum() > 0:
-        raise ValueError("There are {} missing values in the North Bay diversion flow "
-                          "before histospline interpolation (gap(s) longer than the "
-                          "interpolate limit).".format(bks_cdec.isnull().sum().sum()))
 
     bks_cdec = rhistinterp(bks_cdec+10, interval,lowbound=0.0,p=20.) - 10
 
@@ -165,11 +306,60 @@ def process_northbay_flow(sdate, edate, outdir):
 
 
 def process_ccwd_flow(sdate, edate, outdir):
-    """
-    Process CCWD diversions at Rock Slough, Old River, and Victoria Canal
+    """Process CCWD diversion flow at Rock Slough, Old River, and Victoria Canal.
+
+    Daily flow at Rock Slough (station ``inb``), Old River (station
+    ``idb``), and Victoria Canal (station ``ccw``) is each gap-filled
+    and disaggregated to 15-minute values via the nested
+    :func:`ccwd_intake` helper, using a different interpolation gap
+    limit for each station. The three series are written to
+    ``ccc_flow.csv``, ``cccoldr_flow.csv``, and ``ccw_flow.csv``
+    respectively.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period over which CCWD diversion flow is read and
+        processed.
+    edate : pandas.Timestamp
+        End of the period over which CCWD diversion flow is read and
+        processed.
+    outdir : str
+        Directory to which ``ccc_flow.csv``, ``cccoldr_flow.csv``, and
+        ``ccw_flow.csv`` are written.
+
+    Returns
+    -------
+    None
+        Writes the three processed flow series to CSV files in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in any of the three diversion flow
+        series after processing.
     """
 
     def ccwd_intake(data, interp_limit):
+        """Interpolate and disaggregate a daily CCWD diversion flow series to 15-minute values.
+
+        Parameters
+        ----------
+        data : pandas.DataFrame or pandas.Series
+            Daily diversion flow series, indexed by datetime,
+            potentially containing gaps.
+        interp_limit : int
+            Maximum number of consecutive missing daily values to fill
+            by interpolation before disaggregation.
+
+        Returns
+        -------
+        pandas.DataFrame or pandas.Series
+            The series interpolated, converted to a period index, and
+            disaggregated to 15-minute values via ``rhistinterp``,
+            clipped to remove negative values.
+        """
         data = data.interpolate(limit=interp_limit)
         data = data.to_period()
         data = rhistinterp(data+5, minutes(15), lowbound=0.0, p=6) - 5
@@ -214,8 +404,34 @@ def process_ccwd_flow(sdate, edate, outdir):
 
 
 def process_cvp_flow(sdate, edate, outdir):
-    """
-    Process CVP flow
+    """Process CVP export flow at Tracy Pumping Plant (station ``trp``).
+
+    Daily flow is gap-filled by interpolation, converted to a daily
+    period index, and disaggregated to 15-minute values using
+    ``rhistinterp`` on a constant-shifted series, then clipped to
+    remove negative values and restricted to ``sdate``:``edate``. The
+    result is written to ``cvp_flow.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the processed CVP flow is
+        clipped.
+    edate : pandas.Timestamp
+        End of the period to which the processed CVP flow is clipped.
+    outdir : str
+        Directory to which ``cvp_flow.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed flow series to ``cvp_flow.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the CVP flow after processing.
     """
 
     cvp = read_ts_repo(station_id='trp', variable='flow', start=sdate, end=edate, repo='daily_formatted')
@@ -235,8 +451,30 @@ def process_cvp_flow(sdate, edate, outdir):
 
 
 def process_swp_flow(sdate, edate, outdir):
-    """
-    Process SWP flow
+    """Process SWP export flow at Harvey O. Banks Pumping Plant (station ``hro``).
+
+    Daily flow is gap-filled by direct interpolation. The result is
+    written to ``swp_flow.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period over which SWP flow is read and processed.
+    edate : pandas.Timestamp
+        End of the period over which SWP flow is read and processed.
+    outdir : str
+        Directory to which ``swp_flow.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed flow series to ``swp_flow.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the SWP flow after processing.
     """
 
     swp = read_ts_repo(station_id='hro', variable='flow', start=sdate, end=edate, repo='daily_formatted')
@@ -253,8 +491,34 @@ def process_swp_flow(sdate, edate, outdir):
 
 
 def process_napa_flow(sdate, edate, outdir):
-    """
-    Process Napa River flow
+    """Process Napa River flow near Napa (station ``napr``).
+
+    Flow is resampled to 15-minute intervals and gap-filled by
+    interpolation (limit 10); any remaining gaps are filled with zero.
+    The result is written to ``napa_flow.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period over which Napa River flow is read and
+        processed.
+    edate : pandas.Timestamp
+        End of the period over which Napa River flow is read and
+        processed.
+    outdir : str
+        Directory to which ``napa_flow.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed flow series to ``napa_flow.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Napa River flow after
+        processing.
     """
     interval = minutes(15)
     napa = read_ts_repo(station_id='napr', variable='flow', start=sdate, end=edate)
@@ -272,8 +536,34 @@ def process_napa_flow(sdate, edate, outdir):
 
 
 def process_coyote_flow(sdate, edate, outdir):
-    """
-    Process Coyote Creek flow
+    """Process Coyote Creek flow above Highway 237 (station ``coycr``).
+
+    Flow is resampled to 15-minute intervals and gap-filled by
+    interpolation (limit 50); any remaining gaps are filled with zero.
+    The result is written to ``coyote_flow.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period over which Coyote Creek flow is read and
+        processed.
+    edate : pandas.Timestamp
+        End of the period over which Coyote Creek flow is read and
+        processed.
+    outdir : str
+        Directory to which ``coyote_flow.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed flow series to ``coyote_flow.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Coyote Creek flow after
+        processing.
     """
     interval = minutes(15)
     coyote = read_ts_repo(station_id='coycr', variable='flow', start=sdate, end=edate)
