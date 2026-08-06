@@ -30,7 +30,7 @@ data:
       selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
     transforms: #no transforms on daily data needed
     metadata: 
-      agency: ncro
+      agency: dwr_des
       station_id: vns
       source: ncro
       processor: dms   # required by the 'processed' repo filename templates
