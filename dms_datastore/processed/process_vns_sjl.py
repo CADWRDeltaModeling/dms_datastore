@@ -250,13 +250,16 @@ def process_sjl_ele(fit_start, fit_end, fill_start, fill_end):
 
 @click.command("process_vns_sjl")
 @click.option("--flow-outfile", type=click.Path(path_type=Path),
-              default="sjr_flow.csv", show_default=True,
+              default=r"\\cnrastore-bdo\Modeling_Data\repo_processing_scratch\vns_flow.csv",
+              show_default=True,
               help="Output CSV path for the gap-filled Vernalis flow product.")
 @click.option("--ec-outfile", type=click.Path(path_type=Path),
-              default="sjr_ec.csv", show_default=True,
+              default=r"\\cnrastore-bdo\Modeling_Data\repo_processing_scratch\sjr_ec.csv",
+              show_default=True,
               help="Output CSV path for the gap-filled San Joaquin River EC product.")
 @click.option("--elev-outfile", type=click.Path(path_type=Path),
-              default="sjr_lathrop_elevation.csv", show_default=True,
+              default=r"\\cnrastore-bdo\Modeling_Data\repo_processing_scratch\sjr_lathrop_elevation.csv",
+              show_default=True,
               help="Output CSV path for the gap-filled SJR Lathrop elevation product.")
 @click.option("--flow-fit-start", type=str, default="2010-01-01", show_default=True,
               help="Start of the window used to fit the Vernalis flow filling model.")
@@ -264,7 +267,7 @@ def process_sjl_ele(fit_start, fit_end, fill_start, fill_end):
               help="End of the window used to fit the Vernalis flow filling model.")
 @click.option("--flow-fill-start", type=str, default="2020-01-01", show_default=True,
               help="Start of the window over which Vernalis flow is filled.")
-@click.option("--flow-fill-end", type=str, default="2026-01-01", show_default=True,
+@click.option("--flow-fill-end", type=str, default=None, show_default=True,
               help="End of the window over which Vernalis flow is filled.")
 @click.option("--ec-fit-start", type=str, default="2010-01-01", show_default=True,
               help="Start of the window used to fit the Vernalis EC filling model.")
@@ -272,7 +275,7 @@ def process_sjl_ele(fit_start, fit_end, fill_start, fill_end):
               help="End of the window used to fit the Vernalis EC filling model.")
 @click.option("--ec-fill-start", type=str, default="2020-01-01", show_default=True,
               help="Start of the window over which Vernalis EC is filled.")
-@click.option("--ec-fill-end", type=str, default="2026-01-01", show_default=True,
+@click.option("--ec-fill-end", type=str, default=None, show_default=True,
               help="End of the window over which Vernalis EC is filled.")
 @click.option("--elev-fit-start", type=str, default="2002-01-01", show_default=True,
               help="Start of the window used to fit the SJR Lathrop elevation filling model.")
@@ -280,7 +283,7 @@ def process_sjl_ele(fit_start, fit_end, fill_start, fill_end):
               help="End of the window used to fit the SJR Lathrop elevation filling model.")
 @click.option("--elev-fill-start", type=str, default="2002-01-01", show_default=True,
               help="Start of the window over which SJR Lathrop elevation is filled.")
-@click.option("--elev-fill-end", type=str, default="2025-09-01", show_default=True,
+@click.option("--elev-fill-end", type=str, default=None, show_default=True,
               help="End of the window over which SJR Lathrop elevation is filled.")
 @click.option("--skip-flow", is_flag=True, help="Skip the Vernalis flow gap-filling step.")
 @click.option("--skip-ec", is_flag=True, help="Skip the Vernalis EC gap-filling step.")
