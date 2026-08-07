@@ -431,7 +431,7 @@ def process_yolo(start, end):
               help="Output CSV path for the processed effective Toe Drain flow product.")
 @click.option("--start", type=str, default="2020-01-01", show_default=True,
               help="Inclusive start time.")
-@click.option("--end", type=str, default="2026-01-01", show_default=True,
+@click.option("--end", type=str, default=None, required=True,
               help="Inclusive end time.")
 @click.option("--logdir", type=click.Path(path_type=Path), default="logs",
               help="Directory for log files.")

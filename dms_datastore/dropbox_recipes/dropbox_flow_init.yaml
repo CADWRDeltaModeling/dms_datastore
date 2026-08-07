@@ -1,0 +1,797 @@
+# Initialization (backfill) recipe: legacy SCHISM boundary FLOW inputs.
+#
+# One-time ingestion of the legacy simulation boundary flows in
+# schism_legacy_bc into the `processed` repo. These are regular 15-min series.
+# Run once with `skip: False`, confirm the staged/reconciled result, then flip
+# each entry to `skip: True` to leave it as a self-documenting record.
+#
+# Sign convention: the legacy flux file stores river inflows as negative values.
+# River-inflow entries apply a `linear` transform (scale: -1.0) to express them
+# in the positive-inflow convention. Export/diversion columns (ccc*, cvp,
+# northbay/bks, swp) are already positive and are ingested as-is.
+
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_processing_scratch/staging   # staging scratch area; the reconcile destination is inferred from repo_name
+modeling_data: //cnrastore-bdo/Modeling_Data/
+target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
+target_tz_label: PST
+
+
+data:
+  # -------- from flux_cfs_v20260731.csv (wide, one column per boundary) --------
+  - name: coyote_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: coyote
+      splice_args:
+         rename: value
+    transforms:
+      - name: linear
+        args:
+          scale: -1.0
+    metadata:
+      station_id: coyote
+      agency_id: usgs
+      source: usgs
+      agency: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: ccc_rock_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: ccc_rock
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: ccc
+      agency_id: ccc
+      source: cdec
+      agency: ccwd
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.0f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: ccc_old_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: ccc_old
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: cccoldr
+      agency_id: cccoldr
+      source: cdec
+      agency: ccwd
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.0f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: cvp_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: cvp
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: cvp
+      agency_id: cvp
+      source: cdec
+      agency: usbr
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: sjr_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: sjr
+      splice_args:
+         rename: value
+    transforms:
+      - name: linear
+        args:
+          scale: -1.0
+    metadata:
+      station_id: vns
+      agency_id: usgs
+      source: usgs
+      agency: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: calaveras_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: calaveras
+      splice_args:
+         rename: value
+    transforms:
+      - name: linear
+        args:
+          scale: -1.0
+    metadata:
+      station_id: calaveras
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: american_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: american
+      splice_args:
+         rename: value
+    transforms:
+      - name: linear
+        args:
+          scale: -1.0
+    metadata:
+      station_id: american
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: sac_k_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: sac
+      splice_args:
+         rename: value
+    transforms:
+      - name: linear
+        args:
+          scale: -1.0
+    metadata:
+      station_id: sack
+      agency_id: sack
+      source: usgs
+      agency: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: yolo_toedrain_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: yolo_toedrain
+      splice_args:
+         rename: value
+    transforms:
+      - name: linear
+        args:
+          scale: -1.0
+    metadata:
+      station_id: ytoe
+      agency_id: ytoe
+      source: dwr_ncro
+      agency: dwr_ncro
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025), bidirectional at Toe Drain; see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: yolo_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: yolo
+      splice_args:
+         rename: value
+    transforms:
+      - name: linear
+        args:
+          scale: -1.0
+    metadata:
+      station_id: yolo
+      agency_id: yolo
+      source: dwr_ncro
+      agency: dwr_ncro
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: northbay_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: northbay
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: bks
+      agency_id: bks
+      source: cdec
+      agency: dwr
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: napa_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: napa
+      splice_args:
+         rename: value
+    transforms:
+      - name: linear
+        args:
+          scale: -1.0
+    metadata:
+      station_id: napa
+      agency_id: usgs
+      source: usgs
+      agency: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: ccc_victoria_flow
+    skip: False
+    collect:
+      file_pattern: "flux_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: ccc_victoria
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: ccw
+      agency_id: ccw
+      source: cdec
+      agency: ccwd
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.0f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  # -------- from east_cfs_v20260731.csv (already positive; no sign flip) --------
+  - name: cosumnes_flow
+    skip: False
+    collect:
+      file_pattern: "east_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: cosumnes
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: consumnes
+      agency_id: consumnes
+      source: usgs
+      agency: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025), east boundary split into cosumnes and moke; see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: moke_flow
+    skip: False
+    collect:
+      file_pattern: "east_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: moke
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: moke
+      agency_id: moke
+      source: usgs
+      agency: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary flow input (WY2007-2025), east boundary split into cosumnes and moke; see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  # -------- from saci_cfs_v20260731.csv (built by make_saci.py = sac + american) --------
+  - name: sac_i_flow
+    skip: False
+    collect:
+      file_pattern: "saci_cfs_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: null
+      splice_args:
+         rename: value
+    transforms:
+      - name: linear
+        args:
+          scale: -1.0
+    metadata:
+      station_id: saci
+      agency_id: saci
+      source: usgs
+      agency: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM Sacramento at I Street = sac (K Street) + american, from schism_legacy_bc/make_saci.py; see readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  # -------- from prepared_banks_cfs.csv (Banks-only SWP export; already positive) --------
+  - name: swp_flow
+    skip: False
+    collect:
+      file_pattern: "prepared_banks_cfs.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: null
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: swp
+      agency_id: swp
+      source: cdec
+      agency: dwr
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy Banks-only SWP export (prepared_banks_cfs.csv); flux swp column lumps Banks and BBID; see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.0f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  # -------- from prepared_bbi_cfs.csv (BBID portion; already positive) --------
+  - name: bbi_flow
+    skip: False
+    collect:
+      file_pattern: "prepared_bbi_cfs.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         force_regular: True
+      selector: null
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: bbi
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy BBID export portion (prepared_bbid_cfs.csv); see schism_legacy_bc/readme.txt
+      process_script: process_flow.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true

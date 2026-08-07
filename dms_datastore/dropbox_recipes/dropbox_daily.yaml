@@ -36,8 +36,9 @@ data:
       repo_name: daily_formatted
       staging:
         dir: staging
-        float_format: "%0.3f"
-        chunk_years: False
+        write_args:
+          float_format: "%0.1f"
+          chunk_years: False
       reconcile:
         #repo_data_dir: ./fake_repo
         prefer: staged
@@ -80,7 +81,7 @@ data:
       staging:
         dir: ./staging
         write_args:
-          float_format: "%.4f"
+          float_format: "%0.1f"
       reconcile:
         prefer: repo
         allow_new_series: true
@@ -119,13 +120,11 @@ data:
       repo_name: daily_formatted
       staging:
         dir: staging
-        float_format: "%0.3f"
-        chunk_years: False
+        write_args:
+          float_format: "%0.1f"
+          chunk_years: False
       reconcile:
         #repo_data_dir: ./fake_repo
         prefer: staged
         allow_new_series: true
-        inspection:
-          recent_years: 3
-          p3: 0.15
-          p10: 0.05                          
+                      

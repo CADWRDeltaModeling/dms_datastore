@@ -1,5 +1,6 @@
 import logging
 import os.path as osp
+import re
 from pathlib import Path
 
 import click
@@ -581,6 +582,98 @@ def process_coyote_flow(sdate, edate, outdir):
 
 
 
+# Ordered registry of processed-flow products: (step name, worker function).
+# Order matters and matches the historical run sequence. Each worker has the
+# signature ``func(sdate, edate, outdir)`` and writes one product CSV.
+_FLOW_STEPS = [
+    ("swp", process_swp_flow),
+    ("northbay", process_northbay_flow),
+    ("mokelumne", process_mokelumne_flow),
+    ("consumnes", process_consumnes_flow),
+    ("american_sac", process_american_sac_flow),
+    ("ccwd", process_ccwd_flow),
+    ("cvp", process_cvp_flow),
+    ("calaveras", process_calaveras_flow),
+    ("napa", process_napa_flow),
+    ("coyote", process_coyote_flow),
+]
+
+FLOW_STEP_NAMES = [name for name, _ in _FLOW_STEPS]
+
+
+def _split_multi(values):
+    """Flatten a tuple of CLI option values, splitting each on commas/whitespace."""
+    out = []
+    for v in values or ():
+        out.extend(part for part in re.split(r"[,\s]+", str(v).strip()) if part)
+    return out
+
+
+def select_flow_steps(include=None, exclude=None):
+    """Resolve which flow steps to run.
+
+    Parameters
+    ----------
+    include : sequence of str, optional
+        Run only these steps. Selection starts from nothing, so an empty/omitted
+        ``include`` selects no steps *via include*. Mutually exclusive with
+        ``exclude``.
+    exclude : sequence of str, optional
+        Run every step except these. Selection starts from everything.
+
+    Returns
+    -------
+    list of (str, callable)
+        The ordered ``(name, worker)`` pairs to run.
+
+    Raises
+    ------
+    ValueError
+        If both ``include`` and ``exclude`` are given, or if any name is not a
+        recognized step.
+    """
+    include = _split_multi(include)
+    exclude = _split_multi(exclude)
+    if include and exclude:
+        raise ValueError("Use only one of --include or --exclude, not both.")
+
+    unknown = [s for s in include + exclude if s not in FLOW_STEP_NAMES]
+    if unknown:
+        raise ValueError(
+            f"Unknown flow step(s): {unknown}. Valid steps: {FLOW_STEP_NAMES}."
+        )
+
+    if include:
+        keep = set(include)
+        return [(n, f) for n, f in _FLOW_STEPS if n in keep]
+    if exclude:
+        drop = set(exclude)
+        return [(n, f) for n, f in _FLOW_STEPS if n not in drop]
+    return list(_FLOW_STEPS)
+
+
+def process_flow(start, end, outdir, include=None, exclude=None):
+    """Run the selected processed-flow products, writing one CSV per step.
+
+    Parameters
+    ----------
+    start, end : str or pandas.Timestamp
+        Inclusive bounds of the processing window.
+    outdir : str or pathlib.Path
+        Directory to which the product CSVs are written.
+    include : sequence of str, optional
+        Run only these steps (starts from nothing).
+    exclude : sequence of str, optional
+        Run all steps except these (starts from everything).
+    """
+    sdate = pd.to_datetime(start)
+    edate = pd.to_datetime(end)
+    outdir = str(outdir)
+    for name, func in select_flow_steps(include=include, exclude=exclude):
+        logger.info("Processing flow step: %s", name)
+        func(sdate, edate, outdir)
+
+
 @click.command("process_flow")
 @click.option("--start", type=str, default="2020-01-01 00:00:00", show_default=True,
               help="Start of the processing window.")
@@ -589,26 +682,26 @@ def process_coyote_flow(sdate, edate, outdir):
 @click.option("--outdir", type=click.Path(path_type=Path),
               default=r"\\cnrastore-bdo\Modeling_Data\repo_processing_scratch",
               show_default=True, help="Directory to write output CSVs to.")
-@click.option("--skip-mokelumne", is_flag=True, help="Skip the Mokelumne flow step.")
-@click.option("--skip-consumnes", is_flag=True, help="Skip the Consumnes flow step.")
-@click.option("--skip-american-sac", is_flag=True, help="Skip the American/Sacramento flow step.")
-@click.option("--skip-ccwd", is_flag=True, help="Skip the CCWD diversions step.")
-@click.option("--skip-calaveras", is_flag=True, help="Skip the Calaveras flow step.")
-@click.option("--skip-cvp", is_flag=True, help="Skip the CVP flow step.")
-@click.option("--skip-swp", is_flag=True, help="Skip the SWP flow step.")
-@click.option("--skip-napa", is_flag=True, help="Skip the Napa River flow step.")
-@click.option("--skip-coyote", is_flag=True, help="Skip the Coyote Creek flow step.")
-@click.option("--skip-northbay", is_flag=True, help="Skip the North Bay diversion flow step.")
+@click.option("--include", multiple=True,
+              help="Run ONLY these steps (starts from nothing). Repeatable or "
+                   "comma-/space-separated. Steps: " + ", ".join(FLOW_STEP_NAMES) + ".")
+@click.option("--exclude", multiple=True,
+              help="Run EVERYTHING except these steps (starts from everything). "
+                   "Repeatable or comma-/space-separated. Mutually exclusive with --include.")
 @click.option("--logdir", type=click.Path(path_type=Path), default="logs",
               help="Directory for log files.")
 @click.option("--debug", is_flag=True, help="Enable debug logging.")
 @click.option("--quiet", is_flag=True, help="Suppress console output.")
 @click.help_option("-h", "--help")
-def process_flow_cli(start, end, outdir,
-                          skip_mokelumne, skip_consumnes, skip_american_sac,
-                          skip_ccwd, skip_calaveras, skip_swp, skip_northbay, skip_cvp, skip_napa, skip_coyote,
-                          logdir, debug, quiet):
-    """Run one or all of the processed-flow products, writing CSVs to --outdir."""
+def process_flow_cli(start, end, outdir, include, exclude, logdir, debug, quiet):
+    """Run one or all processed-flow products, writing CSVs to --outdir.
+
+    By default every step runs. Use --include to run only specific steps
+    (selection starts from nothing) or --exclude to run everything except
+    certain steps. The two options are mutually exclusive. Available steps:
+    swp, northbay, mokelumne, consumnes, american_sac, ccwd, cvp, calaveras,
+    napa, coyote.
+    """
     level, console = resolve_loglevel(debug=debug, quiet=quiet)
     configure_logging(
         package_name="dms_datastore",
@@ -617,31 +710,7 @@ def process_flow_cli(start, end, outdir,
         logdir=logdir,
         logfile_prefix="process_flow",
     )
-    sdate = pd.to_datetime(start)
-    edate = pd.to_datetime(end)
-    outdir = str(outdir)
-
-    if not skip_swp:
-        process_swp_flow(sdate, edate, outdir)
-    if not skip_northbay:
-        process_northbay_flow(sdate, edate, outdir)
-    if not skip_mokelumne:
-        process_mokelumne_flow(sdate, edate, outdir)
-    if not skip_consumnes:
-        process_consumnes_flow(sdate, edate, outdir)
-    if not skip_american_sac:
-        process_american_sac_flow(sdate, edate, outdir)
-    if not skip_ccwd:
-        process_ccwd_flow(sdate, edate, outdir)
-    if not skip_cvp:
-        process_cvp_flow(sdate, edate, outdir)
-    if not skip_calaveras:
-        process_calaveras_flow(sdate, edate, outdir)
-
-    if not skip_napa:
-        process_napa_flow(sdate, edate, outdir)
-    if not skip_coyote:
-        process_coyote_flow(sdate, edate, outdir)
+    process_flow(start, end, outdir, include=include, exclude=exclude)
 
 
 if __name__ == '__main__':

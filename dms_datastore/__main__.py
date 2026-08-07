@@ -34,6 +34,7 @@ from dms_datastore.processed.process_ccfb_gate_height import process_ccfb_gate_h
 from dms_datastore.processed.process_ccfb_waterlevel import process_ccfb_waterlevel_cli
 from dms_datastore.processed.process_yolo import process_yolo_cli
 from dms_datastore.processed.process_vns_sjl import process_vns_sjl_cli
+from dms_datastore.processed.process_flow import process_flow_cli
 
 @click.group(help="DMS CLI tools for data processing and extraction.")
 @click.help_option("-h", "--help")  # Add the help option at the group level
@@ -78,6 +79,7 @@ cli.add_command(process_ccfb_gate_height_cli, "process_ccfb_gate_height")
 cli.add_command(process_ccfb_waterlevel_cli, "process_ccfb_waterlevel")
 cli.add_command(process_yolo_cli, "process_yolo")
 cli.add_command(process_vns_sjl_cli, "process_vns_sjl")
+cli.add_command(process_flow_cli, "process_flow")
 
 
 if __name__ == "__main__":

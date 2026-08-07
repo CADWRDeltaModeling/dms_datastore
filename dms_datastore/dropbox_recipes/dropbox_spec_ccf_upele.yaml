@@ -64,7 +64,7 @@ data:
                                          # It will be used to update the repo, but that uses update_repo and may not mean a full replacement
         dir: ${modeling_data}/repo/continuous/proprietary/staging
         write_args:
-          float_format: "%0.3f"
+          float_format: "%0.2f"
           chunk_years: True
       reconcile:
        

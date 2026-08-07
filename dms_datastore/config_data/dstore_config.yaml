@@ -165,6 +165,13 @@ repos:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed"
     registry: [continuous, processed_synthetic]
 
+    # Metadata fields required by the dropbox `_check_metadata` validator.
+    # Processed/derived series reuse a station location but often have no
+    # meaningful observing `agency` or datamart `source`, so those are not
+    # required here (repos that omit this key fall back to the historical
+    # default that also requires source/agency).
+    required_metadata: [station_id, param, unit, time_zone, freq]
+
     provider_key: processor
     provider_resolution_mode: assume_unique     # This may have to be adjusted for cases like SF harmonic tides where there is a noaa and dwr version
     filename_templates:

@@ -43,16 +43,17 @@ data:
       longitude: -121.30200
 
     output:
-      # staging:
-      staging_dir: ${dropbox_home}/hydraulic_structures/drop_staging/formatted
-      write_args:
-        float_format: "%0.3f"
-        chunk_years: False
-      # repo: 
-      repo_dir: temp/fake_repo/formatted
-      merge_priority: staged
-      allow_new_series: true
-      inspection:
-        recent_years: 3
-        p3: 0.15
-        p10: 0.05      
+      repo_name: formatted
+      staging:
+        dir: ${dropbox_home}/hydraulic_structures/drop_staging/formatted
+        write_args:
+          float_format: "%0.1f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+        inspection:
+          recent_years: 3
+          p3: 0.15
+          p10: 0.05

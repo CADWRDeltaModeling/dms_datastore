@@ -158,12 +158,30 @@ def _transform_add_column(ts, *, name, default=None, dtype=None, **kwargs):
     return ts
 
 
+def _transform_linear(ts, *, scale=1.0, offset=0.0, **kwargs):
+    """Apply an affine transform ``value * scale + offset`` to the series.
+
+    Covers sign conventions (``scale: -1.0``) and simple unit/datum shifts.
+
+    Parameters
+    ----------
+    scale : float
+        Multiplicative factor applied to every value (default ``1.0``).
+    offset : float
+        Additive term applied after scaling (default ``0.0``).
+    """
+    if kwargs:
+        raise ValueError(f"linear transform got unexpected args: {sorted(kwargs.keys())}")
+    return ts * scale + offset
+
+
 # register built-ins
 register_transform("dst_st", _transform_dst_st)
 register_transform("coarsen", _transform_coarsen)
 register_transform("dst_tz", _transform_dst_tz)
 register_transform("trim_data", _transform_trim_data)
 register_transform("add_column", _transform_add_column)
+register_transform("linear", _transform_linear)
 
 
 
@@ -462,7 +480,11 @@ def _check_metadata(meta, repo_name):
     rcfg = repo_config(repo_name)
     site_key = "station_id"
 
-    required = [
+    # Required metadata fields are configurable per repo via `required_metadata`
+    # in dstore_config.yaml. Derived/processed repos legitimately lack a
+    # meaningful `agency`/`source`, so they can pare the list down. When a repo
+    # does not declare the key, fall back to the historical default.
+    default_required = [
         site_key,
         "source",
         "agency",
@@ -470,6 +492,7 @@ def _check_metadata(meta, repo_name):
         "unit",
         "time_zone",
     ]
+    required = list((rcfg or {}).get("required_metadata", default_required))
     # subloc is optional; omit it (or set to None) for series without sublocation
     optional = ["subloc"]
     
@@ -484,6 +507,8 @@ def _check_metadata(meta, repo_name):
             raise ValueError(f"Missing required metadata field '{k}'")
 
     def _require_lower(name):
+        if name not in meta:
+            return
         val = meta[name]
         if val is None:
             return
@@ -562,6 +587,75 @@ def _check_metadata(meta, repo_name):
         )
 
 
+# Recognized keys under `output` and its sub-mappings. Anything else is almost
+# always a typo or a stale/renamed field (e.g. staging_dir, repo_dir,
+# merge_priority) that would otherwise be silently ignored, so we reject it early.
+_ALLOWED_OUTPUT_KEYS = {"repo_name", "staging", "reconcile", "repo_data_dir"}
+_ALLOWED_STAGING_KEYS = {"dir", "write_args"}
+_ALLOWED_RECONCILE_KEYS = {"prefer", "allow_new_series", "inspection"}
+_ALLOWED_INSPECTION_KEYS = {"recent_years", "p3", "p10"}
+
+_OUTPUT_KEY_HINTS = {
+    "staging_dir": "use nested 'output.staging.dir'",
+    "dir": "'dir' belongs under 'output.staging'",
+    "write_args": "'write_args' belongs under 'output.staging'",
+    "repo_dir": (
+        "no such key; the destination is inferred from 'repo_name' "
+        "(use 'repo_data_dir' only to point at a throwaway mock repo)"
+    ),
+    "merge_priority": "use 'output.reconcile.prefer' (staged|repo)",
+    "prefer": "'prefer' belongs under 'output.reconcile'",
+    "allow_new_series": "'allow_new_series' belongs under 'output.reconcile'",
+    "inspection": "'inspection' belongs under 'output.reconcile'",
+    "repo_data_dir": "belongs directly under 'output', not under 'output.reconcile'",
+}
+
+
+def _reject_unknown_keys(name, section, keys, allowed):
+    extras = [k for k in keys if k not in allowed]
+    if extras:
+        described = "; ".join(
+            f"{k!r} ({_OUTPUT_KEY_HINTS.get(k, 'unrecognized')})" for k in extras
+        )
+        raise ValueError(
+            f"{name}: unrecognized key(s) under {section}: {described}. "
+            f"Allowed keys: {sorted(allowed)}."
+        )
+
+
+def _validate_output_keys(name, output):
+    """Fail loudly on typo'd/stale keys under ``output`` and its sub-mappings."""
+    if not isinstance(output, dict):
+        raise ValueError(f"{name}: 'output' must be a mapping")
+    _reject_unknown_keys(name, "output", output.keys(), _ALLOWED_OUTPUT_KEYS)
+
+    staging = output.get("staging") or {}
+    if staging and isinstance(staging, dict):
+        _reject_unknown_keys(name, "output.staging", staging.keys(), _ALLOWED_STAGING_KEYS)
+
+    reconcile = output.get("reconcile") or {}
+    if reconcile and isinstance(reconcile, dict):
+        _reject_unknown_keys(name, "output.reconcile", reconcile.keys(), _ALLOWED_RECONCILE_KEYS)
+        inspection = reconcile.get("inspection") or {}
+        if inspection and isinstance(inspection, dict):
+            _reject_unknown_keys(
+                name, "output.reconcile.inspection", inspection.keys(), _ALLOWED_INSPECTION_KEYS
+            )
+
+
+def _normalize_dir(path):
+    return os.path.normcase(os.path.normpath(os.path.abspath(str(path))))
+
+
+def _staging_conflicts_with_repo(staged_dir, repo_dir):
+    """True if the staging dir equals or nests with the reconcile target repo dir."""
+    a = _normalize_dir(staged_dir)
+    b = _normalize_dir(repo_dir)
+    if a == b:
+        return True
+    return a.startswith(b + os.sep) or b.startswith(a + os.sep)
+
+
 def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
     logger.info("dropbox: loaded %d recipe entries", len(spec["data"]))
     always_skip = True
@@ -586,6 +680,7 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
 
             item = listing["collect"]
             output = listing.get("output", {}) or {}
+            _validate_output_keys(name, output)
             repo_name = output.get("repo_name", None)
             if repo_name is None:
                 raise ValueError(f"{name}: missing required 'output.repo_name'")
@@ -598,6 +693,22 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                 "dropbox: listing=%s staging dir raw=%r resolved=%s",
                 name, dest, os.path.abspath(dest)
             )
+            # Staging is a scratch overwrite area; it must never coincide with (or
+            # nest inside) the repository that reconcile writes to, or reconcile
+            # would treat the live repo as its own staged input and cause weird
+            # in-place overwrites. Check before creating dirs or reading data.
+            repo_target = output.get("repo_data_dir", None)
+            if repo_target is None:
+                repo_target = repo_config(repo_name).get("root")
+            if repo_target and _staging_conflicts_with_repo(dest, repo_target):
+                raise ValueError(
+                    f"{name}: output.staging.dir ({dest!r}) coincides with or nests "
+                    f"inside the reconcile target repo ({repo_target!r}). Staging must "
+                    f"be a separate scratch directory (e.g. "
+                    f"'.../Modeling_Data/repo_processing_scratch/staging'); the repo "
+                    f"destination is inferred from 'repo_name'. Use 'repo_data_dir' only "
+                    f"to point at a throwaway mock repo for experimentation."
+                )
             if not os.path.isdir(dest):
                 # staging.dir is a scratch/output location. Create the leaf
                 # directory when its parent exists. A missing parent is the real

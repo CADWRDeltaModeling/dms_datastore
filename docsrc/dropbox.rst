@@ -266,6 +266,12 @@ applied in order. Built-ins:
    Add a constant/typed column. Args: ``name`` (required), ``default``,
    ``dtype``.
 
+``linear``
+   Apply an affine transform ``value * scale + offset`` to the series. Handy for
+   a sign convention (``scale: -1.0`` to flip a stored-negative inflow to a
+   positive-inflow convention) or a simple unit/datum shift. Args: ``scale``
+   (default ``1.0``), ``offset`` (default ``0.0``).
+
 Custom transforms can be registered at runtime with
 ``register_transform(name, func)``.
 

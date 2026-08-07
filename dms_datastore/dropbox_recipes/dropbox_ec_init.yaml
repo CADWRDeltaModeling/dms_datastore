@@ -1,0 +1,177 @@
+# Initialization (backfill) recipe: legacy SCHISM boundary EC inputs.
+#
+# One-time ingestion of the legacy simulation boundary specific-conductance
+# inputs in schism_legacy_bc into the `processed` repo. Regular 15-min series.
+# Run once with `skip: False`, confirm, then flip each entry to `skip: True`.
+#
+# EC is straightforward: one column per boundary, no sign convention, no
+# derived columns. The `sac` column maps to the Sacramento at K Street (sack).
+
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_processing_scratch/staging   # staging scratch area; the reconcile destination is inferred from repo_name
+modeling_data: //cnrastore-bdo/Modeling_Data/
+target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
+target_tz_label: PST
+
+
+data:
+  - name: sjr_ec
+    skip: False
+    collect:
+      file_pattern: "ec_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         na_values: ["(null)", "null", "NULL", ""]
+         force_regular: True
+      selector: sjr
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: vns
+      agency: dwr_des
+      source: ncro
+      processor: dms
+      subloc: default
+      freq: infer
+      param: ec
+      unit: us/cm
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary EC input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_salt.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: sac_k_ec
+    skip: False
+    collect:
+      file_pattern: "ec_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         na_values: ["(null)", "null", "NULL", ""]
+         force_regular: True
+      selector: sac
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: sack
+      processor: dms
+      subloc: default
+      freq: infer
+      param: ec
+      unit: us/cm
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary EC input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_salt.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: yolo_toedrain_ec
+    skip: False
+    collect:
+      file_pattern: "ec_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         na_values: ["(null)", "null", "NULL", ""]
+         force_regular: True
+      selector: yolo_toedrain
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: ytoe
+      processor: dms
+      subloc: default
+      freq: infer
+      param: ec
+      unit: us/cm
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary EC input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_salt.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: yolo_ec
+    skip: False
+    collect:
+      file_pattern: "ec_v20260731.csv"
+      wildcard: none
+      location: "${modeling_data}/schism_legacy_bc"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         na_values: ["(null)", "null", "NULL", ""]
+         force_regular: True
+      selector: yolo
+      splice_args:
+         rename: value
+    transforms:
+    metadata:
+      station_id: yolo
+      processor: dms
+      subloc: default
+      freq: infer
+      param: ec
+      unit: us/cm
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Legacy SCHISM boundary EC input (WY2007-2025); see schism_legacy_bc/readme.txt
+      process_script: process_salt.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true

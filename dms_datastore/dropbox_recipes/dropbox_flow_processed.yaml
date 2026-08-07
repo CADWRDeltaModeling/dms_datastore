@@ -1,5 +1,5 @@
 
-dropbox_home:  //cnrastore-bdo/Modeling_Data/repo/continuous/processed   # This is a placeholder. In practice, this would be set to the actual path of the dropbox home directory on the user's system.
+staging_dir: //cnrastore-bdo/Modeling_Data/repo_processing_scratch/staging   # staging scratch area; the reconcile destination is inferred from repo_name
 modeling_data: //cnrastore-bdo/Modeling_Data/
 target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
 target_tz_label: PST
@@ -48,11 +48,11 @@ data:
     output:
       repo_name: processed   # pointer to an entry in dstore_config.yaml
       staging:
-        dir: ${dropbox_home}
+        dir: ${staging_dir}
         write_args:
-          float_format: "%0.3f"
+          float_format: "%0.1f"
           chunk_years: False
-      repo_data_dir: ${dropbox_home}
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
       reconcile:
         prefer: staged
         allow_new_series: false
@@ -95,11 +95,11 @@ data:
     output:
       repo_name: processed
       staging:
-        dir: ${dropbox_home}
+        dir: ${staging_dir}
         write_args:
-          float_format: "%0.3f"
+          float_format: "%0.1f"
           chunk_years: False
-      repo_data_dir: ${dropbox_home}
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
       reconcile:
         prefer: staged
         allow_new_series: false
@@ -142,11 +142,11 @@ data:
     output:
       repo_name: processed
       staging:
-        dir: ${dropbox_home}
+        dir: ${staging_dir}
         write_args:
-          float_format: "%0.3f"
+          float_format: "%0.1f"
           chunk_years: False
-      repo_data_dir: ${dropbox_home}
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
       reconcile:
         prefer: staged
         allow_new_series: false
@@ -189,11 +189,11 @@ data:
     output:
       repo_name: processed
       staging:
-        dir: ${dropbox_home}
+        dir: ${staging_dir}
         write_args:
-          float_format: "%0.3f"
+          float_format: "%0.1f"
           chunk_years: False
-      repo_data_dir: ${dropbox_home}
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
       reconcile:
         prefer: staged
         allow_new_series: false
@@ -236,11 +236,11 @@ data:
     output:
       repo_name: processed
       staging:
-        dir: ${dropbox_home}
+        dir: ${staging_dir}
         write_args:
-          float_format: "%0.3f"
+          float_format: "%0.1f"
           chunk_years: False
-      repo_data_dir: ${dropbox_home}
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
       reconcile:
         prefer: staged
         allow_new_series: false
@@ -283,11 +283,11 @@ data:
     output:
       repo_name: processed
       staging:
-        dir: ${dropbox_home}
+        dir: ${staging_dir}
         write_args:
-          float_format: "%0.3f"
+          float_format: "%0.1f"
           chunk_years: False
-      repo_data_dir: ${dropbox_home}
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
       reconcile:
         prefer: staged
         allow_new_series: false
@@ -330,11 +330,11 @@ data:
     output:
       repo_name: processed
       staging:
-        dir: ${dropbox_home}
+        dir: ${staging_dir}
         write_args:
-          float_format: "%0.3f"
+          float_format: "%0.1f"
           chunk_years: False
-      repo_data_dir: ${dropbox_home}
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
       reconcile:
         prefer: staged
         allow_new_series: false
