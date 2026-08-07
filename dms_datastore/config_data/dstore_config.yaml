@@ -63,21 +63,21 @@ repos:
     provider_resolution_mode: registry_column
 
     # Registry column used to decide provider selection policy
-    # Example: station_id → agency gives you the id of the observing agency, which is unique and a good basis for
+    # Example: station_id â†’ agency gives you the id of the observing agency, which is unique and a good basis for
     # prioritizing various sources. Used in provider_resolution_order.
     provider_resolution_column: agency
 
-    # Mapping from registry value → ordered list of preferred providers (this is the generic term, in this case it is {source})
+    # Mapping from registry value â†’ ordered list of preferred providers (this is the generic term, in this case it is {source})
     # Example: if agency = ncro, prefer ncro then cdec in the {source} slot
     # The keys must match the provider_resolution_column values (agency) and mapped values must match the provider_key field (here: source)
     provider_resolution_order:
       ncro: ["ncro", "cdec"]
-      dwr_ncro: ["ncro"]
+      dwr_ncro: ["ncro", "cdec"]
       des: ["des"]
       dwr_des: ["des"]
       usgs: ["usgs","ebmud"]
       noaa: ["noaa"]
-      usbr: ["usbr", "cdec"]
+      usbr: ["usgs","usbr", "cdec"]
       dwr_om: ["cdec"]
       dwr: ["dwr", "cdec"]
       ebmud: ["usgs", "ebmud", "cdec"]
@@ -114,21 +114,21 @@ repos:
     provider_resolution_mode: registry_column
 
     # Registry column used to decide provider selection policy
-    # Example: station_id → agency gives you the id of the observing agency, which is unique and a good basis for
+    # Example: station_id â†’ agency gives you the id of the observing agency, which is unique and a good basis for
     # prioritizing various sources. Used in provider_resolution_order.
     provider_resolution_column: agency
 
-    # Mapping from registry value → ordered list of preferred providers (this is the generic term, in this case it is {source})
+    # Mapping from registry value â†’ ordered list of preferred providers (this is the generic term, in this case it is {source})
     # Example: if agency = ncro, prefer ncro then cdec in the {source} slot
     # The keys must match the provider_resolution_column values (agency) and mapped values must match the provider_key field (here: source)
     provider_resolution_order:
       ncro: ["ncro", "cdec"]
-      dwr_ncro: ["ncro"]
+      dwr_ncro: ["ncro", "cdec"]
       des: ["des"]
       dwr_des: ["des"]
       usgs: ["usgs","ebmud"]
       noaa: ["noaa"]
-      usbr: ["usbr", "cdec"]
+      usbr: ["usgs","usbr", "cdec"]
       dwr_om: ["cdec"]
       dwr: ["dwr", "cdec"]
       ebmud: ["usgs", "ebmud", "cdec"]

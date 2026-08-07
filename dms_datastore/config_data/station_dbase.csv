@@ -100,7 +100,7 @@ orq,11313434,Old R at Quimby Island,625994.6,4209807.9,38.027223,-121.564444,38.
 fal,11313440,False R near Oakley,616952.5,4212848.6,38.055833,-121.666944,38.0558333,-121.6669444,,FAL,usgs,1,"Both FAL and ORQ are USGS station where they collect flow and NCRO collects EC, chlorophyll, temp and turbidity"
 osj,11313452,Old R at Franks Tract,624652.3,4214658.4,38.071112,-121.578889,38.0711111,-121.5788889,,OSJ,usgs,1,"At OSJ USGS collects flow data while NCRO collects temp, EC, turbidity and chlorophyll.  USGS telemeters the data."
 pri,11313460,San Joaquin R at Prisoners Pt,626573.0,4213393.1,38.059444,-121.557222,38.05944444,-121.5572222,,PRI,usgs,1,"Boat access only on a pile, not carefully registered here. Flow and vertical datum considered suspect"
-dlc,11336600,Delta Cross Channel near Walnut Grove,630802.2,4234030.6,38.244779,-121.505238,38.24477822,-121.5052384,,DLC ,usgs,1,
+dlc,11336600,Delta Cross Channel near Walnut Grove,630802.2,4234030.6,38.244779,-121.505238,38.24477822,-121.5052384,,DLC ,usbr,1,
 lps,11336790,Little Potato Slough at Terminous,631868.1,4217577.6,38.096389,-121.496111,38.09638889,-121.496111,,LPS,usgs,1,
 mok,11336930,Mokelumne R at Andrus Island,625274.8,4218552.5,38.106111,-121.571111,38.1061111,-121.571111,,MOK,usgs,1,"At MOK, USGS collects flow data while NCRO collects temp, EC and turbidity.  USGS telemeters the data."
 tsl,11337080,Threemile Slough near Rio Vista,615196.3,4218095.3,38.103333,-121.686111,38.1033333,-121.686111,,TSL,usgs,1,
@@ -111,7 +111,7 @@ sss,11447850,Steamboat Slough btw Sacramento R and Sutter Sl,623598.2,4238356.2,
 sdc,11447890,Sacramento R above Delta Cross Channel,629664.2,4235427.1,38.257525,-121.517983,38.25752555,-121.5179832,,SDC,usgs,1,On pump stand
 gss,11447903,Georgiana Slough near Sacramento R,629727.3,4233179.3,38.237265,-121.517674,38.23726412,-121.5176741,,GSS,usgs,1,
 ges,11447905,Sacramento R below Georgiana Slough,629219.1,4233351.8,38.238892,-121.523447,38.23889218,-121.5234467,,GES,usgs,1,From USGS wiki
-lbtoe,11455140,Toe Drain at Liberty Island near Courtland,618409.8,4245456.2,38.34944,-121.644902,38.34944012,-121.6449015,,,usgs,1,proposed effort to discontinue; Not confirmed. Not on USGS wiki site.
+lbtoe,11455140,Toe Drain at Liberty Island near Courtland,618409.8,4245456.2,38.34944,-121.644902,38.34944012,-121.6449015,,TOE,usbr,1,Transitioned from USGS to USBR 2025.
 libc,11455147,Liberty Cut at Liberty Island near Courtland,616502.5,4242438.4,38.3225,-121.667222,38.3225,-121.6672222,,,usgs,1,
 hwb,11455165,Miner Slough at HW 84 Bridge,619734.2,4239063.4,38.291666,-121.630833,38.29166667,-121.6308333,,HWB,usgs,1,
 sgg,11455276,Shag Slough at Liberty Island near Courtland,614250.8,4241943.7,38.318333,-121.693055,38.3183333,-121.6930556,,,usgs,1,
@@ -204,7 +204,7 @@ confl,11455508,Suisun Bay At Van Sickle Island,597605.9,4211894.6,38.04953,-121.
 has,11455278,Hass Slough Near Elmira,611430.5,4239220.3,38.29415,-121.725739,38.29415,-121.7257389,,HAS,usgs,1,
 grizzb,'380631122032201,Grizzly Bay at Suisun Slough,582761.0,4218277.6,38.10853,-122.05598,38.10853056,-122.0559806,,,usgs,1,
 gzm,738,Grizzly Bay at Head of Montezuma Slough Buoy,582354.0,4221910.0,38.141301,-122.060203,38.1413,-122.0602,,,dwr_des,1,
-yby,11453000,Yolo Bypass Near Woodland,618033.7,4281893.8,38.677778,-121.643056,38.67777778,-121.6430556,,YBY,usgs,0,
+yby,11453000,Yolo Bypass Near Woodland,618033.7,4281893.8,38.677778,-121.643056,38.67777778,-121.6430556,,YBY,usbr,0,
 cm62,11455142,Sacramento River Deep Water Ship Channel Near Courtland,618511.0,4244595.0,38.341668,-121.643889,38.34166667,-121.6438889,,,usgs,1,
 mld,11185185,Suisun Bay at Mallard Island,594844.5,4211136.4,38.042992,-121.919118,38.04277778,-121.9191667,,,usgs,1,
 fmb,'381142122015801,First Mallard Branch,584692.1,4227881.3,38.194894,-122.032814,38.19489444,-122.0328139,,,usgs,1,
