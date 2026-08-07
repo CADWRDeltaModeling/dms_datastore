@@ -265,7 +265,6 @@ data:
       recursive_search: False
       reader: read_ts
       reader_args:
-         na_values: ["(null)", "null", "NULL", ""]
          force_regular: True
       selector: yolo
       splice_args:
