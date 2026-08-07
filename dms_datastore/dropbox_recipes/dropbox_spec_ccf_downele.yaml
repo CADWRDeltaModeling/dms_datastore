@@ -71,8 +71,3 @@ data:
         prefer: staged                            # This is an argument to the update process: 
                                                   #    - staged means "prefer the new stuff we staged"
                                                   #    - repo means "prefer the stuff in the repo, just top off with any new time stamps"
-        allow_new_series: true
-        inspection:                               # update parameters. These should be included but seldom change
-          recent_years: 3                         # Up to 3 year old data will be checked whenever update is performed
-          p3: 0.15                                # probability of a spot check for 3-10 ago, differences will trigger full replacment of all years
-          p10: 0.05                               # pprobability of a spot check for data 10+ years old, differences will trigger full replacment of all years
