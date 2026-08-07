@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dropbox Data Processing System &mdash; dms_datastore 0.8.1.dev1+g429e4d5fc documentation</title>
+  <title>Dropbox Data Ingestion &mdash; dms_datastore 0.8.2.dev3+g0b7329051 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -14,7 +14,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=14b93bc7"></script>
+      <script src="_static/documentation_options.js?v=c83d89c3"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -52,15 +52,28 @@
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
 <li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Data</a></li>
 <li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Dropbox Data Processing System</a><ul>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Dropbox Data Ingestion</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#key-components">Key Components</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#how-it-works">How it works</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#usage">Usage</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#configuration-specification">Configuration Specification</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#key-classes-and-functions">Key Classes and Functions</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#output">Output</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#additional-notes">Additional Notes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#motivation">Motivation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cli">CLI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#recipe-resolution">Recipe Resolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#programmatic-use">Programmatic Use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-to-write-a-recipe">How to Write a Recipe</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#regular-vs-irregular-data">Regular vs. Irregular Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wildcard-modes">Wildcard Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#filename-templates-inference-mode">Filename Templates (Inference Mode)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#transforms">Transforms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#common-transforms">Common Transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#metadata">Metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#coordinate-policy">Coordinate Policy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#output-and-reconciliation">Output and Reconciliation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#recommended-workflow-backfill-then-top-off">Recommended Workflow: Backfill, then Top Off</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#common-pitfalls">Common Pitfalls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#failure-handling">Failure Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#bundled-examples">Bundled Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#key-functions">Key Functions</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
@@ -82,7 +95,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Dropbox Data Processing System</li>
+      <li class="breadcrumb-item active">Dropbox Data Ingestion</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/dropbox.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -92,96 +105,502 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="dropbox-data-processing-system">
-<h1>Dropbox Data Processing System<a class="headerlink" href="#dropbox-data-processing-system" title="Link to this heading"></a></h1>
+  <section id="dropbox-data-ingestion">
+<h1>Dropbox Data Ingestion<a class="headerlink" href="#dropbox-data-ingestion" title="Link to this heading"></a></h1>
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
-<p>The Dropbox Data Processing System is a component of the DMS Datastore package that
-facilitates collection, transformation, and storage of time-series data using a
-configuration-driven workflow.</p>
-</section>
-<section id="key-components">
-<h2>Key Components<a class="headerlink" href="#key-components" title="Link to this heading"></a></h2>
-<ol class="arabic">
-<li><p><code class="docutils literal notranslate"><span class="pre">dropbox_data.py</span></code></p>
-<p>Main processing script that reads a YAML specification file and processes
-data according to the defined rules.</p>
-</li>
-<li><p><code class="docutils literal notranslate"><span class="pre">dropbox_spec.yaml</span></code></p>
-<p>YAML configuration that defines data sources, collection parameters, and
-metadata inference rules.</p>
-</li>
-</ol>
-</section>
-<section id="how-it-works">
-<h2>How it works<a class="headerlink" href="#how-it-works" title="Link to this heading"></a></h2>
-<p>The processing follows these steps:</p>
+<p>The <em>dropbox</em> is the standard-conformant on-ramp for getting time series into a
+<code class="docutils literal notranslate"><span class="pre">dms_datastore</span></code> repository. It lets collection and pre-processing happen in
+whatever scratch area, web scrape, or incoming pipeline is convenient, and then
+moves the result into a repository (<code class="docutils literal notranslate"><span class="pre">formatted</span></code>, <code class="docutils literal notranslate"><span class="pre">processed</span></code>,
+<code class="docutils literal notranslate"><span class="pre">structures_formatted</span></code>, …) with consistent naming, metadata, units, and
+headers.</p>
+<p>A single YAML <em>recipe</em> describes one or more ingestion tasks. Each task moves
+data through four steps:</p>
 <ol class="arabic simple">
-<li><p>Read a YAML specification.</p></li>
-<li><p>For each entry: locate files, read time-series, augment with metadata,
-and write standardized output files.</p></li>
+<li><p><strong>Read</strong> the data from its scratch/incoming location. Input is CSV and a
+single column can be selected.</p></li>
+<li><p><strong>Transform</strong> the data. Typical transforms convert SCADA-style local
+(daylight-saving) clock time to a fixed offset, coarsen high-rate irregular
+data, or trim empty edges. Unit conversions and similar reshaping happen
+here.</p></li>
+<li><p><strong>Stage</strong> a standardized CSV (canonical filename, YAML front-matter header,
+<code class="docutils literal notranslate"><span class="pre">value</span></code>/<code class="docutils literal notranslate"><span class="pre">user_flag</span></code> columns) into a staging directory.</p></li>
+<li><p><strong>Reconcile</strong> the staged file into the repository under an explicit policy
+(top-off vs. replace, whether new series may be created, etc.).</p></li>
 </ol>
+<p>The entry point is the <code class="docutils literal notranslate"><span class="pre">dms</span> <span class="pre">dropbox</span></code> CLI or the <code class="docutils literal notranslate"><span class="pre">dropbox_data()</span></code> function.</p>
 </section>
-<section id="usage">
-<h2>Usage<a class="headerlink" href="#usage" title="Link to this heading"></a></h2>
-<p>Basic usage from Python:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.dropbox_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">dropbox_data</span>
-<span class="n">dropbox_data</span><span class="p">(</span><span class="s2">&quot;path/to/dropbox_spec.yaml&quot;</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>Or run as a module:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">python</span> <span class="o">-</span><span class="n">m</span> <span class="n">dms_datastore</span><span class="o">.</span><span class="n">dropbox_data</span>
-</pre></div>
-</div>
-</section>
-<section id="configuration-specification">
-<h2>Configuration Specification<a class="headerlink" href="#configuration-specification" title="Link to this heading"></a></h2>
-<p>Typical keys in the spec include <code class="docutils literal notranslate"><span class="pre">dropbox_home</span></code>, <code class="docutils literal notranslate"><span class="pre">dest</span></code>, and a <code class="docutils literal notranslate"><span class="pre">data</span></code> list
-with entries containing <code class="docutils literal notranslate"><span class="pre">collect</span></code> and <code class="docutils literal notranslate"><span class="pre">metadata</span></code>. The spec also supports
-<code class="docutils literal notranslate"><span class="pre">metadata_infer</span></code> rules using regular expressions.</p>
-<p>Example configuration snippet:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">-</span> <span class="n">name</span><span class="p">:</span> <span class="n">USGS</span> <span class="n">Aquarius</span> <span class="n">flows</span>
-  <span class="n">skip</span><span class="p">:</span> <span class="kc">False</span>
-  <span class="n">collect</span><span class="p">:</span>
-    <span class="n">name</span><span class="p">:</span> <span class="n">file_search</span>
-    <span class="n">recursive_search</span><span class="p">:</span> <span class="kc">True</span>
-    <span class="n">file_pattern</span><span class="p">:</span> <span class="s2">&quot;Discharge.ft^3_s.velq@*.EntireRecord.csv&quot;</span>
-    <span class="n">location</span><span class="p">:</span> <span class="s2">&quot;//cnrastore-bdo/.../dropbox/usgs_aquarius_request_2020/**&quot;</span>
-    <span class="n">reader</span><span class="p">:</span> <span class="n">read_ts</span>
-  <span class="n">metadata</span><span class="p">:</span>
-    <span class="n">station_id</span><span class="p">:</span> <span class="n">infer_from_agency_id</span>
-    <span class="n">source</span><span class="p">:</span> <span class="n">aquarius</span>
-    <span class="n">agency</span><span class="p">:</span> <span class="n">usgs</span>
-    <span class="n">param</span><span class="p">:</span> <span class="n">flow</span>
-    <span class="n">sublocation</span><span class="p">:</span> <span class="n">default</span>
-    <span class="n">unit</span><span class="p">:</span> <span class="n">ft</span><span class="o">^</span><span class="mi">3</span><span class="o">/</span><span class="n">s</span>
-  <span class="n">metadata_infer</span><span class="p">:</span>
-    <span class="n">regex</span><span class="p">:</span> <span class="o">.*@</span><span class="p">(</span><span class="o">.*</span><span class="p">)</span>\<span class="o">.</span><span class="n">EntireRecord</span><span class="o">.</span><span class="n">csv</span>
-    <span class="n">groups</span><span class="p">:</span>
-      <span class="mi">1</span><span class="p">:</span> <span class="n">agency_id</span>
-</pre></div>
-</div>
-</section>
-<section id="key-classes-and-functions">
-<h2>Key Classes and Functions<a class="headerlink" href="#key-classes-and-functions" title="Link to this heading"></a></h2>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading"></a></h2>
+<p>The dropbox exists so that the <em>messy</em> part of data handling — vendor-specific
+CSV layouts, wrong time zones, legacy units, one-off backfills — stays out of
+the repository. The repository only ever receives files that already conform to
+the datastore conventions. Benefits:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">DataCollector</span></code> — handles file discovery based on patterns.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">get_spec</span></code> — loads and caches the YAML spec.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">populate_meta</span></code> — enriches metadata using the station database.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">infer_meta</span></code> — extracts metadata from filenames via regex.</p></li>
+<li><p><strong>Separation of concerns.</strong> Cleaning/scraping can live anywhere. The recipe is
+the single, reviewable description of how a raw feed becomes a repo series.</p></li>
+<li><p><strong>A self-documenting trail.</strong> A recipe (and its <code class="docutils literal notranslate"><span class="pre">skip:</span></code> markers) records
+exactly how each series was produced. One-time backfills stay in the file as
+documentation rather than living only in someone’s shell history.</p></li>
+<li><p><strong>Repeatability.</strong> Ongoing feeds re-run the same recipe to <em>top off</em> existing
+series with new data.</p></li>
+<li><p><strong>Safety.</strong> Metadata, coordinates, and naming are validated against the
+station registry before anything touches the repo.</p></li>
 </ul>
 </section>
-<section id="output">
-<h2>Output<a class="headerlink" href="#output" title="Link to this heading"></a></h2>
-<p>Processed files are saved in the destination directory. Filenames follow the
-pattern <code class="docutils literal notranslate"><span class="pre">{source}_{station_id}_{agency_id}_{param}.csv</span></code> and may be chunked by year.</p>
-</section>
-<section id="additional-notes">
-<h2>Additional Notes<a class="headerlink" href="#additional-notes" title="Link to this heading"></a></h2>
+<section id="cli">
+<h2>CLI<a class="headerlink" href="#cli" title="Link to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>dms<span class="w"> </span>dropbox<span class="w"> </span>--input<span class="w"> </span>dropbox_smscg_scada.yaml<span class="w">                     </span><span class="c1"># run all entries</span>
+dms<span class="w"> </span>dropbox<span class="w"> </span>--input<span class="w"> </span>dropbox_smscg_scada.yaml<span class="w"> </span>--name<span class="w"> </span>smscg_scada<span class="w">  </span><span class="c1"># one entry</span>
+dms<span class="w"> </span>dropbox<span class="w"> </span>--input<span class="w"> </span>dropbox_smscg_scada.yaml<span class="w"> </span>--debug<span class="w">            </span><span class="c1"># verbose logging</span>
+dms<span class="w"> </span>dropbox<span class="w"> </span>--input<span class="w"> </span>dropbox_smscg_scada.yaml<span class="w"> </span>--logdir<span class="w"> </span>./logs<span class="w"> </span>--quiet
+dms<span class="w"> </span>dropbox<span class="w"> </span>--input<span class="w"> </span>dropbox_daily.yaml<span class="w"> </span>--omit-unregistered<span class="w">      </span><span class="c1"># skip unknown stations</span>
+</pre></div>
+</div>
+<p>Options:</p>
 <ul class="simple">
-<li><p>Relies on a station database for lookups.</p></li>
-<li><p>Standardizes time-series to include a <cite>value</cite> column and metadata headers.</p></li>
-<li><p>Files may be year-sharded for easier management.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--input</span></code> (required): the recipe to run. May be a path to a YAML file
+(absolute or relative to the current directory) or the bare name of a recipe
+bundled in <code class="docutils literal notranslate"><span class="pre">dms_datastore/dropbox_recipes/</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">dropbox_daily</span></code> or
+<code class="docutils literal notranslate"><span class="pre">dropbox_daily.yaml</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--name</span></code> (repeatable): run only the named recipe entry/entries.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--logdir</span></code>: directory for log files.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--debug</span></code>: enable debug-level logging and per-file output.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--quiet</span></code>: suppress console output.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">--omit-unregistered</span></code>: in inference mode, skip files that cannot be matched
+to a station registry entry and stage the rest. Without this flag, any
+unregistered file causes the recipe to fail.</p></li>
+</ul>
+</section>
+<section id="recipe-resolution">
+<h2>Recipe Resolution<a class="headerlink" href="#recipe-resolution" title="Link to this heading"></a></h2>
+<p>Recipes are centralized in the bundled <code class="docutils literal notranslate"><span class="pre">dms_datastore/dropbox_recipes/</span></code>
+directory so bare names resolve identically in a development install
+(<code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">-e</span> <span class="pre">.</span></code>) or a deployed wheel. <code class="docutils literal notranslate"><span class="pre">--input</span></code> (and the
+<code class="docutils literal notranslate"><span class="pre">dropbox_data()</span></code> argument) is resolved in this order, first match wins:</p>
+<ol class="arabic simple">
+<li><p>The value as given, if it is an existing file path.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">./dropbox_recipes/&lt;name&gt;</span></code> — a project-local override directory in the cwd.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">&lt;package&gt;/dropbox_recipes/&lt;name&gt;</span></code> — the bundled recipes.</p></li>
+</ol>
+<p>A <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> extension is appended automatically when omitted.</p>
+</section>
+<section id="programmatic-use">
+<h2>Programmatic Use<a class="headerlink" href="#programmatic-use" title="Link to this heading"></a></h2>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.dropbox_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">dropbox_data</span>
+
+<span class="n">dropbox_data</span><span class="p">(</span><span class="s2">&quot;dropbox_smscg_scada.yaml&quot;</span><span class="p">)</span>
+<span class="n">dropbox_data</span><span class="p">(</span><span class="s2">&quot;dropbox_smscg_scada.yaml&quot;</span><span class="p">,</span> <span class="n">selected_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;smscg_scada&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</section>
+<section id="how-to-write-a-recipe">
+<h2>How to Write a Recipe<a class="headerlink" href="#how-to-write-a-recipe" title="Link to this heading"></a></h2>
+<p>A recipe is a YAML file with top-level interpolation variables and a <code class="docutils literal notranslate"><span class="pre">data</span></code>
+list of entries. Values are resolved with <a class="reference external" href="https://omegaconf.readthedocs.io/">OmegaConf</a>, so <code class="docutils literal notranslate"><span class="pre">${...}</span></code> interpolation is available
+(use it for path composition instead of Python <code class="docutils literal notranslate"><span class="pre">.format</span></code>).</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Top-level variables available via ${...} interpolation</span>
+<span class="nt">repo_home</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">//cnrastore-bdo/Modeling_Data/</span>
+<span class="nt">target_tz</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Etc/GMT+8&quot;</span><span class="w">          </span><span class="c1"># POSIX sign reversed =&gt; PST</span>
+<span class="nt">target_tz_label</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PST</span>
+
+<span class="nt">data</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_series</span><span class="w">             </span><span class="c1"># unique entry name (used by --name)</span>
+<span class="w">    </span><span class="nt">skip</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">                 </span><span class="c1"># optional; true leaves the entry as a documented no-op</span>
+
+<span class="w">    </span><span class="nt">collect</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">file_pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;*.csv&quot;</span><span class="w">     </span><span class="c1"># glob or filename template</span>
+<span class="w">      </span><span class="nt">location</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;${repo_home}/incoming/my_source&quot;</span>
+<span class="w">      </span><span class="nt">recursive_search</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">      </span><span class="nt">reader</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">read_ts</span><span class="w">           </span><span class="c1"># currently the only supported reader</span>
+<span class="w">      </span><span class="nt">reader_args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w">           </span><span class="c1"># kwargs passed to read_ts</span>
+<span class="w">      </span><span class="nt">selector</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">none</span><span class="w">            </span><span class="c1"># column name (or list) to keep, or none</span>
+<span class="w">      </span><span class="nt">wildcard</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">none</span><span class="w">            </span><span class="c1"># none | time_shard | time_overlap</span>
+<span class="w">      </span><span class="nt">merge_method</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ts_splice</span><span class="w">   </span><span class="c1"># ts_splice | ts_merge (for time_overlap)</span>
+<span class="w">      </span><span class="nt">merge_args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w">            </span><span class="c1"># e.g. {transition: prefer_last}</span>
+<span class="w">      </span><span class="nt">splice_args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w">           </span><span class="c1"># optional {rename: value} or {rename: {old: new}}</span>
+
+<span class="w">    </span><span class="nt">transforms</span><span class="p">:</span><span class="w">                 </span><span class="c1"># optional, applied in order</span>
+<span class="w">      </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dst_tz</span>
+<span class="w">        </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">src_tz</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">US/Pacific</span>
+<span class="w">          </span><span class="nt">target_tz</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${target_tz}</span>
+
+<span class="w">    </span><span class="nt">metadata</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">station_id</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_id</span><span class="w">         </span><span class="c1"># required</span>
+<span class="w">      </span><span class="nt">source</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_source</span><span class="w">         </span><span class="c1"># required</span>
+<span class="w">      </span><span class="nt">agency</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">usgs</span><span class="w">              </span><span class="c1"># required</span>
+<span class="w">      </span><span class="nt">param</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">flow</span><span class="w">               </span><span class="c1"># required</span>
+<span class="w">      </span><span class="nt">unit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ft^3/s</span><span class="w">              </span><span class="c1"># required</span>
+<span class="w">      </span><span class="nt">time_zone</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${target_tz}</span><span class="w">   </span><span class="c1"># required</span>
+<span class="w">      </span><span class="nt">freq</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">infer</span><span class="w">               </span><span class="c1"># required: literal freq | &quot;infer&quot; | none (irregular)</span>
+<span class="w">      </span><span class="nt">subloc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span><span class="w">           </span><span class="c1"># optional</span>
+
+<span class="w">    </span><span class="nt">output</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">repo_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">formatted</span><span class="w">      </span><span class="c1"># must match a repo in dstore_config.yaml</span>
+<span class="w">      </span><span class="nt">staging</span><span class="p">:</span>
+<span class="w">        </span><span class="nt">dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${repo_home}/incoming/drop_staging</span>
+<span class="w">        </span><span class="nt">write_args</span><span class="p">:</span>
+<span class="w">          </span><span class="nt">float_format</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;%.2f&quot;</span>
+<span class="w">          </span><span class="nt">chunk_years</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+<span class="w">      </span><span class="nt">reconcile</span><span class="p">:</span><span class="w">                </span><span class="c1"># optional; omit to stage only</span>
+<span class="w">        </span><span class="nt">prefer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">staged</span><span class="w">          </span><span class="c1"># staged | repo</span>
+<span class="w">        </span><span class="nt">allow_new_series</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</pre></div>
+</div>
+<p>Step by step:</p>
+<ol class="arabic simple">
+<li><p><strong>Point ``collect`` at the raw files.</strong> Use <code class="docutils literal notranslate"><span class="pre">selector</span></code> to keep one column
+(or a list of columns for multi-gate frames). Use <code class="docutils literal notranslate"><span class="pre">reader_args</span></code> for
+source-specific quirks (<code class="docutils literal notranslate"><span class="pre">names</span></code>, <code class="docutils literal notranslate"><span class="pre">usecols</span></code>, <code class="docutils literal notranslate"><span class="pre">na_values</span></code>, <code class="docutils literal notranslate"><span class="pre">hint</span></code>).</p></li>
+<li><p><strong>Add ``transforms`` only when needed.</strong> Regular scientific feeds usually
+need none. SCADA feeds typically need <code class="docutils literal notranslate"><span class="pre">dst_tz</span></code> and often <code class="docutils literal notranslate"><span class="pre">coarsen</span></code>.</p></li>
+<li><p><strong>Fill in ``metadata``.</strong> Keep string fields lower case. Coordinates come from
+the registry — never hard-code them (see below).</p></li>
+<li><p><strong>Choose an ``output`` policy.</strong> Stage into a scratch directory, then decide
+whether/how to reconcile into the repo.</p></li>
+</ol>
+<p>Naming convention: keep recipe file names consistent and descriptive
+(<code class="docutils literal notranslate"><span class="pre">dropbox_smscg_scada.yaml</span></code>, <code class="docutils literal notranslate"><span class="pre">dropbox_ccf.yaml</span></code>). Avoid the legacy <code class="docutils literal notranslate"><span class="pre">spec</span></code>
+infix in new recipes.</p>
+</section>
+<section id="regular-vs-irregular-data">
+<h2>Regular vs. Irregular Data<a class="headerlink" href="#regular-vs-irregular-data" title="Link to this heading"></a></h2>
+<p>Whether a series is regular (evenly sampled, with a fixed frequency) or
+irregular (event/gate data) drives several settings. Getting this wrong is the
+most common recipe mistake.</p>
+<p><strong>Regular data</strong> (nearly everything: stage, flow, EC, temperature, …)</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">metadata.freq:</span> <span class="pre">infer</span></code> (or a literal like <code class="docutils literal notranslate"><span class="pre">15min</span></code>). The pipeline infers
+and records the frequency.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reader_args.force_regular</span></code> should be left at its default (<code class="docutils literal notranslate"><span class="pre">True</span></code>). Do not
+set <code class="docutils literal notranslate"><span class="pre">force_regular:</span> <span class="pre">False</span></code> for regular data — that is an anti-pattern that
+silently drops the frequency contract. Report and fix gaps instead of
+reverting to irregular reads.</p></li>
+<li><p>The target repo is a regular repo (<code class="docutils literal notranslate"><span class="pre">regular:</span> <span class="pre">true</span></code> in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code>);
+reconciliation applies regular-frequency checks.</p></li>
+</ul>
+<p><strong>Irregular data</strong> (gates, structures, event logs)</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">metadata.freq:</span> <span class="pre">none</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reader_args.force_regular:</span> <span class="pre">False</span></code> is correct here — gate positions are not
+evenly sampled. This is one of the few places <code class="docutils literal notranslate"><span class="pre">force_regular:</span> <span class="pre">False</span></code> belongs.</p></li>
+<li><p>The target repo is an irregular repo (e.g. <code class="docutils literal notranslate"><span class="pre">structures_formatted</span></code>);
+reconciliation skips the frequency-mismatch gate and stitches steps with
+<code class="docutils literal notranslate"><span class="pre">ts_splice</span></code> by time rather than forcing a union index.</p></li>
+</ul>
+<p>Rule of thumb: <code class="docutils literal notranslate"><span class="pre">force_regular:</span> <span class="pre">False</span></code> is often right for gates and almost never
+right for anything else.</p>
+</section>
+<section id="wildcard-modes">
+<h2>Wildcard Modes<a class="headerlink" href="#wildcard-modes" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">collect.wildcard</span></code> controls how multiple matching files are handled:</p>
+<ul class="simple">
+<li><p><strong>omitted / ``none``</strong>: the pattern must match exactly one file. This is the
+normal case for a single consolidated source file. YAML’s bare <code class="docutils literal notranslate"><span class="pre">null</span></code>
+keyword (or <code class="docutils literal notranslate"><span class="pre">None</span></code>) is also accepted as a synonym for <code class="docutils literal notranslate"><span class="pre">none</span></code>, but
+<code class="docutils literal notranslate"><span class="pre">none</span></code> is the preferred, self-explanatory spelling in new recipes.</p></li>
+<li><p><strong>``time_shard``</strong>: pass the glob straight to the reader for year-sharded /
+non-overlapping blocked files (<code class="docutils literal notranslate"><span class="pre">..._2023.csv</span></code>, <code class="docutils literal notranslate"><span class="pre">..._2024.csv</span></code>).
+Lexicographic order is assumed to match chronological order.</p></li>
+<li><p><strong>``time_overlap``</strong>: glob, read each file individually, then merge via
+<code class="docutils literal notranslate"><span class="pre">merge_method</span></code>. Use this only when incoming files genuinely overlap in time.</p></li>
+</ul>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">time_overlap</span></code> is frequently over-used by copy-and-paste from SCADA
+recipes. Overlap in time is uncommon, <em>especially for regular data</em>. If your
+files do not actually overlap, prefer <code class="docutils literal notranslate"><span class="pre">time_shard</span></code> (sharded blocks) or a
+single-file pattern. Reach for <code class="docutils literal notranslate"><span class="pre">time_overlap</span></code> only when it is truly needed.</p>
+</div>
+<p>For <code class="docutils literal notranslate"><span class="pre">time_overlap</span></code>, <code class="docutils literal notranslate"><span class="pre">merge_method</span></code> selects the combiner (<code class="docutils literal notranslate"><span class="pre">ts_splice</span></code> or
+<code class="docutils literal notranslate"><span class="pre">ts_merge</span></code>) and <code class="docutils literal notranslate"><span class="pre">merge_args</span></code> passes options such as
+<code class="docutils literal notranslate"><span class="pre">transition:</span> <span class="pre">prefer_last</span></code> / <code class="docutils literal notranslate"><span class="pre">prefer_first</span></code>.</p>
+</section>
+<section id="filename-templates-inference-mode">
+<h2>Filename Templates (Inference Mode)<a class="headerlink" href="#filename-templates-inference-mode" title="Link to this heading"></a></h2>
+<p>When <code class="docutils literal notranslate"><span class="pre">file_pattern</span></code> contains <code class="docutils literal notranslate"><span class="pre">{field}</span></code> placeholders (e.g.
+<code class="docutils literal notranslate"><span class="pre">{source}_{station_id}_{agency_id}_{param}_{syear}_{eyear}.csv</span></code>), the recipe
+enters <em>inference mode</em>: each matched file name is parsed to extract metadata
+fields marked <code class="docutils literal notranslate"><span class="pre">infer_from_filename</span></code>, and each file produces a separate output.
+In this mode <code class="docutils literal notranslate"><span class="pre">wildcard</span></code> must be omitted. Files that cannot be matched to a
+registry entry cause a failure unless <code class="docutils literal notranslate"><span class="pre">--omit-unregistered</span></code> is passed.</p>
+</section>
+<section id="transforms">
+<h2>Transforms<a class="headerlink" href="#transforms" title="Link to this heading"></a></h2>
+<p>Transforms run after reading (and after merging, for <code class="docutils literal notranslate"><span class="pre">time_overlap</span></code>). Each
+entry is either a bare string (no args) or a <code class="docutils literal notranslate"><span class="pre">{name,</span> <span class="pre">args}</span></code> mapping. They are
+applied in order. Built-ins:</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">dst_tz</span></code> (alias <code class="docutils literal notranslate"><span class="pre">dst_st</span></code>)</dt><dd><p>Convert local, daylight-saving-aware clock time to a fixed offset. This is
+the typical need for SCADA/Wonderware exports; major scientific collectors
+usually already report in a fixed offset and need no conversion. Most commonly
+used for SCADA gate data, applied <em>before</em> coarsening. See CCF and SCADA recipes for examples.
+Args: <code class="docutils literal notranslate"><span class="pre">src_tz</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">US/Pacific</span></code>), <code class="docutils literal notranslate"><span class="pre">target_tz</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">Etc/GMT+8</span></code>).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">coarsen</span></code></dt><dd><p>Reduce high-rate irregular data (e.g. gate positions) to an adaptive grid
+while preserving transitions. Useful for SCADA data (CCF gates, Suisun Marsh) which
+are stored on DWR SCADA systmes and come out too fine.
+Args: <code class="docutils literal notranslate"><span class="pre">grid</span></code> (output interval, e.g.
+<code class="docutils literal notranslate"><span class="pre">2min</span></code>), <code class="docutils literal notranslate"><span class="pre">preserve_vals</span></code> (values to snap to, e.g. <code class="docutils literal notranslate"><span class="pre">[0.0]</span></code>), <code class="docutils literal notranslate"><span class="pre">qwidth</span></code>
+(quantization width), <code class="docutils literal notranslate"><span class="pre">hyst</span></code> (hysteresis as a fraction of <code class="docutils literal notranslate"><span class="pre">qwidth</span></code>),
+<code class="docutils literal notranslate"><span class="pre">heartbeat_freq</span></code> (force a keep-alive sample during idle periods).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">trim_data</span></code></dt><dd><p>Drop contiguous all-/any-NaN rows from the leading and/or trailing edge.
+Args: <code class="docutils literal notranslate"><span class="pre">side</span></code> (<code class="docutils literal notranslate"><span class="pre">first</span></code> | <code class="docutils literal notranslate"><span class="pre">last</span></code> | <code class="docutils literal notranslate"><span class="pre">both</span></code>), <code class="docutils literal notranslate"><span class="pre">criterion</span></code>
+(<code class="docutils literal notranslate"><span class="pre">all_nan</span></code> | <code class="docutils literal notranslate"><span class="pre">any_nan</span></code>).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">add_column</span></code></dt><dd><p>Add a constant/typed column. Args: <code class="docutils literal notranslate"><span class="pre">name</span></code> (required), <code class="docutils literal notranslate"><span class="pre">default</span></code>,
+<code class="docutils literal notranslate"><span class="pre">dtype</span></code>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">linear</span></code></dt><dd><p>Apply an affine transform <code class="docutils literal notranslate"><span class="pre">value</span> <span class="pre">*</span> <span class="pre">scale</span> <span class="pre">+</span> <span class="pre">offset</span></code> to the series. Handy for
+a sign convention (<code class="docutils literal notranslate"><span class="pre">scale:</span> <span class="pre">-1.0</span></code> to flip a stored-negative inflow to a
+positive-inflow convention) or a simple unit/datum shift. Args: <code class="docutils literal notranslate"><span class="pre">scale</span></code>
+(default <code class="docutils literal notranslate"><span class="pre">1.0</span></code>), <code class="docutils literal notranslate"><span class="pre">offset</span></code> (default <code class="docutils literal notranslate"><span class="pre">0.0</span></code>).</p>
+</dd>
+</dl>
+<p>Custom transforms can be registered at runtime with
+<code class="docutils literal notranslate"><span class="pre">register_transform(name,</span> <span class="pre">func)</span></code>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Unit conversion (e.g. legacy feet/cfs, or specific conductance) is handled as
+part of preparing the data. The legacy DMS convention is feet for stage and
+cfs for flow with a sane number of significant digits — hundredths of a foot
+and 1 (or 0.1) cfs are enough for all non-DeltaCD purposes. Prefer a modest
+<code class="docutils literal notranslate"><span class="pre">float_format</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">&quot;%.2f&quot;</span></code>) over emitting spurious precision.</p>
+</div>
+<section id="common-transforms">
+<h3>Common Transforms<a class="headerlink" href="#common-transforms" title="Link to this heading"></a></h3>
+<p>Most recipes need no transforms at all — a clean, fixed-offset regular feed is
+staged as-is. The patterns below cover the cases that do come up. Transforms are
+listed under a <code class="docutils literal notranslate"><span class="pre">transforms:</span></code> key at the recipe-entry level (a sibling of
+<code class="docutils literal notranslate"><span class="pre">collect</span></code> / <code class="docutils literal notranslate"><span class="pre">metadata</span></code> / <code class="docutils literal notranslate"><span class="pre">output</span></code>) and are applied top to bottom.</p>
+<p><strong>No transform (the common case).</strong> Regular scientific data that already reports
+in a fixed offset needs nothing:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">transforms</span><span class="p">:</span><span class="w">      </span><span class="c1"># omit entirely, or leave empty</span>
+</pre></div>
+</div>
+<p><strong>Convert SCADA local time to a fixed offset.</strong> Wonderware/SCADA exports are
+usually in local, daylight-saving-aware clock time. Convert once, up front:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">transforms</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dst_tz</span>
+<span class="w">    </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">src_tz</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">US/Pacific</span><span class="w">     </span><span class="c1"># DST-aware source clock</span>
+<span class="w">      </span><span class="nt">target_tz</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${target_tz}</span><span class="w">   </span><span class="c1"># e.g. Etc/GMT+8 (PST)</span>
+</pre></div>
+</div>
+<p><strong>Coarsen high-rate irregular gate data.</strong> For adaptive gates recorded at a high
+raw rate, reduce to a regular-ish grid while preserving open/close transitions.
+Typically applied <em>after</em> <code class="docutils literal notranslate"><span class="pre">dst_tz</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">transforms</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">dst_tz</span>
+<span class="w">    </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">src_tz</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">US/Pacific</span>
+<span class="w">      </span><span class="nt">target_tz</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${target_tz}</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">coarsen</span>
+<span class="w">    </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">grid</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2min</span><span class="w">             </span><span class="c1"># output sampling interval</span>
+<span class="w">      </span><span class="nt">preserve_vals</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.0</span><span class="p p-Indicator">]</span><span class="w">   </span><span class="c1"># snap to fully-closed state + boundaries</span>
+<span class="w">      </span><span class="nt">qwidth</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.01</span><span class="w">           </span><span class="c1"># quantization width (ft)</span>
+<span class="w">      </span><span class="nt">hyst</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span><span class="w">              </span><span class="c1"># re-quantize only when value moves &gt; 0.5*qwidth</span>
+<span class="w">      </span><span class="nt">heartbeat_freq</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60min</span><span class="w">  </span><span class="c1"># force a keep-alive sample during idle periods</span>
+</pre></div>
+</div>
+<p><strong>Trim empty edges.</strong> Drop leading/trailing all-NaN rows left by an export that
+padded the record:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">transforms</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trim_data</span>
+<span class="w">    </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">side</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">both</span><span class="w">             </span><span class="c1"># first | last | both</span>
+<span class="w">      </span><span class="nt">criterion</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">all_nan</span><span class="w">     </span><span class="c1"># all_nan | any_nan</span>
+</pre></div>
+</div>
+<p><strong>Add a constant column.</strong> Occasionally useful to stamp a fixed auxiliary
+column:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">transforms</span><span class="p">:</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">add_column</span>
+<span class="w">    </span><span class="nt">args</span><span class="p">:</span>
+<span class="w">      </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">quality</span>
+<span class="w">      </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+<span class="w">      </span><span class="nt">dtype</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">Int64</span>
+</pre></div>
+</div>
+<p>Ordering matters. Convert time zones <em>before</em> coarsening (coarsening assumes a
+monotonic, correctly-offset index), and note that for <code class="docutils literal notranslate"><span class="pre">time_overlap</span></code> recipes
+transforms run <em>after</em> the files are merged — so a <code class="docutils literal notranslate"><span class="pre">dst_tz</span></code> transform cannot
+repair a fall-back duplicate that exists in a single raw file. In that case
+provide a pre-cleaned, DST-adjusted source file instead.</p>
+</section>
+</section>
+<section id="metadata">
+<h2>Metadata<a class="headerlink" href="#metadata" title="Link to this heading"></a></h2>
+<p>Metadata is validated by <code class="docutils literal notranslate"><span class="pre">_check_metadata</span></code> before staging. String fields
+(<code class="docutils literal notranslate"><span class="pre">source</span></code>, <code class="docutils literal notranslate"><span class="pre">agency</span></code>, <code class="docutils literal notranslate"><span class="pre">param</span></code>, <code class="docutils literal notranslate"><span class="pre">station_id</span></code>, <code class="docutils literal notranslate"><span class="pre">subloc</span></code>) must be lower
+case.</p>
+<p><strong>Required</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">station_id</span></code> — datastore station id (registry key).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">source</span></code> — the processing/collection source of <em>this particular product</em>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">agency</span></code> — the agency that owns the instrument in the water.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">param</span></code> — variable (e.g. <code class="docutils literal notranslate"><span class="pre">flow</span></code>, <code class="docutils literal notranslate"><span class="pre">ec</span></code>, <code class="docutils literal notranslate"><span class="pre">height</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">unit</span></code> — physical unit (<code class="docutils literal notranslate"><span class="pre">ft</span></code>, <code class="docutils literal notranslate"><span class="pre">cfs</span></code>/<code class="docutils literal notranslate"><span class="pre">ft^3/s</span></code>, <code class="docutils literal notranslate"><span class="pre">uS/cm</span></code>, …).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">time_zone</span></code> — a pandas/vtools-compatible fixed offset (e.g. <code class="docutils literal notranslate"><span class="pre">Etc/GMT+8</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">freq</span></code> — a literal frequency string, <code class="docutils literal notranslate"><span class="pre">infer</span></code> (regular), or <code class="docutils literal notranslate"><span class="pre">none</span></code>
+(irregular; <code class="docutils literal notranslate"><span class="pre">null</span></code>/<code class="docutils literal notranslate"><span class="pre">None</span></code> are accepted synonyms).</p></li>
+</ul>
+<p><strong>Optional</strong></p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">subloc</span></code> — sublocation (<code class="docutils literal notranslate"><span class="pre">default</span></code> when omitted; e.g. <code class="docutils literal notranslate"><span class="pre">upper</span></code>,
+<code class="docutils literal notranslate"><span class="pre">bottom</span></code>, <code class="docutils literal notranslate"><span class="pre">radial</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">agency_id</span></code> — the station identifier in the <em>agency’s own</em> record.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">station_name</span></code>, <code class="docutils literal notranslate"><span class="pre">processor</span></code>, <code class="docutils literal notranslate"><span class="pre">time_zone_label</span></code>, and other descriptive
+fields.</p></li>
+</ul>
+<p><strong>``agency`` vs. ``agency_id`` — what they mean</strong></p>
+<p>For <em>observed</em> data these two answer distinct questions:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">agency</span></code> — “who has an instrument in the water?” (e.g. <code class="docutils literal notranslate"><span class="pre">usgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dwr</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">agency_id</span></code> — “what does that agency call this station in their own data of
+record?” (their native site number/name).</p></li>
+</ul>
+<p>This is unambiguous for observed feeds. For a <em>processed</em> repo (derived, filled,
+or model-input series that merely reuse a station location), <code class="docutils literal notranslate"><span class="pre">agency</span></code> and
+<code class="docutils literal notranslate"><span class="pre">agency_id</span></code> are often not meaningful and may be better omitted or documented
+explicitly. When a processed series blends providers for different variables
+(e.g. one station whose flow comes from USGS but whose EC comes from a different
+agency), encode the provider per variable (<code class="docutils literal notranslate"><span class="pre">usgs</span></code> for flow, the EC provider
+for EC) so <code class="docutils literal notranslate"><span class="pre">agency</span></code> stays truthful; do not force a single agency label that is
+wrong for some variables. When in doubt, add a short note in the recipe
+explaining what the metadata means for the processed product.</p>
+<p><strong>Metadata sentinels</strong></p>
+<p>Values may be literals or one of these sentinels:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">infer_from_filename</span></code> — parsed from the filename template.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">registry_lookup</span></code> — looked up from the station registry by <code class="docutils literal notranslate"><span class="pre">station_id</span></code> or
+<code class="docutils literal notranslate"><span class="pre">agency_id</span></code> (supports <code class="docutils literal notranslate"><span class="pre">station_name</span></code>, <code class="docutils literal notranslate"><span class="pre">agency</span></code>, <code class="docutils literal notranslate"><span class="pre">agency_id</span></code>, and
+coordinate fields).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">infer_from_agency_id</span></code> — special value for <code class="docutils literal notranslate"><span class="pre">station_id</span></code>; resolves the
+station id from the registry by matching <code class="docutils literal notranslate"><span class="pre">agency_id</span></code>.</p></li>
+</ul>
+</section>
+<section id="coordinate-policy">
+<h2>Coordinate Policy<a class="headerlink" href="#coordinate-policy" title="Link to this heading"></a></h2>
+<p>Coordinates are the single responsibility of the station registry (e.g.
+<code class="docutils literal notranslate"><span class="pre">station_dbase.csv</span></code> / <code class="docutils literal notranslate"><span class="pre">structures_registry.csv</span></code>). They are auto-populated
+from the registry during processing; recipe authors must <strong>not</strong> hard-code them.</p>
+<p>The following keys are rejected in recipe <code class="docutils literal notranslate"><span class="pre">metadata</span></code> (unless supplied via
+<code class="docutils literal notranslate"><span class="pre">registry_lookup</span></code>):</p>
+<blockquote>
+<div><p><code class="docutils literal notranslate"><span class="pre">lat</span></code>, <code class="docutils literal notranslate"><span class="pre">lon</span></code>, <code class="docutils literal notranslate"><span class="pre">latitude</span></code>, <code class="docutils literal notranslate"><span class="pre">longitude</span></code>, <code class="docutils literal notranslate"><span class="pre">agency_lat</span></code>,
+<code class="docutils literal notranslate"><span class="pre">agency_lon</span></code>, <code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, <code class="docutils literal notranslate"><span class="pre">projection_x_coordinate</span></code>,
+<code class="docutils literal notranslate"><span class="pre">projection_y_coordinate</span></code></p>
+</div></blockquote>
+<p>To fix missing or wrong coordinates, update the registry CSV — not the recipe.
+The registry provides <code class="docutils literal notranslate"><span class="pre">agency_lat</span></code>/<code class="docutils literal notranslate"><span class="pre">agency_lon</span></code> (agency-reported WGS84,
+written as <code class="docutils literal notranslate"><span class="pre">latitude</span></code>/<code class="docutils literal notranslate"><span class="pre">longitude</span></code>) and <code class="docutils literal notranslate"><span class="pre">x</span></code>/<code class="docutils literal notranslate"><span class="pre">y</span></code> (EPSG:26910, potentially
+adjusted, written as <code class="docutils literal notranslate"><span class="pre">projection_x_coordinate</span></code>/<code class="docutils literal notranslate"><span class="pre">projection_y_coordinate</span></code>).</p>
+</section>
+<section id="output-and-reconciliation">
+<h2>Output and Reconciliation<a class="headerlink" href="#output-and-reconciliation" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">output</span></code> controls staging and (optionally) reconciliation:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">repo_name</span></code> — must match a repo defined in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code>. The repo’s
+<code class="docutils literal notranslate"><span class="pre">regular</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>, and <code class="docutils literal notranslate"><span class="pre">float_format</span></code> settings are honored during
+reconciliation.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">staging.dir</span></code> — a scratch directory that must exist (its leaf is created if
+the parent exists). Standardized files are written here.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">staging.write_args</span></code> — kwargs to <code class="docutils literal notranslate"><span class="pre">write_ts_csv</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">float_format</span></code>,
+<code class="docutils literal notranslate"><span class="pre">chunk_years</span></code>).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reconcile</span></code> — omit to stop at staging. When present, staged files are merged
+into the repo:</p>
+<ul>
+<li><p><code class="docutils literal notranslate"><span class="pre">prefer</span></code> (<code class="docutils literal notranslate"><span class="pre">staged</span></code> | <code class="docutils literal notranslate"><span class="pre">repo</span></code>): which side wins on overlapping
+timestamps.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">allow_new_series</span></code> (bool): whether a staged series with no repo namesake
+may be initialized.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inspection</span></code> (<code class="docutils literal notranslate"><span class="pre">recent_years</span></code>, <code class="docutils literal notranslate"><span class="pre">p3</span></code>, <code class="docutils literal notranslate"><span class="pre">p10</span></code>): sampling policy for
+re-inspecting <em>older shards</em> (see cautions below).</p></li>
+</ul>
+</li>
+</ul>
+<p>Reconciliation is <em>content-smart</em>: it hashes the data section (ignoring header
+churn such as <code class="docutils literal notranslate"><span class="pre">date_formatted</span></code>) and only rewrites when values actually differ.
+The dropbox passes the exact series it just produced to the reconciler, so
+unrelated files sharing the staging directory are not swept into the repo.</p>
+</section>
+<section id="recommended-workflow-backfill-then-top-off">
+<h2>Recommended Workflow: Backfill, then Top Off<a class="headerlink" href="#recommended-workflow-backfill-then-top-off" title="Link to this heading"></a></h2>
+<p>A good pattern for a series that has a legacy history plus an ongoing feed is to
+keep both in one recipe file:</p>
+<ol class="arabic simple">
+<li><p><strong>A one-time backfill entry.</strong> Load the legacy record (in the right units and
+a sane precision) into the repo. Use <code class="docutils literal notranslate"><span class="pre">prefer:</span> <span class="pre">staged</span></code> so the backfill wins
+while initializing the series.</p></li>
+<li><p><strong>Mark it ``skip: true`` once it has run.</strong> The entry stays in the file as a
+self-documenting record of how the history was produced, but does not run
+again.</p></li>
+<li><p><strong>An ongoing entry</strong> in the same file that tops off the series with new data
+as it arrives.</p></li>
+</ol>
+<p>The <code class="docutils literal notranslate"><span class="pre">dropbox_smscg_scada.yaml</span></code> recipe (<code class="docutils literal notranslate"><span class="pre">radial_init</span></code> backfill +
+<code class="docutils literal notranslate"><span class="pre">smscg_scada</span></code> ongoing) is a working example of this pattern.</p>
+</section>
+<section id="common-pitfalls">
+<h2>Common Pitfalls<a class="headerlink" href="#common-pitfalls" title="Link to this heading"></a></h2>
+<p>A few habits tend to spread by copy-and-paste. Watch for them in review:</p>
+<ul class="simple">
+<li><p><strong>``wildcard: time_overlap`` where it is not needed.</strong> True time overlap is
+uncommon, especially for regular data. Use <code class="docutils literal notranslate"><span class="pre">time_shard</span></code> or a single-file
+pattern unless files genuinely overlap.</p></li>
+<li><p><strong>``force_regular: False`` on regular data.</strong> Correct for gates; wrong for
+essentially everything else. Fix the underlying gaps instead of dropping the
+frequency contract.</p></li>
+<li><p><strong>``allow_new_series: true`` used casually.</strong> It permits creating a <em>new</em>
+parallel series file — which means a misspelled <code class="docutils literal notranslate"><span class="pre">station_id</span></code> or <code class="docutils literal notranslate"><span class="pre">param</span></code>
+silently produces a phantom series next to the real one. Prefer <code class="docutils literal notranslate"><span class="pre">false</span></code> for
+ongoing feeds into existing series; enable it deliberately only when
+initializing a genuinely new series.</p></li>
+<li><p><strong>``inspection:`` on unsharded files.</strong> The <code class="docutils literal notranslate"><span class="pre">recent_years</span></code> / <code class="docutils literal notranslate"><span class="pre">p3</span></code> / <code class="docutils literal notranslate"><span class="pre">p10</span></code>
+sampling only has meaning for time-sharded (<code class="docutils literal notranslate"><span class="pre">_2023.csv</span></code>) files, where it
+randomly re-checks older shards to bound nightly workload. On a single
+unsharded file it does nothing — do not add it reflexively.</p></li>
+<li><p><strong>Spurious precision.</strong> Match <code class="docutils literal notranslate"><span class="pre">float_format</span></code> to the measurement (e.g.
+<code class="docutils literal notranslate"><span class="pre">&quot;%.2f&quot;</span></code> ft, <code class="docutils literal notranslate"><span class="pre">&quot;%.1f&quot;</span></code> cfs). Do not emit an unsupportable number of
+significant figures.</p></li>
+<li><p><strong>Coordinates in the recipe.</strong> Always fix these in the registry, never in
+<code class="docutils literal notranslate"><span class="pre">metadata</span></code>.</p></li>
+</ul>
+</section>
+<section id="failure-handling">
+<h2>Failure Handling<a class="headerlink" href="#failure-handling" title="Link to this heading"></a></h2>
+<p>Each recipe entry is processed independently. If one fails, the error is logged
+and processing continues with the next entry. At the end, if any entries failed,
+a <code class="docutils literal notranslate"><span class="pre">RuntimeError</span></code> is raised listing the failed names. Re-run individual failures
+with <code class="docutils literal notranslate"><span class="pre">--name</span> <span class="pre">&lt;entry&gt;</span></code>.</p>
+</section>
+<section id="bundled-examples">
+<h2>Bundled Examples<a class="headerlink" href="#bundled-examples" title="Link to this heading"></a></h2>
+<p>See <code class="docutils literal notranslate"><span class="pre">dms_datastore/dropbox_recipes/</span></code> for working recipes, including:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dropbox_smscg_scada.yaml</span></code> — irregular gate (SCADA) data: DST conversion,
+adaptive coarsening, and the backfill-then-top-off pattern.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropbox_daily.yaml</span></code> — template-based inference mode for daily NWIS data.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">dropbox_ccf.yaml</span></code> — structure/gate data with transforms.</p></li>
+</ul>
+</section>
+<section id="key-functions">
+<h2>Key Functions<a class="headerlink" href="#key-functions" title="Link to this heading"></a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dropbox_data</span></code> / <code class="docutils literal notranslate"><span class="pre">apply_dropbox_workflow</span></code> — run a recipe.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DataCollector</span></code> — file discovery from patterns.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">populate_meta</span></code> / <code class="docutils literal notranslate"><span class="pre">infer_meta</span></code> — resolve and infer metadata (registry
+lookups, filename inference).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">_check_metadata</span></code> — validate required fields, casing, units, time zone, and
+coordinates.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">register_transform</span></code> — register a custom transform.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reconcile_data.update_repo</span></code> — content-smart reconciliation of staged files
+into a repository.</p></li>
 </ul>
 </section>
 </section>
