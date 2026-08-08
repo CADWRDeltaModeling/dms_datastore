@@ -20,6 +20,7 @@ from dms_datastore.process_station_variable import (
 from dms_datastore import dstore_config
 from dms_datastore.logging_config import configure_logging, resolve_loglevel   
 import logging
+from time import sleep
 logger = logging.getLogger(__name__)
 
 __all__ = ["noaa_download"]
@@ -44,6 +45,47 @@ def retrieve_csv(url):
     response = requests.get(url)
     response.raise_for_status()
     return response.content
+
+
+REQUEST_SPACING = 2.0  # polite pause before every NOAA API call (success or failure)
+RETRY_WAIT = 15.0      # capped pause after a throttled/failed call before retrying
+MAX_TRIES = 2          # total attempts per request before giving up loudly
+THROTTLE_STATUS = frozenset((403, 429, 500, 502, 503, 504))
+
+
+class NoaaThrottleError(RuntimeError):
+    """Raised when NOAA keeps refusing requests (e.g. HTTP 403/429)."""
+
+
+def _noaa_get_text(url):
+    """Fetch a NOAA CO-OPS URL as decoded text, pausing before every request.
+
+    A ``REQUEST_SPACING`` pause precedes every call (success or failure) so we
+    never retry in a tight loop. On a throttled/error status we wait a fixed,
+    capped ``RETRY_WAIT`` and retry up to ``MAX_TRIES`` times. If NOAA keeps
+    refusing, ``NoaaThrottleError`` is raised so the caller fails loudly rather
+    than leaving a gap in the data.
+    """
+    last_status = None
+    for attempt in range(MAX_TRIES):
+        sleep(REQUEST_SPACING)
+        response = requests.get(url)
+        if response.status_code not in THROTTLE_STATUS:
+            response.raise_for_status()
+            return response.content.decode()
+        last_status = response.status_code
+        logger.warning(
+            "NOAA throttled (HTTP %s), attempt %d/%d url=%s",
+            last_status,
+            attempt + 1,
+            MAX_TRIES,
+            url,
+        )
+        if attempt + 1 < MAX_TRIES:
+            sleep(RETRY_WAIT)
+    raise NoaaThrottleError(
+        f"NOAA persistently refused (last HTTP {last_status}) for {url}"
+    )
 
 
 def retrieve_table(url):
@@ -208,15 +250,37 @@ def download_station_data(
             # logger.info(f"Retrieving {url}\n station {agency_id} from {date_start} to {date_end}".format(url,agency_id, date_start, date_end))
             # logger.info("URL: {}".format(url))
 
-            try:
-                response = requests.get(url)
-                response.raise_for_status()
-                content = response.content
-                raw_table = content.decode()
+            # A request failure (throttle, network, HTTP error) propagates and
+            # aborts rather than silently skipping the month and leaving a gap.
+            raw_table = _noaa_get_text(url)
+
+            if faulty_output(raw_table):
+                logger.debug(
+                    "NOAA returned short or unusable output for station=%s param=%s "
+                    "agency_id=%s start=%s end=%s url=%s snippet=%r",
+                    station,
+                    paramname,
+                    agency_id,
+                    date_start,
+                    date_end,
+                    url,
+                    raw_table[:200],
+                )
+                continue
+
+            if raw_table[0] == "\n":
+                datum = "STND"
+                datum_str = (
+                    f"&datum={datum}"
+                    if param in ("water_level", "hourly_height", "predictions")
+                    else ""
+                )
+                url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric{datum_str}&format=csv"
+                raw_table = _noaa_get_text(url)
                 if faulty_output(raw_table):
-                    logger.debug(
-                        "NOAA returned short or unusable output for station=%s param=%s "
-                        "agency_id=%s start=%s end=%s url=%s snippet=%r",
+                    logger.warning(
+                        "NOAA fallback datum returned short or unusable output for "
+                        "station=%s param=%s agency_id=%s start=%s end=%s url=%s snippet=%r",
                         station,
                         paramname,
                         agency_id,
@@ -226,50 +290,6 @@ def download_station_data(
                         raw_table[:200],
                     )
                     continue
-            except Exception:
-                logger.exception(
-                    "NOAA request failed for station=%s param=%s agency_id=%s url=%s",
-                    station,
-                    paramname,
-                    agency_id,
-                    url,
-                )
-                raw_table = "\n"
-
-            if raw_table[0] == "\n":
-                datum = "STND"
-                datum_str = (
-                    f"&datum={datum}"
-                    if param in ("water_level", "hourly_height", "predictions")
-                    else ""
-                )
-                url = f"https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product={param}&application={app}&begin_date={date_start}&end_date={date_end}&station={agency_id}&time_zone=LST&units=metric&{datum_str}&format=csv"
-                # logger.info("Retrieving Station {}, from {} to {}...".format(agency_id, date_start, date_end))
-                # logger.info("URL: {}".format(url))
-                try:
-                    raw_table = retrieve_csv(url).decode()
-                    if faulty_output(raw_table):
-                        logger.warning(
-                            "NOAA fallback datum returned short or unusable output for "
-                            "station=%s param=%s agency_id=%s start=%s end=%s url=%s snippet=%r",
-                            station,
-                            paramname,
-                            agency_id,
-                            date_start,
-                            date_end,
-                            url,
-                            raw_table[:200],
-                        )
-                        continue
-                except Exception:
-                    logger.exception(
-                        "NOAA fallback datum request failed for station=%s param=%s agency_id=%s url=%s",
-                        station,
-                        paramname,
-                        agency_id,
-                        url,
-                    )
-                    continue
             
             if first:
                 headers["datum"] = datum
@@ -277,6 +297,8 @@ def download_station_data(
             
             write_table(raw_table, path, first)
             first = False
+            # Request spacing is handled inside _noaa_get_text (applied before
+            # every call, including failures), so no per-iteration sleep here.
 
 
 def noaa_download(stations, dest_dir, start, end=None, param=None, overwrite=False):
@@ -342,6 +364,14 @@ def noaa_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
         for future in concurrent.futures.as_completed(futures):
             try:
                 future.result()  # This line can be used to handle results or exceptions from the tasks
+            except NoaaThrottleError:
+                logger.error(
+                    "NOAA throttling persists (HTTP 403/429); aborting remaining "
+                    "NOAA downloads. Wait for the block to clear before retrying."
+                )
+                for pending in futures:
+                    pending.cancel()
+                raise
             except Exception as e:
                 logger.error(f"Exception occurred during download: {e}")
 
