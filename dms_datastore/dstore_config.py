@@ -54,6 +54,8 @@ __all__ = [
     "repo_root",
     "resolve_repo_data_dir",
     "repo_names",
+    "registry_names",
+    "registries_to_repos",
     "registry_spec",
     "registry_column_map",
     "registry_crs",
@@ -638,6 +640,44 @@ def repo_config(repo_name):
 
     _repo_cache[repo_name] = spec
     return spec
+
+def registry_names():
+    """
+    Return the configured registry names.
+
+    Returns
+    -------
+    list of str
+        Names under the top-level ``registries`` section of the
+        configuration.
+    """
+    return list(config.get("registries", {}).keys())
+
+
+def registries_to_repos():
+    """
+    Map each configured registry name to the repos that consume it.
+
+    Returns
+    -------
+    dict
+        Mapping of registry name -> list of repo names whose ``registry``
+        field (a single name or a list of names) includes that registry.
+        Registries not referenced by any repo map to an empty list.
+    """
+    mapping = {name: [] for name in registry_names()}
+    for repo_name in repo_names():
+        spec = repo_config(repo_name)
+        repo_registries = spec.get("registry")
+        if repo_registries is None:
+            continue
+        if isinstance(repo_registries, str):
+            repo_registries = [repo_registries]
+        for rname in repo_registries:
+            if rname in mapping:
+                mapping[rname].append(repo_name)
+    return mapping
+
 
 def registry_spec(registry_name):
     """
