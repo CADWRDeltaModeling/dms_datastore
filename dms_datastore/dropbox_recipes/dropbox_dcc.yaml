@@ -1,5 +1,5 @@
 # "dcc" is for consolidating Delta Cross Channel gate ops
-dropbox_home : //cnrastore-bdo/Modeling_Data/
+dropbox_home : //cnrastore-bdo/Modeling_Data
 
 dcc_dropbox_path : repo_staging_auto/dropbox/dcc/data/converted/dxc_gate
 dcc_repo_data_dir: ${dropbox_home}/${dcc_dropbox_path}
@@ -9,13 +9,15 @@ dcc_staging_dir: ${dropbox_home}/repo_staging_auto/dropbox/dcc@tmp
 target_tz: "Etc/GMT+8"
 target_tz_label: PST
 
+
+# This recipe sends the collected data to repo_formatted, where it is uncorrected
 data:
-  - name: dcc
+  - name: dcc_formatted
     skip: False
     collect:
       file_pattern: "Ccgates*.csv"
       wildcard: time_overlap
-      location: "${dropbox_home}${dcc_dropbox_path}"
+      location: "${dropbox_home}/${dcc_dropbox_path}"
       recursive_search: False
       reader: read_ts
       reader_args:
@@ -26,21 +28,61 @@ data:
           comments: str
       selector: [action, comments]
     transforms:
-      - name: dst_tz # Timezone should be aligned already, adding just in case.
-        args:
-          src_tz: US/Pacific
-          target_tz: ${target_tz}
+      # none
 
     metadata:
       station_id: dcc
-      structure_id: dcc
+      name: Delta Cross Channel
+      agency_id: dcc
+      agency: usbr
+      source: usbr
+      freq: None
+      param: op
+      unit: mode
+      subloc: default
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      processing_note: contents formatted but not corrected (see processed repo)
+
+    output:
+      repo_name: structures_formatted
+      #repo_data_dir: ${dcc_repo_data_dir}
+      staging:
+        dir : ${dcc_staging_dir}
+      reconcile:
+        prefer: repo
+        allow_new_series: true
+
+  - name: dcc_processed
+    skip: False
+    collect:
+      file_pattern: "Ccgates*.csv"
+      wildcard: time_overlap
+      location: "${dropbox_home}/${dcc_dropbox_path}"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+        force_regular: False
+        hint: resort
+        dtypes:
+          action: str
+          comments: str
+      selector: [action, comments]
+    transforms:
+      # none
+
+    metadata:
+      station_id: dcc
+      name: Delta Cross Channel
       agency_id: dcc
       processor: dms
-      agency: dwr
-      source: dwr
+      agency: usbr
+      source: usbr
       freq: None
-      param: action
-      unit: state
+      param: op
+      unit: mode
       subloc: default
       time_zone: ${target_tz}
       time_zone_label: ${target_tz_label}
@@ -48,14 +90,10 @@ data:
       longitude: registry_lookup
 
     output:
-      repo_name: structures_formatted
-      repo_data_dir: ${dcc_repo_data_dir}
+      repo_name: structures_processed
+      #repo_data_dir: ${dcc_repo_data_dir}
       staging:
         dir : ${dcc_staging_dir}
       reconcile:
         prefer: repo
         allow_new_series: true
-        inspection:
-          recent_years: 3
-          p3: 0.15
-          p10: 0.05

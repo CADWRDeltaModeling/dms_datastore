@@ -46,3 +46,4 @@ dependencies:
   - pip:
     - tabula-py>=2.9.0  # installed via pip to avoid conda channel conflicts (conda-forge is outdated)
     - jpype1
+    - pdfplumber>=0.7.6

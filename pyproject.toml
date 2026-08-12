@@ -57,7 +57,8 @@ dev = [
     "pandoc"
 ]
 pdf = [
-    "tabula-py>=2.9.0"
+    "tabula-py>=2.9.0",
+    "pdfplumber>=0.7.6",
 ]
 # These are the tools needed to perform documentation
 doc = [

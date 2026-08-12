@@ -75,5 +75,5 @@ data:
           chunk_years: False
       reconcile:
         # Omit repo_data_dir to use the default from repo config
-        prefer: repo        # prefer newly staged over stale repo data
+        prefer: repo        # prefer repo data
         allow_new_series: true
