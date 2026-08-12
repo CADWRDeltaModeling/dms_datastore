@@ -31,7 +31,7 @@ data:
     transforms: #no transforms on daily data needed
     metadata:
       station_id: mrz
-      agency_id: dwr
+      agency_id: mrz
       source: dwr
       agency: dwr
       processor: dms   # required by the 'processed' repo filename templates
