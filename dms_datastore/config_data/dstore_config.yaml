@@ -191,8 +191,8 @@ repos:
     provider_key: processor
     provider_resolution_mode: assume_unique
     filename_templates:
-      - "{processor}_{station_id@subloc}_{param@modifier}.csv"
-      - "{processor}_{station_id@subloc}_{param@modifier}_{year}.csv"
+      - "{agency}_{station_id@subloc}_{param@modifier}.csv"
+      - "{agency}_{station_id@subloc}_{param@modifier}_{year}.csv"
 
   structures_processed:
     root: "//cnrastore-bdo/Modeling_Data/repo/structures/processed"
