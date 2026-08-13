@@ -1968,8 +1968,22 @@ def csv_retrieve_ts(
         # keep original times for tie-breaking
         orig_index = big_ts.index
 
-        # round to target grid
-        rounded = big_ts.index.round(f)
+        # round to target grid; .round only supports fixed-length offsets
+        # (e.g. minutes, hours, days). Non-fixed offsets such as <MonthBegin>
+        # or <YearBegin> have no constant nanosecond length, so skip rounding
+        # and rely on asfreq() to align the (already grid-aligned) index.
+        # f may be a str (from infer_freq_robust) or an offset (from
+        # to_offset), so normalize before probing .nanos.
+        try:
+            pd.tseries.frequencies.to_offset(f).nanos
+            fixed_freq = True
+        except ValueError:
+            fixed_freq = False
+
+        if fixed_freq:
+            rounded = big_ts.index.round(f)
+        else:
+            rounded = big_ts.index
 
         # absolute distance to rounded target
         delta = (orig_index - rounded).asi8
