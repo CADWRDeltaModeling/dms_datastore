@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cache Round-Trip Example with Metadata &mdash; dms_datastore 0.8.6.dev4+g8b1379538 documentation</title>
+  <title>Cache Round-Trip Example with Metadata &mdash; dms_datastore 0.8.6.dev5+g7b6f24a41 documentation</title>
       <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="../_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="../_static/jquery.js?v=5d32c60e"></script>
       <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="../_static/documentation_options.js?v=05bc4647"></script>
+      <script src="../_static/documentation_options.js?v=a6f234c0"></script>
       <script src="../_static/doctools.js?v=9bcbadda"></script>
       <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -115,11 +115,11 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[2]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="nd">@cache_dataframe</span><span class="p">(</span><span class="n">key_args</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;station&quot;</span><span class="p">,</span> <span class="s2">&quot;variable&quot;</span><span class="p">])</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">ec_data</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">):</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="nd">@cache_dataframe</span><span class="p">(</span><span class="n">key_args</span><span class="o">=</span><span class="p">[</span><span class="s2">"station"</span><span class="p">,</span> <span class="s2">"variable"</span><span class="p">])</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">ec_data</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">"upper"</span><span class="p">):</span>
     <span class="c1"># Simulated time series</span>
-    <span class="n">idx</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="s2">&quot;2020-01-01&quot;</span><span class="p">,</span> <span class="n">periods</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;D&quot;</span><span class="p">)</span>
-    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span> <span class="s2">&quot;station&quot;</span><span class="p">:</span> <span class="n">station</span><span class="p">,</span> <span class="s2">&quot;param&quot;</span><span class="p">:</span> <span class="n">variable</span><span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span>
+    <span class="n">idx</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="s2">"2020-01-01"</span><span class="p">,</span> <span class="n">periods</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s2">"D"</span><span class="p">)</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">"value"</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">),</span> <span class="s2">"station"</span><span class="p">:</span> <span class="n">station</span><span class="p">,</span> <span class="s2">"param"</span><span class="p">:</span> <span class="n">variable</span><span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="n">idx</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">df</span>
 <br/></pre></div>
 </div>
@@ -128,9 +128,9 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">df1</span> <span class="o">=</span> <span class="n">ec_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;vns&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)</span>
-<span class="n">df2</span> <span class="o">=</span> <span class="n">ec_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;vns&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;ec&quot;</span><span class="p">)</span>
-<span class="n">df3</span> <span class="o">=</span> <span class="n">ec_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;old&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;ec&quot;</span><span class="p">)</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">df1</span> <span class="o">=</span> <span class="n">ec_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">"vns"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">)</span>
+<span class="n">df2</span> <span class="o">=</span> <span class="n">ec_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">"vns"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"ec"</span><span class="p">)</span>
+<span class="n">df3</span> <span class="o">=</span> <span class="n">ec_data</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">"old"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"ec"</span><span class="p">)</span>
 <br/></pre></div>
 </div>
 </div>
@@ -147,7 +147,7 @@
 </pre></div>
 </div>
 <div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">LocalCache</span><span class="o">.</span><span class="n">instance</span><span class="p">()</span><span class="o">.</span><span class="n">clear</span><span class="p">()</span>
-<span class="n">load_cache_csv</span><span class="p">(</span><span class="s2">&quot;ec_data.csv&quot;</span><span class="p">)</span>
+<span class="n">load_cache_csv</span><span class="p">(</span><span class="s2">"ec_data.csv"</span><span class="p">)</span>
 <br/></pre></div>
 </div>
 </div>
@@ -155,7 +155,7 @@
 <div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[9]:
 </pre></div>
 </div>
-<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">df_reloaded</span> <span class="o">=</span> <span class="n">LocalCache</span><span class="o">.</span><span class="n">instance</span><span class="p">()[</span><span class="n">generate_cache_key</span><span class="p">(</span><span class="s2">&quot;ec_data&quot;</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="s2">&quot;vns&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)]</span>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre><br/><span></span><span class="n">df_reloaded</span> <span class="o">=</span> <span class="n">LocalCache</span><span class="o">.</span><span class="n">instance</span><span class="p">()[</span><span class="n">generate_cache_key</span><span class="p">(</span><span class="s2">"ec_data"</span><span class="p">,</span> <span class="n">station</span><span class="o">=</span><span class="s2">"vns"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">)]</span>
 <span class="n">df_reloaded</span> <span class="o">=</span> <span class="n">coerce_datetime_index</span><span class="p">(</span><span class="n">df_reloaded</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">df_reloaded</span><span class="o">.</span><span class="n">dtypes</span><span class="p">)</span>
 <span class="n">df_reloaded</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>

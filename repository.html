@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Time Series Repositories &mdash; dms_datastore 0.8.6.dev4+g8b1379538 documentation</title>
+  <title>Time Series Repositories &mdash; dms_datastore 0.8.6.dev5+g7b6f24a41 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -14,7 +14,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=05bc4647"></script>
+      <script src="_static/documentation_options.js?v=a6f234c0"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -136,7 +136,7 @@ registry metadata.</p>
 <span class="nt">provider_resolution_mode</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">by_registry_column</span>
 
 <span class="nt">filename_templates</span><span class="p">:</span>
-<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv&quot;</span>
+<span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">"{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"</span>
 
 <span class="nt">search</span><span class="p">:</span>
 <span class="w">  </span><span class="nt">use_source_slot</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
@@ -168,16 +168,16 @@ same station. Typical mode: <code class="docutils literal notranslate"><span cla
 <p>The <code class="docutils literal notranslate"><span class="pre">source_priority</span></code> block in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code> specifies preferred data
 sources per agency-managed station group:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">source_priority</span><span class="p">:</span>
-<span class="w">  </span><span class="nt">ncro</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">&#39;ncro&#39;</span><span class="p p-Indicator">,</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">dwr_ncro</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;ncro&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">des</span><span class="p">:</span><span class="w">     </span><span class="p p-Indicator">[</span><span class="s">&#39;des&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">dwr_des</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&#39;des&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">usgs</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">&#39;usgs&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">noaa</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">&#39;noaa&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">usbr</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">dwr_om</span><span class="p">:</span><span class="w">  </span><span class="p p-Indicator">[</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">dwr</span><span class="p">:</span><span class="w">     </span><span class="p p-Indicator">[</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
-<span class="w">  </span><span class="nt">ebmud</span><span class="p">:</span><span class="w">   </span><span class="p p-Indicator">[</span><span class="s">&#39;usgs&#39;</span><span class="p p-Indicator">,</span><span class="s">&#39;ebmud&#39;</span><span class="p p-Indicator">,</span><span class="s">&#39;cdec&#39;</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">ncro</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">'ncro'</span><span class="p p-Indicator">,</span><span class="s">'cdec'</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dwr_ncro</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">'ncro'</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">des</span><span class="p">:</span><span class="w">     </span><span class="p p-Indicator">[</span><span class="s">'des'</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dwr_des</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">'des'</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">usgs</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">'usgs'</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">noaa</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">'noaa'</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">usbr</span><span class="p">:</span><span class="w">    </span><span class="p p-Indicator">[</span><span class="s">'cdec'</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dwr_om</span><span class="p">:</span><span class="w">  </span><span class="p p-Indicator">[</span><span class="s">'cdec'</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">dwr</span><span class="p">:</span><span class="w">     </span><span class="p p-Indicator">[</span><span class="s">'cdec'</span><span class="p p-Indicator">]</span>
+<span class="w">  </span><span class="nt">ebmud</span><span class="p">:</span><span class="w">   </span><span class="p p-Indicator">[</span><span class="s">'usgs'</span><span class="p p-Indicator">,</span><span class="s">'ebmud'</span><span class="p p-Indicator">,</span><span class="s">'cdec'</span><span class="p p-Indicator">]</span>
 </pre></div>
 </div>
 <p>For example, EBMUD station data is resolved by preferring USGS, then EBMUD, then CDEC.</p>
@@ -276,7 +276,7 @@ sources per agency-managed station group:</p>
 <h2><code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code><a class="headerlink" href="#read-ts-repo" title="Link to this heading"></a></h2>
 <p>The canonical function for reading a dataset from the repository.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.read_multi</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_ts_repo</span>
-<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">&quot;dsj&quot;</span><span class="p">,</span> <span class="s2">&quot;ec&quot;</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="s2">&quot;formatted&quot;</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">"dsj"</span><span class="p">,</span> <span class="s2">"ec"</span><span class="p">,</span> <span class="n">repo</span><span class="o">=</span><span class="s2">"formatted"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Responsibilities:</p>

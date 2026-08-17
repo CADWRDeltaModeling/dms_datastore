@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reading Time Series and Metadata &mdash; dms_datastore 0.8.6.dev4+g8b1379538 documentation</title>
+  <title>Reading Time Series and Metadata &mdash; dms_datastore 0.8.6.dev5+g7b6f24a41 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -14,7 +14,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=05bc4647"></script>
+      <script src="_static/documentation_options.js?v=a6f234c0"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -536,27 +536,27 @@ and data consolidation automatically.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.read_multi</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_ts_repo</span>
 
 <span class="c1"># Basic usage — retrieve data for a station and variable</span>
-<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">"sjj"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">)</span>
 
 <span class="c1"># With sublocation — for stations where position matters</span>
-<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;msd&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;bottom&quot;</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">"msd"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"elev"</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">"bottom"</span><span class="p">)</span>
 
 <span class="c1"># Filter to a date range after loading</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
-<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;mrz&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">&quot;upper&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">"mrz"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"elev"</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">"upper"</span><span class="p">)</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span>
     <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="mi">2018</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">):</span><span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="mi">2023</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
 <span class="p">]</span>
 
 <span class="c1"># Return metadata alongside data</span>
-<span class="n">data_with_meta</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">data_with_meta</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">"sjj"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
 <span class="c1"># Override default source priority from config</span>
-<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">,</span>
-                    <span class="n">provider_priority</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;usgs&quot;</span><span class="p">,</span> <span class="s2">&quot;cdec&quot;</span><span class="p">])</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">"sjj"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">,</span>
+                    <span class="n">provider_priority</span><span class="o">=</span><span class="p">[</span><span class="s2">"usgs"</span><span class="p">,</span> <span class="s2">"cdec"</span><span class="p">])</span>
 
 <span class="c1"># Use a custom repository location</span>
-<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">&quot;msd&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;elev&quot;</span><span class="p">,</span>
-                    <span class="n">repo</span><span class="o">=</span><span class="s2">&quot;/path/to/custom/repo&quot;</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station_id</span><span class="o">=</span><span class="s2">"msd"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"elev"</span><span class="p">,</span>
+                    <span class="n">repo</span><span class="o">=</span><span class="s2">"/path/to/custom/repo"</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
@@ -587,18 +587,18 @@ station type.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.read_multi</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_ts_repo</span>
 
 <span class="c1"># Get flow data for San Joaquin at Jersey Point</span>
-<span class="n">flow_data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="s2">&quot;flow&quot;</span><span class="p">)</span>
+<span class="n">flow_data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">"sjj"</span><span class="p">,</span> <span class="s2">"flow"</span><span class="p">)</span>
 
 <span class="c1"># Filter to 2020</span>
-<span class="n">start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="s2">&quot;2020-01-01&quot;</span><span class="p">)</span>
-<span class="n">end</span>   <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="s2">&quot;2020-12-31&quot;</span><span class="p">)</span>
+<span class="n">start</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="s2">"2020-01-01"</span><span class="p">)</span>
+<span class="n">end</span>   <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Timestamp</span><span class="p">(</span><span class="s2">"2020-12-31"</span><span class="p">)</span>
 <span class="n">flow_period</span> <span class="o">=</span> <span class="n">flow_data</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span>
 
 <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">12</span><span class="p">,</span> <span class="mi">6</span><span class="p">))</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">flow_period</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">flow_period</span><span class="o">.</span><span class="n">values</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;San Joaquin River Flow at Jersey Point (2020)&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Date&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Flow (cfs)&quot;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">"San Joaquin River Flow at Jersey Point (2020)"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">"Date"</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">"Flow (cfs)"</span><span class="p">)</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">tight_layout</span><span class="p">()</span>
 <span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
 </pre></div>
@@ -613,16 +613,16 @@ station type.</p>
 
 <span class="nd">@cache_dataframe</span><span class="p">()</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">get_filtered_flow</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Retrieve and process flow data with caching.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Retrieve and process flow data with caching."""</span>
     <span class="n">data</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">)</span>
-    <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">&#39;linear&#39;</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">&#39;D&#39;</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
+    <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s1">'linear'</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">data</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">'D'</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 
 <span class="c1"># First call reads from repository</span>
-<span class="n">daily_flow</span> <span class="o">=</span> <span class="n">get_filtered_flow</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)</span>
+<span class="n">daily_flow</span> <span class="o">=</span> <span class="n">get_filtered_flow</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">"sjj"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">)</span>
 
 <span class="c1"># Subsequent calls use cached data</span>
-<span class="n">daily_flow</span> <span class="o">=</span> <span class="n">get_filtered_flow</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">&quot;sjj&quot;</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">&quot;flow&quot;</span><span class="p">)</span>
+<span class="n">daily_flow</span> <span class="o">=</span> <span class="n">get_filtered_flow</span><span class="p">(</span><span class="n">station</span><span class="o">=</span><span class="s2">"sjj"</span><span class="p">,</span> <span class="n">variable</span><span class="o">=</span><span class="s2">"flow"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>See also the <a class="reference internal" href="notebooks/cache.html"><span class="doc">Local Caching notebook</span></a> for a hands-on walkthrough.</p>

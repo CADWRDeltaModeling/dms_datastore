@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dropbox Data Ingestion &mdash; dms_datastore 0.8.6.dev4+g8b1379538 documentation</title>
+  <title>Dropbox Data Ingestion &mdash; dms_datastore 0.8.6.dev5+g7b6f24a41 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -14,7 +14,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=05bc4647"></script>
+      <script src="_static/documentation_options.js?v=a6f234c0"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -190,8 +190,8 @@ directory so bare names resolve identically in a development install
 <h2>Programmatic Use<a class="headerlink" href="#programmatic-use" title="Link to this heading"></a></h2>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.dropbox_data</span><span class="w"> </span><span class="kn">import</span> <span class="n">dropbox_data</span>
 
-<span class="n">dropbox_data</span><span class="p">(</span><span class="s2">&quot;dropbox_smscg_scada.yaml&quot;</span><span class="p">)</span>
-<span class="n">dropbox_data</span><span class="p">(</span><span class="s2">&quot;dropbox_smscg_scada.yaml&quot;</span><span class="p">,</span> <span class="n">selected_names</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;smscg_scada&quot;</span><span class="p">])</span>
+<span class="n">dropbox_data</span><span class="p">(</span><span class="s2">"dropbox_smscg_scada.yaml"</span><span class="p">)</span>
+<span class="n">dropbox_data</span><span class="p">(</span><span class="s2">"dropbox_smscg_scada.yaml"</span><span class="p">,</span> <span class="n">selected_names</span><span class="o">=</span><span class="p">[</span><span class="s2">"smscg_scada"</span><span class="p">])</span>
 </pre></div>
 </div>
 </section>
@@ -202,7 +202,7 @@ list of entries. Values are resolved with <a class="reference external" href="ht
 (use it for path composition instead of Python <code class="docutils literal notranslate"><span class="pre">.format</span></code>).</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="c1"># Top-level variables available via ${...} interpolation</span>
 <span class="nt">repo_home</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">//cnrastore-bdo/Modeling_Data/</span>
-<span class="nt">target_tz</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Etc/GMT+8&quot;</span><span class="w">          </span><span class="c1"># POSIX sign reversed =&gt; PST</span>
+<span class="nt">target_tz</span><span class="p">:</span><span class="w"> </span><span class="s">"Etc/GMT+8"</span><span class="w">          </span><span class="c1"># POSIX sign reversed =&gt; PST</span>
 <span class="nt">target_tz_label</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PST</span>
 
 <span class="nt">data</span><span class="p">:</span>
@@ -210,8 +210,8 @@ list of entries. Values are resolved with <a class="reference external" href="ht
 <span class="w">    </span><span class="nt">skip</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span><span class="w">                 </span><span class="c1"># optional; true leaves the entry as a documented no-op</span>
 
 <span class="w">    </span><span class="nt">collect</span><span class="p">:</span>
-<span class="w">      </span><span class="nt">file_pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;*.csv&quot;</span><span class="w">     </span><span class="c1"># glob or filename template</span>
-<span class="w">      </span><span class="nt">location</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;${repo_home}/incoming/my_source&quot;</span>
+<span class="w">      </span><span class="nt">file_pattern</span><span class="p">:</span><span class="w"> </span><span class="s">"*.csv"</span><span class="w">     </span><span class="c1"># glob or filename template</span>
+<span class="w">      </span><span class="nt">location</span><span class="p">:</span><span class="w"> </span><span class="s">"${repo_home}/incoming/my_source"</span>
 <span class="w">      </span><span class="nt">recursive_search</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="w">      </span><span class="nt">reader</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">read_ts</span><span class="w">           </span><span class="c1"># currently the only supported reader</span>
 <span class="w">      </span><span class="nt">reader_args</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">{}</span><span class="w">           </span><span class="c1"># kwargs passed to read_ts</span>
@@ -234,7 +234,7 @@ list of entries. Values are resolved with <a class="reference external" href="ht
 <span class="w">      </span><span class="nt">param</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">flow</span><span class="w">               </span><span class="c1"># required</span>
 <span class="w">      </span><span class="nt">unit</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">ft^3/s</span><span class="w">              </span><span class="c1"># required</span>
 <span class="w">      </span><span class="nt">time_zone</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${target_tz}</span><span class="w">   </span><span class="c1"># required</span>
-<span class="w">      </span><span class="nt">freq</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">infer</span><span class="w">               </span><span class="c1"># required: literal freq | &quot;infer&quot; | none (irregular)</span>
+<span class="w">      </span><span class="nt">freq</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">infer</span><span class="w">               </span><span class="c1"># required: literal freq | "infer" | none (irregular)</span>
 <span class="w">      </span><span class="nt">subloc</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">default</span><span class="w">           </span><span class="c1"># optional</span>
 
 <span class="w">    </span><span class="nt">output</span><span class="p">:</span>
@@ -242,7 +242,7 @@ list of entries. Values are resolved with <a class="reference external" href="ht
 <span class="w">      </span><span class="nt">staging</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${repo_home}/incoming/drop_staging</span>
 <span class="w">        </span><span class="nt">write_args</span><span class="p">:</span>
-<span class="w">          </span><span class="nt">float_format</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;%.2f&quot;</span>
+<span class="w">          </span><span class="nt">float_format</span><span class="p">:</span><span class="w"> </span><span class="s">"%.2f"</span>
 <span class="w">          </span><span class="nt">chunk_years</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 <span class="w">      </span><span class="nt">reconcile</span><span class="p">:</span><span class="w">                </span><span class="c1"># optional; omit to stage only</span>
 <span class="w">        </span><span class="nt">prefer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">staged</span><span class="w">          </span><span class="c1"># staged | repo</span>
