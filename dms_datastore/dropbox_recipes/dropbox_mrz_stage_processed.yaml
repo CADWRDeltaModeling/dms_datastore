@@ -51,7 +51,7 @@ data:
       staging:
         dir: ${dropbox_home}
         write_args:
-          float_format: "%0.1f"
+          float_format: "%0.2f"
           chunk_years: False
       # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
       reconcile:
