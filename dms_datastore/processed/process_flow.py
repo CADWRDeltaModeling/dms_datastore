@@ -172,6 +172,7 @@ def process_american_sac_flow(sdate, edate, outdir):
 
     sac_i = sac_i.shift(-3,hours(1),)[sdate:edate]
     freeport_usgs = freeport_usgs[sdate:edate]
+    sac_i = sac_i.interpolate(limit=4)
 
     if sac_i.isnull().sum().sum() > 0:
         raise ValueError("There are {} missing values in the Sacramento flow at I street after processing.".format(sac_i.isnull().sum().sum()))
@@ -677,7 +678,7 @@ def process_flow(start, end, outdir, include=None, exclude=None):
 @click.command("process_flow")
 @click.option("--start", type=str, default="2020-01-01 00:00:00", show_default=True,
               help="Start of the processing window.")
-@click.option("--end", type=str, default="2026-01-01 00:00:00", show_default=True,
+@click.option("--end", type=str, default=None, show_default=True,
               help="End of the processing window.")
 @click.option("--outdir", type=click.Path(path_type=Path),
               default=r"\\cnrastore-bdo\Modeling_Data\repo_processing_scratch",
