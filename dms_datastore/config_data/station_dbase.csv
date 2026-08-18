@@ -195,6 +195,9 @@ von2,a02150,Sacramento River at Verona,621783.2,4292647.4,38.77415,-121.59807,38
 smr2,B94150,S.F. Mokelumne River at New Hope Bridge,632071.6,4231911.7,38.225503,-121.491131,38.22527778,-121.4908333,,SMR,dwr_ncro,1,
 mfv,B91475,Miner Slough at Five Points,618522.3,4238860.6,38.29,-121.644722,38.29,-121.6447222,,MFV,dwr_ncro,1,
 toen,11455139,Toe Drain at Mallard Road,619009.8,4247207.4,38.365139,-121.637742,38.36513889,-121.6377417,,,usgs,1,moved from Toe South
+cm49a,11455340,Cache Slough at Channel Marker 49A,615964.3,4232537.0,38.2333583,-121.675,38.2333583,-121.67500,,CM49A,usgs,1,
+c51,11455338,Sacramento River Deep Water Ship Channel Near Courtland Channel Marker 51,616045.4,4232985.7,38.23739,-121.674,38.23739,-121.674,,C51,usgs,1,
+c62,11455142,Sacramento River Deep Water Ship Channel Near Courtland Channel Marker 62,618501.3,4244595.1,38.34167,-121.644,38.34167,-121.644,,C62,usgs,1,
 cm72,11455095,Sacramento River Deep Water Ship Channel Near Freeport,623525.5,4259677.4,38.476875,-121.583874,38.47686944,-121.5836417,,,usgs,1,Proposed Effort to Discontinue
 cm66,11455136,Sacramento River Deep Water Ship Channel Near Clarksburg,620970.0,4251599.2,38.404445,-121.614555,38.40444444,-121.6145556,,,usgs,1,Proposed Effort to Discontinue
 ulc,11455268,Ulatis Creek Near Elmira,608463.8,4239164.3,38.294009,-121.759666,38.29416667,-121.7597222,,,usgs,1,
@@ -211,14 +214,14 @@ fmb,'381142122015801,First Mallard Branch,584692.1,4227881.3,38.194894,-122.0328
 liw,'382829121351801,Lisbon Weir,623045.3,4262253.4,38.50015,-121.588925,38.50015,-121.588925,,,usgs,0,proposed effort to discontinue turbidity
 mss,'381410121395801,Miner Slough Near Sacramento River and Prospect Island,616742.4,4232792.7,38.235561,-121.66607,38.23556111,-121.6660694,,,usgs,1,
 mtz,'380833122033401,Montezuma Slough Above Grizzly Bay,582570.3,4222664.5,38.14808,-122.057647,38.14808056,-122.0576472,,,usgs,1,
-alv,ALV,Alviso Slough,588638.9,4144156.0,37.44,-121.998,37.44,-121.998,,,sfei,0,
-coy,COY,Coyote Creek at confluence with Alviso slough,586311.2,4146794.6,37.464,-122.024,37.464,-122.024,,,sfei,1,
-dmb,DMB,Dumbarton Bridge near surface,577868.3,4151149.6,37.504,-122.119,37.504,-122.119,,,sfei,1,
-gl,GL,Guadalupe Slough,586167.6,4143575.3,37.435,-122.026,37.435,-122.026,,,sfei,0,
-mow,MOW,Mowry Slough,585491.4,4149116.2,37.484999,-122.033,37.485,-122.033,,,sfei,0,
-nw,NW,Newark Slough,581128.9,4152179.4,37.513,-122.082,37.513,-122.082,,,sfei,0,
+alv,alv,Alviso Slough,588638.9,4144156.0,37.44,-121.998,37.44,-121.998,,,sfei,0,
+coy,coy,Coyote Creek at confluence with Alviso slough,586311.2,4146794.6,37.464,-122.024,37.464,-122.024,,,sfei,1,
+dmb,dmb,Dumbarton Bridge near surface,577868.3,4151149.6,37.504,-122.119,37.504,-122.119,,,sfei,1,
+gl,gl,Guadalupe Slough,586167.6,4143575.3,37.435,-122.026,37.435,-122.026,,,sfei,0,
+mow,mow,Mowry Slough,585491.4,4149116.2,37.484999,-122.033,37.485,-122.033,,,sfei,0,
+nw,nw,Newark Slough,581128.9,4152179.4,37.513,-122.082,37.513,-122.082,,,sfei,0,
 pond,POND,Pond A8 Outlet at Confluence with Alviso Slough,590250.4,4142398.0,37.424,-121.98,37.424,-121.98,,,sfei,0,
-sm,SM,San Mateo Bridge near surface,586311.2,4146794.6,37.464,-122.024,37.464,-122.024,,,sfei,1,
+sm,sm,San Mateo Bridge near surface,586311.2,4146794.6,37.464,-122.024,37.464,-122.024,,,sfei,1,
 ssw2,11426000,Sacramento Weir Spill to Yolo Bypass,626181.0,4255656.0,38.440273,-121.554163,38.440277,-121.554166,,SSW2,usgs,0,Only reports daily flow and not realtime
 sfp17,'374811122235001,San Francisco Bay at Pier 17,553143.4,4184169.8,37.803364,-122.396315,37.803,-122.397,,,usgs,1,
 mrz2,9415102,Martinez-Amorco Pier,576774.9,4210025.7,38.034695,-122.12514,38.035,-122.125,,,noaa,1,
@@ -288,4 +291,4 @@ ccw,ccw,CCWD Middle R PP on Victoria Canal,628094.0,4192006.7,37.866538,-121.543
 dto,dto,Delta Outflow,585534.7,4212809.9,38.059,-122.025001,38.059000,-122.025000,,DTO,dwr,1,
 cx2,cx2,Calculated X2,585534.7,4212809.9,38.059,-122.025001,-122.025000,38.059000,,CX2,dwr,1,
 mrw,mrw,Morrow Island Intake,579067.2,4218633.6,38.112069,-122.09807,MRW,des,,,,1,
-nhg,nhg,New Hogan Lake,691714.5,4224941.8,38.152000,-120.812000,38.152,-120.812,,NHG,usace,0,
+nhg,nhg,New Hogan Lake,691714.5,4224941.8,38.152,-120.812,38.152,-120.812,,NHG,usace,0,
