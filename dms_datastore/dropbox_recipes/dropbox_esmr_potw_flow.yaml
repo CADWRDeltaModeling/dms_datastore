@@ -1,0 +1,94 @@
+dropbox_home: "w:/repo_staging_auto/dropbox/esmr/staging"
+raw_home: "w:/repo_staging_auto/dropbox/esmr/raw"
+target_tz: "Etc/GMT+8"
+target_tz_label: PST
+
+
+data:
+  - name: potw_flow
+    skip: false
+    collect:
+      file_pattern: "esmr_{station_id}_flow_{syear}_{eyear}.csv"
+      wildcard: none
+      location: "${raw_home}"
+      recursive_search: false
+      reader: read_ts
+      reader_args:
+        force_regular: true
+      selector: result
+      splice_args:
+        rename: value
+    metadata:
+      station_id: infer_from_filename
+      agency_id: registry_lookup
+      source: esmr
+      agency: potw
+      subloc: default
+      freq: infer
+      param: flow
+      unit: ft^3 / s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+
+    output:
+      repo_name: formatted
+      #repo_data_dir: ${dropbox_home}/fake_repo
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.1f"
+          chunk_years: false
+      reconcile:
+        prefer: staged
+        allow_new_series: true
+
+  - name: potw_flow_processed
+    skip: false
+    collect:
+      file_pattern: "esmr_{station_id}_flow_{syear}_{eyear}.csv"
+      wildcard: none
+      location: "${raw_home}"
+      recursive_search: false
+      reader: read_ts
+      reader_args:
+        force_regular: true
+      selector: result
+      splice_args:
+        rename: value
+    transforms:
+      - name: unit_conversion
+        args:
+          from_unit: "Mgal / day"
+          to_unit: "ft^3 / s"
+      - name: fill_sweep
+        args: {}
+    metadata:
+      station_id: infer_from_filename
+      agency_id: registry_lookup
+      source: esmr
+      agency: potw
+      processor: dms
+      subloc: default
+      freq: infer
+      param: flow
+      unit: ft^3 / s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: monthly data converted to daily with simple forward/back fill for gaps
+      process_script: dropbox_esmr_potw_flow
+
+    output:
+      repo_name: processed
+      #repo_data_dir: ${dropbox_home}/fake_repo
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.1f"
+          chunk_years: false
+      reconcile:
+        prefer: staged
+        allow_new_series: true

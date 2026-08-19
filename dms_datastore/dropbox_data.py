@@ -7,6 +7,7 @@ import glob
 import click
 import dms_datastore.dstore_config
 from vtools import dst_st, ts_merge, ts_splice,ts_coarsen
+from vtools.functions import unit_conversions as uc
 from omegaconf import OmegaConf
 from vtools.data.indexing import infer_freq_robust
 from dms_datastore.read_ts import read_ts, infer_freq_robust
@@ -175,6 +176,40 @@ def _transform_linear(ts, *, scale=1.0, offset=0.0, **kwargs):
     return ts * scale + offset
 
 
+def _transform_unit_conversion(ts, *, from_unit, to_unit, **kwargs):
+    """Convert a time series between supported units.
+
+    This wraps the repo's existing unit conversion backend so dropbox recipes can
+    express unit changes explicitly instead of approximating them with a linear
+    transform. The conversion is applied in-order as part of the recipe pipeline.
+    """
+    if kwargs:
+        raise ValueError(
+            f"unit_conversion transform got unexpected args: {sorted(kwargs.keys())}"
+        )
+    return uc.convert_units(ts, from_unit, to_unit)
+
+
+def _transform_fill_sweep(ts, *, limit=None, **kwargs):
+    """Fill missing values with a forward pass then backward pass.
+
+    Parameters
+    ----------
+    limit : int | None
+        Maximum consecutive NaNs to fill per pass. ``None`` means unlimited.
+    """
+    if kwargs:
+        raise ValueError(
+            f"fill_sweep transform got unexpected args: {sorted(kwargs.keys())}"
+        )
+
+    if limit is not None:
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise ValueError("fill_sweep 'limit' must be a positive integer or None")
+
+    return ts.ffill(limit=limit).bfill(limit=limit)
+
+
 # register built-ins
 register_transform("dst_st", _transform_dst_st)
 register_transform("coarsen", _transform_coarsen)
@@ -182,6 +217,8 @@ register_transform("dst_tz", _transform_dst_tz)
 register_transform("trim_data", _transform_trim_data)
 register_transform("add_column", _transform_add_column)
 register_transform("linear", _transform_linear)
+register_transform("unit_conversion", _transform_unit_conversion)
+register_transform("fill_sweep", _transform_fill_sweep)
 
 
 
@@ -550,7 +587,7 @@ def _check_metadata(meta, repo_name):
         raise ValueError("Metadata 'time_zone' must be a string")
 
     try:
-        pd.Timestamp("2000-01-01", tz=tz)
+        pd.Timestamp("2000-02-01", tz=tz)
     except Exception as e:
         raise ValueError(f"Invalid time_zone '{tz}': {e}. Must be a valid timezone name recognized by pandas and compatible with vtools.dst_st.")
 
