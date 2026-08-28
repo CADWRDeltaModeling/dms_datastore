@@ -92,6 +92,52 @@ def similar_ncro_station_names(site_id):
         base_id = site_id
     return [base_id.upper(), base_id.upper() + "Q", base_id.upper() + "00"]
 
+
+# Preference order (most preferred first) for resolving NCRO agency_id/site suffix
+# variants ("" = base/no-suffix, "q", "00") that report the same station/param.
+# NCRO sometimes serves the same physical station/param under more than one site
+# code (e.g. B95338Q and B9533800 both currently report WaterTemp). Only one
+# variant is ever downloaded per station/param/window; this table is an a priori,
+# rule-based choice -- it does not compare relative record length or quality.
+NCRO_SUFFIX_PREFERENCE = {
+    "flow": ["q", "00", ""],
+    "velocity": ["q", "00", ""],
+    "elev": ["", "q", "00"],
+}
+DEFAULT_SUFFIX_PREFERENCE = ["00", "q", ""]
+
+
+def _split_agency_suffix(site_id):
+    """Split a site/agency_id into (base, suffix), stripping a trailing 'q' or '00'."""
+    if site_id.lower().endswith("q"):
+        return site_id[:-1].upper(), "q"
+    if site_id.lower().endswith("00") and len(site_id) > 6:
+        return site_id[:-2].upper(), "00"
+    return site_id.upper(), ""
+
+
+def _select_preferred_site(paramname, candidate_sites):
+    """Pick a single preferred site out of candidate_sites for paramname.
+
+    Ranks the distinct sites using NCRO_SUFFIX_PREFERENCE (falling back to
+    DEFAULT_SUFFIX_PREFERENCE for params not listed there) and returns the
+    highest-ranked site that is actually present in candidate_sites. This is a
+    static, a priori choice -- it does not inspect or compare the underlying
+    data/coverage of the candidates.
+    """
+    order = NCRO_SUFFIX_PREFERENCE.get(paramname, DEFAULT_SUFFIX_PREFERENCE)
+    by_suffix = {}
+    for site in candidate_sites:
+        _, suffix = _split_agency_suffix(site)
+        by_suffix.setdefault(suffix, site)
+    for suffix in order:
+        if suffix in by_suffix:
+            return by_suffix[suffix]
+    # Shouldn't happen (suffixes are always "", "q", or "00"), but fall back to a
+    # deterministic pick rather than erroring.
+    return sorted(candidate_sites)[0]
+
+
 ncro_inventory = None
 inventoryfile = dstore_config.config_file("ncro_inventory")
 
@@ -595,6 +641,16 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
                     f"Skipping station {station_id} agency_id {agency_id} param {param} -- no data in inventory for requested period"
                 )
                 continue
+
+            candidate_sites = subinventory["site"].unique().tolist()
+            if len(candidate_sites) > 1:
+                chosen_site = _select_preferred_site(paramname, candidate_sites)
+                skipped_sites = sorted(s for s in candidate_sites if s != chosen_site)
+                logger.info(
+                    f"Multiple NCRO site variants for station {station_id} param {paramname}: "
+                    f"{sorted(candidate_sites)} -- choosing {chosen_site}, skipping {skipped_sites}"
+                )
+                subinventory = subinventory.loc[subinventory.site == chosen_site, :]
 
             for tsndx, tsrow in subinventory.iterrows():
                 site = tsrow.site
