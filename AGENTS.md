@@ -42,6 +42,11 @@ Consumers should not need to reimplement these guarantees.
 - Don't check something retrieved with is_regular=True for regulatity or any time series retrieved with api functions for index uniqueness. 
 - Preserve repository semantics and metadata rather than optimizing for one downstream consumer.
 
+## Command-line interfaces
+
+When creating, modifying, reviewing, or documenting a command-line
+interface, follow `docs/CLI_GUIDE.md`.
+
 ## Elements of style
 
 - Prefer failure to robustification and silent passes.
