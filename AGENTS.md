@@ -1,117 +1,119 @@
+# dms_datastore agent guidance
 
-# Retrieval
-- For continuous, regular data prefer read_ts_repo.  `from dms_datstore import read_ts_repo`
-- In most cases the default repo "screened" (which is defined in dstore_config.yaml). Other examples are "processed" for filled/transformed/derived data and "structures" for irregular gated data. 
-- Note that force_regular is usually True. Report and solve problems rather than revert. Using force_regular=False is a typical AI antipattern. Everything in "screened" tier is regular. Structures are not regular.
-- alternately use read_ts(file_or_pattern)
-- avoid pd.read_csv unless for special cases. It omits wildcards, regression issues, flag handling, NA codes, # comments, lacks metadata.
-- scripts that use read_ts_repo in applied settings may assume "back door" acquisition using known station ids but should provide cli or config choices to allow acquisition using files. [TODO: provide tools for this]
-- post-read of repo data, avoid regularity and duplicate index checks.  
+`dms_datastore` provides general time-series repository, registry, retrieval, and data-management functionality.
 
+It is not a SCHISM package. Keep SCHISM- and BayDeltaSCHISM-specific workflow assumptions in downstream packages.
 
-# Architecture 
+It is not a DSM2 or HEC-DSS-aware package. Keep materials involving pydss out of the repo.
 
-## Project Overview
+## Package role
 
-`dms_datastore` is a Python library and CLI toolkit for the Delta Modeling Section (DMS) that downloads, formats, screens, and manages continuous time-series data from water-quality and hydrological agencies (USGS, CDEC, NOAA, NCRO, DES, etc.). Data flows through four stages: **raw → formatted → screened → processed**.
+`dms_datastore` depends on `vtools`.
 
+Repository APIs should provide consistent handling of:
 
-| Layer | Modules | Purpose |
-|---|---|---|
-| Public API | `__init__.py` | Re-exports `read_ts_repo`, `read_ts`, `write_ts_csv` |
-| CLI | `__main__.py` | Click group `dms` aggregating all subcommands |
-| Config | `dstore_config.py`, `config_data/dstore_config.yaml` | Repo roots, station DBs, variable/source mappings |
-| File naming | `filename.py` | Parse/render filenames via `interpret_fname` / `meta_to_filename` |
-| I/O | `read_ts.py`, `write_ts.py` | Low-level CSV read/write with YAML front-matter. raw use of pd.csv() should be avoided. |
-| Multi-file read | `read_multi.py` | `read_ts_repo` — resolves source priority, merges year-sharded files |
-| Download | `download_*.py` | One module per data source (CDEC, NWIS, NOAA, NCRO, DES, HRRR, HYCOM, …) |
-| Pipeline | `populate_repo.py`, `update_repo.py` | Orchestrate download → format → screen |
-| QA/QC | `auto_screen.py`, `screeners.py` | YAML-driven screening; flags stored as `user_flag` column |
-| Utilities | `inventory.py`, `merge_files.py`, `coarsen_file.py`, `rationalize_time_partitions.py`, `reconcile_data.py` | Repo maintenance |
+- time-series identity
+- metadata
+- flags
+- missing-value conventions
+- regularity
+- repository selection and lookup
 
-## Data ingestion
-Usually `populate_repo` followed by `reformat` and `usgs_multi` for USGS data. Then `autoscreen` and `update_repo`
+Consumers should not need to reimplement these guarantees.
 
-A second more one-off method for ingesting data is through `dropbox_data.py`. It's design is in [README-dropbox.md]
+## Dependency policy
 
-## File Naming Convention
+- Assume the established scientific Python/tool stack is available.
+- Do not program indirect dependencies on HEC-DSS.
+- Do not add to the spatial dependency stack without a specific need.
+- Do not add to the plotting dependency stack without a specific need.
 
-File names are parsed and searched in [dms_datastore/filename.py](../dms_datastore/filename.py) based on patterns in `config_data/dstore_config.yaml` 
+## Coding practice
 
-An example pattern is this:
-`{agency}_{station_id@subloc}_{agency_id}_{variable}_{syear}_{eyear}.csv`
-
-- `@subloc` is omitted when subloc is `default`/`None`. 
-- End year `9999` means open-ended (actively updated)
-- `variable@modifier` encodes e.g. `ec@daily` and again things after the `@` are optional.
-
-Examples:
-- `usgs_anh@north_11303500_flow_2024.csv`
-- `cdec_sac_11447650_flow_2020_9999.csv`
-
-See  for `meta_to_filename` / `interpret_fname`.
-
-## Data File Format
-
-CSV files with `#`-commented YAML front-matter:
-
-```csv
-# format: dwr-dms-1.0
-# date_formatted: 2024-01-15T12:00:00
-# source_info:
-#   siteName: MOKELUMNE R A ANDRUS ISLAND
-datetime,value,user_flag
-2020-01-01 00:00:00,1.5,0
-```
-
-- Index column: `datetime`
-- Always two data columns: `value` (float) and `user_flag` (`Int64`, nullable)
-- `user_flag != 0` → anomalous; masked by `dms_datastore/read_ts` by default (`read_flagged=True`)
-- Files are year-sharded; wildcards handled automatically by `read_ts`
-
-The preferred reader for most applications is `dms_datastore/read_ts_repo`. It looks up a repo config in dbase_config.yaml, identifies the location of the data. 
-
-Ad hoc reading with pd.read_csv discouraged.
+- Plan before coding.
+- Keep functions single-purpose.
+- Keep functions testable.
+- Do not refactor outside the scope of the requested work. Alert the user if broader refactoring appears warranted.
+- Do not contract existing documentation.
+- Preserve NumPy-style documentation; repair it when interfaces change.
+- Prefer explicit errors such as `ValueError` over elaborate recovery from invalid arguments.
+- Avoid making inference from surrounding files the only way to use an API. Inference may be a convenience, but important inputs should also be supplyable explicitly.
+- Assume the established tool stack exists; do not add elaborate defensive discovery for expected dependencies.
+- Don't check something retrieved with is_regular=True for regulatity or any time series retrieved with api functions for index uniqueness. 
+- Preserve repository semantics and metadata rather than optimizing for one downstream consumer.
 
 ## Elements of style
 
-- Prefer failure to robustification and passes.
-- For long processes, there is a log-and-quarantine pattern. 
-- CLI should be in click
-- A workhorse function should provide similar functionality programmatically.
-- Designs should layer opening and validating data from programmatic work. This isn't always possible for things like downloaders.
+- Prefer failure to robustification and silent passes.
+- For long batch processes, use the established log-and-quarantine pattern rather than aborting the whole run or swallowing errors.
+- Command-line interfaces use `click`.
+- Every CLI command should have a workhorse function providing the same capability programmatically.
+- Layer designs so that opening and validating data is separable from the programmatic work. This is not always possible for downloaders.
 
-## Metadata
+## Data access and regularity
 
-- **Station IDs with sublocation**: `station_id@subloc` (e.g. `anh@north`, `msd@bottom`)
-- **Variables with modifier**: `param@modifier` (e.g. `ec@daily`)
-- **Units**: SI for most variables; stage/flow in ft / cfs; salinity as specific conductivity at 25°C (µS/cm)
-- **Source priority** is declared per agency in `dstore_config.yaml` and resolved by `read_ts_repo` — do not hard-code provider preferences in code
-- **Config paths** are resolved by `dstore_config.config_file(label)` — checks cwd first, then `config_data/`
-- Some utilities like dropbox_data.py and reformat follow the following convention:
-  * they can take a path as an argument
-  * or they can take a string that evalues to a path using `config_file()` in `dbase_config.py`
-  * for this reason the use of Path rather than str is often not preferred.
+Repository-aware readers are preferred over raw Pandas ingestion for repository data.
 
-### Coordinates
+- For continuous, regular data prefer `read_ts_repo`: `from dms_datastore import read_ts_repo`.
+- The default repo is `screened` (defined in `dstore_config.yaml`). Others include `processed` for filled/transformed/derived data and `structures` for irregular gated data.
+- Everything in the `screened` tier is regular. Structures are not regular.
+- `force_regular` is normally `True`. Report and solve problems rather than reverting it. Setting `force_regular=False` to make an error go away is an antipattern.
+- Use `read_ts(file_or_pattern)` for explicit files or glob patterns.
+- Avoid `pd.read_csv` except in special cases. It omits wildcard handling, regression issues, flag handling, NA codes, and `#` comments, and it loses metadata.
+- After reading repository data, do not re-check regularity or duplicate index values. The repository guarantees them.
+- Scripts using `read_ts_repo` in applied settings may assume "back door" acquisition using known station ids, but should offer a CLI or config path to acquire from files instead. [TODO: provide tools for this]
 
-Coordinates are the **single responsibility of the station registry** (`station_dbase.csv`).
+Continuous-data workflows normally expect regular time series. When irregularity violates the repository contract, diagnose and correct the underlying problem rather than silently changing behavior to accept it.
 
-- Registry columns: `agency_lat`, `agency_lon` (WGS84, agency-reported), `x`, `y` (EPSG:26910, adjusted)
-- Output file headers use: `latitude`, `longitude`, `projection_x_coordinate`, `projection_y_coordinate`
-- Dropbox recipes **must not** contain literal coordinate values — they are auto-populated from the registry during processing. Any of `lat`, `lon`, `latitude`, `longitude`, `agency_lat`, `agency_lon`, `x`, `y`, `projection_x_coordinate`, `projection_y_coordinate` in a recipe metadata section will raise an error.
-- To fix missing or wrong coordinates, update the registry CSV — not the recipe.
+Interfaces and repositories should provide the regularity guarantees expected by downstream scripts.
 
-## Tests
+## Configuration
 
-- `tests/` — unit and integration tests with monkeypatched config; no real repo needed
-- `test_repo/` — integration tests; pass `--repo=<path>` to pytest
-- Use `tmp_path` and `monkeypatch` for config isolation
-- Do not couple unit tests to the shared repo path
+Configuration in this package should remain generic.
 
-## Key Reference Files
+Where configuration behavior analogous to OmegaConf is needed, maintain near-parity rather than depending on SCHISM-specific configuration tools.
 
-- [README.md](../README.md) — full data model, flags, units, configuration system
-- [README-dropbox.md](../README-dropbox.md) — Dropbox data ingestion via `dropbox_spec.yaml`
-- [README-commands.md](../README-commands.md) — CLI command reference
-- [dms_datastore/config_data/dstore_config.yaml](../dms_datastore/config_data/dstore_config.yaml) — central config
+`schimpy.schism_yaml` does not belong in this package.
+
+Config paths are resolved by `dstore_config.config_file(label)`, which checks the current working directory first and then `config_data/`. Utilities such as `dropbox_data.py` and `reformat` accept either a path or a label that resolves through `config_file()`; for that reason `str` is often preferred over `Path` in those signatures.
+
+## Time-series dependencies
+
+Use `vtools` for reusable time-series algorithms rather than reproducing them locally.
+
+Examples include:
+
+- prioritized merging and tiling
+- interval operations
+- filtering
+- conservative interpolation
+
+Use lower-case frequency strings such as:
+
+`min`, `h`, `d`, `s`
+
+Do not move generic `vtools` algorithms into `dms_datastore` merely because repository code uses them.
+
+## Testing
+
+- Use `pytest`.
+- Mark tests requiring web connectivity as `integration`.
+- Normal GitHub Actions should exclude integration tests.
+- User-launched test runs should still be able to include them when appropriate.
+- Use `tmp_path` and `monkeypatch` for config isolation; do not couple unit tests to a shared repository path.
+
+See [.github/docs/TESTING_GUIDE.md](.github/docs/TESTING_GUIDE.md) for the test layout and how to run each suite.
+
+## Specialized knowledge
+
+Task-specific detail lives in skills and reference docs rather than in this file.
+
+| Topic | Where |
+| --- | --- |
+| Module map, layers, data-flow stages | [.github/docs/PACKAGE_GUIDE.md](.github/docs/PACKAGE_GUIDE.md) |
+| Key files to read first | [.github/docs/SOURCE_MAP.md](.github/docs/SOURCE_MAP.md) |
+| Test layout and invocation | [.github/docs/TESTING_GUIDE.md](.github/docs/TESTING_GUIDE.md) |
+| File naming grammar, CSV/front-matter format, metadata semantics | `repository-format` skill |
+| Download → reformat → screen → update sequence | `repository-ingestion` skill |
+| Dropbox recipe ingestion | `dropbox-ingestion` skill |
+| Station registry, coordinates, sublocations | `station-registry` skill |

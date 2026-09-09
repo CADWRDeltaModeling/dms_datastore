@@ -77,11 +77,10 @@ coverage.xml
 # Django stuff:
 *.log
 
-# Sphinx documentation
+# Sphinx documentation (docsrc/ is the source; docs/ holds generated output)
 docs/_build/
-docs/html
+docs/html/
 docs/doctrees/
-docs
 
 # PyBuilder
 target/
