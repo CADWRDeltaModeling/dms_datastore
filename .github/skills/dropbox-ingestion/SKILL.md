@@ -47,8 +47,11 @@ Recipes are YAML and use OmegaConf interpolation. Each recipe holds one or more 
 
 Recipes must **not** contain literal coordinates. Any of `lat`, `lon`, `latitude`, `longitude`, `agency_lat`, `agency_lon`, `x`, `y`, `projection_x_coordinate`, `projection_y_coordinate` in a recipe metadata section raises an error. Coordinates are populated from the station registry during processing — see the `station-registry` skill.
 
+There is a dedicated directory `<package/dropbox_recipes` that contains sample recipes. 
+
 ## Debugging
 
 - Use `--name` to isolate a single failing entry.
 - Use `--debug` for verbose logging and `--logdir` to capture it.
 - A failing entry should surface an explicit error rather than being robustified into a silent pass.
+
