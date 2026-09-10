@@ -236,7 +236,7 @@ def process_calaveras_flow(sdate, edate, outdir):
     """
     interval = minutes(15)
     calaveras = read_ts_repo(station_id='nhg', variable='flow',start=sdate,end=edate, repo='daily_formatted')
-    calaveras = calaveras.resample(interval).interpolate(limit=20)
+    calaveras = calaveras.resample(interval).interpolate(limit=4*24*3) #only allow 3 days of missing values to be interpolated
     # Carrty the assumption that summer flows below 500cfs do not reach the Delta from legacy script
     calaveras[calaveras.lt(500.)] = 0.
     calaveras = calaveras.fillna(0.)
