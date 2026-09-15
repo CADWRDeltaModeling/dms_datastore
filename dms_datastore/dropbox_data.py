@@ -47,6 +47,30 @@ def get_spec(filename):
     return _cached_spec
 
 
+def _validated_output_filename(meta, repo_name, write_args, listing_name):
+    chunk_years = bool(write_args.get("chunk_years", False))
+
+    try:
+        fname_base = meta_to_filename(
+            meta,
+            repo=repo_name,
+            include_shard=not chunk_years,
+        )
+        candidate = fname_base
+        if chunk_years:
+            block_size = int(write_args.get("block_size", 1))
+            shard = "2000" if block_size == 1 else f"2000_{1999 + block_size}"
+            candidate = fname_base.replace(".csv", f"_{shard}.csv")
+        interpret_fname(candidate, repo=repo_name)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"{listing_name}: output naming is incompatible with repo {repo_name!r}; "
+            f"check metadata and staging.write_args.chunk_years ({exc})"
+        ) from exc
+
+    return fname_base
+
+
 def reader_for(fstr):
     if fstr == "read_ts":
         return read_ts
@@ -1062,8 +1086,17 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
             # to them and does not sweep in unrelated files sharing the staging dir
             # (stale artifacts, manual backups, or other recipes' outputs).
             produced_series = set()
+            validated_outputs = []
             for ts, meta_out in outputs_to_write:
-                fname_base = meta_to_filename(meta_out, repo=repo_name, include_shard=False)
+                fname_base = _validated_output_filename(
+                    meta_out,
+                    repo_name,
+                    write_args,
+                    name,
+                )
+                validated_outputs.append((ts, meta_out, fname_base))
+
+            for ts, meta_out, fname_base in validated_outputs:
                 produced_series.add(_series_id_from_name(fname_base, remove_source=False))
                 fname_out = os.path.join(dest, fname_base)
                 write_ts_csv(ts, fname_out, metadata=meta_out, **write_args)

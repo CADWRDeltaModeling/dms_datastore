@@ -32,7 +32,7 @@ data:
       latitude: registry_lookup
       longitude: registry_lookup
     output:
-      repo_name: formatted
+      repo_name: daily_formatted
       #repo_data_dir: ${dropbox_home}/fake_repo
       staging:
         dir: ${dropbox_home}/staging
@@ -77,7 +77,7 @@ data:
       time_zone_label: ${target_tz_label}
       latitude: registry_lookup
       longitude: registry_lookup
-      process_method: monthly data converted to daily with simple forward/back fill for gaps
+      process_method: missing values on the daily grid filled with a forward/backward fill sweep
       process_script: dropbox_esmr_potw_temp
 
     output:
