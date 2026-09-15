@@ -20,6 +20,61 @@ logger = logging.getLogger(__name__)
 
 lisbon_elev_top = 11.5
 lisbon_flow_top = 4000.0
+# Minimum number of consecutive 15-min steps the elev/flow threshold must be
+# exceeded before is_yolo_active is allowed to turn on; shorter runs are
+# treated as sensor spikes and ignored.
+yolo_active_min_steps = 4
+# Minimum number of consecutive 15-min steps the elev/flow threshold must be
+# undercut before is_yolo_active is allowed to turn off; shorter dips are
+# treated as sensor noise and the active state is held through them.
+yolo_inactive_min_steps = 4
+
+
+def _drop_short_true_runs(is_active, min_periods):
+    """Suppress True runs shorter than ``min_periods`` samples in a boolean series.
+
+    Used to prevent single-sample sensor spikes in ``is_yolo_active`` from
+    being treated as genuine threshold crossings.
+
+    Parameters
+    ----------
+    is_active : pandas.Series of bool
+        Boolean series to filter, indexed by datetime.
+    min_periods : int
+        Minimum number of consecutive True samples required for a run to
+        be kept; shorter runs are reset to False. False runs are
+        unaffected.
+
+    Returns
+    -------
+    pandas.Series of bool
+        The filtered boolean series, same index as ``is_active``.
+    """
+    run_id = (is_active != is_active.shift()).cumsum()
+    run_len = is_active.groupby(run_id).transform("size")
+    return is_active & (run_len >= min_periods)
+
+
+def _fill_short_false_runs(is_active, min_periods):
+    """Fill False runs shorter than ``min_periods`` samples in a boolean series.
+
+    Used to prevent brief dips below threshold in ``is_yolo_active`` from
+    being treated as a genuine end of active conditions.
+
+    Parameters
+    ----------
+    is_active : pandas.Series of bool
+        Boolean series to filter, indexed by datetime.
+    min_periods : int
+        Minimum number of consecutive False samples required for a run to
+        be kept; shorter runs are set to True. True runs are unaffected.
+
+    Returns
+    -------
+    pandas.Series of bool
+        The filtered boolean series, same index as ``is_active``.
+    """
+    return ~_drop_short_true_runs(~is_active, min_periods)
 
 
 def process_yolo_cache_slough(sdate, edate):
@@ -326,6 +381,10 @@ def process_yolo_effective_flow(toe_raw, lisbon_elev, sdate, edate):
     yolo_data_all.columns = ["toe"]
 
     is_yolo_active = (lisbon_elev > lisbon_elev_top) | (toe_raw > lisbon_flow_top)
+    is_yolo_active = _drop_short_true_runs(
+        is_yolo_active.squeeze(), yolo_active_min_steps
+    )
+    is_yolo_active = _fill_short_false_runs(is_yolo_active, yolo_inactive_min_steps)
     is_yolo_active = is_yolo_active.reindex(yolo_data_all.index)
     is_yolo_active.ffill(inplace=True)
     yolo_data_all["is_yolo_active"] = is_yolo_active
@@ -354,9 +413,9 @@ def process_yolo_effective_flow(toe_raw, lisbon_elev, sdate, edate):
 
     # adjust effective toe drain flow
     toe_eff = yolo_data_all.toe.clip(upper=4000.0)
-    toe_eff[is_yolo_active.value & toe_eff.isnull()] = 4000.0
-    toe_eff[~is_yolo_active.value & toe_eff.isnull()] = yolo_data_all.yolo_total[
-        ~is_yolo_active.value & toe_eff.isnull()
+    toe_eff[is_yolo_active & toe_eff.isnull()] = 4000.0
+    toe_eff[~is_yolo_active & toe_eff.isnull()] = yolo_data_all.yolo_total[
+        ~is_yolo_active & toe_eff.isnull()
     ]
     # Use yolo_total flow to determine whether high flow occurs or not
     full_low = yolo_data_all.yolo_total <= 4000.0
