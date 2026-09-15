@@ -43,7 +43,7 @@ sdi,lower,-8.0,Per Paul Stumpner 1m from bottom (subject to uncertainty)
 c16,lower,-100.,4 ft from bed -- approximated as bottom prism
 c24,upper,-0.5,30 ft from bed -- approximated as near surface
 c24,lower,-100.,4 ft from bed -- approximated as bottom
-co5,lower,-100,4 ft from bed -- approximated as bottom
+c05,lower,-100,4 ft from bed -- approximated as bottom
 c10,lower,-100,4 ft from bed -- approximated as bottom
 m13,upper,-0.5,Upper is BGC program
 m13,lower,-100,Lower is part of X2
