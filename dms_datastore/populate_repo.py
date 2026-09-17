@@ -549,7 +549,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
 
 
 
-def populate_ncro_realtime(dest, realtime_start=pd.Timestamp(2021, 1, 1)):
+def populate_ncro_realtime(dest, realtime_start=pd.Timestamp(2024, 1, 1)):
     end = None
     ncrodf = list_ncro_stations(dest)
     supplement_ncro_with_cdec(ncrodf, dest, realtime_start, overwrite=True)
