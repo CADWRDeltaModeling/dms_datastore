@@ -4,6 +4,41 @@ This note explains what happens when a station's observing agency changes from
 `usgs` to `usbr`, and what you need to do to keep the data pipeline healthy.
 The current examples are `lbtoe` and `yby`.
 
+## 2026 bulk migration lessons
+
+The 2026 USGS-to-USBR migration covered an approved list of 40 stations and
+updated both registry identity and existing repository files. This is a
+historical conversion, not the usual forward-only handoff described below.
+
+- `agency` is the current observing agency, while the first filename token and
+  `source` metadata describe provenance. A converted USGS-origin formatted file
+  must retain its `usgs_` prefix and `source: usgs`; it must not be renamed to
+  `usbr_` merely because its current agency is USBR.
+- Converted USGS-origin files use `agency: usbr`, lower-case target
+  `station_id` and `agency_id`, preserve the former NWIS identifier as
+  `usgs_id`, and contain exactly one
+  `agency_history: changed USGS to USBR 2025-2026` entry.
+- Existing CDEC-origin files retain `source: cdec` and must not receive a
+  `usgs_id`. `cdec_id` is uppercase in the registry; station and agency IDs are
+  lower-case.
+- `@subloc` is part of the station token and must survive a station rename
+  unchanged.
+- Screened-tier destination collisions require an explicit, reviewed deletion
+  policy. For this migration, both files in approved collision pairs were
+  deleted so screening can regenerate them. Formatted-tier collisions must stop
+  the migration rather than overwrite or delete history.
+- A large network-share migration must complete preflight before it mutates.
+  It must also be restart-safe: formatted files whose source prefix and target
+  station name remain unchanged must be recognized as complete from their
+  metadata, rather than planned again.
+- Run long migrations from a user-owned PowerShell terminal with a log file;
+  chat-run command timeouts do not indicate that a network-share process has
+  failed or completed.
+
+The final logged operation migrated 524 remaining files with exit code zero.
+The post-migration preview reported zero planned transitions and zero
+collisions.
+
 You make the change by editing one row in
 `dms_datastore/config_data/station_dbase.csv`: set the `agency` column to `usbr`
 and fill in a `cdec_id` (USBR data is served through CDEC).
@@ -110,7 +145,9 @@ source over another.)
 **Fix:** once the new `usbr_*` screened files exist, delete the old
 `usgs_lbtoe_*` / `usgs_yby_*` files from the **screened** repo. Cleaning up the
 old `usgs_*` files in the **formatted** repo is optional (they're harmless there)
-but tidy.
+but tidy. This step probably would require script-based injection of metadata on the transfer:
+prior_agency_note: transferred from usgs
+prior_agency_id: 12345678
 
 ## Checklist
 
@@ -120,3 +157,15 @@ but tidy.
 - [ ] Delete the leftover `usgs_*` files from the **screened** repo for these stations.
 - [ ] (Optional) Delete the leftover `usgs_*` files from the **formatted** repo.
 - [ ] Confirm `read_ts_repo(repo="screened", ...)` returns the full series with no error.
+
+
+## Concerns 
+- Need a backup
+- Some of the USGS stations with upper/lower sublocations have become USBR stations with different station codes. Should we migrate? Probably, but we don't do this a lot.
+- Should station_dbase have an nwis_id column? Or should we at least harvest these? 
+- Is the inclusion of agency_id a liability on the datastore?
+
+
+
+
+
