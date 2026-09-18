@@ -128,6 +128,27 @@ def test_source_availability_skips_historical_window_after_handoff():
     assert groups == []
 
 
+def test_source_availability_allows_source_without_policy():
+    stationlist = pd.DataFrame({"station_id": ["dwr_ncro"], "param": ["flow"]})
+    availability = pd.DataFrame(
+        {
+            "station_id": ["c51"],
+            "source": ["cdec"],
+            "variable": [""],
+            "available_from": pd.to_datetime(["2025-01-01"]),
+        }
+    )
+    start = pd.Timestamp("1980-01-01")
+
+    groups = pr._apply_source_availability(
+        stationlist, "dwr_ncro", start, None, availability
+    )
+
+    assert [(effective_start, group.to_dict("records")) for effective_start, group in groups] == [
+        (start, [{"station_id": "dwr_ncro", "param": "flow"}])
+    ]
+
+
 def test_list_ncro_stations_extracts_fields(monkeypatch):
     files = [
         "/tmp/ncro_anh_b9542100_ec_2020_9999.csv",

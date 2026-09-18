@@ -209,6 +209,9 @@ def _apply_source_availability(stationlist, source, start, end, availability):
         )
     )
     source_rows = availability.loc[availability["source"] == source.lower(), :]
+    if source_rows.empty:
+        return [] if request.empty else [(start, request.drop(columns="_availability_key"))]
+
     station_starts = source_rows.loc[
         source_rows["variable"] == "", :
     ].set_index("station_id")["available_from"]
