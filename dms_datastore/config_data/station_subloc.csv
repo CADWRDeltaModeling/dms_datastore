@@ -55,3 +55,5 @@ m13,lower,-100,Lower is part of X2
 confl,lower,-100,
 mld,lower,-100,
 mld,upper,-0.5,
+c31,default,-0.5,
+c31,lower,-100.,4 ft from bed -- approximated as bottom

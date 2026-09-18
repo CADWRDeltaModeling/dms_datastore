@@ -35,6 +35,25 @@ __all__ = ["cdec_download"]
 cdec_base_url = "cdec.water.ca.gov"
 
 
+def filter_sublocation_sensor_codes(stations):
+    """Keep CDEC sensor codes compatible with each requested sublocation."""
+    # CDEC sensor numbers are global parameter/sublocation identifiers. Most
+    # stations do not expose the specialty lower sensors, but the codes remain
+    # globally meaningful when a station does provide them.
+    lower_sensor_codes = {"92", "102", "295", "296", "297"}
+
+    stations = stations.copy()
+    stations["src_var_id"] = stations["src_var_id"].astype(str).str.strip()
+
+    non_lower = stations.subloc.isin(["default", "nan", "upper", "top"])
+    stations = stations.loc[
+        ~(non_lower & stations.src_var_id.isin(lower_sensor_codes)), :
+    ]
+
+    lower = stations.subloc.isin(["lower", "bot", "bottom"])
+    return stations.loc[stations.src_var_id.isin(lower_sensor_codes) | ~lower, :]
+
+
 def download_station_data(
     row, dest_dir, start, end, endfile, param, overwrite, freq
 ):
@@ -147,22 +166,7 @@ def cdec_download(
     if not os.path.exists(dest_dir):
         os.mkdir(dest_dir)
 
-    bottom_codes = {"92", "102"}
-
-    stations = stations.copy()
-    stations["src_var_id"] = stations["src_var_id"].astype(str).str.strip()
-
-    subloc_inconsist = (
-        stations.subloc.isin(["default", "nan", "upper", "top"])
-        & stations.src_var_id.isin(bottom_codes)
-    )
-    stations = stations.loc[~subloc_inconsist, :]
-
-    subloc_inconsist = (
-        stations.subloc.isin(["lower", "bot", "bottom"])
-        & ~stations.src_var_id.isin(bottom_codes)
-    )
-    stations = stations.loc[~subloc_inconsist, :]
+    stations = filter_sublocation_sensor_codes(stations)
 
     results = []
 

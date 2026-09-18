@@ -89,6 +89,9 @@ SOLAR R,cdec,26,solar_radiation,
 TEMP,cdec,4,air_temp,
 TEMP W,cdec,25,temp,
 TEMP W,cdec,146,temp,
+T LOWER,cdec,295,temp,
+ECLOWER,cdec,296,ec,
+TRBLWR,cdec,297,turbidity,this is in FNU
 TURB W,cdec,27,turbidity,
 TURB WF,cdec,221,turbidity,this is FNU -- do we differentiate?
 water_level,noaa,water_level,elev,Query results are not marked with variable

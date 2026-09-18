@@ -75,6 +75,59 @@ def test_existing_stations_uses_template_parsing(monkeypatch):
     assert pr.existing_stations("ignored") == {"anh", "ccf"}
 
 
+def test_source_availability_uses_blank_variable_for_all_station_variables(tmp_path):
+    policy = tmp_path / "source_availability.csv"
+    policy.write_text(
+        "# A comment is allowed.\n"
+        "station_id,source,variable,available_from\n"
+        "c51,cdec,,2025-01-01\n"
+        "c51,cdec,temp,2025-02-01\n"
+    )
+    availability = pr._load_source_availability(policy)
+    stationlist = pd.DataFrame(
+        {
+            "station_id": ["c51", "c51", "untouched"],
+            "param": ["flow", "temp", "flow"],
+        }
+    )
+
+    groups = pr._apply_source_availability(
+        stationlist,
+        "cdec",
+        pd.Timestamp("2024-01-01"),
+        None,
+        availability,
+    )
+
+    assert [(start, group.station_id.tolist()) for start, group in groups] == [
+        (pd.Timestamp("2025-01-01"), ["c51"]),
+        (pd.Timestamp("2025-02-01"), ["c51"]),
+        (pd.Timestamp("2024-01-01"), ["untouched"]),
+    ]
+
+
+def test_source_availability_skips_historical_window_after_handoff():
+    stationlist = pd.DataFrame({"station_id": ["c51"], "param": ["flow"]})
+    availability = pd.DataFrame(
+        {
+            "station_id": ["c51"],
+            "source": ["cdec"],
+            "variable": [""],
+            "available_from": pd.to_datetime(["2025-01-01"]),
+        }
+    )
+
+    groups = pr._apply_source_availability(
+        stationlist,
+        "cdec",
+        pd.Timestamp("2000-01-01"),
+        pd.Timestamp("2019-12-31"),
+        availability,
+    )
+
+    assert groups == []
+
+
 def test_list_ncro_stations_extracts_fields(monkeypatch):
     files = [
         "/tmp/ncro_anh_b9542100_ec_2020_9999.csv",
@@ -88,6 +141,43 @@ def test_list_ncro_stations_extracts_fields(monkeypatch):
         {"station_id": "anh", "param": "ec", "agency": "cdec", "agency_id_from_file": "b9542100"},
         {"station_id": "mab", "param": "temp", "agency": "cdec", "agency_id_from_file": "b1234567"},
     ]
+
+
+def test_populate_ncro_realtime_uses_integer_year(monkeypatch):
+    ncrodf = pd.DataFrame({"station_id": ["anh"], "param": ["ec"]})
+    calls = []
+    monkeypatch.setattr(pr, "list_ncro_stations", lambda dest: ncrodf)
+    monkeypatch.setattr(
+        pr,
+        "supplement_ncro_with_cdec",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    pr.populate_ncro_realtime("incoming", 2024)
+
+    assert calls == [
+        ((ncrodf, "incoming", pd.Timestamp("2024-01-01")), {"overwrite": True})
+    ]
+
+
+def test_populate_ncro_realtime_defaults_to_two_years_ago(monkeypatch):
+    calls = []
+    monkeypatch.setattr(pr, "list_ncro_stations", lambda dest: pd.DataFrame())
+    monkeypatch.setattr(
+        pr,
+        "supplement_ncro_with_cdec",
+        lambda *args, **kwargs: calls.append((args, kwargs)),
+    )
+
+    pr.populate_ncro_realtime("incoming")
+
+    expected = pd.Timestamp(pd.Timestamp.today().year - 2, 1, 1)
+    assert calls[0][0][2] == expected
+
+
+def test_populate_ncro_realtime_rejects_non_january_start():
+    with pytest.raises(ValueError, match="integer year or January 1"):
+        pr.populate_ncro_realtime("incoming", pd.Timestamp("2024-02-01"))
 
 
 def test_revise_filename_syears_single_year(monkeypatch, tmp_path):
