@@ -1,0 +1,53 @@
+# Earliest dates worth requesting from each serving source.
+# So "availability" here is more like "desireablity"
+#
+# Blank for variable applies to every variable for the station. A row with a
+# variable takes precedence over the station-wide row. The date is inclusive.
+# The first implementation had to do with the USGS to USGS transition.
+# At the time of coding, USGS data previously available from NWIS was considered
+# better and there was no point in doing a long overlapping download from CDEC
+# only to have it be out-prioritized.
+# Entries below prevent CDEC requests for the pre-USBR portion of the 2026
+# USGS-to-USBR transition. Replace the provisional boundary with a station's
+# observed handoff date when it is known.
+station_id,source,variable,available_from,comment
+c51,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+c62,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+c72,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+c31,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+dlc,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+dsj,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+fal,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+ges,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+glc,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+gzs,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+gss,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+hlt,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+hol,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+lib,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+lps,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+m13,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+m66,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+mdm,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+mok,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+nmr,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+obi,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+odm,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+oh4,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+orq,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+osj,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+pri,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+ryf,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+sdc,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+sgg,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+sjg,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+sjw,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+smr,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+srv,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+sss,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+sut,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+toe,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+trn2,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+tsl,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+vcu,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
+yby,cdec,,2025-01-01,USGS-to-USBR transition; provisional boundary
