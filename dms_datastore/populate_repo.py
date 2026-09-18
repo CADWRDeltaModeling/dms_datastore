@@ -163,6 +163,98 @@ downloaders = {
 }
 
 
+def _load_source_availability(path):
+    """Load and validate the commentable source availability policy."""
+    availability = pd.read_csv(path, comment="#", dtype=str).fillna("")
+    columns = ["station_id", "source", "variable", "available_from"]
+    missing = set(columns).difference(availability.columns)
+    if missing:
+        raise ValueError(
+            "Source availability file is missing required column(s): "
+            + ", ".join(sorted(missing))
+        )
+
+    availability = availability.loc[:, columns].copy()
+    for column in ("station_id", "source", "variable"):
+        availability[column] = availability[column].str.strip().str.lower()
+    availability["available_from"] = pd.to_datetime(
+        availability["available_from"], errors="raise"
+    )
+
+    duplicates = availability.duplicated(
+        subset=["station_id", "source", "variable"], keep=False
+    )
+    if duplicates.any():
+        duplicate_rows = availability.loc[
+            duplicates, ["station_id", "source", "variable"]
+        ]
+        raise ValueError(
+            "Source availability has duplicate station/source/variable rows: "
+            f"{duplicate_rows.to_dict('records')}"
+        )
+    return availability
+
+
+def _apply_source_availability(stationlist, source, start, end, availability):
+    """Return station-request groups bounded by configured source availability.
+
+    A variable-specific policy row overrides a station-wide row. Groups are
+    keyed by effective start date so each downloader receives one time window.
+    """
+    request = stationlist.copy()
+    request["_availability_key"] = list(
+        zip(
+            request["station_id"].astype(str).str.lower(),
+            request["param"].astype(str).str.lower(),
+        )
+    )
+    source_rows = availability.loc[availability["source"] == source.lower(), :]
+    station_starts = source_rows.loc[
+        source_rows["variable"] == "", :
+    ].set_index("station_id")["available_from"]
+    variable_starts = source_rows.loc[
+        source_rows["variable"] != "", :
+    ].set_index(["station_id", "variable"])["available_from"]
+
+    variable_available_from = pd.Series(
+        pd.NaT, index=request.index, dtype="datetime64[ns]"
+    )
+    if not variable_starts.empty:
+        variable_available_from = request["_availability_key"].map(variable_starts)
+    station_available_from = request["station_id"].astype(str).str.lower().map(
+        station_starts
+    )
+    request["_available_from"] = variable_available_from.fillna(
+        station_available_from
+    )
+    request["_effective_start"] = request["_available_from"].where(
+        request["_available_from"].notna() & (request["_available_from"] > start),
+        start,
+    )
+
+    if end is not None:
+        skipped = request.loc[request["_effective_start"] > end, "station_id"].tolist()
+        if skipped:
+            logger.info(
+                "Skipping %s %s request(s): source availability begins after %s: %s",
+                source,
+                len(skipped),
+                end,
+                ", ".join(skipped),
+            )
+        request = request.loc[request["_effective_start"] <= end, :]
+
+    return [
+        (
+            effective_start,
+            group.drop(
+                columns=["_availability_key", "_available_from", "_effective_start"]
+            ),
+        )
+        for effective_start, group in request.groupby("_effective_start", sort=False)
+    ]
+
+
 def _quarantine_file(fname, quarantine_dir="quarantine"):
     if not os.path.exists(quarantine_dir):
         os.makedirs("quarantine")
@@ -362,7 +454,15 @@ def populate_repo(
             sl2["subloc"] = "lower"
             stationlist = pd.concat([stationlist, sl1, sl2], axis=0)
 
-    downloaders[agency](stationlist, dest_dir, start, end, param, overwrite)
+    availability = _load_source_availability(
+        dstore_config.config_file("source_availability")
+    )
+    for effective_start, request_group in _apply_source_availability(
+        stationlist, source, start, end, availability
+    ):
+        downloaders[agency](
+            request_group, dest_dir, effective_start, end, param, overwrite
+        )
 
 
 def _write_renames(renames, outfile):
@@ -549,8 +649,19 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
 
 
 
-def populate_ncro_realtime(dest, realtime_start=pd.Timestamp(2024, 1, 1)):
-    end = None
+def populate_ncro_realtime(dest, realtime_start=None):
+    """Supplement NCRO data with CDEC realtime data from a January 1 start."""
+    if realtime_start is None:
+        realtime_start = pd.Timestamp(pd.Timestamp.today().year - 2, 1, 1)
+    elif isinstance(realtime_start, int) and not isinstance(realtime_start, bool):
+        realtime_start = pd.Timestamp(realtime_start, 1, 1)
+    else:
+        realtime_start = pd.Timestamp(realtime_start)
+        if realtime_start != pd.Timestamp(realtime_start.year, 1, 1):
+            raise ValueError(
+                "realtime_start must be an integer year or January 1 of a year"
+            )
+
     ncrodf = list_ncro_stations(dest)
     supplement_ncro_with_cdec(ncrodf, dest, realtime_start, overwrite=True)
 
