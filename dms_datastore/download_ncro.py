@@ -607,6 +607,24 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
     inventory = load_inventory(force_update=update_inventory)
     _ = dstore_config.station_dbase()
 
+    preferred_sites = {}
+    for (station_id, paramname), request_group in stations.groupby(
+        ["station_id", "param"], sort=False
+    ):
+        agency_id = request_group.iloc[0].agency_id
+        source_params = request_group["src_var_id"].unique()
+        candidates = inventory.loc[
+            (inventory.site.isin(similar_ncro_station_names(agency_id)))
+            & (inventory.param.isin(source_params))
+            & (inventory.start_time <= etime)
+            & (inventory.end_time >= stime),
+            "site",
+        ].unique().tolist()
+        if candidates:
+            preferred_sites[(station_id, paramname)] = _select_preferred_site(
+                paramname, candidates
+            )
+
     timeout = httpx.Timeout(200.0, connect=30.0)
     limits = httpx.Limits(
         max_connections=NCRO_MAX_WORKERS,
@@ -616,6 +634,7 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
 
     tasks = []
     task_meta = []
+    scheduled_paths = set()
 
     async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
         for ndx, row in stations.iterrows():
@@ -642,12 +661,12 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
                 )
                 continue
 
+            chosen_site = preferred_sites[(station_id, paramname)]
             candidate_sites = subinventory["site"].unique().tolist()
-            if len(candidate_sites) > 1:
-                chosen_site = _select_preferred_site(paramname, candidate_sites)
+            if len(candidate_sites) > 1 or chosen_site not in candidate_sites:
                 skipped_sites = sorted(s for s in candidate_sites if s != chosen_site)
                 logger.info(
-                    f"Multiple NCRO site variants for station {station_id} param {paramname}: "
+                    f"NCRO site variants for station {station_id} param {paramname}: "
                     f"{sorted(candidate_sites)} -- choosing {chosen_site}, skipping {skipped_sites}"
                 )
                 subinventory = subinventory.loc[subinventory.site == chosen_site, :]
@@ -660,6 +679,12 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
                     f"ncro_{station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
                 )
                 proposed_path = os.path.join(dest_dir, proposed_fname)
+                if proposed_path in scheduled_paths:
+                    logger.info(
+                        f"Skipping duplicate NCRO trace for station {station_id} "
+                        f"param {paramname}: {trace}"
+                    )
+                    continue
                 if os.path.exists(proposed_path) and not overwrite:
                     logger.info(f"Skipping existing file (use --overwrite to replace): {proposed_path}")
                     continue
@@ -681,6 +706,7 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
                 )
                 tasks.append(task)
                 task_meta.append((station_id, site, trace))
+                scheduled_paths.add(proposed_path)
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for (station_id, site, trace), result in zip(task_meta, results):

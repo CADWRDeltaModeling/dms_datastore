@@ -77,6 +77,67 @@ def test_select_preferred_site_single_candidate_returned_regardless_of_param():
     assert download_ncro._select_preferred_site("elev", [BASE]) == BASE
 
 
+def test_ncro_download_selects_one_suffix_across_elevation_trace_aliases(monkeypatch, tmp_path):
+    stations = pd.DataFrame(
+        [
+            {
+                "agency_id": "B95740",
+                "station_id": "bdt",
+                "src_var_id": "Stage",
+                "param": "elev",
+            },
+            {
+                "agency_id": "B95740",
+                "station_id": "bdt",
+                "src_var_id": "StreamLevel",
+                "param": "elev",
+            },
+        ]
+    )
+    inventory = pd.DataFrame(
+        [
+            {
+                "site": "B95740",
+                "param": "Stage",
+                "start_time": pd.Timestamp("2015-01-01"),
+                "end_time": pd.Timestamp("2015-12-31"),
+                "trace": "stage RAW",
+            },
+            {
+                "site": "B95740Q",
+                "param": "StreamLevel",
+                "start_time": pd.Timestamp("2015-10-01"),
+                "end_time": pd.Timestamp("2015-12-31"),
+                "trace": "stream level RAW",
+            },
+        ]
+    )
+    monkeypatch.setattr(download_ncro, "load_inventory", lambda *args, **kwargs: inventory)
+    monkeypatch.setattr(download_ncro.dstore_config, "station_dbase", lambda: pd.DataFrame())
+
+    async def _fake_chunked(_client, site, trace, _stime, _etime):
+        df = pd.DataFrame(
+            {"value": [1.0], "qaqc_flag": ["0"]},
+            index=pd.to_datetime(["2015-10-01"]),
+        )
+        return site, {"name": "Brandt Bridge"}, {"unit": "ft", "desc": trace}, df
+
+    monkeypatch.setattr(download_ncro, "_async_download_trace_chunked", _fake_chunked)
+
+    failures = download_ncro.ncro_download(
+        stations,
+        str(tmp_path),
+        start=pd.Timestamp("2015-01-01"),
+        end=pd.Timestamp("2015-12-31"),
+        overwrite=True,
+    )
+
+    assert failures == []
+    assert sorted(path.name for path in tmp_path.glob("*.csv")) == [
+        "ncro_bdt_b95740_elev_2015_2015.csv"
+    ]
+
+
 def test_split_agency_suffix():
     assert download_ncro._split_agency_suffix("B95338") == ("B95338", "")
     assert download_ncro._split_agency_suffix("b95338q") == ("B95338", "q")
