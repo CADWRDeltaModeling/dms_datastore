@@ -6,6 +6,7 @@ channels:
 dependencies:
   - python=3.12
   - pip
+  - setuptools-scm>=6.2
   - beautifulsoup4
   - dask>=2024
   - numba>=0.61
