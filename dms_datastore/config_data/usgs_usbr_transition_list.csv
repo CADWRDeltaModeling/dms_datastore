@@ -1,0 +1,43 @@
+original_station_id,Station Name,CDEC Station ID,Latitude,Longitude,Flow,Water Quality,Sediment,CDEC ID Verified,in_repo,match_type,matched_station_id
+c51,"Sacramento River Deep Water Ship Channel, Channel Marker 51 (CM 51)",C51,38.23739,-121.674,Flow,All WQ,Delta,yes,yes,exact_station_id,c51
+cm62,Sacramento River Deep Water Ship Channel near Courtland (CM 62),C62,38.34167,-121.644,,All WQ + Nutr,,yes,yes,exact_station_id,c62
+cm72,Sacramento River Deep Water Ship Channel near Freeport (CM 72),C72,38.47687,-121.584,Flow,All WQ + Nutr,,yes,yes,exact_station_id,c72
+cm49a,Channel Marker 49A,CM49A,38.23333,-121.675,Flow,All WQ + Nutr,Delta,no,yes,exact_station_id,cm49a
+confl,"Suisun Bay at Van Sickle Island near Pittsburg, CA",C31,38.04953,-121.888,,All WQ + Nutr + Fluoroprobe,,no,yes,fuzzy_name_latlon,c31
+dlc,"Delta Cross Channel near Walnut Grove, CA",DLC,38.24472,-121.505,Flow,All WQ,,yes,yes,exact_station_id,dlc
+dsj,Dutch Slough below Jersey Island Road at Jersey Island,DSJ,38.01361,-121.667,,Temp + SpC + Turb,,yes,yes,exact_station_id,dsj
+fal,"False River near Oakley, CA",FAL,38.05583,-121.667,Flow,,Delta,yes,yes,exact_station_id,fal
+ges,"Sacramento River below Georgiana Slough, CA",GES,38.23889,-121.522,,Temp + SpC + Turb,,yes,yes,exact_station_id,ges
+glc,"Grant Line Canal near Tracy, CA",GLC,37.82,-121.545,Flow,,Delta,yes,yes,exact_station_id,glc
+grizzb,"Grizzly Bay at Suisun Slough near Avon, CA",GZS,38.10853,-122.056,,All WQ + Nutr,,yes,yes,fuzzy_name_latlon,gzs
+gss,Georgiana Slough near Sacramento River,GSS,38.23722,-121.518,Flow,Temp + SpC + Turb,Delta,yes,yes,exact_station_id,gss
+hlt,"Middle River near Holt, CA",HLT,38.00306,-121.511,Flow,,Delta,yes,yes,exact_station_id,hlt
+hol,"Holland Cut near Bethel Island, CA",HOL,38.01639,-121.582,Flow,,Delta,yes,yes,exact_station_id,hol
+lib,"Cache Slough at Liberty Island near Rio Vista, CA",LIB,38.24222,-121.686,Vel,All WQ + Nutr,Delta,yes,yes,exact_station_id,lib
+lps,"Little Potato Slough at Terminous, CA",LPS,38.09639,-121.496,Flow,All WQ + Nutr,,yes,yes,exact_station_id,lps
+m13,"Sacramento River below Toland Landing near Rio Vista, CA (CM 13)",M13,38.07781,-121.767,Vel,All WQ + Nutr + Fluoroprobe,,yes,yes,exact_station_id,m13
+cm66,Sacramento River Deep Water Ship Channel near Clarksburg (CM 66),M66,38.40444,-121.615,,All WQ,,yes,yes,exact_station_id,m66
+mdm,"Middle River at Middle River, CA",MDM,37.94278,-121.533,,All WQ + Nutr + Fluoroprobe,,yes,yes,exact_station_id,mdm
+mld,"Suisun Bay at Mallard Island, CA (top and bottom station)",MIT/MIB,38.04278,-121.919,,Temp + SpC + Turb,Bay,yes,yes,fuzzy_name_latlon,mld
+mok,"Mokelumne River at at Andrus Island near Terminous, CA",MOK,38.10611,-121.571,Flow,,Delta,yes,yes,exact_station_id,mok
+nmr,"North Mokelumne River near Walnut Grove, CA",NMR,38.22333,-121.507,Flow,Temp + SpC + Turb,Delta,yes,yes,exact_station_id,nmr
+obi,"Old River at Bacon Island, CA",OBI,37.97,-121.571,,All WQ + Nutr + Fluoroprobe,,yes,yes,exact_station_id,obi
+odm,"Old River near Delta Mendota Canal, CA",ODM,37.81056,-121.541,Flow,,Delta,yes,yes,exact_station_id,odm
+oh4,"Old River near Byron, CA",OH4,37.89111,-121.569,,Temp + SpC + Turb,Delta,yes,yes,exact_station_id,oh4
+orq,"Old River at Quimby Island near Bethel Island, CA",ORQ,38.02722,-121.564,Flow,,Delta,yes,yes,exact_station_id,orq
+osj,"Old River at Franks Tract near Terminous, CA",OSJ,38.07111,-121.579,Flow,,Delta,yes,yes,exact_station_id,osj
+pri,"San Joaquin River at Prisoner's Point near Terminous, CA",PRI,38.05944,-121.557,Flow,,Delta,yes,yes,exact_station_id,pri
+ryf,"Cache Slough above Ryer Island Ferry near Rio Vista, CA",RYF,38.19396,-121.658,Flow,All WQ + Nutr,Delta,yes,yes,exact_station_id,ryf
+sdc,"Sacramento River above Delta Cross Channel, CA",SDC,38.25778,-121.517,,All WQ + Nutr,,yes,yes,exact_station_id,sdc
+sgg,"Shag Slough at Liberty Island near Courtland, CA",SGG,38.31833,-121.693,Flow,All WQ + Nutr,Delta,yes,yes,exact_station_id,sgg
+sjg,"San Joaquin River below Garwood Bridge at Stockton, CA",SJG,37.93556,-121.329,Flow,Temp + SpC + Turb,Delta,yes,yes,exact_station_id,sjg
+sjj,"San Joaquin River West at Jersey Point, CA",SJW,38.05222,-121.688,,All WQ + Nutr + Fluoroprobe,Delta,yes,yes,fuzzy_name_latlon,sjw
+smr,"South Mokelumne River at New Hope Bridge near Walnut Grove, CA",SMR,38.22556,-121.491,Flow,Temp + SpC + Turb,Delta,yes,yes,exact_station_id,smr
+srv,"Sacramento River at Rio Vista, CA",SRV,38.14904,-121.689,Flow,,Delta,yes,yes,exact_station_id,srv
+sss,"Steamboat Slough near Walnut Grove, CA",SSS,38.28472,-121.587,Flow,,,yes,yes,exact_station_id,sss
+sut,"Sutter Slough at Courtland, CA",SUT,38.32917,-121.579,Flow,,,yes,yes,exact_station_id,sut
+lbtoe,"Toe Drain at Mallard Road near Courtland, CA",TOE,38.34917,-121.6447,Flow,All WQ + Nutr,Delta,yes,yes,renamed_station_id,toe
+trn2,"Turner Cut near Holt, CA",TRN,37.9925,-121.454,Flow,,Delta,yes,yes,renamed_station_id,trn2
+tsl,"Threemile Slough near Rio Vista, CA",TSL,38.10333,-121.686,Flow,,Delta,yes,yes,exact_station_id,tsl
+vcu,"Victoria Canal near Byron, CA",VCU,37.87083,-121.53,Flow,,Delta,yes,yes,exact_station_id,vcu
+yby,"Yolo Bypass near Woodland, CA",YBY,38.67778,-121.643,Flow,,Delta,yes,yes,exact_station_id,yby
