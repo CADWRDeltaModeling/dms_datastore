@@ -45,8 +45,6 @@ requirements:
     - pip
     - setuptools
     - setuptools-scm
-      - (cd tests && pytest -m "not integration") # [win]
-      - (cd tests; pytest -m "not integration") # [unix]
     - python {{ pyproject['project']['requires-python'] }}
     # dependencies are defined in pyproject.toml
     {% for dep in pyproject['project'].get('dependencies', []) %}
