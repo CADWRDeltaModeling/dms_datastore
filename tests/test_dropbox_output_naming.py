@@ -23,6 +23,7 @@ def test_formatted_output_rejects_unsharded_filename(esmr_metadata) -> None:
         )
 
 
+@pytest.mark.integration
 def test_daily_formatted_output_accepts_unsharded_filename(esmr_metadata) -> None:
     result = _validated_output_filename(
         esmr_metadata,
