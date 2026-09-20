@@ -45,6 +45,8 @@ requirements:
     - pip
     - setuptools
     - setuptools-scm
+    - wheel
+  run:
     - python {{ pyproject['project']['requires-python'] }}
     # dependencies are defined in pyproject.toml
     {% for dep in pyproject['project'].get('dependencies', []) %}
