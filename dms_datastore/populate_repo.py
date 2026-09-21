@@ -527,6 +527,7 @@ def supplement_ncro_with_cdec(df, dest, start, overwrite=False, ignore_existing=
         src_site_id_col=src_site_id_col,
         on_missing="drop",
     )
+    stationlist["agency_id"] = stationlist["agency_id_from_file"]
 
     if stationlist.empty:
         logger.warning(
