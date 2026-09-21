@@ -229,7 +229,7 @@ def fill_lisbon_flow(lisbon_flow_unfilled, sdate, edate):
     """Fill gaps in Lisbon flow using a simple offset relationship with Toe Drain flow.
 
     Missing values in ``lisbon_flow_unfilled`` are replaced with flow at
-    the Toe Drain station (``lbtoe``) offset by -200 (a simple assumed
+    the Toe Drain station (``toe``) offset by -200 (a simple assumed
     relationship), and any remaining gaps are closed with interpolation
     (limit of 20 steps). A warning is printed if missing values remain
     afterward.
@@ -240,10 +240,10 @@ def fill_lisbon_flow(lisbon_flow_unfilled, sdate, edate):
         Lisbon flow series, indexed by datetime, potentially containing
         gaps (``NaN`` values) to be filled.
     sdate : pandas.Timestamp
-        Start of the period over which the Toe Drain (``lbtoe``) flow used
+        Start of the period over which the Toe Drain (``toe``) flow used
         for filling is read.
     edate : pandas.Timestamp
-        End of the period over which the Toe Drain (``lbtoe``) flow used
+        End of the period over which the Toe Drain (``toe``) flow used
         for filling is read.
 
     Returns
@@ -252,12 +252,12 @@ def fill_lisbon_flow(lisbon_flow_unfilled, sdate, edate):
         The Lisbon flow series with gaps filled using Toe Drain flow and
         interpolation, in the same shape/index as ``lisbon_flow_unfilled``.
     """
-    lbtoe_flow = read_ts_repo(
-        station_id="lbtoe", variable="flow", start=sdate, end=edate
+    toe_flow = read_ts_repo(
+        station_id="toe", variable="flow", start=sdate, end=edate
     )
 
     lisbon_flow_unfilled[lisbon_flow_unfilled.isnull()] = (
-        lbtoe_flow[lisbon_flow_unfilled.isnull()] - 200
+        toe_flow[lisbon_flow_unfilled.isnull()] - 200
     )  # todo: simple relationship
     lisbon_flow_filled = lisbon_flow_unfilled.interpolate(limit=20)
     if np.sum(lisbon_flow_filled.isna().values) > 0:
