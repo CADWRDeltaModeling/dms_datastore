@@ -19,10 +19,8 @@ from dms_datastore.dstore_config import *
 from dms_datastore.inventory import *
 from dms_datastore.write_ts import *
 from dms_datastore.filename import meta_to_filename, _template_tokens, fname_implies_chunking
-from schimpy.station import *
 import geopandas as gpd
 import numpy as np
-import seaborn as sns
 from shapely.geometry import Point
 import logging
 from pathlib import Path
