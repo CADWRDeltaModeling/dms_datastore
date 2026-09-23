@@ -17,6 +17,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dms_datastore import read_ts
 from dms_datastore.write_ts import write_ts_csv
+from vtools.functions.merge import ts_merge
 from dms_datastore.process_station_variable import (
     stationfile_or_stations,
     normalize_station_request,
@@ -136,6 +137,98 @@ def _select_preferred_site(paramname, candidate_sites):
     # Shouldn't happen (suffixes are always "", "q", or "00"), but fall back to a
     # deterministic pick rather than erroring.
     return sorted(candidate_sites)[0]
+
+
+# Params whose variant is decided by suffix alone, without regard to how recently
+# each variant reported.
+ABSOLUTE_SUFFIX_PREFERENCE = {"flow": "q", "velocity": "q", "elev": ""}
+# Order applied to variants that are all still current.
+CONCURRENT_SUFFIX_PREFERENCE = ["00", "", "q"]
+# Near-real-time feeds stop on ragged dates; end_time gaps under this are noise,
+# not evidence that one variant superseded another.
+CURRENCY_TOLERANCE = pd.Timedelta(days=365)
+
+
+def _rank_ncro_candidates(paramname, candidates):
+    """Order candidate inventory rows for one station/param, preferred first.
+
+    Variants whose ``end_time`` is within CURRENCY_TOLERANCE of the newest are
+    treated as concurrent and ranked by suffix; genuinely retired variants sort
+    after them, most recent first.
+
+    Parameters
+    ----------
+    paramname : str
+        Repository param name, e.g. ``temp``.
+    candidates : pandas.DataFrame
+        Inventory rows sharing a station/param, each with ``site`` and ``end_time``.
+
+    Returns
+    -------
+    list
+        Inventory rows as namedtuples, preferred first.
+    """
+    rows = list(candidates.itertuples(index=False))
+    absolute = ABSOLUTE_SUFFIX_PREFERENCE.get(paramname)
+    if absolute is not None:
+        order = [absolute] + [s for s in ("", "q", "00") if s != absolute]
+        return sorted(rows, key=lambda r: order.index(_split_agency_suffix(r.site)[1]))
+
+    latest = max(r.end_time for r in rows)
+
+    def rank(row):
+        suffix = _split_agency_suffix(row.site)[1]
+        if (latest - row.end_time) <= CURRENCY_TOLERANCE:
+            return (0, CONCURRENT_SUFFIX_PREFERENCE.index(suffix), 0)
+        return (1, 0, -row.end_time.value)
+
+    return sorted(rows, key=rank)
+
+
+def _align_sampling_step(ranked_frames):
+    """Put ranked (site, frame) pairs onto the finest sampling step present."""
+    steps = {}
+    for site, df in ranked_frames:
+        if len(df.index) > 1:
+            steps[site] = df.index.to_series().diff().mode().iloc[0]
+    if len(set(steps.values())) <= 1:
+        return ranked_frames
+
+    finest = min(steps.values())
+    aligned = []
+    for site, df in ranked_frames:
+        if steps.get(site, finest) > finest:
+            try:
+                df = df.asfreq(finest)
+            except (ValueError, TypeError) as exc:
+                logger.warning(
+                    f"Could not align site {site} to step {finest}: {exc}"
+                )
+        aligned.append((site, df))
+    return aligned
+
+
+def _splice_ncro_frames(ranked_frames):
+    """Splice ranked (site, frame) pairs into one frame, highest priority first.
+
+    Lower-priority variants contribute only outside the operating window of the
+    preferred one, so gaps in the preferred record are never silently backfilled
+    by a different instrument.
+    """
+    aligned = _align_sampling_step(ranked_frames)
+    merged = ts_merge([df for _, df in aligned], strict_priority=True)
+    if isinstance(merged, pd.Series):
+        merged = merged.to_frame(name="value")
+    return merged
+
+
+def _splice_comment(sites_used):
+    """Describe a splice for the ``data_splice_comment`` header."""
+    preferred, others = sites_used[0], sites_used[1:]
+    return (
+        f"integrates stations {', '.join(others)} and "
+        f"{preferred} (preferred)"
+    )
 
 
 ncro_inventory = None
@@ -553,21 +646,16 @@ def iter_time_chunks(
         cur = chunk_end
 
  
-async def _async_download_one_trace_to_csv(
+async def _async_download_one_trace(
     *,
     client,
     semaphore,
-    station_id: str,
-    agency_id: str,
-    paramname: str,
     site: str,
     trace: str,
-    dest_dir: str,
     stime,
     etime,
-    overwrite: bool,
 ):
-    """Worker: download one (site, trace) and write a CSV.
+    """Worker: download one (site, trace).
 
     Parallel execution pattern is lifted from download2.py:
       - submit many of these from ncro_download()
@@ -575,55 +663,22 @@ async def _async_download_one_trace_to_csv(
 
     Request-size mitigation is handled by download_trace_chunked(), which uses
     REQUEST_CHUNK_YEARS / ALIGN_CHUNKS_TO_YEAR_MODULUS already defined in this file.
+
+    Returns: (site, site_details, trace_details, df) or None.
     """
     async with semaphore:
         result = await _async_download_trace_chunked(client, site, trace, stime, etime)
         if result is None:
             logger.debug(f"Empty return for site {site} trace {trace}")
             return None
-
-        site, site_details, trace_details, df = result
         logger.debug("Chunked query produced trace")
-
-        fname = f"ncro_{station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
-        fpath = os.path.join(dest_dir, fname)
-        if os.path.exists(fpath) and not overwrite:
-            logger.info(f"Skipping existing file (use --overwrite to replace): {fpath}")
-            return None
-
-        meta = ncro_metadata(station_id, agency_id, site_details, trace_details, paramname)
-        write_ts_csv(
-            df,
-            fpath,
-            metadata=meta,
-            chunk_years=False,
-            format_version="dwr-ncro-json",
-        )
-        return fpath
+        return result
 
 
 async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, update_inventory=False):
     failures = []
     inventory = load_inventory(force_update=update_inventory)
     _ = dstore_config.station_dbase()
-
-    preferred_sites = {}
-    for (station_id, paramname), request_group in stations.groupby(
-        ["station_id", "param"], sort=False
-    ):
-        agency_id = request_group.iloc[0].agency_id
-        source_params = request_group["src_var_id"].unique()
-        candidates = inventory.loc[
-            (inventory.site.isin(similar_ncro_station_names(agency_id)))
-            & (inventory.param.isin(source_params))
-            & (inventory.start_time <= etime)
-            & (inventory.end_time >= stime),
-            "site",
-        ].unique().tolist()
-        if candidates:
-            preferred_sites[(station_id, paramname)] = _select_preferred_site(
-                paramname, candidates
-            )
 
     timeout = httpx.Timeout(200.0, connect=30.0)
     limits = httpx.Limits(
@@ -634,79 +689,95 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
 
     tasks = []
     task_meta = []
+    groups = []
     scheduled_paths = set()
 
     async with httpx.AsyncClient(timeout=timeout, limits=limits) as client:
-        for ndx, row in stations.iterrows():
-            agency_id = row.agency_id
-            station_id = row.station_id
-            station_id = row.station_id
-            param = row.src_var_id
-            paramname = row.param
+        # One output file per station/param, so variant selection has to consider
+        # every src_var_id trace alias at once rather than one alias at a time.
+        for (station_id, paramname), request_group in stations.groupby(
+            ["station_id", "param"], sort=False
+        ):
+            agency_id = request_group.iloc[0].agency_id
+            source_params = request_group["src_var_id"].unique()
 
             subinventory = inventory.loc[
-                (inventory.site.isin(similar_ncro_station_names(row.agency_id)))
-                & (inventory.param == param)
+                (inventory.site.isin(similar_ncro_station_names(agency_id)))
+                & (inventory.param.isin(source_params))
                 & (inventory.start_time <= etime)
                 & (inventory.end_time >= stime),
                 :,
             ]
             logger.debug(
-                f"Found {len(subinventory)} matching traces for station {station_id} param {param}"
+                f"Found {len(subinventory)} matching traces for station {station_id} param {paramname}"
             )
 
             if subinventory.empty:
                 logger.debug(
-                    f"Skipping station {station_id} agency_id {agency_id} param {param} -- no data in inventory for requested period"
+                    f"Skipping station {station_id} agency_id {agency_id} param {paramname} -- no data in inventory for requested period"
                 )
                 continue
 
-            chosen_site = preferred_sites[(station_id, paramname)]
-            candidate_sites = subinventory["site"].unique().tolist()
-            if len(candidate_sites) > 1 or chosen_site not in candidate_sites:
-                skipped_sites = sorted(s for s in candidate_sites if s != chosen_site)
+            ranked = _rank_ncro_candidates(paramname, subinventory)
+            chosen = []
+            seen_sites = set()
+            for candidate in ranked:
+                if candidate.site not in seen_sites:
+                    seen_sites.add(candidate.site)
+                    chosen.append(candidate)
+            preferred_site = chosen[0].site
+
+            proposed_fname = (
+                f"ncro_{station_id}_{preferred_site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
+            )
+            proposed_path = os.path.join(dest_dir, proposed_fname)
+            if proposed_path in scheduled_paths:
+                logger.info(
+                    f"Skipping duplicate NCRO request for station {station_id} param {paramname}"
+                )
+                continue
+            if os.path.exists(proposed_path) and not overwrite:
+                logger.info(f"Skipping existing file (use --overwrite to replace): {proposed_path}")
+                continue
+            scheduled_paths.add(proposed_path)
+
+            if len(chosen) > 1:
                 logger.info(
                     f"NCRO site variants for station {station_id} param {paramname}: "
-                    f"{sorted(candidate_sites)} -- choosing {chosen_site}, skipping {skipped_sites}"
+                    f"{[r.site for r in chosen]} -- preferring {preferred_site}, "
+                    f"splicing the remainder outside its operating window"
                 )
-                subinventory = subinventory.loc[subinventory.site == chosen_site, :]
 
-            for tsndx, tsrow in subinventory.iterrows():
-                site = tsrow.site
-                trace = tsrow.trace
-
-                proposed_fname = (
-                    f"ncro_{station_id}_{site}_{paramname}_{stime.year}_{etime.year}.csv".lower()
+            positions = []
+            for tsrow in chosen:
+                logger.info(
+                    f"Scheduling download for station {station_id} site {tsrow.site} "
+                    f"trace {tsrow.trace} param {paramname}"
                 )
-                proposed_path = os.path.join(dest_dir, proposed_fname)
-                if proposed_path in scheduled_paths:
-                    logger.info(
-                        f"Skipping duplicate NCRO trace for station {station_id} "
-                        f"param {paramname}: {trace}"
-                    )
-                    continue
-                if os.path.exists(proposed_path) and not overwrite:
-                    logger.info(f"Skipping existing file (use --overwrite to replace): {proposed_path}")
-                    continue
-                logger.info(f"Scheduling download for station {station_id} site {site} trace {trace} param {paramname}")
-                task = asyncio.create_task(
-                    _async_download_one_trace_to_csv(
-                        client=client,
-                        semaphore=semaphore,
-                        station_id=station_id,
-                        agency_id=agency_id,
-                        paramname=paramname,
-                        site=site,
-                        trace=trace,
-                        dest_dir=dest_dir,
-                        stime=stime,
-                        etime=etime,
-                        overwrite=overwrite,
+                positions.append(len(tasks))
+                tasks.append(
+                    asyncio.create_task(
+                        _async_download_one_trace(
+                            client=client,
+                            semaphore=semaphore,
+                            site=tsrow.site,
+                            trace=tsrow.trace,
+                            stime=stime,
+                            etime=etime,
+                        )
                     )
                 )
-                tasks.append(task)
-                task_meta.append((station_id, site, trace))
-                scheduled_paths.add(proposed_path)
+                task_meta.append((station_id, tsrow.site, tsrow.trace))
+
+            groups.append(
+                {
+                    "station_id": station_id,
+                    "paramname": paramname,
+                    "path": proposed_path,
+                    "sites": [r.site for r in chosen],
+                    "positions": positions,
+                }
+            )
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
         for (station_id, site, trace), result in zip(task_meta, results):
@@ -716,7 +787,56 @@ async def _ncro_download_async(stations, dest_dir, stime, etime, overwrite, upda
                 )
                 failures.append((station_id, site, trace, str(result)))
             else:
-                logger.debug(f"Successfully downloaded: station={station_id} site={site} trace={trace} path={result}")
+                logger.debug(f"Successfully downloaded: station={station_id} site={site} trace={trace}")
+
+        for group in groups:
+            ranked_frames = []
+            details = None
+            for pos, site in zip(group["positions"], group["sites"]):
+                result = results[pos]
+                if isinstance(result, Exception) or result is None:
+                    continue
+                _site, site_details, trace_details, df = result
+                if df is None or df.empty:
+                    continue
+                if details is None:
+                    details = (site, site_details, trace_details)
+                ranked_frames.append((site, df))
+
+            if not ranked_frames:
+                logger.debug(
+                    f"No data for station {group['station_id']} param {group['paramname']}"
+                )
+                continue
+
+            sites_used = [site for site, _ in ranked_frames]
+            df = (
+                ranked_frames[0][1]
+                if len(ranked_frames) == 1
+                else _splice_ncro_frames(ranked_frames)
+            )
+
+            source_site, site_details, trace_details = details
+            meta = ncro_metadata(
+                group["station_id"],
+                source_site,
+                site_details,
+                trace_details,
+                group["paramname"],
+            )
+            if len(sites_used) > 1:
+                meta["data_splice_comment"] = _splice_comment(sites_used)
+                logger.info(
+                    f"Spliced station {group['station_id']} param {group['paramname']} "
+                    f"from {sites_used}"
+                )
+            write_ts_csv(
+                df,
+                group["path"],
+                metadata=meta,
+                chunk_years=False,
+                format_version="dwr-ncro-json",
+            )
     return failures
 
 

@@ -112,7 +112,7 @@ sss,sss,Steamboat Slough btw Sacramento R and Sutter Sl,623598.2,4238356.2,38.28
 sdc,sdc,Sacramento R above Delta Cross Channel,629664.2,4235427.1,38.257525,-121.517983,38.25752555,-121.5179832,,SDC,usbr,1,On pump stand Transitioned USGS to USBR in 2025/2026.,11447890
 gss,gss,Georgiana Slough near Sacramento R,629727.3,4233179.3,38.237265,-121.517674,38.23726412,-121.5176741,,GSS,usbr,1,Transitioned USGS to USBR in 2025/2026.,11447903
 ges,ges,Sacramento R below Georgiana Slough,629219.1,4233351.8,38.238892,-121.523447,38.23889218,-121.5234467,,GES,usbr,1,From USGS wiki Transitioned USGS to USBR in 2025/2026.,11447905
-toe,toe,Toe Drain at Liberty Island near Courtland,618409.8,4245456.2,38.34944,-121.644902,38.34944012,-121.6449015,,TOE,usbr,1,Transitioned USGS to USBR in 2025/2026: USGS 11455140 (lbtoe) to USBR TOE. Transitioned USGS to USBR in 2025/2026.,113455140
+toe,toe,Toe Drain at Liberty Island near Courtland,618409.8,4245456.2,38.34944,-121.644902,38.34944012,-121.6449015,,TOE,usbr,1,Transitioned USGS to USBR in 2025/2026: USGS 11455140 (lbtoe) to USBR TOE. Transitioned USGS to USBR in 2025/2026.,11455140
 libc,11455147,Liberty Cut at Liberty Island near Courtland,616502.5,4242438.4,38.3225,-121.667222,38.3225,-121.6672222,,,usgs,1,,11455147
 hwb,11455165,Miner Slough at HW 84 Bridge,619734.2,4239063.4,38.291666,-121.630833,38.29166667,-121.6308333,,HWB,usgs,1,,11455165
 sgg,sgg,Shag Slough at Liberty Island near Courtland,614250.8,4241943.7,38.318333,-121.693055,38.3183333,-121.6930556,,SGG,usbr,1,Transitioned USGS to USBR in 2025/2026.,11455276

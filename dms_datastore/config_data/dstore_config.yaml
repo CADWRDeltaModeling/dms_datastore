@@ -2,8 +2,6 @@ station_dbase: station_dbase.csv
 variable_mappings: variable_mappings.csv
 variable_definitions: variables.csv
 sublocations: station_subloc.csv
-source_availability: source_availability.csv
-usgs_usbr_transition_list: usgs_usbr_transition_list.csv
 ncro_inventory: ncro_inventory_full.csv
 daily_data_manifest: daily_data_manifest.csv
 dropbox_daily: dropbox_daily.yaml
@@ -12,9 +10,16 @@ compare_excepts_formatted: compare_excepts_formatted.txt
 des_rationalize_time_spec: des_rationalize_cfg.yaml
 repo_base: "//cnrastore-bdo/Modeling_Data/repo"
 spot_check_spec: spot_check_spec.yaml
+usgs_usbr_transition_list: "usgs_usbr_transition_list.csv"
 
 # Repository info
 default_repo: screened
+
+# Ordered repos searched when a block/series request does not name a repo.
+# The first repo that yields data for a (station, param) pair wins.
+repo_search_order:
+  - processed
+  - screened
 
 
 # registry files available to repos and identified in their `registry` field.
@@ -65,21 +70,21 @@ repos:
     provider_resolution_mode: registry_column
 
     # Registry column used to decide provider selection policy
-    # Example: station_id â†’ agency gives you the id of the observing agency, which is unique and a good basis for
+    # Example: station_id → agency gives you the id of the observing agency, which is unique and a good basis for
     # prioritizing various sources. Used in provider_resolution_order.
     provider_resolution_column: agency
 
-    # Mapping from registry value â†’ ordered list of preferred providers (this is the generic term, in this case it is {source})
+    # Mapping from registry value → ordered list of preferred providers (this is the generic term, in this case it is {source})
     # Example: if agency = ncro, prefer ncro then cdec in the {source} slot
     # The keys must match the provider_resolution_column values (agency) and mapped values must match the provider_key field (here: source)
     provider_resolution_order:
       ncro: ["ncro", "cdec"]
-      dwr_ncro: ["ncro", "cdec"]
+      dwr_ncro: ["ncro"]
       des: ["des"]
       dwr_des: ["des"]
       usgs: ["usgs","ebmud"]
       noaa: ["noaa"]
-      usbr: ["usgs","usbr", "cdec"]
+      usbr: ["usbr", "cdec"]
       dwr_om: ["cdec"]
       dwr: ["dwr", "cdec"]
       ebmud: ["usgs", "ebmud", "cdec"]
@@ -116,21 +121,21 @@ repos:
     provider_resolution_mode: registry_column
 
     # Registry column used to decide provider selection policy
-    # Example: station_id â†’ agency gives you the id of the observing agency, which is unique and a good basis for
+    # Example: station_id → agency gives you the id of the observing agency, which is unique and a good basis for
     # prioritizing various sources. Used in provider_resolution_order.
     provider_resolution_column: agency
 
-    # Mapping from registry value â†’ ordered list of preferred providers (this is the generic term, in this case it is {source})
+    # Mapping from registry value → ordered list of preferred providers (this is the generic term, in this case it is {source})
     # Example: if agency = ncro, prefer ncro then cdec in the {source} slot
     # The keys must match the provider_resolution_column values (agency) and mapped values must match the provider_key field (here: source)
     provider_resolution_order:
       ncro: ["ncro", "cdec"]
-      dwr_ncro: ["ncro", "cdec"]
+      dwr_ncro: ["ncro"]
       des: ["des"]
       dwr_des: ["des"]
       usgs: ["usgs","ebmud"]
       noaa: ["noaa"]
-      usbr: ["usgs","usbr", "cdec"]
+      usbr: ["usbr", "cdec"]
       dwr_om: ["cdec"]
       dwr: ["dwr", "cdec"]
       ebmud: ["usgs", "ebmud", "cdec"]
@@ -167,13 +172,6 @@ repos:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/processed"
     registry: [continuous, processed_synthetic]
 
-    # Metadata fields required by the dropbox `_check_metadata` validator.
-    # Processed/derived series reuse a station location but often have no
-    # meaningful observing `agency` or datamart `source`, so those are not
-    # required here (repos that omit this key fall back to the historical
-    # default that also requires source/agency).
-    required_metadata: [station_id, param, unit, time_zone, freq]
-
     provider_key: processor
     provider_resolution_mode: assume_unique     # This may have to be adjusted for cases like SF harmonic tides where there is a noaa and dwr version
     filename_templates:
@@ -193,8 +191,8 @@ repos:
     provider_key: processor
     provider_resolution_mode: assume_unique
     filename_templates:
-      - "{agency}_{station_id@subloc}_{param@modifier}.csv"
-      - "{agency}_{station_id@subloc}_{param@modifier}_{year}.csv"
+      - "{processor}_{station_id@subloc}_{param@modifier}.csv"
+      - "{processor}_{station_id@subloc}_{param@modifier}_{year}.csv"
 
   structures_processed:
     root: "//cnrastore-bdo/Modeling_Data/repo/structures/processed"

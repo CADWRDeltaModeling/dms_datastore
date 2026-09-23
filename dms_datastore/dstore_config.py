@@ -52,6 +52,7 @@ __all__ = [
     "coerce_repo_config",
     "repo_config",
     "repo_root",
+    "repo_search_order",
     "resolve_repo_data_dir",
     "repo_names",
     "registry_names",
@@ -640,6 +641,57 @@ def repo_config(repo_name):
 
     _repo_cache[repo_name] = spec
     return spec
+
+
+def repo_search_order(repo=None):
+    """
+    Return the ordered repository names to search for a data request.
+
+    Parameters
+    ----------
+    repo : str or list of str or None, optional
+        Explicit repository name or ordered list of names. When ``None``
+        (default), the configured ``repo_search_order`` is used, falling back
+        to ``default_repo`` when that key is absent.
+
+    Returns
+    -------
+    list of str
+        Ordered, validated repository names.
+
+    Raises
+    ------
+    ValueError
+        Raised if the resolved order is empty or names an unconfigured repo.
+
+    Examples
+    --------
+    ::
+
+        order = repo_search_order()          # e.g. ["processed", "screened"]
+        order = repo_search_order("screened")  # ["screened"]
+    """
+    if repo is None:
+        order = config.get("repo_search_order")
+        if order is None:
+            order = [config.get("default_repo", "screened")]
+    elif isinstance(repo, str):
+        order = [repo]
+    else:
+        order = list(repo)
+
+    if len(order) == 0:
+        raise ValueError("Repository search order resolved to an empty list")
+
+    configured = repo_names()
+    unknown = [name for name in order if name not in configured]
+    if unknown:
+        raise ValueError(
+            f"Repository search order names unconfigured repos: {unknown}. "
+            f"Configured repos: {configured}"
+        )
+    return order
+
 
 def registry_names():
     """
