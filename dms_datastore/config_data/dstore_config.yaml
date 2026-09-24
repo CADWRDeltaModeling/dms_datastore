@@ -11,6 +11,7 @@ des_rationalize_time_spec: des_rationalize_cfg.yaml
 repo_base: "//cnrastore-bdo/Modeling_Data/repo"
 spot_check_spec: spot_check_spec.yaml
 usgs_usbr_transition_list: "usgs_usbr_transition_list.csv"
+source_availability: "source_availability.csv"
 
 # Repository info
 default_repo: screened

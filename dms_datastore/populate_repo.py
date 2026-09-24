@@ -520,6 +520,16 @@ def supplement_ncro_with_cdec(df, dest, start, overwrite=False, ignore_existing=
         default_subloc="default",
     )
 
+    # normalize_station_request keeps only the canonical columns, so reattach
+    # the agency_id parsed from the existing ncro filenames.
+    stationlist = stationlist.merge(
+        df[["station_id", "param", "agency_id_from_file"]].drop_duplicates(
+            subset=["station_id", "param"]
+        ),
+        on=["station_id", "param"],
+        how="left",
+    )
+
     stationlist = attach_agency_id(
         stationlist,
         repo_name="formatted",
@@ -527,7 +537,6 @@ def supplement_ncro_with_cdec(df, dest, start, overwrite=False, ignore_existing=
         src_site_id_col=src_site_id_col,
         on_missing="drop",
     )
-    stationlist["agency_id"] = stationlist["agency_id_from_file"]
 
     if stationlist.empty:
         logger.warning(
@@ -536,6 +545,8 @@ def supplement_ncro_with_cdec(df, dest, start, overwrite=False, ignore_existing=
             agency_id_col,
         )
         return
+
+    stationlist["agency_id"] = stationlist["agency_id_from_file"]
 
     stationlist = attach_src_var_id(stationlist, vlookup, source=source)
     end = None
