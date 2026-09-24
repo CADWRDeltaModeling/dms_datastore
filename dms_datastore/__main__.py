@@ -13,6 +13,7 @@ from dms_datastore.download_dcc import download_dcc_cli
 from dms_datastore.download_montezuma_gates import download_montezuma_gates_cli
 from dms_datastore.download_smscg import download_smscg_cli
 from dms_datastore.compare_directories import compare_dir_cli
+from dms_datastore.read_block import read_block_cli
 from dms_datastore.populate_repo import populate_main_cli
 from dms_datastore.station_info import station_info_cli
 from dms_datastore.reformat import reformat_cli
@@ -59,6 +60,7 @@ cli.add_command(download_montezuma_gates_cli, "download_montezuma_gates")
 cli.add_command(download_smscg_cli, "download_smscg")
 cli.add_command(dropbox_cli, "dropbox")
 cli.add_command(compare_dir_cli, "compare_directories")
+cli.add_command(read_block_cli, "data_block")
 cli.add_command(populate_main_cli, "populate_repo")
 cli.add_command(station_info_cli, "station_info")
 cli.add_command(reformat_cli, "reformat")
