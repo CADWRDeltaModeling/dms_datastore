@@ -1,5 +1,5 @@
 # Earliest dates worth requesting from each serving source.
-# So "availability" here is more like "desireablity" of the data.
+# So availability here is more like desireablity of the data.
 #
 # Blank for variable applies to every variable for the station. A row with a
 # variable takes precedence over the station-wide row. The date is inclusive.
