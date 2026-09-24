@@ -21,8 +21,12 @@
 **/*.pkl 
 # csv files -- usually data
 **/*.csv
-!dms_datastore/config_data/ncro_inventory_full.csv
-!dms_datastore/config_data/daily_data_manifest.csv
+
+# config_data holds packaged configuration/registries, not bulk data, so the
+# blanket csv/txt/json/xml data rules above must not apply inside it.
+!dms_datastore/config_data/*.csv
+# ...but secrets stay ignored everywhere.
+dms_datastore/config_data/**/*.secret
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
