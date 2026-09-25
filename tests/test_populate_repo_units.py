@@ -20,7 +20,7 @@ except Exception:
 
 def test_raw_meta_from_fname_single_year():
     meta = pr._raw_meta_from_fname("usgs_anh@north_11303500_flow_2024.csv")
-    assert meta["agency"] == "usgs"
+    assert meta["source"] == "usgs"
     assert meta["station_id"] == "anh"
     assert meta["subloc"] == "north"
     assert meta["agency_id"] == "11303500"
@@ -30,7 +30,7 @@ def test_raw_meta_from_fname_single_year():
 
 def test_raw_meta_from_fname_span_years():
     meta = pr._raw_meta_from_fname("cdec_ccf@radial_b95020_height_2020_9999.csv")
-    assert meta["agency"] == "cdec"
+    assert meta["source"] == "cdec"
     assert meta["station_id"] == "ccf"
     assert meta["subloc"] == "radial"
     assert meta["agency_id"] == "b95020"
@@ -51,7 +51,7 @@ def test_rename_with_meta_force_uses_template(monkeypatch, tmp_path):
     monkeypatch.setattr(pr.os, "replace", fake_replace)
 
     new_meta = {
-        "agency": "usgs",
+        "source": "usgs",
         "station_id": "anh",
         "subloc": None,
         "agency_id": "11303500",
