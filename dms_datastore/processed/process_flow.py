@@ -175,7 +175,11 @@ def process_american_sac_flow(sdate, edate, outdir):
     sac_i = sac_i.interpolate(limit=4)
 
     if sac_i.isnull().sum().sum() > 0:
-        raise ValueError("There are {} missing values in the Sacramento flow at I street after processing.".format(sac_i.isnull().sum().sum()))
+        missing_idx = list(sac_i[sac_i.isnull().any(axis=1)].index)
+        raise ValueError(
+            "There are {} missing values in the Sacramento flow at I street after processing, "
+            "at: {}.".format(sac_i.isnull().sum().sum(), missing_idx)
+        )
     else:
         sac_i_filename = 'sac_i_flow.csv'
         sac_i.index.name = 'Date/time'
