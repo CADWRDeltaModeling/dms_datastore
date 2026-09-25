@@ -1,0 +1,16 @@
+# compare_directories.py exceptions file.
+# file_pattern is an fnmatch glob (same syntax as spot_check_spec.yaml's
+# group subset.include/exclude), matched against the bare filename.
+# {current_year} is substituted with today's year before matching.
+# "base" is the reference/older directory (the --base argument, normally repo/<tier>).
+# "compare" is the directory being checked against it (the --compare argument, normally staging).
+# A row's (base, compare) pair selects which one-sided mismatch bucket it applies to:
+#   base=True,  compare=False -> suppresses files reported under "Unmatched files in base dir"
+#                                 (present in repo, missing from staging)
+#   base=False, compare=True  -> suppresses files reported under "Unmatched files in comp dir"
+#                                 (present in staging, missing from repo)
+file_pattern,base,compare
+noaa*predictions_*.csv,True,False
+cdec_clc_clc_ph_19*.csv,True,False
+usgs_*_ssc_*.csv,True,False
+
