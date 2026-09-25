@@ -102,7 +102,7 @@ Do not move generic `vtools` algorithms into `dms_datastore` merely because repo
 ## Testing
 
 - Use `pytest`.
-- Mark tests requiring web connectivity as `integration`.
+- Mark tests requiring web connectivity or connectivity to the network repo as `integration`.
 - Normal GitHub Actions should exclude integration tests.
 - User-launched test runs should still be able to include them when appropriate.
 - Use `tmp_path` and `monkeypatch` for config isolation; do not couple unit tests to a shared repository path.
