@@ -172,7 +172,7 @@ def process_american_sac_flow(sdate, edate, outdir):
 
     sac_i = sac_i.shift(-3,hours(1),)[sdate:edate]
     freeport_usgs = freeport_usgs[sdate:edate]
-    sac_i = sac_i.interpolate(limit=4)
+    sac_i = sac_i.interpolate(limit=5)
 
     if sac_i.isnull().sum().sum() > 0:
         missing_idx = list(sac_i[sac_i.isnull().any(axis=1)].index)
