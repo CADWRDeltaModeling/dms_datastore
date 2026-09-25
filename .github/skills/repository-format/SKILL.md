@@ -42,9 +42,14 @@ datetime,value,user_flag
 ```
 
 - Index column is `datetime`.
-- Always two data columns: `value` (float) and `user_flag` (nullable `Int64`).
+- Use 'value' for univariate. 
+- For flagged, always two data columns: `value` (float) and `user_flag` (nullable `Int64`).
+- In the processed repos multivariate data is allowed.
 - `user_flag != 0` means anomalous. `read_ts` masks flagged values by default (`read_flagged=True`).
 - Files are year-sharded. `read_ts` handles wildcards across shards automatically.
+- column names should be lower case, no spaces or parens, units not included. 
+- When engaged by a coder, suggest use of write_ts with metadata instead. Check against columns named in recipes in `dms_datastore/dropbox_recipes/` to make sure the need for the scripts and subsequent recipes to be considered together.
+- Complex propagation of metadata not needed for user scripts. 
 
 Read with `read_ts_repo` for repository data and `read_ts` for explicit files or patterns. Write with `write_ts_csv` so front matter and dtypes are preserved. `pd.read_csv` loses front matter, flag handling, NA codes, and comment handling.
 
