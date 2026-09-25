@@ -10,9 +10,10 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Optional, Sequence
 
 import click
+import pandas as pd
 from omegaconf import OmegaConf
 
-from dms_datastore import dstore_config, read_ts
+from dms_datastore import dstore_config, read_ts, read_yaml_header
 from dms_datastore.filename import interpret_fname
 from dms_datastore.logging_config import (
     LoggingConfig,
@@ -128,6 +129,43 @@ def _default_agency_id_policy(agency: str) -> "IdentityPolicy":
     return IdentityPolicy(mode=mode)
 
 
+# Duration tokens for StreamCheck.max_age, sharing vtools' own lower-case
+# frequency units (see AGENTS.md) rather than inventing a new vocabulary.
+_MAX_AGE_RE = re.compile(r"^(\d+)(d|h|min|s)$")
+_MAX_AGE_UNITS = {"d": "days", "h": "hours", "min": "minutes", "s": "seconds"}
+
+
+def _parse_max_age(value: str) -> pd.Timedelta:
+    """Parse a max_age token, e.g. '8h', '8d', '30min', '45s', into a Timedelta."""
+    m = _MAX_AGE_RE.match(value.strip())
+    if not m:
+        raise ValueError(f"Invalid max_age {value!r}; expected e.g. '8h', '8d', '30min', '45s'")
+    amount, unit = m.groups()
+    return pd.Timedelta(**{_MAX_AGE_UNITS[unit]: int(amount)})
+
+
+def _load_exclude_patterns_from_compare_excepts(path_or_key: str) -> tuple[str, ...]:
+    """Load exclude patterns from a compare_directories.py exceptions file
+    (see compare_excepts_formatted.txt/compare_excepts_screened.txt).
+
+    Only base=True, compare=False rows apply: those mark files expected in
+    repo but normally absent from staging, the same "expected gap" a
+    Subset.exclude narrows out. base=False, compare=True rows describe an
+    unrelated staging-extra case and are skipped.
+    """
+    path = path_or_key if os.path.exists(path_or_key) else dstore_config.config_file(path_or_key)
+    df = pd.read_csv(
+        path,
+        header=0,
+        sep=",",
+        index_col=None,
+        comment="#",
+        dtype={"file_pattern": str, "base": bool, "compare": bool},
+    )
+    df = df[(df["base"]) & (~df["compare"])]
+    return tuple(df["file_pattern"].drop_duplicates())
+
+
 @dataclass(frozen=True)
 class Subset:
     include: tuple[str, ...] = ()
@@ -140,8 +178,15 @@ class Subset:
         if not isinstance(value, Mapping):
             raise TypeError(f"Subset must be a mapping, got {type(value).__name__}")
         include = tuple(_expect_string_list(value.get("include", ()), context="subset.include"))
-        exclude = tuple(_expect_string_list(value.get("exclude", ()), context="subset.exclude"))
-        return cls(include=include, exclude=exclude)
+        exclude = list(_expect_string_list(value.get("exclude", ()), context="subset.exclude"))
+        exclude_file = value.get("exclude_file")
+        if exclude_file is not None:
+            if not isinstance(exclude_file, str) or not exclude_file:
+                raise TypeError(
+                    f"Expected non-empty string for subset.exclude_file, got {type(exclude_file).__name__}"
+                )
+            exclude.extend(_load_exclude_patterns_from_compare_excepts(exclude_file))
+        return cls(include=include, exclude=tuple(exclude))
 
     def matches(self, path: Path) -> bool:
         name = path.name
@@ -204,6 +249,20 @@ class StreamCheck:
     # (there is one filename convention per group, not per stream).
     integrity: tuple[str, ...] = ()
 
+    # Freshness check for a stream with no `years`: how out-of-date the
+    # newest timestamp in the opened file (see open_file) is allowed to be,
+    # as a duration token (e.g. "8h", "8d", "30min", "45s"). Defaults large
+    # enough to never trip (pd.Timedelta tops out around 106751 days, so this
+    # stays comfortably under that), so groups that don't care about
+    # freshness don't have to set it.
+    max_age: str = "100000d"
+
+    # Optional metadata front-matter checks (see read_yaml_header): maps a
+    # header key to its expected value (compared as str(actual) == expected).
+    # Always logged as a warning, never a failure -- a light sanity check,
+    # not a strict integrity gate.
+    metadata: dict[str, str] = field(default_factory=dict)
+
     @classmethod
     def from_mapping(cls, value: Mapping[str, Any]) -> "StreamCheck":
         name = _expect_str(value, "name")
@@ -229,14 +288,23 @@ class StreamCheck:
         if unknown:
             raise ValueError(f"Stream '{name}' has unknown integrity check(s): {sorted(unknown)}")
 
+        max_age = str(value.get("max_age", "100000d"))
+        _parse_max_age(max_age)  # validate eagerly so a bad config fails at load time
+        raw_metadata = value.get("metadata", {}) or {}
+        if not isinstance(raw_metadata, Mapping):
+            raise TypeError(f"Stream '{name}' metadata must be a mapping, got {type(raw_metadata).__name__}")
+        metadata = {str(k): str(v) for k, v in raw_metadata.items()}
+
         has_years = bool(years)
         # `partial: true` alone is enough (thresholds may be learned later,
         # see partial-skip logging in run_spot_check).
         has_count = partial or any(
             v is not None for v in (min_count, max_count, partial_min_count, partial_max_count)
         )
-        if not has_years and not has_count:
-            raise ValueError(f"Stream '{name}' must define either 'years' coverage or count thresholds")
+        if not has_years and not has_count and not open_file:
+            raise ValueError(
+                f"Stream '{name}' must define 'years' coverage, count thresholds, or open_file"
+            )
         if has_years and pattern is None:
             raise ValueError(f"Stream '{name}' has 'years' but is missing 'pattern'")
 
@@ -255,6 +323,8 @@ class StreamCheck:
             partial_max_count=int(partial_max_count) if partial_max_count is not None else None,
             warn_only=warn_only,
             integrity=integrity,
+            max_age=max_age,
+            metadata=metadata,
         )
 
 
@@ -552,6 +622,149 @@ def run_spot_check(
                 )
 
             if not stream.years:
+                if stream.open_file or stream.metadata:
+                    latest_candidates = _collect_matches(staging_root, group.subset, pattern=stream.pattern or "*")
+                    if not latest_candidates:
+                        if stream.require:
+                            failures = SpotCheckFailureCounts(
+                                count_failures=failures.count_failures,
+                                required_missing=failures.required_missing + 1,
+                                required_open_failures=failures.required_open_failures,
+                                integrity_failures=failures.integrity_failures,
+                            )
+                            log.error(
+                                "MISSING FILE (latest) group=%s stream=%s staging_dir=%s",
+                                group.name,
+                                stream.name,
+                                staging_root,
+                            )
+                        else:
+                            warnings += 1
+                            log.warning(
+                                "OPTIONAL MISSING (latest) group=%s stream=%s staging_dir=%s",
+                                group.name,
+                                stream.name,
+                                staging_root,
+                            )
+                        continue
+
+                    chosen = _choose_best_candidate(latest_candidates)
+                    opened_ts = None
+                    if stream.open_file:
+                        try:
+                            opened_ts = read_ts(chosen)
+                            log.info(
+                                "OPEN PASS group=%s stream=%s file=%s",
+                                group.name,
+                                stream.name,
+                                chosen,
+                            )
+                        except Exception as exc:  # pragma: no cover - exercised in integration-like usage
+                            if stream.require:
+                                failures = SpotCheckFailureCounts(
+                                    count_failures=failures.count_failures,
+                                    required_missing=failures.required_missing,
+                                    required_open_failures=failures.required_open_failures + 1,
+                                    integrity_failures=failures.integrity_failures,
+                                )
+                                log.error(
+                                    "OPEN FAIL group=%s stream=%s file=%s err=%s: %s",
+                                    group.name,
+                                    stream.name,
+                                    chosen,
+                                    type(exc).__name__,
+                                    exc,
+                                )
+                            else:
+                                warnings += 1
+                                log.warning(
+                                    "OPTIONAL OPEN FAIL group=%s stream=%s file=%s err=%s: %s",
+                                    group.name,
+                                    stream.name,
+                                    chosen,
+                                    type(exc).__name__,
+                                    exc,
+                                )
+
+                        if opened_ts is not None:
+                            allowed_age = _parse_max_age(stream.max_age)
+                            last_ts = opened_ts.index.max()
+                            age = pd.Timestamp.now() - last_ts
+                            if age > allowed_age:
+                                if stream.require:
+                                    failures = SpotCheckFailureCounts(
+                                        count_failures=failures.count_failures,
+                                        required_missing=failures.required_missing,
+                                        required_open_failures=failures.required_open_failures + 1,
+                                        integrity_failures=failures.integrity_failures,
+                                    )
+                                    log.error(
+                                        "STALE FAIL group=%s stream=%s file=%s last=%s age=%s max_age=%s",
+                                        group.name,
+                                        stream.name,
+                                        chosen,
+                                        last_ts,
+                                        age,
+                                        stream.max_age,
+                                    )
+                                else:
+                                    warnings += 1
+                                    log.warning(
+                                        "STALE WARN group=%s stream=%s file=%s last=%s age=%s max_age=%s",
+                                        group.name,
+                                        stream.name,
+                                        chosen,
+                                        last_ts,
+                                        age,
+                                        stream.max_age,
+                                    )
+                            else:
+                                log.info(
+                                    "STALE PASS group=%s stream=%s file=%s last=%s age=%s max_age=%s",
+                                    group.name,
+                                    stream.name,
+                                    chosen,
+                                    last_ts,
+                                    age,
+                                    stream.max_age,
+                                )
+
+                    if stream.metadata:
+                        try:
+                            meta = read_yaml_header(chosen)
+                        except Exception as exc:
+                            warnings += 1
+                            log.warning(
+                                "METADATA WARN (header unreadable) group=%s stream=%s file=%s err=%s: %s",
+                                group.name,
+                                stream.name,
+                                chosen,
+                                type(exc).__name__,
+                                exc,
+                            )
+                        else:
+                            for key, expected in stream.metadata.items():
+                                actual = meta.get(key)
+                                if str(actual) != expected:
+                                    warnings += 1
+                                    log.warning(
+                                        "METADATA WARN group=%s stream=%s file=%s key=%s expected=%s actual=%r",
+                                        group.name,
+                                        stream.name,
+                                        chosen,
+                                        key,
+                                        expected,
+                                        actual,
+                                    )
+                                else:
+                                    log.info(
+                                        "METADATA PASS group=%s stream=%s file=%s key=%s value=%s",
+                                        group.name,
+                                        stream.name,
+                                        chosen,
+                                        key,
+                                        expected,
+                                    )
                 continue
 
             repo_candidates = _collect_matches(repo_root, group.subset, pattern=stream.pattern)

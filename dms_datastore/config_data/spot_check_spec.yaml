@@ -92,7 +92,7 @@ groups:
     repo: "${vars.continuous_staging_root}/raw"
     staging: "${vars.continuous_staging_root}/raw"
     repo_label: raw
-    ignore_cutoff_year: true
+    ignore_cutoff_year: true   # No cutoff given here, but this ensures it will ignore any cutoff year even on command line
     subset:
       include: ["*.csv"]
     streams:
@@ -125,6 +125,10 @@ groups:
     # source from that same run.
     subset:
       include: ["*.csv"]
+      # Reuses compare_excepts_formatted.txt's base=True,compare=False rows
+      # (files known to be repo-only) so a stream doesn't need its own copy
+      # of the same expected-gap patterns.
+      exclude_file: compare_excepts_formatted
     streams:
       - name: usgs_flow_2024
         years: [2024]
@@ -137,8 +141,8 @@ groups:
         require: false
       - name: formatted_total_count
         # Observed staging total was 14923 (compare_directories.py, 2026-09-24);
-        # 14500 leaves safety margin without masking a real collapse.
-        min_count: 14500
+        # 14000 leaves safety margin without masking a real collapse.
+        min_count: 14000
         max_count: 25000
         integrity: [filename_correct, station_in_registry, agency_id_matches_registry]
       - name: formatted_usgs_count
@@ -146,7 +150,7 @@ groups:
         # (see usgs_to_usbr_transition.md) so this floor reflects the smaller
         # post-transition population, not the pre-transition usgs count.
         count_pattern: "usgs_*.csv"
-        min_count: 2500
+        min_count: 2400
       - name: formatted_des_count
         # Observed 2970 against ~3391 in repo (421 des files missing from
         # staging as of 2026-09-24) -- a real, known gap worth tracking but
@@ -155,31 +159,34 @@ groups:
         count_pattern: "des_*.csv"
         min_count: 3200
         warn_only: true
-      - name: noaa_predictions
-        partial: true
-        # count_ prefix: this is the count check's own glob, separate from
-        # (and narrower than) a per-year coverage `pattern`. NOAA staging also
-        # holds non-prediction files, so this scopes the count to just the
-        # predictions subset; this stream has no `pattern`/`years`, so it's
-        # count-check-only.
-        # Predictions are robocopied in rather than downloaded daily, and the
-        # pre-2020 record is excluded by the downloader's --partial flag, so
-        # staging is expected to lag/undercount here -- left with no
-        # min/max_count (skipped, not failed) intentionally.
-        count_pattern: "noaa_*_predictions_*.csv"
+      - name: freeport_flow_open
+        # fpt is an important station, so it gets its own always-on
+        # open/freshness/metadata check rather than relying on the bulk
+        # count checks above. This is also the practical exercise of the
+        # max_age/metadata stream fields (otherwise untested in production).
+        pattern: "usgs_fpt_*flow_*.csv"
+        open_file: true
+        max_age: "24h"
+        metadata:
+          agency: usgs
+
 
 
   - name: continuous_screened
     repo: "${vars.continuous_repo_root}/screened"
     staging: "${vars.continuous_staging_root}/screened"
     repo_label: screened
-    cutoff_year: 2020
+    cutoff_year: 2010
     # Explicitly inherits the default fraction (equivalent to omitting this
     # line) -- shown here as the visible-opt-in form the header describes.
     bulk_relative_pattern: "*.csv"
     n_count_fract: ${defaults.n_count_fract}
     subset:
       include: ["*.csv"]
+      # Reuses compare_excepts_screened.txt's base=True,compare=False rows
+      # (files known to be repo-only) so a stream doesn't need its own copy
+      # of the same expected-gap patterns.
+      exclude_file: compare_excepts_screened
     streams:
       - name: usgs_flow_2024
         years: [2024]

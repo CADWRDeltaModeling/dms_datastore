@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-import pandas as pd
+import fnmatch
 import glob
 import re
 import os
 import sys
+from collections.abc import Mapping
 import pandas as pd
 import click
 import datetime as dtm
 import matplotlib.pyplot as plt
 from dms_datastore import dstore_config
 from dms_datastore.read_ts import *
+from dms_datastore.spot_check import Subset
 import shutil
 
 __all__ = ["compare_dir"]
@@ -59,16 +62,18 @@ def _trim_using_exceptions(fnamelist, exceptions, base_present, compare_present)
 
     Notes
     -----
-    Here is an example exceptions file. It has a {current_year} template. Note the limitations
-    above
+    ``file_pattern`` is an ``fnmatch`` glob (the same syntax used by
+    ``spot_check_spec.yaml``'s group ``subset.include``/``exclude``), matched
+    against the bare filename. It has a {current_year} template. Note the
+    limitations above.
 
     # Exceptions file example
     file_pattern,base,compare
-    noaa.*predictions_.*.csv,True,False
-    cdec_clc_clc_ph_19.*.csv,True,False
-    .*salinity.*.csv,True,False
-    .*velocity.*.csv,True,False
-    .*_{current_year}.csv,False,True
+    noaa*predictions_*.csv,True,False
+    cdec_clc_clc_ph_19*.csv,True,False
+    *salinity*.csv,True,False
+    *velocity*.csv,True,False
+    *_{current_year}.csv,False,True
 
     """
 
@@ -86,8 +91,7 @@ def _trim_using_exceptions(fnamelist, exceptions, base_present, compare_present)
         patstr = patstr.replace(
             "{current_year}", str(current_year)
         )  # format({"current_year": current_year})
-        pat = re.compile(patstr)
-        fnamelistfilt = [f for f in fnamelistfilt if not pat.match(f)]
+        fnamelistfilt = [f for f in fnamelistfilt if not fnmatch.fnmatch(f, patstr)]
     return fnamelistfilt
 
 
@@ -223,11 +227,32 @@ def compare_dir(
             shutil.copy(os.path.join(comp, item), os.path.join(base, item))
 
     if exceptions is not None:
-        out.write("\n\n******** Exceptions ******\n\n")
-        exceptions.to_csv(out, sep=",", index=None, lineterminator="\n")
+        outline("\n\n******** Exceptions ******\n\n")
+        # Render to a string (path_or_buf=None) and route through outline() so
+        # this works whether or not an outfile was given.
+        csv_text = exceptions.to_csv(sep=",", index=False, lineterminator="\n")
+        for line in csv_text.splitlines():
+            outline(line)
 
     if out is not None:
         out.close()
+
+
+def _symmetric_exceptions(patterns):
+    """Build an exceptions DataFrame from a plain list of fnmatch patterns.
+
+    This is the non-directional counterpart to the base/compare CSV format:
+    each pattern is exempted from being flagged whichever side (base-only or
+    compare-only) it turns up missing on. It lets a pattern list -- e.g. a
+    spot_check `Subset.exclude` -- be reused as-is, without adopting
+    compare_directories' base/compare asymmetry.
+    """
+    rows = [
+        {"file_pattern": pat, "base": base, "compare": compare}
+        for pat in patterns
+        for base, compare in ((True, False), (False, True))
+    ]
+    return pd.DataFrame(rows, columns=["file_pattern", "base", "compare"])
 
 
 def load_exceptions(excepts):
@@ -235,6 +260,15 @@ def load_exceptions(excepts):
         return excepts
     elif type(excepts) == pd.DataFrame:
         df = excepts
+    elif isinstance(excepts, Subset):
+        # Reuse a spot_check Subset directly: its exclude patterns are
+        # applied symmetrically. include has no compare_directories analog
+        # (it pre-filters what's considered at all, not what's excepted).
+        df = _symmetric_exceptions(excepts.exclude)
+    elif isinstance(excepts, Mapping):
+        df = _symmetric_exceptions(excepts.get("exclude", ()))
+    elif isinstance(excepts, (list, tuple, set)):
+        df = _symmetric_exceptions(excepts)
     elif os.path.exists(excepts):
         print(f"loading exceptions from {excepts}")
         df = pd.read_csv(
