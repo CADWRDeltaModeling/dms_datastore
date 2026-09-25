@@ -103,8 +103,8 @@ def process_yolo_cache_slough(sdate, edate):
         The 4-day low-pass-filtered southern estimate of Yolo Bypass flow,
         indexed by datetime.
     """
-    # RYE station is the newer station
-    cache_ryer = read_ts_repo(station_id="rye", variable="flow", start=sdate, end=edate)
+    # RYF station is the newer station
+    cache_ryer = read_ts_repo(station_id="ryf", variable="flow", start=sdate, end=edate)
     cache_ryer = cache_ryer.interpolate(limit=60)
     cache_ryer = cosine_lanczos(cache_ryer, hours(40))
     cache_ryer.columns = ["value"]
