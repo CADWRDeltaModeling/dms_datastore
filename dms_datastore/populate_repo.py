@@ -25,15 +25,13 @@ The module supports two closely related workflows.
 
 Raw naming
 ----------
-Files handled by this module use a raw/downloader naming profile rather than
-repo-configured naming semantics. The profile is used only for parsing and
-renaming downloader outputs:
+Files handled by this module follow the configured ``raw`` repo naming:
 
-- ``{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv``
-- ``{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv``
+- ``{source}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv``
+- ``{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv``
 
-This naming is represented by ``RAW_NAMING`` and is intentionally separate from
-repo templates used by formatted/screened/processed repositories.
+The first slot is the serving datamart/downloader label, not the observing
+agency, which is supplied by the registry.
 
 Download sequence
 -----------------
@@ -120,7 +118,7 @@ from dms_datastore.process_station_variable import (
     merge_station_subloc,
 )
 from dms_datastore import dstore_config
-from dms_datastore.filename import interpret_fname, meta_to_filename, naming_spec
+from dms_datastore.filename import interpret_fname, meta_to_filename
 from dms_datastore.read_ts import read_ts
 from dms_datastore.download_nwis import nwis_download
 from dms_datastore.download_noaa import noaa_download
@@ -142,15 +140,6 @@ __all__ = [
 ]
 
 NSAMPLE_DATA = 200
-
-# Raw/incoming naming profile used only for parsing and renaming downloader outputs.
-# First slot is the acquisition/serving agency label used by the downloader output.
-RAW_NAMING = naming_spec(
-    templates=[
-        "{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv",
-        "{agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv",
-    ]
-)
 
 downloaders = {
     "dwr_des": des_download,
@@ -265,14 +254,14 @@ def _quarantine_file(fname, quarantine_dir="quarantine"):
 
 
 def _raw_meta_from_fname(fname):
-    """Parse a downloader/raw filename with the raw naming profile."""
-    return interpret_fname(os.path.basename(fname), naming=RAW_NAMING)
+    """Parse a downloader/raw filename with the raw repo naming."""
+    return interpret_fname(os.path.basename(fname), repo="raw")
 
 
 def _rename_with_meta(fname, new_meta, *, force=True):
     """Render a new raw-style filename from metadata and rename on disk."""
     direct = os.path.dirname(fname)
-    newbase = meta_to_filename(new_meta, naming=RAW_NAMING)
+    newbase = meta_to_filename(new_meta, repo="raw")
     newname = os.path.join(direct, newbase)
     if fname == newname:
         return None
@@ -726,11 +715,13 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
         except Exception as exc:
             failures.append(agency)
             trace = traceback.format_exc()
-            logger.info(f"{agency} generated an exception: {exc} with trace:\n{trace}")
+            logger.error(f"{agency} generated an exception: {exc} with trace:\n{trace}")
+            # Downstream supplements/renames for this agency would only cascade
+            continue
         if "ncro" in agency:
             populate_ncro_realtime(dest)
 
-    if do_des:        
+    if do_des and "dwr_des" not in failures:
         rationalize_time_partitions(
             "des*_*.csv",
             spec="des_rationalize_time_spec",
@@ -739,10 +730,15 @@ def populate_main(dest, agencies=None, varlist=None, partial_update=False):
             warn_on_remaining_overlap=True,
         )
 
-    if do_ncro:
+    if do_ncro and "dwr_ncro" not in failures:
         revise_filename_syear_eyear(os.path.join(dest, f"ncro_*.csv"))
     revise_filename_syear_eyear(os.path.join(dest, f"cdec_*.csv"))
-    logger.info("These agency queries failed")
+
+    if failures:
+        failed = ", ".join(sorted(failures))
+        logger.error(f"These agency queries failed: {failed}")
+        raise RuntimeError(f"populate_main failed for these agencies: {failed}")
+    logger.info(f"All agency queries succeeded: {', '.join(all_agencies)}")
 
 
 def populate_debug_ncro_rename(dest, agencies=None, varlist=None):

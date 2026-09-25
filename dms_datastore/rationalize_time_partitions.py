@@ -34,7 +34,8 @@ import yaml
 import pandas as pd
 
 # Toolkit functions (no new readers/writers invented here)
-from dms_datastore.filename import interpret_fname, naming_spec
+from dms_datastore import dstore_config
+from dms_datastore.filename import fname_implies_chunking, interpret_fname, naming_spec
 from dms_datastore.read_ts import read_ts, extract_commented_header
 from dms_datastore.write_ts import write_ts_csv
 
@@ -44,10 +45,25 @@ _START = "${START}"
 _LAST = "${LAST}"
 _SUPERSEDED = "${SUPERSEDED}"
 
-# Raw filename naming convention (as output by downloaders)
-RAW_NAMING = naming_spec(
-    templates=["{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
-)
+_RAW_BLOCKED_NAMING = None
+
+
+def _raw_naming():
+    """Raw repo naming narrowed to blocked shards; this module rewrites syear/eyear spans."""
+    global _RAW_BLOCKED_NAMING
+    if _RAW_BLOCKED_NAMING is None:
+        cfg = dstore_config.repo_config("raw")
+        templates = [
+            t
+            for t in cfg["filename_templates"]
+            if fname_implies_chunking(t) == "blocked"
+        ]
+        if not templates:
+            raise ValueError(
+                "Repo 'raw' defines no blocked (syear/eyear) filename template"
+            )
+        _RAW_BLOCKED_NAMING = naming_spec(templates=templates)
+    return _RAW_BLOCKED_NAMING
 
 # --------------------------------------------------------------------------------------
 # Legacy behavior (kept intact)
@@ -152,8 +168,8 @@ def rationalize_time_partitions(
     # Group by series key (legacy behavior)
     groups: Dict[tuple, List[Path]] = {}
     for p in allpaths:
-        meta = interpret_fname(p.name, naming=RAW_NAMING)
-        key = (meta["agency"], meta["param"], meta["station_id"], meta["subloc"])
+        meta = interpret_fname(p.name, naming=_raw_naming())
+        key = (meta["source"], meta["param"], meta["station_id"], meta["subloc"])
         groups.setdefault(key, []).append(p)
 
     # Apply YAML per group/pool with ambiguity check across rules
@@ -223,7 +239,7 @@ def _legacy_rationalize_time_partitions(pat: str) -> None:
     repodir = os.path.split(allpaths[0])[0]
     allfiles = [os.path.split(x)[1] for x in allpaths]
 
-    allmeta = [interpret_fname(fname, naming=RAW_NAMING) for fname in allfiles]
+    allmeta = [interpret_fname(fname, naming=_raw_naming()) for fname in allfiles]
     already_checked = set()
     superseded = []
 
@@ -237,7 +253,7 @@ def _legacy_rationalize_time_partitions(pat: str) -> None:
                 continue
 
             same_series = (
-                meta["agency"] == meta2["agency"]
+                meta["source"] == meta2["source"]
                 and meta["param"] == meta2["param"]
                 and meta["station_id"] == meta2["station_id"]
                 and meta["subloc"] == meta2["subloc"]
@@ -341,7 +357,7 @@ def _apply_rule(
     """
     pool_names = {p.name for p in pool}
     pool_by_name = {p.name: p for p in pool}
-    pool_meta: Dict[str, dict] = {p.name: interpret_fname(p.name, naming=RAW_NAMING) for p in pool}
+    pool_meta: Dict[str, dict] = {p.name: interpret_fname(p.name, naming=_raw_naming()) for p in pool}
 
     include = rule.get("include")
     if not include or not isinstance(include, list):
@@ -620,7 +636,7 @@ def _legacy_supersession_paths(paths: List[Path], *, dry_run: bool) -> None:
     repodir = paths[0].parent
     allfiles = [p.name for p in paths]
 
-    allmeta = [interpret_fname(fname, naming=RAW_NAMING) for fname in allfiles]
+    allmeta = [interpret_fname(fname, naming=_raw_naming()) for fname in allfiles]
     already_checked = set()
     superseded: List[str] = []
 
@@ -634,7 +650,7 @@ def _legacy_supersession_paths(paths: List[Path], *, dry_run: bool) -> None:
                 continue
 
             same_series = (
-                meta["agency"] == meta2["agency"]
+                meta["source"] == meta2["source"]
                 and meta["param"] == meta2["param"]
                 and meta["station_id"] == meta2["station_id"]
                 and meta["subloc"] == meta2["subloc"]

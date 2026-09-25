@@ -69,10 +69,6 @@ def test_block_size():
 variable_mappings = None
 
 
-RAW_NAMING = naming_spec(
-    templates=["{agency}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"]
-)
-
 def _ordered_unique(seq):
     out = []
     for x in seq:
@@ -146,13 +142,6 @@ def reformat_freq_resolver(items):
     return reformat_freq_resolver_from_labels(freq_labels)
 
 
-
-
-def _raw_source_from_meta(meta):
-    return meta.get("source", meta.get("agency"))
-
-
-
 def infer_unit(fname, param, src):
     global variable_mappings
     if variable_mappings is None:
@@ -175,9 +164,8 @@ def raw_data_key_from_meta(meta):
     """
     Grouping key for raw files that should become one formatted logical series.
     """
-    source = _raw_source_from_meta(meta)
     return (
-        source,
+        meta["source"],
         meta["station_id"],
         meta.get("subloc"),
         meta["param"],
@@ -296,7 +284,7 @@ def reformat_des_grouped(inpath, outpath, pattern):
 
     groups = defaultdict(list)
     for fpath in allfiles:
-        raw_meta = interpret_fname(os.path.basename(fpath), naming=RAW_NAMING)
+        raw_meta = interpret_fname(os.path.basename(fpath), repo="raw")
         key = raw_data_key_from_meta(raw_meta)
         groups[key].append(fpath)
 
@@ -584,9 +572,9 @@ def usgs_unit(header_text):
 def infer_internal_meta_for_file(fpath):
     slookup = station_dbase()
     fname = os.path.split(fpath)[1]
-    meta = interpret_fname(fname, naming=RAW_NAMING)
+    meta = interpret_fname(fname, repo="raw")
     station_id = meta["station_id"]
-    source = _raw_source_from_meta(meta)
+    source = meta["source"]
 
     meta_out = {}
     meta_out["param"] = meta["param"]
@@ -809,8 +797,8 @@ def reformat_provider(inpath, outpath, agency, patterns):
 
 def _group_patterns_by_provider(inpath, patterns):
     """
-    Infer raw provider/source from matched filenames using RAW_NAMING and
-    return provider -> list of concrete file paths.
+    Infer raw provider/source from matched filenames using the raw repo naming
+    and return provider -> list of concrete file paths.
 
     This is the key bridge that makes pattern-mode behave the same way as
     agency-mode dispatch.
@@ -836,19 +824,19 @@ def _group_patterns_by_provider(inpath, patterns):
     for fpath in expanded:
         base = os.path.basename(fpath)
         try:
-            meta = interpret_fname(base, naming=RAW_NAMING)
+            meta = interpret_fname(base, repo="raw")
         except Exception as exc:
             failures.append((fpath, exc))
             continue
 
-        provider = _raw_source_from_meta(meta)
+        provider = meta["source"]
         grouped[provider].append(fpath)
 
     if failures:
         msg = "\n".join(f"{f}: {e}" for f, e in failures[:10])
         more = "" if len(failures) <= 10 else f"\n... and {len(failures) - 10} more"
         raise ValueError(
-            "Some input files could not be parsed with RAW_NAMING:\n"
+            "Some input files could not be parsed with the raw repo naming:\n"
             f"{msg}{more}"
         )
 

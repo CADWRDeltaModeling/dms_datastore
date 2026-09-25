@@ -52,6 +52,36 @@ registries:
 
 
 repos:
+  # Downloader output, before reformat. There is only one raw repo; its root simply
+  # lives under repo_staging_auto rather than repo.
+  raw:
+    root: "//cnrastore-bdo/Modeling_Data/repo_staging_auto/continuous/raw"
+    registry: continuous
+
+    # First slot is the serving datamart/downloader label (cdec, usgs, des, ...),
+    # not the observing agency. The observing agency comes from the registry.
+    provider_key: source
+    provider_resolution_mode: registry_column
+    provider_resolution_column: agency
+    provider_resolution_order:
+      ncro: ["ncro", "cdec"]
+      dwr_ncro: ["ncro"]
+      des: ["des"]
+      dwr_des: ["des"]
+      usgs: ["usgs","ebmud"]
+      noaa: ["noaa"]
+      usbr: ["usgs","usbr", "cdec"]
+      dwr_om: ["cdec"]
+      dwr: ["dwr", "cdec"]
+      ebmud: ["usgs", "ebmud", "cdec"]
+
+    # Most downloaders emit blocked shards; some emit a single-year file.
+    filename_templates:
+      - "{source}_{station_id@subloc}_{agency_id}_{param}_{syear}_{eyear}.csv"
+      - "{source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv"
+    file_key: [source, station_id, subloc, param, shard]
+    data_key: [station_id, subloc, param]
+
   formatted:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/formatted"
 
@@ -85,7 +115,7 @@ repos:
       dwr_des: ["des"]
       usgs: ["usgs","ebmud"]
       noaa: ["noaa"]
-      usbr: ["usbr", "cdec"]
+      usbr: ["usgs","usbr", "cdec"]
       dwr_om: ["cdec"]
       dwr: ["dwr", "cdec"]
       ebmud: ["usgs", "ebmud", "cdec"]
@@ -136,7 +166,7 @@ repos:
       dwr_des: ["des"]
       usgs: ["usgs","ebmud"]
       noaa: ["noaa"]
-      usbr: ["usbr", "cdec"]
+      usbr: ["usgs","usbr", "cdec"]
       dwr_om: ["cdec"]
       dwr: ["dwr", "cdec"]
       ebmud: ["usgs", "ebmud", "cdec"]
