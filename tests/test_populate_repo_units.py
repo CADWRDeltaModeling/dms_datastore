@@ -18,6 +18,17 @@ except Exception:
     spec.loader.exec_module(pr)
 
 
+@pytest.fixture(autouse=True)
+def _isolate_raw_repo_root(monkeypatch, tmp_path):
+    # _raw_meta_from_fname only needs the raw repo's filename_templates, but
+    # repo_config() also checks that "root" exists on disk; stub it to a
+    # tmp_path so parsing doesn't depend on the real network repo being reachable.
+    raw_spec = dict(pr.dstore_config.config["repos"]["raw"])
+    raw_spec["root"] = str(tmp_path)
+    monkeypatch.setitem(pr.dstore_config.config["repos"], "raw", raw_spec)
+    monkeypatch.setattr(pr.dstore_config, "_repo_cache", None)
+
+
 def test_raw_meta_from_fname_single_year():
     meta = pr._raw_meta_from_fname("usgs_anh@north_11303500_flow_2024.csv")
     assert meta["source"] == "usgs"
