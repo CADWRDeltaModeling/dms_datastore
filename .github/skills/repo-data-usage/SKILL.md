@@ -1,6 +1,6 @@
 ---
 name: repo-data-usage
-description: "Use when reading dms_datastore repository time series, programmatically or via CLI: required imports for read_ts, read_ts_repo, and read_ts_block/data_block, station@subloc and param@modifier syntax, dim layouts, and the station_info lookup utility."
+description: "Use when reading or writing dms_datastore repository time series, programmatically or via CLI: required imports for read_ts, read_ts_repo, read_ts_block/data_block, and write_ts_csv, station@subloc and param@modifier syntax, dim layouts, and the station_info lookup utility."
 ---
 
 # Repository data usage
@@ -8,10 +8,10 @@ description: "Use when reading dms_datastore repository time series, programmati
 ## Required imports
 
 ```python
-from dms_datastore import read_ts, read_ts_repo, read_ts_block
+from dms_datastore import read_ts, read_ts_repo, read_ts_block, write_ts_csv
 ```
 
-All three are re-exported from the package top level (`dms_datastore/__init__.py`); `read_ts` also lives in `dms_datastore.read_ts` and `read_ts_repo` in `dms_datastore.read_multi`.
+All four are re-exported from the package top level (`dms_datastore/__init__.py`); `read_ts`/`write_ts_csv` also live in `dms_datastore.read_ts`/`dms_datastore.write_ts`, and `read_ts_repo` in `dms_datastore.read_multi`.
 
 ## `read_ts` — a single file or glob pattern
 
@@ -68,6 +68,15 @@ data_block -o block.csv -s 2023-01-01 -e 2024-01-02 \
 - `dim` layout tokens are `t` (datetime), `s` (station), `p` (param); aliases: `tidy`, `long`, `sd_tidy`, `flat`, `wide`. See the `read_block.py` module docstring for the full table.
 - `mrz@upper` and `mrz@lower` are distinct `station` labels throughout — they never collide, in any layout, because the full `station@subloc` string is used as the label.
 - Use `request=<csv path>` (or `--request`) instead of `station`/`param` for an explicit list of pairs, optionally with a `subloc` column.
+
+## Writing — `write_ts_csv`
+
+```python
+write_ts_csv(ts, "path/to/output.csv", metadata={"agency": "usgs", "station_id": "mrz"})
+```
+
+- Use `write_ts_csv`, not `ts.to_csv`, so the `#`-commented YAML front matter and dtypes (e.g. nullable `Int64` `user_flag`) are preserved.
+- Front-matter contract, `user_flag` semantics, column-naming conventions, and the filename grammar are owned by the `repository-format` skill — read that before hand-writing a repository file.
 
 ## `station_info` — look up station identity/metadata
 

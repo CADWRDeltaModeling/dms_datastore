@@ -51,7 +51,7 @@ datetime,value,user_flag
 - When engaged by a coder, suggest use of write_ts if metadata is desired and make sure they know the naming conventions for columns and indexes. Check against columns named in recipes in `dms_datastore/dropbox_recipes/` to make sure the need for the scripts and subsequent recipes to be considered together.
 - Complex propagation of metadata not needed for user scripts. 
 
-Read with `read_ts_repo` for repository data and `read_ts` for explicit files or patterns. Write with `write_ts_csv` so front matter and dtypes are preserved. `pd.read_csv` loses front matter, flag handling, NA codes, and comment handling.
+Read and write through the dms_datastore API (`read_ts_repo`, `read_ts`, `write_ts_csv`), never `pd.read_csv`/`ts.to_csv` — those lose front matter, flag handling, NA codes, and comment handling. Call patterns and imports: see the `repo-data-usage` skill.
 
 ## Metadata semantics
 

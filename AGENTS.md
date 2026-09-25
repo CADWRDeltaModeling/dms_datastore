@@ -57,15 +57,11 @@ interface, follow `docs/CLI_GUIDE.md`.
 
 ## Data access and regularity
 
-Repository-aware readers are preferred over raw Pandas ingestion for repository data.
+Repository-aware readers are preferred over raw Pandas ingestion for repository data. Imports, call signatures, and examples for `read_ts`, `read_ts_repo`, `read_ts_block`/`data_block`, `write_ts_csv`, and `station_info` live in the `repo-data-usage` skill — do not re-derive them here.
 
-- For continuous, regular data prefer `read_ts_repo`: `from dms_datastore import read_ts_repo`.
 - The default repo is `screened` (defined in `dstore_config.yaml`). Others include `processed` for filled/transformed/derived data and `structures` for irregular gated data.
 - Everything in the `screened` tier is regular. Structures are not regular.
 - `force_regular` is normally `True`. Report and solve problems rather than reverting it. Setting `force_regular=False` to make an error go away is an antipattern.
-- Use `read_ts(file_or_pattern)` for explicit files or glob patterns.
-- Avoid `pd.read_csv` except in special cases. It omits wildcard handling, regression issues, flag handling, NA codes, and `#` comments, and it loses metadata.
-- After reading repository data, do not re-check regularity or duplicate index values. The repository guarantees them.
 - Scripts using `read_ts_repo` in applied settings may assume "back door" acquisition using known station ids, but should offer a CLI or config path to acquire from files instead. [TODO: provide tools for this]
 
 Continuous-data workflows normally expect regular time series. When irregularity violates the repository contract, diagnose and correct the underlying problem rather than silently changing behavior to accept it.
@@ -118,6 +114,7 @@ Task-specific detail lives in skills and reference docs rather than in this file
 | Module map, layers, data-flow stages | [.github/docs/PACKAGE_GUIDE.md](.github/docs/PACKAGE_GUIDE.md) |
 | Key files to read first | [.github/docs/SOURCE_MAP.md](.github/docs/SOURCE_MAP.md) |
 | Test layout and invocation | [.github/docs/TESTING_GUIDE.md](.github/docs/TESTING_GUIDE.md) |
+| Reading/writing repository time series: imports, `read_ts`, `read_ts_repo`, `read_ts_block`/`data_block`, `write_ts_csv`, `station_info` | `repo-data-usage` skill |
 | File naming grammar, CSV/front-matter format, metadata semantics | `repository-format` skill |
 | Download → reformat → screen → update sequence | `repository-ingestion` skill |
 | Dropbox recipe ingestion | `dropbox-ingestion` skill |
