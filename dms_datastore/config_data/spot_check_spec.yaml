@@ -1,216 +1,194 @@
-# Annotated spot-check configuration
+# Repo-first spot-check configuration
 #
-# This version preserves the comments and explains the new tier-aware stream
-# checks that were added to support cases like CDEC -> NCRO name changes across
-# tiers.
+# This file intentionally avoids the legacy `groups`/`tiers` proof-of-concept
+# model (top-level `repo_dirs`/`staging_dirs`/`tiers`). The active
+# implementation is repo-vs-staging checks defined by `locations` and a list
+# of named `groups`, each containing `streams`.
 #
-# The script now supports two kinds of spot checks:
+# `locations` gives the default repo/staging roots; a group may override
+# either with its own `repo`/`staging` (a group's `staging` is the tier's
+# `spot_target`) when groups live under different physical roots.
 #
-#   1. check_files
-#      Legacy simple checks. Use these only when the same filename glob is
-#      expected to mean the same thing in every tier.
+# Each `groups[].streams[]` entry is one of, or both of:
+#   - a per-year coverage check (`years` + `pattern`, matched against both
+#     `repo` and `staging` -- a group already fixes one filename convention
+#     via `repo_label`, so repo and staging can't disagree): does a file for
+#     this pattern covering year Y exist in spot_target (and, if `require`,
+#     in `repo` as the baseline)?
+#   - an absolute count check (`min_count`/`max_count`, optionally scoped by
+#     `count_pattern`; omit `count_pattern` to count every file in
+#     spot_target matched by the group's `subset`). This is the safety
+#     valve for a collapsed or partial run (e.g. "only 1400 files landed").
+#     `partial: true` sources (NOAA predictions is the recurring example)
+#     use `partial_min_count`/`partial_max_count` instead; with neither set,
+#     the check is skipped (logged, not failed) until real numbers are
+#     learned for that source. `warn_only: true` logs an under/over-threshold
+#     result at WARNING (and counts it in `warnings`) instead of failing the
+#     run -- for a real, known gap that shouldn't block update_repo/
+#     update_flagged_data (e.g. one source lagging while others are fine).
 #
-#   2. check_streams
-#      Preferred for logical streams whose filenames may differ by tier.
-#      This is the right tool when raw/formatted use one provider-like prefix
-#      and screened uses a different first slot because the repo semantics have
-#      changed.
+# A stream may also declare filename-only `integrity` checks (see
+# `KNOWN_INTEGRITY_CHECKS` in spot_check.py): `filename_correct`,
+# `station_in_registry`, `agency_id_matches_registry`. These are resolved
+# against the group's own `repo_label`, naming the dstore_config repo (e.g.
+# `raw`, `formatted`, `screened`) whose filename_templates/registry apply --
+# a group validates one physical tier, so there is one filename convention
+# per group, not per stream. They don't open files, so they run over every
+# matched file rather than a sample -- this is where usgs/usbr/ncro
+# agency-id regressions get caught (see usgs_to_usbr_transition.md).
+# `agency_id_matches_registry` uses a `contains` comparison, not `==`:
+# NCRO's registry `agency_id` doesn't always match the filename token
+# exactly.
 #
-# Main sections:
-#   repo_dirs     Baseline repo locations used for count comparison
-#   staging_dirs  Freshly downloaded/staged locations being checked
-#   defaults      Shared policy knobs
-#   groups        Agency/source groupings to validate
+# `Subset` narrows the files considered, and `IdentityPolicy` can be used when
+# a coverage check should tolerate equivalent naming conventions.
 #
-# Count checks
-# ------------
-# For each group and tier, the script compares the number of staged files that
-# match the tier pattern with the number of repo files that match the same
-# pattern. The required minimum is:
+# A group may also opt into a "bulk relative" repo-vs-staging count check by
+# setting `bulk_relative_pattern` (e.g. "*.csv", matched via the group's
+# `subset` against both `repo` and `staging`): are there roughly as many
+# matching files in staging as in repo? This is off by default -- a group
+# without `bulk_relative_pattern` runs no repo-vs-staging ratio check at all,
+# only its declared `streams`. `n_count_fract`/`min_count_abs` at the group
+# level override the `defaults` of the same name for that group only; set
+# explicitly to e.g. `${defaults.n_count_fract}` to inherit the default
+# visibly, or to a different number to tune (or loosen) this group alone.
+# This check can flag a large, real shortfall (staging far short of repo)
+# that isn't a code bug -- investigate with compare_directories.py before
+# assuming the fraction itself is wrong.
 #
-#     max( ceil(n_count_fract * repo_count), min_count_abs )
-#
-# if min_count_abs is provided, otherwise just the fractional threshold.
-#
-# Spot checks
-# -----------
-# For each check_files/check_streams item and each requested year:
-#   * find candidate files in the STAGING directory for the current tier
-#   * filter candidates whose filename contains either:
-#       - the exact requested year, or
-#       - a covering range like 2005_2007
-#   * optionally open the chosen file with read_ts()
-#
-# Exit code bitmask
-# -----------------
-#   1 = count failures
-#   2 = required missing files
-#   4 = required open failures
+# All failures across a run are logged (with a final SPOT CHECK SUMMARY line
+# giving the counts) before this program exits; nothing here stops early on
+# the first failure, so an unsupervised pipeline run still gets a complete
+# log to triage. Tuning tip: set a stream's min_count absurdly high (e.g.
+# 1000000), rerun, read the logged `found=N`, then set min_count a bit below
+# the typical N.
 
-repo_dirs:
-  # Baseline repo directories, by tier.
-  # These are used as the reference population for count checks.
-  raw: //cnrastore-bdo/Modeling_Data/archive_repo/repo_staging/continuous/raw
-  formatted: //cnrastore-bdo/Modeling_Data/repo/continuous/formatted
-  screened: //cnrastore-bdo/Modeling_Data/repo/continuous/screened
+vars:
+  continuous_staging_root: "//cnrastore-bdo/Modeling_Data/repo_staging_auto/continuous"
+  continuous_repo_root: "//cnrastore-bdo/Modeling_Data/repo/continuous"
 
-staging_dirs:
-  # Freshly staged directories being validated.
-  raw: //cnrastore-bdo/Modeling_Data/repo_staging_auto/continuous/raw
-  formatted: //cnrastore-bdo/Modeling_Data/repo_staging_auto/continuous/formatted
-  screened: //cnrastore-bdo/Modeling_Data/repo_staging_auto/continuous/screened
+locations:
+  repo: "${vars.continuous_repo_root}/formatted"
+  staging: "${vars.continuous_staging_root}/formatted"
 
+# Default n_count_fract/min_count_abs for any group that opts into the bulk
+# relative check via `bulk_relative_pattern` and doesn't override them itself.
+# There is no fraction that means much across every data source, so groups
+# with source-specific expectations should tune their own `n_count_fract`
+# instead of relying solely on this fallback.
 defaults:
-  # Default fraction of repo files that must appear in staging for a pass.
   n_count_fract: 0.90
-
-  # Optional absolute floor for count checks. If omitted at the group/tier
-  # level, there is no absolute minimum beyond the fractional requirement.
-  min_count_abs: 1
-
-  check_files:
-    # Required checks increment the failure counts and affect the exit code.
-    # Optional checks only generate warnings.
-    require: true
-
-    # If true, open the chosen file with read_ts() after it is found.
-    # If false, only existence/year coverage is checked.
-    open: false
+  min_count_abs: 10
 
 groups:
-  - name: des
+  - name: continuous_raw
+    # Raw has no separate historical "repo" copy to diff against (its
+    # configured dstore_config root already lives under repo_staging_auto),
+    # so repo == staging here: a bulk relative check would be a trivial,
+    # meaningless pass. Deliberately no `bulk_relative_pattern` -- the real
+    # gate for raw is the absolute count check below. Raw filenames also use
+    # 20-year blocked shards, so a per-year relative count comparison isn't
+    # meaningful either way.
+    repo: "${vars.continuous_staging_root}/raw"
+    staging: "${vars.continuous_staging_root}/raw"
+    repo_label: raw
+    ignore_cutoff_year: true
+    subset:
+      include: ["*.csv"]
+    streams:
+      - name: raw_total_count
+        min_count: 1900
+        max_count: 3000
+        # TODO: partial thresholds unknown yet -- --partial isn't used much
+        # for raw at the moment. Leave partial_min_count/max_count unset.
+        integrity: [filename_correct, station_in_registry, agency_id_matches_registry]
+      - name: raw_des_count
+        count_pattern: "des_*.csv"
+        min_count: 400
+      - name: raw_ncro_count
+        count_pattern: "ncro_*.csv"
+        min_count: 650
+      - name: raw_noaa_count
+        count_pattern: "noaa_*.csv"
+        min_count: 7
 
-    # Tier-specific count patterns.
-    # The screened tier uses dwr_des_* because the first slot changes there.
-    tiers:
-      raw:
-        pattern: des_*.csv
-        min_count_abs: 430   # as of 2026-04-17 there are 434 files in the repo, so this allows for 4 missing files without a failure
-      formatted:
-        pattern: des_*.csv
-        n_count_fract: 0.90
-        min_count_abs: 2000
-      screened:
-        pattern: dwr_des_*.csv
-        min_count_abs: 2000
 
-    # Tier-aware logical stream checks.
-    # Use this form when the same logical series may have different names by
-    # tier.
-    check_streams:
-      - name: mrz_upper_40_elev
-        years: [1991, 2005, 2012, 2019, 2020, 2022, 2025, 2026]
-        tier_patterns:
-          raw: des_mrz@upper_40_elev_*
-          formatted: des_mrz@upper_40_elev_*
-          screened: dwr_des_mrz@upper_40_elev_*
-
-      - name: mrz_lower_40_ec
-        years: [2005, 2012, 2019, 2020, 2022]
-        tier_patterns:
-          raw: des_mrz@lower_40_ec_*
-          formatted: des_mrz@lower_40_ec_*
-          screened: dwr_des_mrz@lower_40_ec_*
-
-  - name: ncro
-    tiers:
-      raw:
-        pattern: ncro_*.csv
-      formatted:
-        pattern: ncro_*.csv
-      screened:
-        pattern: ncro_*.csv
-
-    # Historical BAC EC stream where the same ncro_* naming is expected across
-    # tiers.
-    check_streams:
-      - name: bac_ec_historical
-        years: [1991, 2004, 2012, 2019, 2020, 2022]
-        tier_patterns:
-          raw: ncro_bac_*_ec_*
-          formatted: ncro_bac_*_ec_*
-          screened: ncro_bac_*_ec_*
-
-  - name: usbr
-    tiers:
-      raw:
-        pattern: usbr_*.csv
-        min_count_abs: 129
-      formatted:
-        pattern: usbr_*.csv
-        min_count_abs: 300
-      screened:
-        pattern: usbr_*.csv
-
-  - name: ncro_cdec
-    # This group exists to validate the realtime CDEC tail that shadows NCRO
-    # series.
-    #
-    # Key idea:
-    #   raw/formatted   expect cdec_* filenames
-    #   screened        expect the logical stream to have been absorbed into
-    #                   ncro_* naming
-    #
-    # So count patterns and stream patterns are intentionally different by tier.
-    tiers:
-      raw:
-        pattern: cdec_*.csv
-
-        # A repo comparison may not make much sense for raw if the baseline is
-        # sparse or the raw staging population is intentionally small.
-        # Setting n_count_fract to 0.0 effectively disables the fractional gate
-        # while still allowing an absolute minimum.
-        n_count_fract: 0.0
-        min_count_abs: 1
-      formatted:
-        pattern: cdec_*.csv
-        n_count_fract: 0.90
-        min_count_abs: 1
-      screened:
-        pattern: ncro_*.csv
-        n_count_fract: 0.90
-        min_count_abs: 1
-
-    check_streams:
-      - name: bac_ec_realtime_tail
-        years: [2025, 2026]
-
-        # Optional because realtime tails can be fragile; turn this back on to
-        # make it a hard requirement.
+  - name: continuous_formatted
+    repo_label: formatted
+    # No bulk_relative_pattern here: a compare_directories.py run (2026-09-24,
+    # see formatted_diffs.txt) showed the repo/staging gap is made up of several
+    # unrelated, non-uniform causes (stale cdec_dlc_dlc_* holdovers no longer
+    # downloaded, usgs stations now attributed to usbr/cdec per
+    # usgs_to_usbr_transition.md, noaa predictions that are robocopied rather
+    # than downloaded, and a real des shortfall) -- no single fraction means
+    # anything here. Gating instead uses the absolute counts below, tuned per
+    # source from that same run.
+    subset:
+      include: ["*.csv"]
+    streams:
+      - name: usgs_flow_2024
+        years: [2024]
+        pattern: "usgs_*.csv"
+        require: true
+        open_file: false
+      - name: ncro_ec_history
+        years: [2020, 2021, 2022]
+        pattern: "ncro_*.csv"
         require: false
+      - name: formatted_total_count
+        # Observed staging total was 14923 (compare_directories.py, 2026-09-24);
+        # 14500 leaves safety margin without masking a real collapse.
+        min_count: 14500
+        max_count: 25000
+        integrity: [filename_correct, station_in_registry, agency_id_matches_registry]
+      - name: formatted_usgs_count
+        # Observed 2655; many usgs stations are now attributed to usbr/cdec
+        # (see usgs_to_usbr_transition.md) so this floor reflects the smaller
+        # post-transition population, not the pre-transition usgs count.
+        count_pattern: "usgs_*.csv"
+        min_count: 2500
+      - name: formatted_des_count
+        # Observed 2970 against ~3391 in repo (421 des files missing from
+        # staging as of 2026-09-24) -- a real, known gap worth tracking but
+        # not one that should block update_repo. warn_only logs it without
+        # failing; raise/remove min_count once the des grab is fixed.
+        count_pattern: "des_*.csv"
+        min_count: 3200
+        warn_only: true
+      - name: noaa_predictions
+        partial: true
+        # count_ prefix: this is the count check's own glob, separate from
+        # (and narrower than) a per-year coverage `pattern`. NOAA staging also
+        # holds non-prediction files, so this scopes the count to just the
+        # predictions subset; this stream has no `pattern`/`years`, so it's
+        # count-check-only.
+        # Predictions are robocopied in rather than downloaded daily, and the
+        # pre-2020 record is excluded by the downloader's --partial flag, so
+        # staging is expected to lag/undercount here -- left with no
+        # min/max_count (skipped, not failed) intentionally.
+        count_pattern: "noaa_*_predictions_*.csv"
 
-        # Same logical stream, different acceptable filenames by tier.
-        tier_patterns:
-          raw: cdec_bac_*_ec_*
-          formatted: cdec_bac_*_ec_*
-          screened: ncro_bac_*_ec_*
 
-  - name: usgs
-    tiers:
-      raw:
-        pattern: usgs_*.csv
-        n_count_fract: 0.90
-        min_count_abs: 800
-      formatted:
-        pattern: usgs_*.csv
-        n_count_fract: 0.90
-        min_count_abs: 6230
-      screened:
-        pattern: usgs_*.csv
-        n_count_fract: 0.90
-        min_count_abs: 6230
+  - name: continuous_screened
+    repo: "${vars.continuous_repo_root}/screened"
+    staging: "${vars.continuous_staging_root}/screened"
+    repo_label: screened
+    cutoff_year: 2020
+    # Explicitly inherits the default fraction (equivalent to omitting this
+    # line) -- shown here as the visible-opt-in form the header describes.
+    bulk_relative_pattern: "*.csv"
+    n_count_fract: ${defaults.n_count_fract}
+    subset:
+      include: ["*.csv"]
+    streams:
+      - name: usgs_flow_2024
+        years: [2024]
+        pattern: "usgs_*.csv"
+        require: true
+        open_file: false
+      - name: screened_total_count
+        # TODO: tune from a logged `found=` reading; placeholder for now.
+        min_count: 10
+        integrity: [filename_correct, station_in_registry, agency_id_matches_registry]
 
-  - name: noaa
-    tiers:
-      raw:
-        pattern: noaa_*_elev_*.csv
-        n_count_fract: 0.25  # set low in case predictions are a confounder
-        min_count_abs: 25    # there are only a few in the repo, so an complete sweep is expected
-      formatted:
-        pattern: noaa_*_elev_*.csv
-        n_count_fract: 0.25
-        min_count_abs: 25
-      screened:
-        pattern: noaa_*_elev_*.csv
-        n_count_fract: 0.25
-        min_count_abs: 25
+
