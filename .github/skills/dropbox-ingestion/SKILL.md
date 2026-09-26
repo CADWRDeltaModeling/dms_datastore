@@ -49,6 +49,16 @@ Recipes must **not** contain literal coordinates. Any of `lat`, `lon`, `latitude
 
 There is a dedicated directory `<package/dropbox_recipes` that contains sample recipes. 
 
+## Reconciling staged files into a repository
+
+A recipe's `reconcile:` block controls how a staged file is merged into an existing repository series at overlap. Key setting: `prefer` (default `staged`), read in `dropbox_data.py` from `reconcile.prefer`. There is no CLI override — it's recipe-only.
+
+- `prefer: staged` (default) — the freshly staged file wins at any overlap (`ts_merge([staged, repo], strict_priority=True)`, or `ts_splice(..., transition="prefer_last")` for irregular data). Use this when the producer of the staged file recomputes its full covered window consistently every run, so each run's staged file is internally self-consistent end to end and should simply supersede what's there.
+- `prefer: repo` — the existing repo data wins at overlap; the staged file can only fill gaps or append beyond the repo's current end (`ts_merge([repo, staged], strict_priority=True)`, or `transition="prefer_first"`). Use this only for genuinely gap-filling/backfilling ingestion, or as a one-off safety net (e.g. a first validation pass after a producer's reliability fix) — not as the routine setting for a producer that appends a small tail on every run. Under `prefer: staged`, a producer that recomputes and republishes only a small recent tail each run stays consistent, because everything before its own cutoff is untouched between runs. Setting `prefer: repo` for that same routine, incrementally-appending workflow is *worse*, not safer: it permanently freezes each run's newly-appended tail right next to the previous run's differently-fit tail, baking in a small seam at every day's join forever. Reserve `prefer: repo` for deliberate one-off sweeps, then revert the recipe to `prefer: staged` afterward.
+- See `dms_datastore/reconcile_data.py` (`apply_actions`/`splice_write`) for the exact merge semantics.
+
+A "coherence sweep" — reconciling a full, unsliced recompute after a producer changes its own drift/edge-effect behavior, or after moving a producer's routine publish cutoff further forward in time — is a manual, occasional operation: temporarily flip that recipe's `prefer` to `repo`, run the dropbox ingest once, confirm the result, then revert to `staged` for routine runs.
+
 ## Debugging
 
 - Use `--name` to isolate a single failing entry.
