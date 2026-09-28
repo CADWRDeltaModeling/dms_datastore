@@ -272,8 +272,9 @@ def _rename_with_meta(fname, new_meta, *, force=True):
     return newname
 
 
-def revise_filename_syears(pat, force=True, outfile="rename.txt"):
+def revise_filename_syears(pat, force=True, outfile=None):
     """Revise start year of files matching pat to the first year of valid data."""
+    outfile = _rename_outfile(pat, outfile)
     filelist = glob.glob(pat)
 
     renames = []
@@ -300,8 +301,9 @@ def revise_filename_syears(pat, force=True, outfile="rename.txt"):
     _write_renames(renames, outfile)
 
 
-def revise_filename_syear_eyear(pat, force=True, outfile="rename.txt"):
+def revise_filename_syear_eyear(pat, force=True, outfile=None):
     """Revise start and end year of raw files to match valid data years."""
+    outfile = _rename_outfile(pat, outfile)
     logger.info(f"Beginning revise_filename_syear_eyear for pattern: {pat}")
 
     filelist = glob.glob(pat)
@@ -455,6 +457,20 @@ def populate_repo(
         downloaders[agency](
             request_group, dest_dir, effective_start, end, param, overwrite
         )
+
+
+def _rename_outfile(pat, outfile):
+    """Resolve the rename-log path, scoping the default to pat's directory.
+
+    Concurrent agency-specific populate_repo processes commonly share a
+    single staging cwd (only their --dest subdirectory differs), so a bare
+    default like "rename.txt" collides across processes. Scoping it to the
+    pattern's own directory keeps each agency's log separate.
+    """
+    if outfile is not None:
+        return outfile
+    pat_dir = os.path.dirname(pat)
+    return os.path.join(pat_dir, "rename.txt") if pat_dir else "rename.txt"
 
 
 def _write_renames(renames, outfile):
