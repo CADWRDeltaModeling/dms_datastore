@@ -19,7 +19,9 @@ def naming_spec(repo=None, repo_cfg=None, templates=None):
 
     if repo is not None:
         from dms_datastore import dstore_config
-        rcfg = dstore_config.repo_config(repo)
+        # Only filename_templates/provider_key/name are needed here, so the
+        # repo's storage root does not need to exist or be reachable.
+        rcfg = dstore_config.repo_config(repo, require_root=False)
         return {
             "filename_templates": list(rcfg.get("filename_templates", [])),
             "site_key": "station_id",

@@ -52,7 +52,9 @@ def _raw_naming():
     """Raw repo naming narrowed to blocked shards; this module rewrites syear/eyear spans."""
     global _RAW_BLOCKED_NAMING
     if _RAW_BLOCKED_NAMING is None:
-        cfg = dstore_config.repo_config("raw")
+        # Only filename_templates are needed here, so the raw repo's storage
+        # root does not need to exist or be reachable.
+        cfg = dstore_config.repo_config("raw", require_root=False)
         templates = [
             t
             for t in cfg["filename_templates"]

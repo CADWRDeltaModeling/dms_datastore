@@ -575,7 +575,7 @@ def repo_names():
 
 
 
-def repo_config(repo_name):
+def repo_config(repo_name, require_root=True):
     """
     Return a validated repository configuration by name.
 
@@ -583,12 +583,19 @@ def repo_config(repo_name):
     ----------
     repo_name : str
         Configured repository name.
+    require_root : bool, optional
+        If True (default), resolve and validate that the repository's
+        ``root`` exists on disk. Callers that only need naming/template
+        metadata (e.g. filename parsing) and never touch the repository's
+        storage location should pass False so that a transiently
+        unreachable network root cannot fail an operation that has nothing
+        to do with reading or writing that root.
 
     Returns
     -------
     dict
         Repository configuration dictionary with validated required keys,
-        resolved root, and added ``name`` entry.
+        resolved root (if ``require_root``), and added ``name`` entry.
 
     Raises
     ------
@@ -608,7 +615,7 @@ def repo_config(repo_name):
     if _repo_cache is None:
         _repo_cache = {}
 
-    if repo_name in _repo_cache:
+    if require_root and repo_name in _repo_cache:
         return _repo_cache[repo_name]
 
     spec = dict(repos[repo_name])
@@ -624,6 +631,16 @@ def repo_config(repo_name):
         )
 
     spec["name"] = repo_name
+
+    templates = spec.get("filename_templates", [])
+    if not templates:
+        raise ValueError(
+            f"Configured repo {repo_name!r} must define filename_templates"
+        )
+
+    if not require_root:
+        return spec
+
     if not os.path.exists(spec["root"]):
         if "alt" in spec:
             if os.path.exists(spec["alt"]):
@@ -632,12 +649,6 @@ def repo_config(repo_name):
                 spec["root"] = _resolve_config_path(spec["root"])
         else:
             spec["root"] = _resolve_config_path(spec["root"])
-
-    templates = spec.get("filename_templates", [])
-    if not templates:
-        raise ValueError(
-            f"Configured repo {repo_name!r} must define filename_templates"
-        )
 
     _repo_cache[repo_name] = spec
     return spec
