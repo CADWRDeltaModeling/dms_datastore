@@ -298,7 +298,8 @@ def revise_filename_syears(pat, force=True, outfile=None):
             logger.info(f"Renaming {fname} to {newname}")
             renames.append((fname, newname))
 
-    _write_renames(renames, outfile)
+    if renames:
+        _write_renames(renames, outfile)
 
 
 def revise_filename_syear_eyear(pat, force=True, outfile=None):
@@ -368,7 +369,8 @@ def revise_filename_syear_eyear(pat, force=True, outfile=None):
             logger.info(f"Renaming {fname} to {newname}")
             renames.append((fname, newname))
 
-    _write_renames(renames, outfile)
+    if renames:
+        _write_renames(renames, outfile)
     if len(bad) > 0:
         logger.info("Bad files:")
         for b in bad:
@@ -612,7 +614,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                 populate_repo(
                     agency, var, dest, pd.Timestamp(2020, 1, 1), None, overwrite=True
                 )
-                ext = "rdb" if agency == "usgs" else ".csv"
+                ext = "rdb" if agency == "usgs" else "csv"
                 revise_filename_syear_eyear(os.path.join(dest, f"{agency}*_{var}_*.{ext}"))
                 logger.info(f"Done with agency {agency} variable: {var}")
 
@@ -658,7 +660,7 @@ def populate(dest, all_agencies=None, varlist=None, partial_update=False):
                     end_download,
                     overwrite=True,
                 )
-                ext = "rdb" if agency == "usgs" else ".csv"
+                ext = "rdb" if agency == "usgs" else "csv"
                 revise_filename_syear_eyear(os.path.join(dest, f"{agency}*_{var}_*.{ext}"))
                 logger.info(f"Done with agency {agency} variable: {var}")
         logger.info(f"Done with agency {agency} for all variables")
