@@ -51,6 +51,11 @@ dependencies = [
     "diskcache",
     "pytest",
     "pytest-runner",
+    "click",
+    "geopandas",
+    "shapely",
+    "scipy",
+    "netcdf4"
 ]
 
 [project.optional-dependencies]
