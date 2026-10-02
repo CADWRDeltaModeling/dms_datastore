@@ -42,7 +42,7 @@ trp,TRP,Tracy Pumping Plant,626865.0,4186450.0,37.816643,-121.558644,37.80027343
 uni,UNI,Union Island,643018.6,4187320.1,37.822094,-121.37501,37.82209337,-121.3750095,C8,UNI,usbr,1,Historically called bifurcation of Middle and Old Rivers,
 vic,VIC,Victoria Island,632927.2,4194823.6,37.891226,-121.488251,37.89122605,-121.48825,,VIC,usbr,1,Not confirmed,
 bks,BKS,Barker Slough Pumping Plant,605228.0,4237166.9,38.276396,-121.796958,38.27639642,-121.7969582,,BKS,dwr,0,Slightly moved closer to slough. D1461 site was in another side slough upstream.,
-vni,B95580,Venice Island,631822.4,4212328.2,38.0491,-121.4976,38.0491,-121.4976,,VNI,dwr,1,same as the WDL B95580,
+vni,B95580,Venice Island,631822.4,4212328.2,38.0491,-121.4976,38.0491,-121.4976,,VNI,ncro,1,same as the WDL B95580,
 cse,22,Sacramento River at Collinsville,600859.1,4214643.6,38.073945,-121.850091,38.07394957,-121.8500958,C2B,CSE,dwr_des,1,,
 srh,70,Sacramento River at Hood,629247.7,4247651.0,38.367715,-121.520506,38.36771516,-121.5205061,C3A,SRH,dwr_des,1,Colocated wiht MWQI HOOD. Established to replace C3. Location confirmed visually by DES (there is a bogus location north).,
 rvb,30,Sacramento River at Rio Vista,615105.0,4224350.0,38.159702,-121.686142,38.15974033,-121.6862425,D24A,RVB,dwr_des,1,DWR Rio Vista site nudged 9m to the east and a few meters south to be always wet,
