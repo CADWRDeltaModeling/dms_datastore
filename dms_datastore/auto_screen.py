@@ -12,6 +12,9 @@ import matplotlib.pyplot as plt
 from dms_datastore.logging_config import configure_logging, resolve_loglevel
 from dms_datastore.read_ts import *
 from vtools.functions.error_detect import *
+from vtools.functions.error_detect import max_change_test as _max_change_test
+from vtools.data.indexing import infer_freq_robust
+from vtools.data.vtime import divide_interval, hours
 from vtools.data.timeseries import to_dataframe
 from vtools.data.gap import *
 from dms_datastore.read_multi import *
@@ -29,6 +32,25 @@ logger = logging.getLogger(__name__)
 
 # Todo: left join regions to station dbase and make this a local rather than global
 region_checkers = {}
+
+
+def max_change_test(ts, max_rate, max_gap):
+    """Detect excursions exceeding a rate per hour using the index frequency.
+
+    ``max_rate`` is expressed in value units per hour. It is converted to an
+    absolute per-sample threshold before calling the reusable vtools test.
+    ``max_gap`` is the maximum number of intervening sample intervals that
+    may be bridged between excessive-change runs.
+    """
+    frequency = ts.index.freq
+    if frequency is None:
+        frequency = infer_freq_robust(ts.index)
+    change_per_sample = max_rate * divide_interval(
+        frequency, hours(1), require_int=False
+    )
+    return _max_change_test(
+        ts, max_change=change_per_sample, max_plateau_len=max_gap
+    )
 
 
 def screener(
