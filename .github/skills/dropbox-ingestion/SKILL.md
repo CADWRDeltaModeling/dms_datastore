@@ -9,7 +9,7 @@ The dropbox system reads unformatted time-series files from arbitrary sources, a
 
 This is the one-off complement to the standard pipeline; for the routine `populate_repo` → `reformat` → `auto_screen` flow use the `repository-ingestion` skill.
 
-Full specification, including the complete recipe schema and transform list: [README-dropbox.md](../../../README-dropbox.md).
+User-facing system concepts, recipe decisions, schema, transforms, and worked examples: [Dropbox Data Ingestion](../../../docsrc/dropbox.rst).
 
 ## Entry points
 

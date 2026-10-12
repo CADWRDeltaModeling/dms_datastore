@@ -45,6 +45,93 @@ the datastore conventions. Benefits:
 - **Safety.** Metadata, coordinates, and naming are validated against the
   station registry before anything touches the repo.
 
+Concepts to Settle Before Writing a Recipe
+-------------------------------------------
+
+Recipes connect a source file to one repository time series. A few datastore
+concepts determine the recipe's metadata and output policy:
+
+- **Receiving repository** is the target repository for the staged data. It must
+  match one of the configured repositories in ``dstore_config.yaml`` and align
+  with the data's regularity and family. Usually the receiving repository is
+  determined by a few questions:
+
+  - Is the data regularly sampled?
+  - Is the data linked to structure operations?
+  - Is the data an abstract, such as Net Delta Outflow, a regulation objective,
+    or a harmonic forecast?
+  - Is the data reported at a daily time step?
+
+- **Repository tier** describes the product being stored. ``formatted`` tiers
+  hold standardized source observations; ``processed`` is for derived, filled,
+  or application-oriented products; ``structures_formatted`` is used for
+  irregular structure and gate records. Choose a ``repo_name`` that exists in
+  ``dstore_config.yaml`` and whose regularity matches the data. It is expected
+  that new repositories creation is to be done cautiously.
+
+- **Series identity** is the station, sublocation, and parameter. Use a
+  sublocation when a station has distinct sensors or products for the same
+  parameter; otherwise use ``default``. The station_id must be an entry in the
+  station registry. Coordinates belong in the registry, not in recipe-authored
+  metadata, but don't cheat on this because a placeholder will be tedious to correct in the 
+  repository. See :doc:`concepts` and the ``station-registry`` skill.
+
+- **Provenance fields answer different questions.** ``agency`` identifies the
+  instrument-owning agency, ``agency_id`` is its native station identifier,
+  and ``source`` describes the collection or processing source for this
+  product. So, for instance the ``agency`` might be ``NCRO`` (DWR North
+  Central Regional Office) but the ``source`` CDEC. Note that contrary
+  t 
+  the ``agency_id`` could be the USGS site number, and the ``source`` might indicate the specific data collection or processing method used.
+- **Staging is not reconciliation.** Staging writes a standardized file format to
+  a specified staging location. Often this file is a longer stretch or superset of 
+  what will ultimately be spliced or merged into the repository.
+  Add the ``output.reconcile``, the final step, only when that staged result should be
+  merged into the configured repository. Decide explicitly whether the 
+  new staged series or the original repo series should win where timestamps overlap.
+  Familiarize yourself with the vtools methods for splicing or merging series. Generally
+  we do not "shuffle timestamps" arbitrarily -- one or the other will prevail over time blocks.
+  Lastly, you can do a practice run by specifying ``repo_data_dir`` to point 
+  to a temporary location instead of the actual repository. You absolutely should do this
+  before running on the actual repository to catch any issues early.
+
+Recipe Decision Path
+--------------------
+
+Use this sequence to choose the recipe settings before filling in YAML:
+
+.. mermaid::
+
+   flowchart TD
+     A["Identify source files"] --> B{"Do filenames encode per-file metadata?"}
+     B -- Yes --> C["Use filename-template inference; omit wildcard"]
+     B -- No --> D{"How many files match?"}
+     D -- One --> E["Use one-file mode; omit wildcard"]
+     D -- Several --> F{"Do their time ranges overlap?"}
+     F -- No --> G["Use time_shard for non-overlapping blocks"]
+     F -- Yes --> H["Use time_overlap and choose the merge method"]
+     C --> I{"Is the series regularly sampled?"}
+     E --> I
+     G --> I
+     H --> I
+     I -- Yes --> J["Use a regular repo; set freq to infer or a frequency; keep force_regular true"]
+     I -- No --> K["Use an irregular repo; set freq to none and force_regular false"]
+     J --> L{"Are source timestamps DST-local?"}
+     K --> L
+     L -- Yes --> M["Apply dst_tz before coarsening"]
+     L -- No --> N["Leave timestamps unchanged"]
+     M --> O{"Stage for review or reconcile now?"}
+     N --> O
+     O -- Review only --> P["Omit reconcile"]
+     O -- Update repo --> Q["Set overlap preference and allow_new_series deliberately"]
+
+For reconciliation, ``prefer: staged`` is appropriate when the staged data is
+authoritative over its covered interval, such as a consistent full-window
+recompute. ``prefer: repo`` is for deliberate gap-filling or a one-off backfill
+where existing repository values must win. It is usually not the right routine
+policy for a producer that republishes a changing recent tail; see
+`Output and Reconciliation`_ for the reconcile options.
+
 CLI
 ---
 
@@ -513,12 +600,33 @@ with ``--name <entry>``.
 Bundled Examples
 ----------------
 
-See ``dms_datastore/dropbox_recipes/`` for working recipes, including:
+The bundled recipes in ``dms_datastore/dropbox_recipes/`` are working examples
+of decisions made for real ingestion workflows:
 
-- ``dropbox_smscg_scada.yaml`` — irregular gate (SCADA) data: DST conversion,
-  adaptive coarsening, and the backfill-then-top-off pattern.
-- ``dropbox_daily.yaml`` — template-based inference mode for daily NWIS data.
-- ``dropbox_ccf.yaml`` — structure/gate data with transforms.
+``dropbox_smscg_scada.yaml`` — irregular SCADA gates
+  The ongoing ``smscg_scada`` entry selects the three radial gate columns,
+  reads overlapping SCADA exports, converts DST-aware local timestamps to a
+  fixed offset, then coarsens the high-rate record. It uses
+  ``structures_formatted``, ``freq: none``, and ``force_regular: False``. The
+  separate ``radial_init`` entry records a historical backfill; after it has
+  run successfully, ``skip: true`` keeps that history in the recipe without
+  re-importing it.
+
+``dropbox_daily.yaml`` — daily records from filename templates
+  The ``daily`` entry parses station, source, and agency ID from each filename
+  and emits one regular daily series per matched file into ``daily_formatted``.
+  This is a useful pattern when filenames follow a stable metadata-bearing
+  convention; it uses inference mode rather than a wildcard mode.
+
+``dropbox_mrz_stage_processed.yaml`` — a recomputed processed product
+  The MRZ stage-elevation entry writes a regular, filled product to
+  ``processed`` with processing provenance. Its producer recomputes the full
+  covered history, so ``prefer: staged`` keeps overlapping values internally
+  consistent when the result is reconciled.
+
+Before adapting an example, confirm that its station, sublocation, repository,
+source semantics, and overlap policy match the new data. Similar-looking CSVs
+do not necessarily represent the same series or have the same update behavior.
 
 Key Functions
 -------------

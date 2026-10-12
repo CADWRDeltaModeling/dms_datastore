@@ -40,7 +40,8 @@ Key data files
    * ``agency_id`` — ID used by the collecting agency
    * ``name`` — descriptive station name
    * ``lat``, ``lon`` — geographic coordinates
-   * ``x``, ``y`` — projected coordinates (SCHISM mesh-corrected)
+   * ``x``, ``y`` — projected coordinates for locations corrected to fall near piers or
+     piles and to be sufficiently covered by water under our elevation models
 
 ``variable_mappings.csv``
    Maps agency-specific variable codes/names to standardized variable names used

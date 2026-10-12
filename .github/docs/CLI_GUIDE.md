@@ -240,3 +240,25 @@ When normalizing an older interface:
 4. avoid churn that produces little practical benefit.
 
 Consistency across the tool suite is generally preferable to isolated interface improvement.
+
+## Temperature max-change screening
+
+`auto_screen` temperature protocols can include the `max_change_test` method.
+Its `max_rate` argument is expressed in value units per hour (for example,
+degrees Celsius per hour), not units per sample. `auto_screen` converts that
+rate to a per-sample change threshold using the time-series index frequency and
+`vtools.divide_interval`. The `max_gap` argument is the maximum number of
+intervening sample intervals that may be bridged between excessive-change runs.
+
+The local `diagnose_mrz_screening.py` comparison script uses the same units:
+
+```powershell
+python .\diagnose_mrz_screening.py `
+    'W:\repo\continuous\screened\des_mrz@upper_40_temp_2026.csv' `
+    --max-rate 8 12 `
+    --max-plateau-len 0 1 2
+```
+
+Here the rates are degrees Celsius per hour, while the plateau lengths are
+sample intervals. For 15-minute data, 8 degrees per hour corresponds to a
+2-degree maximum change per sample.
