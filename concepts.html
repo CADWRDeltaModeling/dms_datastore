@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Concepts and Conventions &mdash; dms_datastore 0.8.13.dev2+g8c44769b4 documentation</title>
+  <title>Concepts and Conventions &mdash; dms_datastore 0.8.13.dev4+g573ee635b documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -14,7 +14,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=a044fba7"></script>
+      <script src="_static/documentation_options.js?v=c2c97a5e"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -408,9 +408,19 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Concepts and Conventions</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#data-repository-structure">Data Repository Structure</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#data-repository-workflow">Data Repository Workflow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#repositories-and-tiers">Repositories and Tiers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#tiers">Tiers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configured-repositories">Configured Repositories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#directory-layout">Directory Layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#repository-configuration">Repository Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-flow-through-the-tiers">Data Flow Through the Tiers</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#user-access">User Access</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#modes-of-ingestion">Modes of Ingestion</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#bulk-automated-download">Bulk Automated Download</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dropbox">Dropbox</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#other-downloaded-data">Other Downloaded Data</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#station-sublocation-and-datastream-concepts">Station, Sublocation, and Datastream Concepts</a></li>
@@ -456,18 +466,22 @@ window.runMermaid = runMermaid;</script>
 <h1>Concepts and Conventions<a class="headerlink" href="#concepts-and-conventions" title="Link to this heading"></a></h1>
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
-<p>The overarching goal of this data organization effort is to retrieve data from data
-providers and store it in a common format, validate data (screened), and produce data
-suitable for applications such as boundary conditions (filled/aggregated or derived data),
-referred to as “processed” data. The system moves away from manually manipulated data
-in favor of standardized formats for programmatic access.</p>
+<p><code class="docutils literal notranslate"><span class="pre">dms_datastore</span></code> retrieves time series from data providers and stores them in a common
+format with standardized naming, metadata, and units. Quality control is recorded as
+flags rather than deletions, and derived products are produced for applications such as
+boundary conditions. Data are accessed programmatically through repository-aware readers
+rather than by handling files directly.</p>
 </section>
-<section id="data-repository-structure">
-<h2>Data Repository Structure<a class="headerlink" href="#data-repository-structure" title="Link to this heading"></a></h2>
-<p>The centralized data repository is housed in a file system-based share at
-<code class="docutils literal notranslate"><span class="pre">&lt;internal</span> <span class="pre">shared</span> <span class="pre">directory</span> <span class="pre">server&gt;\\Modeling_Data\\continuous_station_repo</span></code>.
-A mirrored copy is available at <a class="reference external" href="http://tinyurl.com/dmsdatastore">http://tinyurl.com/dmsdatastore</a>.</p>
-<p>Data flows through four distinct stages:</p>
+<section id="repositories-and-tiers">
+<h2>Repositories and Tiers<a class="headerlink" href="#repositories-and-tiers" title="Link to this heading"></a></h2>
+<p>A <em>repository</em> is a named collection of files that share a directory root, a filename
+convention, and a station registry. Repositories are declared in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code>
+(see <a class="reference internal" href="#repository-configuration">Repository Configuration</a>) and are addressed by name in the API and command-line
+tools. They are organized by data family (continuous, structures, daily) and, within a
+family, by tier of refinement.</p>
+<section id="tiers">
+<h3>Tiers<a class="headerlink" href="#tiers" title="Link to this heading"></a></h3>
+<p>A family moves through some or all of four tiers:</p>
 <dl class="simple">
 <dt><strong>Raw</strong></dt><dd><p>Data is stored exactly “as downloaded” without transformation or unit changes.
 Raw files are unique per datastream per time block.</p>
@@ -483,21 +497,138 @@ applications like boundary conditions. These files are not necessarily unique
 per datastream.</p>
 </dd>
 </dl>
-<section id="data-repository-workflow">
-<h3>Data Repository Workflow<a class="headerlink" href="#data-repository-workflow" title="Link to this heading"></a></h3>
+</section>
+<section id="configured-repositories">
+<h3>Configured Repositories<a class="headerlink" href="#configured-repositories" title="Link to this heading"></a></h3>
+<p>Each stage of each data family is a separately configured repository, addressed by name
+in the API and command-line tools (e.g., <code class="docutils literal notranslate"><span class="pre">read_ts_repo(...,</span> <span class="pre">repo=&quot;formatted&quot;)</span></code>).</p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Repository</p></th>
+<th class="head"><p>Contents</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">raw</span></code></p></td>
+<td><p>Downloader output before reformatting. There is only one
+raw repository and it lives under <code class="docutils literal notranslate"><span class="pre">repo_staging_auto</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">formatted</span></code></p></td>
+<td><p>Continuous data in the common format. The same series may
+be present from several providers (e.g., <code class="docutils literal notranslate"><span class="pre">ncro</span></code> and
+<code class="docutils literal notranslate"><span class="pre">cdec</span></code>); the preferred one is chosen from the observing
+agency in the registry.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">proprietary_formatted</span></code></p></td>
+<td><p>Formatted continuous data from proprietary sources, held
+apart from <code class="docutils literal notranslate"><span class="pre">formatted</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">screened</span></code></p></td>
+<td><p>The default repository. One version of each series, named
+by observing agency, with user flags and standard units.
+Always regular.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">processed</span></code></p></td>
+<td><p>Filled, transformed, or derived series, named by
+processor. Uses the continuous registry joined with a
+registry of synthetic locations.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">structures_formatted</span></code>,
+<code class="docutils literal notranslate"><span class="pre">structures_processed</span></code></p></td>
+<td><p>Gate and structure operations. These are irregular
+(<code class="docutils literal notranslate"><span class="pre">regular:</span> <span class="pre">false</span></code>).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">daily_formatted</span></code>,
+<code class="docutils literal notranslate"><span class="pre">daily_screened</span></code></p></td>
+<td><p>Data reported at a daily time step.</p></td>
+</tr>
+</tbody>
+</table>
+<p>When a request does not name a repository, <code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code> uses <code class="docutils literal notranslate"><span class="pre">default_repo</span></code>
+(<code class="docutils literal notranslate"><span class="pre">screened</span></code>). Block reads (<code class="docutils literal notranslate"><span class="pre">read_ts_block</span></code>) search <code class="docutils literal notranslate"><span class="pre">repo_search_order</span></code>
+(<code class="docutils literal notranslate"><span class="pre">processed</span></code> then <code class="docutils literal notranslate"><span class="pre">screened</span></code>) and take the first repository that has data.</p>
+</section>
+<section id="directory-layout">
+<h3>Directory Layout<a class="headerlink" href="#directory-layout" title="Link to this heading"></a></h3>
+<p>The shared repositories live under the configured <code class="docutils literal notranslate"><span class="pre">repo_base</span></code>
+(<code class="docutils literal notranslate"><span class="pre">//cnrastore-bdo/Modeling_Data/repo</span></code>). Bulk automated builds are staged in a parallel
+<code class="docutils literal notranslate"><span class="pre">repo_staging_auto</span></code> tree and promoted after validation (see <a class="reference internal" href="#bulk-automated-download">Bulk Automated Download</a>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">//</span><span class="n">cnrastore</span><span class="o">-</span><span class="n">bdo</span><span class="o">/</span><span class="n">Modeling_Data</span><span class="o">/</span>
+  <span class="n">repo</span><span class="o">/</span>
+    <span class="n">continuous</span><span class="o">/</span>
+      <span class="n">formatted</span><span class="o">/</span>
+      <span class="n">screened</span><span class="o">/</span>
+      <span class="n">processed</span><span class="o">/</span>
+      <span class="n">proprietary</span><span class="o">/</span><span class="n">formatted</span><span class="o">/</span>
+    <span class="n">structures</span><span class="o">/</span>
+      <span class="n">formatted</span><span class="o">/</span>
+      <span class="n">processed</span><span class="o">/</span>
+    <span class="n">daily</span><span class="o">/</span>
+      <span class="n">formatted</span><span class="o">/</span>
+  <span class="n">repo_staging_auto</span><span class="o">/</span>
+    <span class="n">continuous</span><span class="o">/</span>
+      <span class="n">raw</span><span class="o">/</span>
+      <span class="n">formatted</span><span class="o">/</span>
+      <span class="n">screened</span><span class="o">/</span>
+</pre></div>
+</div>
+<p>The roots above are the configured defaults. <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code> is authoritative.</p>
+</section>
+<section id="repository-configuration">
+<h3>Repository Configuration<a class="headerlink" href="#repository-configuration" title="Link to this heading"></a></h3>
+<p>Repositories, registries, and supporting tables are declared in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code>,
+which ships in <code class="docutils literal notranslate"><span class="pre">dms_datastore/config_data</span></code> and is loaded at import. The main sections are:</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">repo_base</span></code>, <code class="docutils literal notranslate"><span class="pre">default_repo</span></code>, <code class="docutils literal notranslate"><span class="pre">repo_search_order</span></code></dt><dd><p>Location of the shared repository and the repositories used when a request does
+not name one.</p>
+</dd>
+<dt>File resources (<code class="docutils literal notranslate"><span class="pre">station_dbase</span></code>, <code class="docutils literal notranslate"><span class="pre">sublocations</span></code>, <code class="docutils literal notranslate"><span class="pre">variable_mappings</span></code>, <code class="docutils literal notranslate"><span class="pre">screen_config</span></code>, …)</dt><dd><p>Top-level labels naming CSV/YAML resources. <code class="docutils literal notranslate"><span class="pre">dstore_config.config_file(label)</span></code>
+resolves the name as given (absolute, or relative to the current working directory)
+and then in the packaged <code class="docutils literal notranslate"><span class="pre">config_data</span></code> directory, so a same-named file in the
+working directory takes precedence over the packaged copy.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">registries</span></code></dt><dd><p>Named station registries (e.g., <code class="docutils literal notranslate"><span class="pre">continuous</span></code> → <code class="docutils literal notranslate"><span class="pre">station_dbase.csv</span></code>,
+<code class="docutils literal notranslate"><span class="pre">structures</span></code> → <code class="docutils literal notranslate"><span class="pre">structures_registry.csv</span></code>) with an optional <code class="docutils literal notranslate"><span class="pre">column_map</span></code> to
+canonical metadata names and <code class="docutils literal notranslate"><span class="pre">crs</span></code> for geographic and projected coordinates.
+A repository may join more than one registry.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">repos</span></code></dt><dd><p>One entry per repository giving its <code class="docutils literal notranslate"><span class="pre">root</span></code>, <code class="docutils literal notranslate"><span class="pre">registry</span></code>, <code class="docutils literal notranslate"><span class="pre">filename_templates</span></code>,
+the provider slot (<code class="docutils literal notranslate"><span class="pre">provider_key</span></code>: <code class="docutils literal notranslate"><span class="pre">source</span></code>, <code class="docutils literal notranslate"><span class="pre">agency</span></code>, or <code class="docutils literal notranslate"><span class="pre">processor</span></code>),
+how multiple providers are resolved (<code class="docutils literal notranslate"><span class="pre">provider_resolution_mode</span></code>:
+<code class="docutils literal notranslate"><span class="pre">assume_unique</span></code> or <code class="docutils literal notranslate"><span class="pre">registry_column</span></code> with a <code class="docutils literal notranslate"><span class="pre">provider_resolution_order</span></code>),
+<code class="docutils literal notranslate"><span class="pre">file_key</span></code>/<code class="docutils literal notranslate"><span class="pre">data_key</span></code> identities, and optional <code class="docutils literal notranslate"><span class="pre">regular</span></code>, <code class="docutils literal notranslate"><span class="pre">float_format</span></code>,
+<code class="docutils literal notranslate"><span class="pre">dtypes</span></code>, and <code class="docutils literal notranslate"><span class="pre">alt</span></code> (alternate root used when <code class="docutils literal notranslate"><span class="pre">root</span></code> is unavailable).</p>
+</dd>
+</dl>
+<p>Most tools accept either a configured repository name or an explicit directory, so the
+same repository semantics can be applied to a staging copy or a test directory.
+Configuration can be inspected programmatically:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore</span><span class="w"> </span><span class="kn">import</span> <span class="n">dstore_config</span>
+
+<span class="n">dstore_config</span><span class="o">.</span><span class="n">repo_names</span><span class="p">()</span>
+<span class="n">dstore_config</span><span class="o">.</span><span class="n">repo_root</span><span class="p">(</span><span class="s2">"screened"</span><span class="p">)</span>
+<span class="n">dstore_config</span><span class="o">.</span><span class="n">config_file</span><span class="p">(</span><span class="s2">"station_dbase"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="repository.html"><span class="doc">Time Series Repositories</span></a> for the design of templates, registries, and provider resolution,
+and <a class="reference internal" href="#modes-of-ingestion">Modes of Ingestion</a> for how data enter the repositories.</p>
+</section>
+<section id="data-flow-through-the-tiers">
+<h3>Data Flow Through the Tiers<a class="headerlink" href="#data-flow-through-the-tiers" title="Link to this heading"></a></h3>
 <pre  class="mermaid">
         flowchart LR
- subgraph datasources [&quot;Data Sources&quot;]
+ subgraph providers [&quot;Data Providers&quot;]
    direction LR
     d1[&quot;USGS&quot;]
     d2[&quot;DWR&quot;]
     d3[&quot;NOAA&quot;]
     d4[&quot;CDEC&quot;]
-    d5[&quot;USBr&quot;]
+    d5[&quot;USBR&quot;]
  end
- subgraph dropbox [&quot;Drop Box&quot;]
+ subgraph other [&quot;Other Sources&quot;]
+    o1[&quot;Vendor and SCADA exports, backfills, local products&quot;]
  end
- subgraph repograph [&quot;Repository&quot;]
+ subgraph repograph [&quot;Repository Tiers&quot;]
    C2[&quot;raw/&quot;]
    D1[&quot;formatted/&quot;]
    E1[&quot;screened/&quot;]
@@ -507,25 +638,104 @@ per datastream.</p>
         H[&quot;Flag Editing&quot;]
         H-- updates user flag --&gt;E1
  end
-    datasources --&gt; B(&quot;Download&quot;)
+    providers --&gt; B(&quot;Bulk download&quot;)
     B --&gt; C2
-    C2 --&gt; D(&quot;Format&quot;)
+    C2 --&gt; D(&quot;Reformat&quot;)
     D --&gt; D1
+    other --&gt; X(&quot;Dropbox recipe&quot;)
+    X --&gt; D1
+    X --&gt; F1
     D1 --&gt; E(&quot;Automated Screening&quot;)
     E --&gt; E1
     E1 --&gt; F(&quot;Process&quot;)
     F --&gt; F1
-    F1 --&gt; G[&quot;Modeling Applications &amp; Boundary Conditions&quot;]
-
-    dropbox --&gt; repograph
+    F1 --&gt; G[&quot;Applications &amp; Boundary Conditions&quot;]
     </pre></section>
 <section id="user-access">
 <h3>User Access<a class="headerlink" href="#user-access" title="Link to this heading"></a></h3>
-<p>Users typically have write access only to “incoming” subdirectories within <code class="docutils literal notranslate"><span class="pre">raw</span></code>,
-<code class="docutils literal notranslate"><span class="pre">screened</span></code>, and <code class="docutils literal notranslate"><span class="pre">processed</span></code> directories. Correctly formatted submissions are then
-ingested into the main, read-only directories. Users are generally not expected to access
-raw data directly; <code class="docutils literal notranslate"><span class="pre">formatted</span></code> data allows review of original downloaded values, and
-<code class="docutils literal notranslate"><span class="pre">screened</span></code> data includes user flags and consistent units.</p>
+<p>The shared repository directories are read-only for most users. New data are staged in a
+working or <code class="docutils literal notranslate"><span class="pre">incoming</span></code> area and enter the repository through one of the
+<a class="reference internal" href="#modes-of-ingestion">Modes of Ingestion</a> rather than by direct edits to repository files. Manual QA/QC is
+recorded as <code class="docutils literal notranslate"><span class="pre">user_flag</span></code> values in <code class="docutils literal notranslate"><span class="pre">screened</span></code>. Users are generally not expected to
+access raw data directly; <code class="docutils literal notranslate"><span class="pre">formatted</span></code> data allows review of original downloaded values,
+and <code class="docutils literal notranslate"><span class="pre">screened</span></code> data includes user flags and consistent units.</p>
+</section>
+</section>
+<section id="modes-of-ingestion">
+<h2>Modes of Ingestion<a class="headerlink" href="#modes-of-ingestion" title="Link to this heading"></a></h2>
+<p>Time series reach the repository by two routes. Both produce files with the same naming,
+metadata, and units and are validated against the station registry; they differ in scale
+and in how much each source is individually controlled.</p>
+<section id="bulk-automated-download">
+<h3>Bulk Automated Download<a class="headerlink" href="#bulk-automated-download" title="Link to this heading"></a></h3>
+<p>The bulk route refreshes the continuous family from providers with web services (USGS,
+NOAA, CDEC, DWR, USBR, and others) for the stations in the registry. <code class="docutils literal notranslate"><span class="pre">populate_repo</span></code>
+drives the source downloaders. Tiers are built in a staging tree (<code class="docutils literal notranslate"><span class="pre">repo_staging_auto</span></code>)
+that alternates with the shared repository: each tier is validated in staging and
+promoted before the next tier is built from it.</p>
+<pre  class="mermaid">
+        sequenceDiagram
+    participant AWS as Agency Web Services
+    participant SR as Staging Raw
+    participant SF as Staging Formatted
+    participant RF as Repo Formatted
+    participant SS as Staging Screened
+    participant RS as Repo Screened
+
+    AWS-&gt;&gt;SR: populate_repo / download_*
+    SR-&gt;&gt;SF: reformat
+    SF-&gt;&gt;SF: usgs_multi
+    Note over SF,RF: spot_check --group continuous_formatted
+    SF-&gt;&gt;RF: update_repo
+    RF-&gt;&gt;SS: auto_screen
+    Note over SS,RS: spot_check --group continuous_screened
+    SS-&gt;&gt;RS: update_flagged_data
+    </pre><ol class="arabic simple">
+<li><p><strong>Download.</strong> <code class="docutils literal notranslate"><span class="pre">populate_repo</span></code> or an individual downloader writes provider files to
+staging <code class="docutils literal notranslate"><span class="pre">raw</span></code>.</p></li>
+<li><p><strong>Format.</strong> <code class="docutils literal notranslate"><span class="pre">reformat</span></code> converts staging <code class="docutils literal notranslate"><span class="pre">raw</span></code> into staging <code class="docutils literal notranslate"><span class="pre">formatted</span></code>;
+<code class="docutils literal notranslate"><span class="pre">usgs_multi</span></code> then splits or consolidates USGS multi-sensor files in place.</p></li>
+<li><p><strong>Gate and promote formatted.</strong> <code class="docutils literal notranslate"><span class="pre">spot_check</span></code> compares the staged formatted set
+against the repository baseline (expected streams, file counts, and filename/registry
+integrity) and fails if the build collapsed or regressed. <code class="docutils literal notranslate"><span class="pre">update_repo</span></code> then
+reconciles the accepted staged files into repository <code class="docutils literal notranslate"><span class="pre">formatted</span></code>.</p></li>
+<li><p><strong>Screen from the repository.</strong> <code class="docutils literal notranslate"><span class="pre">auto_screen</span></code> reads repository <code class="docutils literal notranslate"><span class="pre">formatted</span></code> (its
+default <code class="docutils literal notranslate"><span class="pre">--repo</span></code>), not staging, so screening sees the full promoted history rather
+than only the recent download. Output goes to staging <code class="docutils literal notranslate"><span class="pre">screened</span></code> with screened
+naming (<code class="docutils literal notranslate"><span class="pre">--output-naming</span> <span class="pre">screened</span></code>) and results recorded in <code class="docutils literal notranslate"><span class="pre">user_flag</span></code>.</p></li>
+<li><p><strong>Gate and promote screened.</strong> <code class="docutils literal notranslate"><span class="pre">spot_check</span></code> checks staging <code class="docutils literal notranslate"><span class="pre">screened</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">update_flagged_data</span></code> merges it into repository <code class="docutils literal notranslate"><span class="pre">screened</span></code>. Because the repository
+copy carries user flag edits, explicit flag conflicts default to the repository side
+(<code class="docutils literal notranslate"><span class="pre">--flag-conflict</span> <span class="pre">prefer_repo</span></code>), so a rebuild does not erase manual QA/QC.</p></li>
+</ol>
+<p>Both promotion commands support <code class="docutils literal notranslate"><span class="pre">--plan</span></code> (with <code class="docutils literal notranslate"><span class="pre">--out-actions</span></code>) for a dry run before
+<code class="docutils literal notranslate"><span class="pre">--apply</span></code>. <code class="docutils literal notranslate"><span class="pre">compare_directories</span></code> and <code class="docutils literal notranslate"><span class="pre">inventory</span></code> can be used to review remaining
+differences between staging and repository. When a gate fails, the staged data or its
+upstream cause is corrected and the step rerun; drift is not accepted into the
+repository silently. Gate definitions live in <code class="docutils literal notranslate"><span class="pre">spot_check_spec.yaml</span></code>. Command
+examples are in <a class="reference internal" href="commands.html"><span class="doc">dms_datastore Command Reference</span></a>.</p>
+</section>
+<section id="dropbox">
+<h3>Dropbox<a class="headerlink" href="#dropbox" title="Link to this heading"></a></h3>
+<p>The dropbox route handles sources that are not part of the bulk run: vendor and SCADA
+exports, one-off backfills, locally processed products, and feeds that need custom
+handling. A YAML recipe states how each source file is read, transformed (for example
+time-zone correction, coarsening, or unit conversion), and labeled with metadata. The
+dropbox writes a standardized file to a staging directory and, when the recipe requests
+it, reconciles that file into a named repository (commonly <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, <code class="docutils literal notranslate"><span class="pre">processed</span></code>,
+or <code class="docutils literal notranslate"><span class="pre">structures_formatted</span></code>) under an explicit overlap policy. Metadata and coordinates
+are validated against the station registry before anything reaches the repository.
+Recipes serve as the record of how each series was produced and can be rerun to top off
+ongoing feeds. See <a class="reference internal" href="dropbox.html"><span class="doc">Dropbox Data Ingestion</span></a>.</p>
+</section>
+<section id="other-downloaded-data">
+<h3>Other Downloaded Data<a class="headerlink" href="#other-downloaded-data" title="Link to this heading"></a></h3>
+<p>Some downloaders retrieve data that are not station time series, such as gridded
+atmospheric fields from the NOAA High-Resolution Rapid Refresh model (<code class="docutils literal notranslate"><span class="pre">download_hrrr</span></code>)
+and ocean model fields from HYCOM (<code class="docutils literal notranslate"><span class="pre">download_hycom</span></code>). These are written to a
+destination given on the command line and are stored separately from the time-series
+repository; they are not described by the repositories in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code> or by
+the station registry.</p>
 </section>
 </section>
 <section id="station-sublocation-and-datastream-concepts">
@@ -534,8 +744,8 @@ raw data directly; <code class="docutils literal notranslate"><span class="pre">
 <dt><strong>Station</strong></dt><dd><p>A well-defined concept tied to a (location, institution) pair. Physical locations may
 vary slightly and different agencies at the same approximate location may have subtly
 different platforms. The <code class="docutils literal notranslate"><span class="pre">station_dbase.csv</span></code> contains station information including
-ID, agency ID, name, latitude, and longitude. These locations are corrected to fit
-the SCHISM mesh.</p>
+ID, agency ID, name, latitude, and longitude. These locations are corrected to fall
+near piers or piles and to be sufficiently covered by water under our elevation models.</p>
 </dd>
 <dt><strong>Sublocation</strong></dt><dd><p>Used when a station ID alone does not uniquely identify a datastream — for example,
 top/bottom sensors or different programs within the same agency measuring the same
