@@ -1,585 +1,313 @@
-"""Module for CIMIS data
+"""Download daily CIMIS station data and maintain one CSV per station."""
 
-* Downloads data from FTP site. Each year is a separate file for hourly data
-* Downloads data for current year. Each month is a separate file for hourly data
-* Loads data for a station_number from data that is downloaded
-* Map to show the stations
-"""
+from __future__ import annotations
 
+import argparse
+import csv
+import json
 import os
-import glob
-import os
-import datetime
-import dateutil
-import tqdm
+import sys
+import tempfile
+from datetime import date, timedelta
+from pathlib import Path
+from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
-import pandas as pd
-import dask.dataframe
+API_URL = "https://et.water.ca.gov/StationWeb/GetDataByStationNumber"
+DATA_ITEMS = (
+    "day-asce-eto,day-precip,day-sol-rad-avg,day-vap-pres-avg,"
+    "day-air-tmp-max,day-air-tmp-min,day-air-tmp-avg,day-rel-hum-max,"
+    "day-rel-hum-min,day-rel-hum-avg,day-dew-pnt,day-wind-spd-avg,"
+    "day-wind-run,day-soil-tmp-avg"
+)
+OUTPUT_DATE_FIELD = "Date"
 
-import logging
-import click
-from functools import lru_cache
+
+class RequestTimeoutError(RuntimeError):
+    pass
 
 
-VARTYPES = [
-    "Reference ETo   (in)   (mm)",
-    "Precipitation   (in)   (mm)",
-    "Solar Radiation   (Ly/day)   (W/m²)",
-    "Vapor Pressure   (mBars)   (kPa)",
-    "Air Temperature   (°F)   (°C)",
-    "Relative Humidity   (%)",
-    "Dew Point   (°F)   (°C)",
-    "Wind Speed   (mph)   (m/s)",
-    "Wind Direction   (0-360)",
-    "Soil Temperature   (°F)   (°C)",
-]
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--stations",
+        type=Path,
+        default=Path(__file__).with_name("cimis_active_stations_20260825.csv"),
+        help="Active CIMIS station CSV.",
+    )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        default=Path(__file__).with_name("cimis_downloaded"),
+        help="Directory for station CSV files.",
+    )
+    parser.add_argument(
+        "--station",
+        action="append",
+        type=int,
+        help="Download only this station number; may be repeated.",
+    )
+    parser.add_argument(
+        "--start-date",
+        type=date.fromisoformat,
+        help="Override the computed start date (Connect date or last saved date).",
+    )
+    parser.add_argument(
+        "--end-date",
+        type=date.fromisoformat,
+        help="Override yesterday's date, useful for testing.",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=60,
+        help="HTTP timeout in seconds (default: 60).",
+    )
+    parser.add_argument(
+        "--chunk-days",
+        type=int,
+        default=5000,
+        help="Maximum days per API request (default: 5000; maximum: 5020).",
+    )
+    return parser.parse_args()
 
-import paramiko
-from dms_datastore.logging_config import configure_logging, resolve_loglevel   
-import logging
-logger = logging.getLogger(__name__)
 
-class CIMIS:
-    def __init__(self, base_dir=".", password="xxx"):
-        self.set_base_dir(base_dir)
-        self._password = password
-        self._connect()
+def flatten_record(value: Any, prefix: str = "") -> dict[str, str]:
+    """Flatten nested JSON objects into CSV-friendly string fields."""
+    if not isinstance(value, dict):
+        return {prefix: stringify(value)} if prefix else {}
 
-    def _connect(self):
-        """Establish (or re-establish) the SSH/SFTP connection."""
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(
-            hostname="sftpcimis.water.ca.gov",
-            username="sftpcimis",
-            password=self._password,
-        )
-        self.ssh = ssh
-        self.sftp = ssh.open_sftp()
-
-    def _reconnect(self):
-        """Close any stale connection and reconnect."""
-        logger.warning("SFTP socket closed; reconnecting…")
-        try:
-            self.ssh.close()
-        except Exception:
-            pass
-        self._connect()
-
-    def close(self):
-        self.ssh.close()
-
-    def set_base_dir(self, base_dir):
-        """
-        Use this to set the base directory under which downloaded and cached data for CIMIS will reside locally.add()
-        The default is ".", i.e. whereever this script is running
-
-        :param base_dir: base directory under which downloaded and cached resides
-        :type base_dir: str, default "."
-        """
-        self.CIMIS_BASE_DIR = base_dir
-        self.CIMIS_DOWNLOAD_DIR = os.path.join(self.CIMIS_BASE_DIR, "cimis_downloaded")
-        self.CIMIS_CACHE_DIR = os.path.join(self.CIMIS_BASE_DIR, "cimis_cache")
-
-    def ensure_dir(self, dir):
-        """
-        ensures directory exists otherwise creates it.
-
-        :param dir: directory
-        :type dir: str
-        """
-        if not os.path.exists(dir):
-            os.mkdir(dir)
-
-    def parse_year_from_string(self, name):
-        import re
-
-        re.compile(".*(\\d+).*")
-        matches = re.match("\\D*(\\d+).*", name)
-        return matches.groups()[0]
-
-    def unzip(self, file, dir):
-        import zipfile
-
-        lzip = zipfile.ZipFile(file, mode="r")
-        lzip.extractall(dir)
-
-    def download(self, remotefile, dir=None):
-        """
-        download a file from the CIMIS FTP site to CIMIS_DOWNLOAD_DIR and returns the local file path
-
-        :param remotefile: remote file path
-        :type remotefile: str
-        :return: local file path
-        """
-        if dir is None:
-            dir = self.CIMIS_DOWNLOAD_DIR
-        localfile = os.path.join(dir, str.split(remotefile, "/")[-1])
-        self.ensure_dir(os.path.dirname(localfile))
-        try:
-            self.sftp.get(remotefile, localfile)
-        except Exception as ex:
-            msg = str(ex)
-            if "Socket is closed" in msg or "SSH session not active" in msg:
-                self._reconnect()
-                try:
-                    self.sftp.get(remotefile, localfile)
-                except Exception as ex2:
-                    logging.error(f"Error downloading {remotefile}: {ex2}")
-                    raise ex2
-            else:
-                logging.error(f"Error downloading {remotefile}: {ex}")
-                raise ex
-        return localfile
-
-    def download_zipped(self, year, hourly=True):
-        """
-        download daily data using the FTP site : 'ftp://ftpcimis.water.ca.gov/pub2/annual/dailyStns{year}.zip
-
-        :param year: year to download, e.g. 2020
-        :type year: int
-        :param base_dir: base directory to download file into
-        :type base_dir: str
-        :return: full path to file downloaded into
-        :rtype: str
-        """
-        if hourly:
-            interval = "hourly"
+    result: dict[str, str] = {}
+    for key, nested_value in value.items():
+        field = f"{prefix}.{key}" if prefix else str(key)
+        if isinstance(nested_value, dict):
+            result.update(flatten_record(nested_value, field))
+        elif isinstance(nested_value, list):
+            result[field] = json.dumps(nested_value, separators=(",", ":"))
         else:
-            interval = "daily"
-        try:
-            lfile = self.download(
-                f"/pub2/annual/{interval}Stns{year}.zip",
-                dir=os.path.join(self.CIMIS_DOWNLOAD_DIR, str(year)),
-            )
-            self.unzip(
-                lfile,
-                os.path.join(self.CIMIS_DOWNLOAD_DIR, str(year)),
-            )
-        except Exception as ex:
-            logging.warning(f"Error downloading {interval} station {year}: {ex}")
+            result[field] = stringify(nested_value)
+    return result
 
-    def download_unzipped(self, year, stations, hourly=True):
-        """
-        download daily data using the FTP site : 'ftp://ftpcimis.water.ca.gov/pub2/annual/{year}daily{station}.csv
-        """
-        if hourly:
-            interval = "hourly"
-        else:
-            interval = "daily"
-        for station in stations:
+
+def stringify(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return str(value).lower()
+    return str(value)
+
+
+def find_date(record: dict[str, str]) -> str:
+    for key, value in record.items():
+        if key.rsplit(".", 1)[-1].lower() == "date" and value:
             try:
-                self.download(
-                    f"/pub2/annual/{year}{interval}{station:03d}.csv",
-                    dir=os.path.join(self.CIMIS_DOWNLOAD_DIR, str(year)),
+                return date.fromisoformat(value[:10]).isoformat()
+            except ValueError:
+                continue
+    raise ValueError("record has no usable Date field")
+
+
+def extract_records(payload: Any) -> list[dict[str, str]]:
+    if not isinstance(payload, dict):
+        raise ValueError("API response is not a JSON object")
+
+    status = payload.get("Status")
+    if isinstance(status, dict):
+        code = str(status.get("StatusCode", ""))
+        message = str(status.get("Message", ""))
+        if code and code not in {"200", "0"} and message.lower() != "success":
+            raise ValueError(f"CIMIS API error {code}: {message}")
+
+    data = payload.get("Data", payload)
+    providers = data.get("Providers", []) if isinstance(data, dict) else []
+    records: list[Any] = []
+    for provider in providers:
+        if isinstance(provider, dict):
+            provider_records = provider.get("Records", [])
+            if isinstance(provider_records, list):
+                records.extend(provider_records)
+
+    if not records and isinstance(data, dict) and isinstance(data.get("Records"), list):
+        records = data["Records"]
+
+    normalized = []
+    for raw_record in records:
+        if not isinstance(raw_record, dict):
+            raise ValueError("API response contains a non-object record")
+        normalized_record = flatten_record(raw_record)
+        normalized_record[OUTPUT_DATE_FIELD] = find_date(normalized_record)
+        normalized.append(normalized_record)
+    return normalized
+
+
+def request_records(
+    station_number: int,
+    start_date: date,
+    end_date: date,
+    api_key: str,
+    timeout: int,
+) -> list[dict[str, str]]:
+    parameters = {
+        "stationNbrs": str(station_number),
+        "startDate": start_date.isoformat(),
+        "endDate": end_date.isoformat(),
+        "isHourly": "false",
+        "unitOfMeasure": "E",
+        "dataItems": DATA_ITEMS,
+        "prefer": "WSN",
+    }
+    request = Request(
+        f"{API_URL}?{urlencode(parameters)}",
+        headers={
+            "Accept": "application/json",
+            "Ocp-Apim-Subscription-Key": api_key,
+            "User-Agent": "cimis-downloader/1.0",
+        },
+    )
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            content_type = response.headers.get_content_type()
+            body = response.read().decode("utf-8", errors="replace")
+            if content_type != "application/json":
+                preview = " ".join(body.split())[:300]
+                raise RuntimeError(
+                    f"API returned HTTP {response.status} with content type "
+                    f"{content_type!r}, not JSON: {preview}"
                 )
-            except Exception as ex:
-                logging.warning(f"Error downloading {interval} station {station}: {ex}")
-
-    @lru_cache(maxsize=128)
-    def get_columns_for_year(self, y, hourly=True):
-        if y >= 2014:
-            units_file = self.download("/pub2/readme-ftp-Revised5units.txt")
-            if hourly:
-                skiprows = 96
-                nrows = 24
-            else:  # for daily
-                skiprows = 60
-                nrows = 31
-            df = pd.read_csv(
-                units_file,
-                skiprows=skiprows,
-                nrows=nrows,
-                encoding="cp1252",
-            )
-            df2 = df.iloc[:, 0].str.split("\t", n=1, expand=True)
-        else:
-            units_file = self.download("pub2/readme (prior to June 2014)units.txt")
-            if hourly:
-                skiprows = 86
-                nrows = 24
-            else:  # for daily
-                skiprows = 50
-                nrows = 31
-            df = pd.read_csv(
-                units_file,
-                skiprows=skiprows,
-                nrows=nrows,
-                encoding="cp1252",
-            )
-            df2 = df.iloc[:, 0].str.split("\\s+\\d+\\.\\s+", n=1, expand=True)
-        return df2.iloc[:, 1].str.strip().values
-
-    def get_months_and_current_year(self):
-        # Get the current month
-        current_month = datetime.datetime.now().month
-        current_year = datetime.datetime.now().year
-        # List of all months in 3-letter lowercase codes
-        months_so_far = [
-            datetime.datetime(current_year, i, 1).strftime("%b").lower()
-            for i in range(1, current_month + 1)
-        ]
-        # get current year and ensure directory
-        current_year = datetime.date.today().year
-        return months_so_far, current_year
-
-    def download_current_year(self, hourly=True):
-        if hourly:
-            interval = "hourly"
-        else:
-            interval = "daily"
-        month_list, current_year = self.get_months_and_current_year()
-        self.ensure_dir(os.path.join(self.CIMIS_DOWNLOAD_DIR, str(current_year)))
-        for month in month_list[:-1]:
             try:
-                lfile = self.download(
-                    f"/pub2/monthly/{interval}Stns{month}.zip",
-                    dir=os.path.join(self.CIMIS_DOWNLOAD_DIR, str(current_year)),
-                )
-                self.unzip(
-                    lfile, os.path.join(self.CIMIS_DOWNLOAD_DIR, str(current_year))
-                )
-            except Exception as ex:
-                logging.warning(f"Error downloading station {month}: {ex}")
-
-    def download_current_month(self, stations, hourly=True):
-        if hourly:
-            interval = "hourly"
-        else:
-            interval = "daily"
-        month_list, current_year = self.get_months_and_current_year()
-        self.ensure_dir(os.path.join(self.CIMIS_DOWNLOAD_DIR, str(current_year)))
-        for station in stations:
-            try:
-                self.download(
-                    f"/pub2/{interval}/{interval}{station:03d}.csv",
-                    dir=os.path.join(self.CIMIS_DOWNLOAD_DIR, str(current_year)),
-                )
-            except Exception as ex:
-                logging.warning(f"Error downloading station {station}: {ex}")
-
-    @lru_cache(maxsize=128)
-    def get_stations_info(
-        self,
-        file="/pub2/CIMIS Stations List (January20).xlsx",
-    ):
-        localfile = self.download(file)
-        dfstations = pd.read_excel(localfile)
-        dfstations = dfstations.dropna()
-        return dfstations.astype(
-            {"Station Number": "int", "Connect": "str", "Disconnect": "str"}
-        )
-
-    def to_datetime(self, str):
-        try:
-            return pd.to_datetime(str)
-        except ValueError as ve:
-            if ve.args[0].startswith("hour must be in 0..23"):
-                return pd.to_datetime(str.replace("2400", "2300")) + pd.Timedelta(
-                    1, "h"
-                )
-
-    def guess_dtypes(self, cols):
-        dtypes = {c: "int" if c.find("Hour") >= 0 else "str" for c in cols[0:3]}
-        dtypes_odd = {c: "str" if c.find("QC") >= 0 else "float64" for c in cols[3:]}
-        return {**dtypes, **dtypes_odd}
-
-    def load_station(self, station_number, load_current_year=True, hourly=True):
-        if hourly:
-            interval = "hourly"
-        else:
-            interval = "daily"
-
-        before_2014 = [
-            "%s/%d/*%s%03d.csv"
-            % (self.CIMIS_DOWNLOAD_DIR, year, interval, station_number)
-            for year in range(1982, 2014)
-        ]
-        # load before 2014
-        colsb = self.get_columns_for_year(2013, hourly)
-        try:
-            ddfb = dask.dataframe.read_csv(
-                before_2014,
-                header=None,
-                names=colsb,
-                na_values=["--", "       --", "  #######", "    #####"],
-                dtype=self.guess_dtypes(colsb),
-            )
-            dfb = ddfb.compute()
-        except Exception as err:
-            logging.warning(
-                f"Station Number {station_number}: No data found before 2014"
-            )
-            dfb = None
-        # load after 2014
-        _, current_year = self.get_months_and_current_year()
-        after_2014 = [
-            "%s/%d/*%s%03d.csv"
-            % (self.CIMIS_DOWNLOAD_DIR, year, interval, station_number)
-            for year in range(2014, current_year)
-        ]
-        colsa = self.get_columns_for_year(2014, hourly)
-        try:
-            ddfa = dask.dataframe.read_csv(
-                after_2014,
-                header=None,
-                names=colsa,
-                na_values=["--", "       --", "  #######", "    #####"],
-                dtype=self.guess_dtypes(colsa),
-            )
-            dfa = ddfa.compute()
-        except Exception as err:
-            logging.warning(
-                f"Station Number {station_number}: No data found after 2014"
-            )
-            dfa = None
-        # concat historical archives (either or both may be absent)
-        _archive_parts = [p for p in [dfb, dfa] if p is not None]
-        df = self._with_timeindex(pd.concat(_archive_parts), hourly) if _archive_parts else None
-
-        if load_current_year:
-            try:
-                dfc = self.load_station_for_current_year(
-                    station_number, hourly, self.CIMIS_DOWNLOAD_DIR
-                )
-            except Exception as ex:
-                logging.warning(ex)
-                dfc = None
-            if dfc is not None:
-                df = pd.concat([df, dfc]) if df is not None else dfc
-            try:
-                dfd = self.load_station_for_current_month(
-                    station_number, hourly, self.CIMIS_DOWNLOAD_DIR
-                )
-            except Exception as ex:
-                logging.warning(ex)
-                dfd = None
-            if dfd is not None:
-                df = pd.concat([df, dfd]) if df is not None else dfd
-
-        if df is None:
-            logging.warning(f"Station Number {station_number}: no data found in any period")
-            return pd.DataFrame()
-
-        # Sort by time and remove any duplicate timestamps, keeping the last
-        # (most recently downloaded) row for each timestamp.
-        return df[~df.index.duplicated(keep="last")].sort_index()
-
-    def _with_timeindex(self, df, hourly):
-        if hourly:
-            df["time"] = df["Date"] + df["Hour   (PST)"].map(" {:04d}".format)
-            # make time index
-            pat = r"(?P<month>\d+)/(?P<day>\d+)/(?P<year>\d+) (?P<hour>\d{2})(?P<minute>\d{2})"
-            dft = df["time"].str.extract(pat, expand=True)
-            dft.columns = ["month", "day", "year", "h", "m"]
-            dft = dft[["year", "month", "day", "h", "m"]]
-            df.index = pd.to_datetime(dft, "coerce")
-        else:
-            df.index = pd.to_datetime(df["Date"], "coerce")
-        return df
-
-    def get_vartypes(self, df):
-        """return list of columns of variable types"""
-        return list(df.columns[df.columns.str.match("(?!^QC)")])[4:]
-
-    def get_vartype(self, vartype, df):
-        return df.loc[:, vartype]
-
-    def load_station_for_current_year(self, station_number, hourly, dir=None):
-        if hourly:
-            interval = "hourly"
-        else:
-            interval = "daily"
-        if dir is None:
-            dir = self.CIMIS_DOWNLOAD_DIR
-        months, current_year = self.get_months_and_current_year()
-        files_for_year = [
-            f"{dir}/{current_year}/{month}{interval}{station_number:03d}.csv"
-            for month in months[:-1]
-        ]
-        # files_for_year = [f"{dir}/{current_year}/{interval}{station_number:03d}.csv"]
-        cols = self.get_columns_for_year(current_year, hourly)
-        ddfa = dask.dataframe.read_csv(
-            files_for_year,
-            header=None,
-            names=cols,
-            na_values=["--", "       --", "  #######", "    #####"],
-            dtype=self.guess_dtypes(cols),
-        )
-        dfa = ddfa.compute()
-        return self._with_timeindex(dfa, hourly).sort_index()
-
-    def load_station_for_current_month(self, station_number, hourly, dir=None):
-        if hourly:
-            interval = "hourly"
-        else:
-            interval = "daily"
-        if dir is None:
-            dir = self.CIMIS_DOWNLOAD_DIR
-        months, current_year = self.get_months_and_current_year()
-        current_month = months[-1]
-        files_for_month = [f"{dir}/{current_year}/{interval}{station_number:03d}.csv"]
-        cols = self.get_columns_for_year(current_year, hourly)
-        ddfa = dask.dataframe.read_csv(
-            files_for_month,
-            header=None,
-            names=cols,
-            na_values=["--", "       --", "  #######", "    #####"],
-            dtype=self.guess_dtypes(cols),
-        )
-        dfa = ddfa.compute()
-        return self._with_timeindex(dfa, hourly).sort_index()
-
-    def cache_stations(self, dfstations):
-        import os
-
-        self.ensure_dir(self.CIMIS_CACHE_DIR)
-        failed_stations = []
-        for station_number in dfstations["Station Number"]:
-            try:
-                self.cache_station(station_number)
-            except:
-                logging.error(f"Failing for station_number: {station_number}")
-                failed_stations.append(station_number)
-        return failed_stations
-
-    def expired(self, mtime, expires="1D"):
-        return pd.Timestamp.now() - pd.Timestamp.fromtimestamp(mtime) > pd.to_timedelta(
-            expires
-        )
-
-    def needs_creation(self, fname):
-        return not os.path.exists(fname)
-
-    def needs_updating(self, fname):
-        return self.expired(os.path.getmtime(fname))
-
-    def cache_station(self, station_number):
-        self.ensure_dir(self.CIMIS_CACHE_DIR)
-        fname = os.path.join(self.CIMIS_CACHE_DIR, f"cimis_{station_number}.pkl")
-        if self.needs_creation(fname) or self.needs_updating(fname):
-            df = self.load_station(station_number)
-            pd.to_pickle(df, fname)
-
-    def load_station_from_cache(self, station_number):
-        fname = os.path.join(self.CIMIS_CACHE_DIR, f"cimis_{station_number}.pkl")
-        if self.needs_creation(fname) or self.needs_updating(fname):
-            self.cache_station(station_number)
-        return pd.read_pickle(fname)
-
-    def cache_to_pkl(self, dfstations):
-        failed_stations = self.cache_stations(dfstations)
-        if len(failed_stations) > 0:
-            print("Could not cache the following stations: ")
-            print(dfstations[dfstations["Station Number"].isin(failed_stations)])
+                payload = json.loads(body)
+            except json.JSONDecodeError as error:
+                preview = " ".join(body.split())[:300]
+                raise RuntimeError(f"API returned invalid JSON: {preview}") from error
+    except HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"HTTP {error.code}: {body[:300]}") from error
+    except TimeoutError as error:
+        raise RequestTimeoutError(f"request timed out after {timeout} seconds") from error
+    except URLError as error:
+        if isinstance(error.reason, TimeoutError):
+            raise RequestTimeoutError(
+                f"request timed out after {timeout} seconds"
+            ) from error
+        raise RuntimeError(f"request failed: {error}") from error
+    return extract_records(payload)
 
 
-def download_all_data(hourly=True, partial=False):
-    """
-    Download all CIMIS data from the FTP site. Each year is a separate file for hourly data
-    Each month is a separate file for hourly data
+def read_existing(path: Path) -> tuple[list[dict[str, str]], date | None]:
+    if not path.exists():
+        return [], None
+    with path.open(newline="", encoding="utf-8-sig") as handle:
+        rows = list(csv.DictReader(handle))
+    dates = [date.fromisoformat(row[OUTPUT_DATE_FIELD][:10]) for row in rows if row.get(OUTPUT_DATE_FIELD)]
+    return rows, max(dates) if dates else None
 
-    :param hourly: download hourly data (default is True)
-    :param partial: download only partial data (default is False) (only downloads last couple of years)
-    """
-    password = os.environ.get("CIMIS_PASSWORD", default="xxx")
-    cx = CIMIS(password=password)
-    if hourly:
-        interval = "hourly"
+
+def write_records(path: Path, rows: list[dict[str, str]]) -> None:
+    fields = sorted({field for row in rows for field in row})
+    fields.remove(OUTPUT_DATE_FIELD)
+    fields.insert(0, OUTPUT_DATE_FIELD)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        "w", newline="", encoding="utf-8", dir=path.parent, delete=False
+    ) as handle:
+        temporary_path = Path(handle.name)
+        writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(sorted(rows, key=lambda row: row[OUTPUT_DATE_FIELD]))
+    temporary_path.replace(path)
+
+
+def process_station(
+    station: dict[str, str],
+    output_dir: Path,
+    start_date_override: date | None,
+    end_date: date,
+    api_key: str,
+    timeout: int,
+    chunk_days: int,
+) -> str:
+    station_number = int(station["Station_Number"])
+    output_path = output_dir / f"station_{station_number}.csv"
+    existing, latest_date = read_existing(output_path)
+    if start_date_override:
+        start_date = start_date_override
     else:
-        interval = "daily"
-    dfcat = cx.get_stations_info()
-    dfcat["Connect"] = pd.to_datetime(dfcat["Connect"])
-    min_year = dfcat["Connect"].dt.year.min()
-    dfcat.to_csv("cimis_stations.csv", index="Station Number")
-    current_year = pd.to_datetime("today").year
-    active_stations = list(dfcat[dfcat["Status"] == "Active"]["Station Number"])
+        start_date = (latest_date + timedelta(days=1)) if latest_date else date.fromisoformat(station["Connect"][:10])
+    if start_date > end_date:
+        return f"{station_number}: up to date through {latest_date}"
 
-    if not partial:
-        for year in range(min_year, current_year - 2):
-            print(f"Downloading zipped {interval} data for year", year)
-            cx.download_zipped(year, hourly)
-
-    for year in range(current_year - 2, current_year):
-        print(f"Downloading unzipped {interval} data for year", year)
-        cx.download_unzipped(year, active_stations, hourly)
-
-    cx.download_current_year(hourly)
-    cx.download_current_month(active_stations, hourly)
-
-    for station in tqdm.tqdm(dfcat["Station Number"], total=len(dfcat)):
+    by_date = {row[OUTPUT_DATE_FIELD]: row for row in existing}
+    total_records = 0
+    chunk_start = start_date
+    current_chunk_days = chunk_days
+    while chunk_start <= end_date:
+        chunk_end = min(
+            chunk_start + timedelta(days=current_chunk_days - 1), end_date
+        )
         try:
-            dfs = cx.load_station(station, True, hourly)
-            dfs.to_csv(f"cimis_{interval}_{station:03d}.csv", index="Date")
-        except Exception as e:
-            logging.error(f"Error loading station {station}: {e}")
+            records = request_records(
+                station_number, chunk_start, chunk_end, api_key, timeout
+            )
+        except RequestTimeoutError:
+            attempted_days = (chunk_end - chunk_start).days + 1
+            if attempted_days == 1:
+                raise
+            current_chunk_days = max(1, attempted_days // 2)
+            print(
+                f"{station_number}: request timed out; retrying from "
+                f"{chunk_start} with {current_chunk_days}-day chunks"
+            )
             continue
+        by_date.update({row[OUTPUT_DATE_FIELD]: row for row in records})
+        if records:
+            write_records(output_path, list(by_date.values()))
+        total_records += len(records)
+        print(
+            f"{station_number}: downloaded {len(records)} rows "
+            f"({chunk_start} to {chunk_end})"
+        )
+        chunk_start = chunk_end + timedelta(days=1)
+    return f"{station_number}: complete, downloaded {total_records} rows"
 
 
-def merge_with_existing(existing_dir, new_dir, hourly=True):
-    if hourly:
-        interval = "hourly"
-    else:
-        interval = "daily"
+def main() -> int:
+    args = parse_args()
+    api_key = os.environ.get("CIMIS_API_KEY")
+    if not api_key:
+        print("CIMIS_API_KEY is not set in this PowerShell session.", file=sys.stderr)
+        return 2
+    if not 1 <= args.chunk_days <= 5020:
+        print("--chunk-days must be between 1 and 5020.", file=sys.stderr)
+        return 2
 
-    new_files = glob.glob(os.path.join(new_dir, f"cimis_{interval}_*.csv"))
-    for file in tqdm.tqdm(new_files):
-        # get name of file
-        file_name = os.path.basename(file)
-        # get file in existing directory of same name
-        existing_file = os.path.join(existing_dir, file_name)
-        # if file exists in existing directory, merge with new file
-        dfn = pd.read_csv(file, index_col=0, parse_dates=True)
-        if os.path.exists(existing_file):
-            dfe = pd.read_csv(existing_file, index_col=0, parse_dates=True)
-            # Combine the two DataFrames. drop_duplicates() compares column
-            # values and would silently keep both rows when the same timestamp
-            # has updated values (e.g. CIMIS back-corrections). Use index-based
-            # deduplication instead, preferring the last (newer) occurrence.
-            combined = pd.concat([dfe, dfn])
-            combined = combined[~combined.index.duplicated(keep="last")].sort_index()
-            combined.to_csv(existing_file)
-        else:
-            logging.warning(f"File {existing_file} does not exist so writing new file")
-            dfn.to_csv(existing_file)
+    end_date = args.end_date or (date.today() - timedelta(days=1))
+    with args.stations.open(newline="", encoding="utf-8-sig") as handle:
+        stations = list(csv.DictReader(handle))
+    selected = set(args.station or [])
+    if selected:
+        stations = [station for station in stations if int(station["Station_Number"]) in selected]
 
-
-def download_cimis(hourly, existing_dir, download, partial):
-    """
-    Download CIMIS data
-
-    Environment variable CIMIS_PASSWORD must be set to the password for the CIMIS FTP site
-    """
-    if download:
-        download_all_data(hourly=hourly, partial=partial)
-    if existing_dir is not None:
-        merge_with_existing(existing_dir, ".", hourly=hourly)
-
-
-@click.command()
-@click.option(
-    "--hourly/--daily",
-    default=True,
-    help="Download hourly data (default) or daily data",
-)
-@click.option("--existing-dir", default=None, help="Directory to merge new data into")
-@click.option(
-    "--download/--no-download",
-    default=True,
-    help="Download data (default is True)",
-)
-@click.option(
-    "--partial/--full",
-    default=False,
-    help="Partial download (default is full download)",
-)
-def download_cimis_cli(hourly, existing_dir, download, partial):
-    """
-    CLI for downloading CIMIS data
-    """
-
-    download_cimis(hourly, existing_dir, download, partial)
+    failures = 0
+    for station in stations:
+        try:
+            print(
+                process_station(
+                    station,
+                    args.output_dir,
+                    args.start_date,
+                    end_date,
+                    api_key,
+                    args.timeout,
+                    args.chunk_days,
+                )
+            )
+        except (KeyError, ValueError, RuntimeError, OSError) as error:
+            failures += 1
+            print(f"{station.get('Station_Number', '?')}: ERROR: {error}", file=sys.stderr)
+    return 1 if failures else 0
 
 
 if __name__ == "__main__":
-    download_cimis_cli()
+    raise SystemExit(main())
