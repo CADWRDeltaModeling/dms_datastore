@@ -1,0 +1,45 @@
+# Documentation-support overlay; run these commands from the repository root.
+# Requires conda >=26.3.0 (the conda installation normally lives in base).
+# Explicit format selection is needed for the custom overlay filename.
+# conda create -n dms_datastore_doc --format cep-24 --file environment.yml --file environment-doc.yml
+# Older conda: create from environment.yml, then add this overlay without --prune.
+# conda env create -n dms_datastore_doc -f environment.yml
+# conda env update -n dms_datastore_doc -f environment-doc.yml
+# conda activate dms_datastore_doc
+# python -m pip install --no-deps -e .
+# sphinx-build -b html docsrc docs/html
+# This file is used only when explicitly included; normal setup is unchanged.
+# Optional standalone Mermaid rendering (downloads the CLI on first use):
+# npm exec --package=@mermaid-js/mermaid-cli -- mmdc --help
+
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - pip
+  - sphinx>=7.0
+  - sphinx-rtd-theme
+  - sphinx-autodoc-typehints
+  - sphinx-click
+  - sphinx-design
+  - sphinx-argparse
+  - sphinxcontrib-bibtex
+  - sphinxcontrib-mermaid
+  - myst-parser
+  - ghp-import
+  - numpydoc
+  - pillow>=4.0.0
+  - nbsphinx
+  - nbconvert
+  - ipykernel
+  - docutils
+  - babel
+  - pandoc
+  - nodejs
+  - matplotlib
+  - ipython
+  - click
+  - httpx
+  - pip:
+      - sphinxcontrib-xlsxtable
+      - pandoc

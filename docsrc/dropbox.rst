@@ -1,5 +1,6 @@
-Dropbox Data Ingestion
-======================
+######################
+Dropbox Ingestion
+######################
 
 Overview
 --------
@@ -334,7 +335,7 @@ Naming convention: keep recipe file names consistent and descriptive
 infix in new recipes.
 
 Example AI Prompt for Recipe Creation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. code-block:: text
 
@@ -342,6 +343,7 @@ Example AI Prompt for Recipe Creation
   for the hourly CIMIS CSVs in W:/test_cimis/cimis_download, initially for
   wind speed and air temperature only.
 
+  Unusually, this requires a repository. A registry has been started.
   Target a regular, year-sharded repository named atmospheric. Check existing
   configuration and the atmospheric station registry; create the repository
   configuration and empty receiving directory if needed. Coordinates must
@@ -349,7 +351,11 @@ Example AI Prompt for Recipe Creation
 
   Inspect the source headers, units, timestamps, and QC columns. Use
   per-variable usecols where appropriate, including the timestamp and any
-  required QC fields. Make unit conversions and QC handling explicit.
+  required QC fields. Make unit conversions and QC handling explicit. If
+  a specialized reader is required, describe the options: put the complexities
+  in the original script, extend read_ts or make a custom reader as needed for dropbox.
+  This has never been done before, but there is a config slot for it. The data are
+  hourly averages stamped at the end of the interval.
 
   Prefer standard variable names from the configured definitions and
   mappings. Flag any filename-parser limitations, including underscores,

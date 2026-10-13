@@ -135,7 +135,11 @@ Metadata rules:
 - **Parameter names and underscores:** the current filename-template parser rejects underscores in `{param}` (for example, `wind_speed` and `air_temp`). Tell the user about this limitation before ingestion; do not silently abbreviate names. Consult the configured variable definitions (`variables.csv`) and `variable_mappings.csv`, and encourage use of an existing, filename-compatible standard variable name where possible. If the standard name itself contains an underscore, flag the naming/parser inconsistency and prompt the user to agree on a coordinated fix rather than inventing a recipe-only alias. Validate the proposed output name with `meta_to_filename` and `interpret_fname` for the receiving repo before processing the full input.
 - **Provenance:** `agency` is the instrument-owning agency, `agency_id` its native station id, `source` the collection/processing source (e.g. agency `ncro`, source `cdec`).
 - **Coordinates come from the registry.** The keys `lat`, `lon`, `latitude`, `longitude`, `agency_lat`, `agency_lon`, `x`, `y`, `projection_x_coordinate`, `projection_y_coordinate` raise if given literal values. The only allowed value for them is `registry_lookup`, which many recipes use explicitly. Fix wrong or missing coordinates in the registry, not in a recipe (see the `station-registry` skill).
+- **Time zone** is derived from the registry. Don't add it. The key `tz` raises if given a literal value. The only allowed value is `registry_lookup`. Fix wrong or missing time zones in the registry, not in a recipe. Typically PST is used for Bay-Delta data. Daylight savings time is never applied.
+- **Averaged values** must be clearly indicated in the metadata. Use a dedicated key (e.g., `averaging_timestamp: pre|post|center`) to specify the time window over which the values are averaged. Do not embed this information in the parameter name or filename.
 - Keep string fields lower case.
+
+When in doubt ask. Users are encourage to consult the station registry, variable definitions, and experienced colleagues rather than making ad hoc decisions in the recipe and AI should not be relied upon to resolve these ambiguities automatically.
 
 YAML value rules:
 
