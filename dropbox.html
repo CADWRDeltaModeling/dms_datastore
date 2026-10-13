@@ -6,15 +6,16 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dropbox Data Ingestion &mdash; dms_datastore 0.8.13.dev5+g2b9077fc8 documentation</title>
+  <title>Dropbox Data Ingestion &mdash; dms_datastore 0.8.13.dev6+ga3a0ffbdd documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/mermaid_overrides.css?v=3a91b99f" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=88500a75"></script>
+      <script src="_static/documentation_options.js?v=99612e51"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -378,9 +379,7 @@ window.addEventListener("load", load);
 window.runMermaid = runMermaid;</script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Reading Time Series and Metadata" href="read_data_meta.html" />
-    <link rel="prev" title="dms_datastore Command Reference" href="commands.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -402,43 +401,9 @@ window.runMermaid = runMermaid;</script>
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
-<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
-<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Dropbox Data Ingestion</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#motivation">Motivation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#concepts-to-settle-before-writing-a-recipe">Concepts to Settle Before Writing a Recipe</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#recipe-decision-path">Recipe Decision Path</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#cli">CLI</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#recipe-resolution">Recipe Resolution</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#programmatic-use">Programmatic Use</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#how-to-write-a-recipe">How to Write a Recipe</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#regular-vs-irregular-data">Regular vs. Irregular Data</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#wildcard-modes">Wildcard Modes</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#filename-templates-inference-mode">Filename Templates (Inference Mode)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#transforms">Transforms</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#common-transforms">Common Transforms</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="#metadata">Metadata</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#coordinate-policy">Coordinate Policy</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#output-and-reconciliation">Output and Reconciliation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#recommended-workflow-backfill-then-top-off">Recommended Workflow: Backfill, then Top Off</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#common-pitfalls">Common Pitfalls</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#failure-handling">Failure Handling</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#bundled-examples">Bundled Examples</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#key-functions">Key Functions</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html"> Local Caching</a></li>
 </ul>
 
         </div>
@@ -513,12 +478,16 @@ station registry before anything touches the repo.</p></li>
 <h2>Concepts to Settle Before Writing a Recipe<a class="headerlink" href="#concepts-to-settle-before-writing-a-recipe" title="Link to this heading"></a></h2>
 <p>Recipes connect a source file to one repository time series. A few datastore
 concepts determine the recipe’s metadata and output policy:</p>
-<ul class="simple">
-<li><p><strong>Receiving repository</strong> is the target repository for the staged data. It must
-match one of the configured repositories in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code> and align
-with the data’s regularity and family. Usually the receiving repository is
-determined by a few questions:</p>
 <ul>
+<li><p><strong>Receiving repository</strong> is the target repository for the data, which determines
+both its final location and the filename convention.  The repo name must
+match one of the configured repositories in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code> and align
+with the data’s regularity and family. The stations you are working with have to
+be in the <em>station registry</em> for that repo, which is a CSV file listing all recognized stations
+and listing simple metadata like location and operating agency (e.g. the canonical one is
+<cite>station_dbase.csv</cite> which applies to the continuous stations).</p>
+<p>Usually the correct receiving repository is determined by a few questions:</p>
+<ul class="simple">
 <li><p>Is the data regularly sampled?</p></li>
 <li><p>Is the data linked to structure operations?</p></li>
 <li><p>Is the data an abstract, such as Net Delta Outflow, a regulation objective,
@@ -526,25 +495,43 @@ or a harmonic forecast?</p></li>
 <li><p>Is the data reported at a daily time step?</p></li>
 </ul>
 </li>
-<li><p><strong>Repository tier</strong> describes the product being stored. <code class="docutils literal notranslate"><span class="pre">formatted</span></code> tiers
-hold standardized source observations; <code class="docutils literal notranslate"><span class="pre">processed</span></code> is for derived, filled,
+<li><p><strong>Repository tier</strong> is a hierarchy that applies to all the continuous stations.
+The lowest, <code class="docutils literal notranslate"><span class="pre">raw</span></code>, isn’t even a repo that is stored persistently; it is for initial ingestion and staging.
+The next tier,  <code class="docutils literal notranslate"><span class="pre">formatted</span></code>,  holds standardized source observations;
+The <code class="docutils literal notranslate"><span class="pre">screened</span> <span class="pre">``</span> <span class="pre">tier</span> <span class="pre">unifies</span> <span class="pre">units</span> <span class="pre">and</span> <span class="pre">makes</span> <span class="pre">sure</span> <span class="pre">that</span> <span class="pre">multiple</span> <span class="pre">sources</span> <span class="pre">of</span>
+<span class="pre">the</span> <span class="pre">same</span> <span class="pre">instrument's</span> <span class="pre">data</span> <span class="pre">are</span> <span class="pre">resolved.</span> <span class="pre">Finally</span> <span class="pre">``processed</span></code> is for derived, filled,
 or application-oriented products; <code class="docutils literal notranslate"><span class="pre">structures_formatted</span></code> is used for
 irregular structure and gate records. Choose a <code class="docutils literal notranslate"><span class="pre">repo_name</span></code> that exists in
 <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code> and whose regularity matches the data. It is expected
-that new repositories creation is to be done cautiously.</p></li>
-<li><p><strong>Series identity</strong> is the station, sublocation, and parameter. Use a
+that new repositories creation is to be done infrequently and cautiously.
+Don’t make that your first move, but DO use the “repo_data_dir” field
+to override the target initially. This allows a safe dry run to
+test your output before plastering data over a production repository.</p></li>
+<li><p><strong>Series identity</strong> is the station, sublocation, parameter and in some
+cases agency that are needed to fully identify a series. Use a
 sublocation when a station has distinct sensors or products for the same
-parameter; otherwise use <code class="docutils literal notranslate"><span class="pre">default</span></code>. The station_id must be an entry in the
-station registry. Coordinates belong in the registry, not in recipe-authored
+parameter; otherwise use <code class="docutils literal notranslate"><span class="pre">default</span></code> which in most data use cases can be left blank
+but in a recipe is better made explicit. The station_id must be an entry in the
+station registry, which avoids orphans and certain kinds of mistakes.
+Coordinates belong in the registry, not in recipe-authored
 metadata, but don’t cheat on this because a placeholder will be tedious to correct in the
-repository. See <a class="reference internal" href="concepts.html"><span class="doc">Concepts and Conventions</span></a> and the <code class="docutils literal notranslate"><span class="pre">station-registry</span></code> skill.</p></li>
-<li><p><strong>Provenance fields answer different questions.</strong> <code class="docutils literal notranslate"><span class="pre">agency</span></code> identifies the
+repository. See <a class="reference internal" href="concepts.html"><span class="doc">Concepts and Conventions</span></a> and the <code class="docutils literal notranslate"><span class="pre">station-registry</span></code> skill. You will find
+that many recipes defer to the registry explicitly by saying:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">latitude</span><span class="p">:</span> <span class="n">registry_lookup</span>
+<span class="n">longitude</span><span class="p">:</span> <span class="n">registry_lookup</span>
+<span class="n">projection_x_coordinate</span><span class="p">:</span> <span class="n">registry_lookup</span>
+<span class="n">projection_y_coordinate</span><span class="p">:</span> <span class="n">registry_lookup</span>
+</pre></div>
+</div>
+</li>
+<li><p><strong>Provenance fields answer different questions.</strong> You will encounter names like</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">agency</span></code>, <code class="docutils literal notranslate"><span class="pre">source</span></code> and <code class="docutils literal notranslate"><span class="pre">processor</span></code> which answer different questions about</p></li>
+<li><p>where the data comes from. <code class="docutils literal notranslate"><span class="pre">agency</span></code> identifies the
 instrument-owning agency, <code class="docutils literal notranslate"><span class="pre">agency_id</span></code> is its native station identifier,
 and <code class="docutils literal notranslate"><span class="pre">source</span></code> describes the collection or processing source for this
 product. So, for instance the <code class="docutils literal notranslate"><span class="pre">agency</span></code> might be <code class="docutils literal notranslate"><span class="pre">NCRO</span></code> (DWR North
-Central Regional Office) but the <code class="docutils literal notranslate"><span class="pre">source</span></code> CDEC. Note that contrary
-t
-the <code class="docutils literal notranslate"><span class="pre">agency_id</span></code> could be the USGS site number, and the <code class="docutils literal notranslate"><span class="pre">source</span></code> might indicate the specific data collection or processing method used.</p></li>
+Central Regional Office) but the <code class="docutils literal notranslate"><span class="pre">source</span></code> for the most recent months is often CDEC,
+which is a data mart that supplies real-time provisional-quality data over a number of stations.</p></li>
 <li><p><strong>Staging is not reconciliation.</strong> Staging writes a standardized file format to
 a specified staging location. Often this file is a longer stretch or superset of
 what will ultimately be spliced or merged into the repository.
@@ -553,38 +540,88 @@ merged into the configured repository. Decide explicitly whether the
 new staged series or the original repo series should win where timestamps overlap.
 Familiarize yourself with the vtools methods for splicing or merging series. Generally
 we do not “shuffle timestamps” arbitrarily – one or the other will prevail over time blocks.
-Lastly, you can do a practice run by specifying <code class="docutils literal notranslate"><span class="pre">repo_data_dir</span></code> to point
-to a temporary location instead of the actual repository. You absolutely should do this
-before running on the actual repository to catch any issues early.</p></li>
+Lastly, you can do a practice run by setting <code class="docutils literal notranslate"><span class="pre">output.repo_data_dir</span></code> (directly under
+<code class="docutils literal notranslate"><span class="pre">output</span></code>, not under <code class="docutils literal notranslate"><span class="pre">reconcile</span></code>) to point to a temporary mock repository instead
+of the actual repository. You absolutely should do this before running on the actual
+repository to catch any issues early. See <a class="reference internal" href="#dry-run-and-production">Dry Run and Production</a>.</p></li>
 </ul>
 </section>
 <section id="recipe-decision-path">
 <h2>Recipe Decision Path<a class="headerlink" href="#recipe-decision-path" title="Link to this heading"></a></h2>
-<p>Use this sequence to choose the recipe settings before filling in YAML:</p>
-<pre  class="mermaid">
-        flowchart TD
-  A[&quot;Identify source files&quot;] --&gt; B{&quot;Do filenames encode per-file metadata?&quot;}
-  B -- Yes --&gt; C[&quot;Use filename-template inference; omit wildcard&quot;]
-  B -- No --&gt; D{&quot;How many files match?&quot;}
-  D -- One --&gt; E[&quot;Use one-file mode; omit wildcard&quot;]
-  D -- Several --&gt; F{&quot;Do their time ranges overlap?&quot;}
-  F -- No --&gt; G[&quot;Use time_shard for non-overlapping blocks&quot;]
-  F -- Yes --&gt; H[&quot;Use time_overlap and choose the merge method&quot;]
-  C --&gt; I{&quot;Is the series regularly sampled?&quot;}
+<p>Use this sequence to choose the recipe settings before filling in YAML. Each box is
+labeled with the part of the recipe that the decisions inside it settle.</p>
+<pre id="recipe-decision-diagram" class="mermaid">
+        %%{init: {&quot;themeVariables&quot;: {&quot;fontSize&quot;: &quot;18px&quot;}, &quot;flowchart&quot;: {&quot;subGraphTitleMargin&quot;: {&quot;top&quot;: 6, &quot;bottom&quot;: 24}}}}%%
+flowchart TD
+  A[&quot;Identify source&lt;br/&gt;files as pattern&quot;] --&gt; B{&quot;Wildcard?&quot;}
+  B -- &quot;Files are different series&lt;br/&gt;(e.g. variable or station)&quot; --&gt; C[&quot;Inference mode:&lt;br/&gt;metadata {field}&lt;br/&gt;placeholders in&lt;br/&gt;file pattern&quot;]
+  B -- No --&gt; E
+  B -- &quot;Files are&lt;br/&gt;different years&quot; --&gt; F{&quot;Times&lt;br/&gt;overlap?&quot;}
+  subgraph WILDCARD [&quot;collect.wildcard&quot;]
+    E[&quot;none&quot;]
+    G[&quot;time_shard&quot;]
+    H[&quot;time_overlap&lt;br/&gt;+ merge_method&quot;]
+  end
+  F -- No --&gt; G
+  F -- Yes --&gt; H
+  subgraph REGULARITY [&quot;collect.reader_args&quot;]
+    I{&quot;Regularly&lt;br/&gt;sampled?&quot;}
+    I -- Yes --&gt; J[&quot;force_regular: true&lt;br/&gt;metadata.freq: infer&lt;br/&gt;or explicit ('15min');&lt;br/&gt;regular repo_name&quot;]
+    I -- No --&gt; K[&quot;force_regular: false&lt;br/&gt;metadata.freq: none;&lt;br/&gt;irregular repo_name&quot;]
+  end
+  C --&gt; I
   E --&gt; I
   G --&gt; I
   H --&gt; I
-  I -- Yes --&gt; J[&quot;Use a regular repo; set freq to infer or a frequency; keep force_regular true&quot;]
-  I -- No --&gt; K[&quot;Use an irregular repo; set freq to none and force_regular false&quot;]
-  J --&gt; L{&quot;Are source timestamps DST-local?&quot;}
+  subgraph TRANSFORMS [&quot;transforms&quot;]
+    L{&quot;Timestamps&lt;br/&gt;DST-local?&quot;}
+    L -- Yes --&gt; M[&quot;dst_tz, before&lt;br/&gt;any coarsen&quot;]
+    L -- No --&gt; N[&quot;no time-zone&lt;br/&gt;transform&quot;]
+  end
+  J --&gt; L
   K --&gt; L
-  L -- Yes --&gt; M[&quot;Apply dst_tz before coarsening&quot;]
-  L -- No --&gt; N[&quot;Leave timestamps unchanged&quot;]
-  M --&gt; O{&quot;Stage for review or reconcile now?&quot;}
+  subgraph OUTPUT [&quot;output&quot;]
+    O{&quot;Review only or&lt;br/&gt;update repo?&quot;}
+    O -- Review only --&gt; P[&quot;omit reconcile section&quot;]
+    O -- Update repo --&gt; Q[&quot;reconcile: set &lt;br/&gt;prefer: (repo/staged) and &lt;br/&gt;allow_new_series: true/false&lt;br/&gt;deliberately&quot;]
+    Q --&gt; R{&quot;Dry run or&lt;br/&gt;production?&quot;}
+    R -- Dry run --&gt; S[&quot;repo_data_dir:&lt;br/&gt;mock repo&lt;br/&gt;directory&quot;]
+    R -- Production --&gt; T[&quot;omit repo_data_dir;&lt;br/&gt;target inferred from&lt;br/&gt;repo_name&quot;]
+  end
+  M --&gt; O
   N --&gt; O
-  O -- Review only --&gt; P[&quot;Omit reconcile&quot;]
-  O -- Update repo --&gt; Q[&quot;Set overlap preference and allow_new_series deliberately&quot;]
-    </pre><p>For reconciliation, <code class="docutils literal notranslate"><span class="pre">prefer:</span> <span class="pre">staged</span></code> is appropriate when the staged data is
+    </pre><p>The boxes correspond to these decisions:</p>
+<dl class="simple">
+<dt>Inference mode</dt><dd><p>If the matched files are different series (for example, different variables or
+stations) and each file name encodes the identity (station, agency ID,
+parameter, …), write <code class="docutils literal notranslate"><span class="pre">file_pattern</span></code> as a template with <code class="docutils literal notranslate"><span class="pre">{field}</span></code>
+placeholders and omit <code class="docutils literal notranslate"><span class="pre">wildcard</span></code>; each file becomes its own output. See
+<a class="reference internal" href="#filename-templates-inference-mode">Filename Templates (Inference Mode)</a>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">collect.wildcard</span></code></dt><dd><p>Otherwise the entry produces one series, and <code class="docutils literal notranslate"><span class="pre">wildcard</span></code> says how the matched
+files combine into it: <code class="docutils literal notranslate"><span class="pre">none</span></code> when the pattern matches exactly one file,
+<code class="docutils literal notranslate"><span class="pre">time_shard</span></code> when the files cover different, non-overlapping periods (such as
+years), and <code class="docutils literal notranslate"><span class="pre">time_overlap</span></code> (with <code class="docutils literal notranslate"><span class="pre">merge_method</span></code>) only when files genuinely
+overlap in time. See <a class="reference internal" href="#wildcard-modes">Wildcard Modes</a>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">collect.reader_args</span></code></dt><dd><p>Regular series keep the frequency contract (<code class="docutils literal notranslate"><span class="pre">force_regular:</span> <span class="pre">true</span></code>), declare
+<code class="docutils literal notranslate"><span class="pre">metadata.freq</span></code> as <code class="docutils literal notranslate"><span class="pre">infer</span></code> or an explicit frequency, and go to a regular
+<code class="docutils literal notranslate"><span class="pre">output.repo_name</span></code>. Gate and event records are read irregularly
+(<code class="docutils literal notranslate"><span class="pre">force_regular:</span> <span class="pre">false</span></code>, <code class="docutils literal notranslate"><span class="pre">metadata.freq:</span> <span class="pre">none</span></code>) and go to an irregular
+repository. See <a class="reference internal" href="#regular-vs-irregular-data">Regular vs. Irregular Data</a>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">transforms</span></code></dt><dd><p>Local clock time with daylight saving is converted to a fixed offset with
+<code class="docutils literal notranslate"><span class="pre">dst_tz</span></code> before any coarsening. See <a class="reference internal" href="#transforms">Transforms</a>.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">output</span></code></dt><dd><p>Stage only, to inspect the result, or add <code class="docutils literal notranslate"><span class="pre">reconcile</span></code> to merge into the
+repository with an explicit overlap preference and a deliberate
+<code class="docutils literal notranslate"><span class="pre">allow_new_series</span></code> setting. Do a dry run first by pointing
+<code class="docutils literal notranslate"><span class="pre">output.repo_data_dir</span></code> at a mock repository; for production, remove
+<code class="docutils literal notranslate"><span class="pre">repo_data_dir</span></code> so the target comes from <code class="docutils literal notranslate"><span class="pre">repo_name</span></code>. See
+<a class="reference internal" href="#output-and-reconciliation">Output and Reconciliation</a> and <a class="reference internal" href="#dry-run-and-production">Dry Run and Production</a>.</p>
+</dd>
+</dl>
+<p>For reconciliation, <code class="docutils literal notranslate"><span class="pre">prefer:</span> <span class="pre">staged</span></code> is appropriate when the staged data is
 authoritative over its covered interval, such as a consistent full-window
 recompute. <code class="docutils literal notranslate"><span class="pre">prefer:</span> <span class="pre">repo</span></code> is for deliberate gap-filling or a one-off backfill
 where existing repository values must win. It is usually not the right routine
@@ -681,6 +718,7 @@ list of entries. Values are resolved with <a class="reference external" href="ht
 
 <span class="w">    </span><span class="nt">output</span><span class="p">:</span>
 <span class="w">      </span><span class="nt">repo_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">formatted</span><span class="w">      </span><span class="c1"># must match a repo in dstore_config.yaml</span>
+<span class="w">      </span><span class="c1"># repo_data_dir: ./mock_repo  # dry run only; directly under output, never under reconcile</span>
 <span class="w">      </span><span class="nt">staging</span><span class="p">:</span>
 <span class="w">        </span><span class="nt">dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">${repo_home}/incoming/drop_staging</span>
 <span class="w">        </span><span class="nt">write_args</span><span class="p">:</span>
@@ -701,11 +739,39 @@ need none. SCADA feeds typically need <code class="docutils literal notranslate"
 <li><p><strong>Fill in ``metadata``.</strong> Keep string fields lower case. Coordinates come from
 the registry — never hard-code them (see below).</p></li>
 <li><p><strong>Choose an ``output`` policy.</strong> Stage into a scratch directory, then decide
-whether/how to reconcile into the repo.</p></li>
+whether/how to reconcile into the repo. Reconcile into a mock repository
+(<code class="docutils literal notranslate"><span class="pre">repo_data_dir</span></code>) before reconciling into the real one.</p></li>
 </ol>
 <p>Naming convention: keep recipe file names consistent and descriptive
 (<code class="docutils literal notranslate"><span class="pre">dropbox_smscg_scada.yaml</span></code>, <code class="docutils literal notranslate"><span class="pre">dropbox_ccf.yaml</span></code>). Avoid the legacy <code class="docutils literal notranslate"><span class="pre">spec</span></code>
 infix in new recipes.</p>
+<section id="example-ai-prompt-for-recipe-creation">
+<h3>Example AI Prompt for Recipe Creation<a class="headerlink" href="#example-ai-prompt-for-recipe-creation" title="Link to this heading"></a></h3>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>Use the dropbox-ingestion and station-registry skills to create a recipe
+for the hourly CIMIS CSVs in W:/test_cimis/cimis_download, initially for
+wind speed and air temperature only.
+
+Target a regular, year-sharded repository named atmospheric. Check existing
+configuration and the atmospheric station registry; create the repository
+configuration and empty receiving directory if needed. Coordinates must
+come from the registry.
+
+Inspect the source headers, units, timestamps, and QC columns. Use
+per-variable usecols where appropriate, including the timestamp and any
+required QC fields. Make unit conversions and QC handling explicit.
+
+Prefer standard variable names from the configured definitions and
+mappings. Flag any filename-parser limitations, including underscores,
+and discuss the naming fix with me rather than silently inventing aliases.
+
+Start with staging only and provide instructions for mock-repo
+reconciliation before production. Validate the complete
+recipe-to-annual-shards-to-mock-repo path with small local test data.
+Do not run the full ingestion or large diagnostics on W:; give me those
+commands to run.
+</pre></div>
+</div>
+</section>
 </section>
 <section id="regular-vs-irregular-data">
 <h2>Regular vs. Irregular Data<a class="headerlink" href="#regular-vs-irregular-data" title="Link to this heading"></a></h2>
@@ -849,7 +915,7 @@ Typically applied <em>after</em> <code class="docutils literal notranslate"><spa
 <span class="w">      </span><span class="nt">heartbeat_freq</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">60min</span><span class="w">  </span><span class="c1"># force a keep-alive sample during idle periods</span>
 </pre></div>
 </div>
-<p><strong>Trim empty edges.</strong> Drop leading/trailing all-NaN rows left by an export that
+<p><strong>Trim empty edges.</strong> Drop leading/trailing all-NaN rows left by feed that
 padded the record:</p>
 <div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">transforms</span><span class="p">:</span>
 <span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">trim_data</span>
@@ -939,9 +1005,11 @@ from the registry during processing; recipe authors must <strong>not</strong> ha
 <code class="docutils literal notranslate"><span class="pre">projection_y_coordinate</span></code></p>
 </div></blockquote>
 <p>To fix missing or wrong coordinates, update the registry CSV — not the recipe.
-The registry provides <code class="docutils literal notranslate"><span class="pre">agency_lat</span></code>/<code class="docutils literal notranslate"><span class="pre">agency_lon</span></code> (agency-reported WGS84,
-written as <code class="docutils literal notranslate"><span class="pre">latitude</span></code>/<code class="docutils literal notranslate"><span class="pre">longitude</span></code>) and <code class="docutils literal notranslate"><span class="pre">x</span></code>/<code class="docutils literal notranslate"><span class="pre">y</span></code> (EPSG:26910, potentially
-adjusted, written as <code class="docutils literal notranslate"><span class="pre">projection_x_coordinate</span></code>/<code class="docutils literal notranslate"><span class="pre">projection_y_coordinate</span></code>).</p>
+The registry provides <code class="docutils literal notranslate"><span class="pre">agency_lat</span></code>/<code class="docutils literal notranslate"><span class="pre">agency_lon</span></code> (the agency-reported
+location, EPSG:4269, kept as reported) and our preferred location as
+<code class="docutils literal notranslate"><span class="pre">lat</span></code>/<code class="docutils literal notranslate"><span class="pre">lon</span></code> (EPSG:4269, written as <code class="docutils literal notranslate"><span class="pre">latitude</span></code>/<code class="docutils literal notranslate"><span class="pre">longitude</span></code>) and
+<code class="docutils literal notranslate"><span class="pre">x</span></code>/<code class="docutils literal notranslate"><span class="pre">y</span></code> (EPSG:26910, written as
+<code class="docutils literal notranslate"><span class="pre">projection_x_coordinate</span></code>/<code class="docutils literal notranslate"><span class="pre">projection_y_coordinate</span></code>).</p>
 </section>
 <section id="output-and-reconciliation">
 <h2>Output and Reconciliation<a class="headerlink" href="#output-and-reconciliation" title="Link to this heading"></a></h2>
@@ -949,7 +1017,12 @@ adjusted, written as <code class="docutils literal notranslate"><span class="pre
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">repo_name</span></code> — must match a repo defined in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code>. The repo’s
 <code class="docutils literal notranslate"><span class="pre">regular</span></code>, <code class="docutils literal notranslate"><span class="pre">dtypes</span></code>, and <code class="docutils literal notranslate"><span class="pre">float_format</span></code> settings are honored during
-reconciliation.</p></li>
+reconciliation, and its configured root is the reconcile target unless
+<code class="docutils literal notranslate"><span class="pre">repo_data_dir</span></code> is set.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">repo_data_dir</span></code> — optional, for dry runs only. An existing directory that
+replaces the configured root as the reconcile target. It belongs directly under
+<code class="docutils literal notranslate"><span class="pre">output</span></code>; placing it under <code class="docutils literal notranslate"><span class="pre">reconcile</span></code> is an error. See
+<a class="reference internal" href="#dry-run-and-production">Dry Run and Production</a>.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">staging.dir</span></code> — a scratch directory that must exist (its leaf is created if
 the parent exists). Standardized files are written here.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">staging.write_args</span></code> — kwargs to <code class="docutils literal notranslate"><span class="pre">write_ts_csv</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">float_format</span></code>,
@@ -970,6 +1043,32 @@ re-inspecting <em>older shards</em> (see cautions below).</p></li>
 churn such as <code class="docutils literal notranslate"><span class="pre">date_formatted</span></code>) and only rewrites when values actually differ.
 The dropbox passes the exact series it just produced to the reconciler, so
 unrelated files sharing the staging directory are not swept into the repo.</p>
+<section id="dry-run-and-production">
+<h3>Dry Run and Production<a class="headerlink" href="#dry-run-and-production" title="Link to this heading"></a></h3>
+<p>Reconciliation writes to the repository in place; there is no plan-only mode for
+the dropbox. The dry run is done by redirecting the write with
+<code class="docutils literal notranslate"><span class="pre">output.repo_data_dir</span></code>:</p>
+<div class="highlight-yaml notranslate"><div class="highlight"><pre><span></span><span class="nt">output</span><span class="p">:</span>
+<span class="w">  </span><span class="nt">repo_name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">formatted</span><span class="w">          </span><span class="c1"># still governs naming, regularity, dtypes, float_format</span>
+<span class="w">  </span><span class="nt">repo_data_dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./mock_repo</span><span class="w">    </span><span class="c1"># dry run: reconcile here instead of the configured root</span>
+<span class="w">  </span><span class="nt">staging</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">dir</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./drop_staging</span>
+<span class="w">  </span><span class="nt">reconcile</span><span class="p">:</span>
+<span class="w">    </span><span class="nt">prefer</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">staged</span>
+<span class="w">    </span><span class="nt">allow_new_series</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
+</pre></div>
+</div>
+<p><strong>Dry run.</strong> Create the mock directory and copy into it the current repository
+files for the series the recipe produces. The directory must exist; a path that
+does not exist is interpreted as a repository name and fails. Seeding it matters:
+with an empty mock repository, <code class="docutils literal notranslate"><span class="pre">allow_new_series:</span> <span class="pre">false</span></code> raises because there is
+no namesake series, and <code class="docutils literal notranslate"><span class="pre">allow_new_series:</span> <span class="pre">true</span></code> only exercises series creation,
+not the overlap merge. Run the recipe, then compare the mock files with the
+originals (<code class="docutils literal notranslate"><span class="pre">compare_directories</span></code> or a diff) and inspect the joins.</p>
+<p><strong>Production.</strong> Remove or comment out <code class="docutils literal notranslate"><span class="pre">repo_data_dir</span></code> and run again. The target
+is then the configured root for <code class="docutils literal notranslate"><span class="pre">repo_name</span></code>. Staging may not coincide with or
+nest inside the target in either mode.</p>
+</section>
 </section>
 <section id="recommended-workflow-backfill-then-top-off">
 <h2>Recommended Workflow: Backfill, then Top Off<a class="headerlink" href="#recommended-workflow-backfill-then-top-off" title="Link to this heading"></a></h2>
@@ -1068,10 +1167,7 @@ into a repository.</p></li>
 
            </div>
           </div>
-          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="commands.html" class="btn btn-neutral float-left" title="dms_datastore Command Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="read_data_meta.html" class="btn btn-neutral float-right" title="Reading Time Series and Metadata" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-    </div>
+          <footer>
 
   <hr/>
 

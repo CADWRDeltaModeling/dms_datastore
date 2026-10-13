@@ -288,8 +288,8 @@ Recipes serve as the record of how each series was produced and can be rerun to 
 ongoing feeds. See :doc:`dropbox`.
 
 
-Other Downloaded Data
----------------------
+Other Downloader Scripts and Data
+---------------------------------
 
 Some downloaders retrieve data that are not station time series, such as gridded
 atmospheric fields from the NOAA High-Resolution Rapid Refresh model (``download_hrrr``)
@@ -358,7 +358,7 @@ Units and Standardization
 
 * **CF Compliance**: Variable names and units are intended to be CF (Climate and
   Forecast) compliant wherever possible.
-* **Stage and flow**: feet (ft) and cubic feet per second (cfs) respectively.
+* **Stage and flow**: feet (ft) and cubic feet per second (ft^3/s) respectively. 
 * **All other variables**: SI units (e.g., °C for temperature).
 * **PSU exception**: Practical Salinity Unit is technically a ratio and not a true unit.
 * **Specific Conductivity (EC)**: Always normalized to 25°C (µS/cm at 25°C).

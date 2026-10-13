@@ -6,23 +6,22 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Downloading Data &mdash; dms_datastore 0.8.13.dev5+g2b9077fc8 documentation</title>
+  <title>Downloading Utilities &mdash; dms_datastore 0.8.13.dev6+ga3a0ffbdd documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/mermaid_overrides.css?v=3a91b99f" />
 
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=88500a75"></script>
+      <script src="_static/documentation_options.js?v=99612e51"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="dms_datastore Command Reference" href="commands.html" />
-    <link rel="prev" title="Station Database and Queries" href="station_info.html" /> 
+    <link rel="search" title="Search" href="search.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -44,41 +43,9 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
-<ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
-<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
-<li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Downloading Data</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#station-lists">Station Lists</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#specific-command-line-interfaces">Specific Command Line Interfaces</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#cdec">CDEC</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#download-cdec">download_cdec</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#usgs-nwis">USGS (NWIS)</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#download-nwis">download_nwis</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#noaa">NOAA</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#download-noaa">download_noaa</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#dwr-ncro">DWR-NCRO</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#download-des">download_des</a></li>
-</ul>
-</li>
-<li class="toctree-l3"><a class="reference internal" href="#dwr-des-dise">DWR-DES (DISE)</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html"> Local Caching</a></li>
 </ul>
 
         </div>
@@ -95,7 +62,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Downloading Data</li>
+      <li class="breadcrumb-item active">Downloading Utilities</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/download_data.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -105,13 +72,10 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="downloading-data">
-<h1>Downloading Data<a class="headerlink" href="#downloading-data" title="Link to this heading"></a></h1>
-<section id="station-lists">
-<h2>Station Lists<a class="headerlink" href="#station-lists" title="Link to this heading"></a></h2>
-</section>
-<section id="specific-command-line-interfaces">
-<h2>Specific Command Line Interfaces<a class="headerlink" href="#specific-command-line-interfaces" title="Link to this heading"></a></h2>
+  <section id="downloading-utilities">
+<h1>Downloading Utilities<a class="headerlink" href="#downloading-utilities" title="Link to this heading"></a></h1>
+<section id="specific-command-line-interfaces-utilities">
+<h2>Specific Command Line Interfaces/Utilities<a class="headerlink" href="#specific-command-line-interfaces-utilities" title="Link to this heading"></a></h2>
 <section id="cdec">
 <h3>CDEC<a class="headerlink" href="#cdec" title="Link to this heading"></a></h3>
 <section id="download-cdec">
@@ -477,10 +441,7 @@ from DWR liasons who are identified on CDEC on a per-station basis.</p>
 
            </div>
           </div>
-          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="station_info.html" class="btn btn-neutral float-left" title="Station Database and Queries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="commands.html" class="btn btn-neutral float-right" title="dms_datastore Command Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
-    </div>
+          <footer>
 
   <hr/>
 
