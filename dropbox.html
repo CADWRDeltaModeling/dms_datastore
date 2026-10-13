@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dropbox Ingestion &mdash; dms_datastore 0.8.15.dev1+g5b9ea6ddc documentation</title>
+  <title>Dropbox Ingestion &mdash; dms_datastore 0.8.15.dev2+g06d1c607f documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=164142ce"></script>
+      <script src="_static/documentation_options.js?v=86d76fab"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -596,17 +596,13 @@ labeled with the part of the recipe that the decisions inside it settle.</p>
 <pre id="recipe-decision-diagram" class="mermaid">
         %%{init: {&quot;themeVariables&quot;: {&quot;fontSize&quot;: &quot;18px&quot;}, &quot;flowchart&quot;: {&quot;subGraphTitleMargin&quot;: {&quot;top&quot;: 6, &quot;bottom&quot;: 24}}}}%%
 flowchart TD
-  A[&quot;Identify source&lt;br/&gt;files as pattern&quot;] --&gt; B{&quot;Wildcard?&quot;}
-  B -- &quot;Files are different series&lt;br/&gt;(e.g. variable or station)&quot; --&gt; C[&quot;Inference mode:&lt;br/&gt;metadata {field}&lt;br/&gt;placeholders in&lt;br/&gt;file pattern&quot;]
-  B -- No --&gt; E
-  B -- &quot;Files are&lt;br/&gt;different years&quot; --&gt; F{&quot;Times&lt;br/&gt;overlap?&quot;}
-  subgraph WILDCARD [&quot;collect.wildcard&quot;]
-    E[&quot;none&quot;]
-    G[&quot;time_shard&quot;]
-    H[&quot;time_overlap&lt;br/&gt;+ merge_method&quot;]
-  end
-  F -- No --&gt; G
-  F -- Yes --&gt; H
+  A[&quot;Use file_pattern&lt;br/&gt;to discover files&quot;] --&gt; B{&quot;Does each match&lt;br/&gt;represent a distinct series/datastream?&quot;}
+  B -- Yes --&gt; C[&quot;Inference mode:&lt;br/&gt;filename template +&lt;br/&gt;metadata inference;&lt;br/&gt;omit collect.wildcard&quot;]
+ B -- &quot;No: output series/stream;&lt;br/&gt;distributed over&lt;br/&gt;files by time&quot; --&gt; D{&quot;How many files&lt;br/&gt;match this series?&quot;}
+  D -- One --&gt; E[&quot;Omit collect.wildcard&lt;br/&gt;or set it to none&quot;]
+  D -- Several --&gt; F{&quot;Do their time&lt;br/&gt;ranges overlap?&quot;}
+  F -- No --&gt; G[&quot;collect.wildcard:&lt;br/&gt;time_shard&quot;]
+  F -- Yes --&gt; H[&quot;collect.wildcard:&lt;br/&gt;time_overlap + merge_method&quot;]
   subgraph REGULARITY [&quot;collect.reader_args&quot;]
     I{&quot;Regularly&lt;br/&gt;sampled?&quot;}
     I -- Yes --&gt; J[&quot;force_regular: true&lt;br/&gt;metadata.freq: infer&lt;br/&gt;or explicit ('15min');&lt;br/&gt;regular repo_name&quot;]
@@ -635,17 +631,23 @@ flowchart TD
   N --&gt; O
     </pre><p>The boxes correspond to these decisions:</p>
 <dl class="simple">
-<dt>Inference mode</dt><dd><p>If the matched files are different series (for example, different variables or
-stations) and each file name encodes the identity (station, agency ID,
-parameter, …), write <code class="docutils literal notranslate"><span class="pre">file_pattern</span></code> as a template with <code class="docutils literal notranslate"><span class="pre">{field}</span></code>
-placeholders and omit <code class="docutils literal notranslate"><span class="pre">wildcard</span></code>; each file becomes its own output. See
-<a class="reference internal" href="#filename-templates-inference-mode">Filename Templates (Inference Mode)</a>.</p>
+<dt>File discovery and inference</dt><dd><p><code class="docutils literal notranslate"><span class="pre">collect.file_pattern</span></code> discovers candidate files. A glob pattern such as
+<code class="docutils literal notranslate"><span class="pre">*.csv</span></code> or <code class="docutils literal notranslate"><span class="pre">flow_*.csv</span></code> uses glob wildcards (<code class="docutils literal notranslate"><span class="pre">*</span></code> and <code class="docutils literal notranslate"><span class="pre">?</span></code>); these are
+different from <code class="docutils literal notranslate"><span class="pre">{field}</span></code> placeholders in a filename template. Use template
+inference when matched files represent distinct series and their identity can
+be resolved from filename fields and/or the station registry. Each matched
+file is then processed as its own output, and <code class="docutils literal notranslate"><span class="pre">collect.wildcard</span></code> must be
+omitted. Do not choose inference merely because filenames contain years.
+See <a class="reference internal" href="#filename-templates-inference-mode">Filename Templates (Inference Mode)</a>.</p>
 </dd>
-<dt><code class="docutils literal notranslate"><span class="pre">collect.wildcard</span></code></dt><dd><p>Otherwise the entry produces one series, and <code class="docutils literal notranslate"><span class="pre">wildcard</span></code> says how the matched
-files combine into it: <code class="docutils literal notranslate"><span class="pre">none</span></code> when the pattern matches exactly one file,
-<code class="docutils literal notranslate"><span class="pre">time_shard</span></code> when the files cover different, non-overlapping periods (such as
-years), and <code class="docutils literal notranslate"><span class="pre">time_overlap</span></code> (with <code class="docutils literal notranslate"><span class="pre">merge_method</span></code>) only when files genuinely
-overlap in time. See <a class="reference internal" href="#wildcard-modes">Wildcard Modes</a>.</p>
+<dt><code class="docutils literal notranslate"><span class="pre">collect.wildcard</span></code></dt><dd><p>When multiple files share one output-series identity, <code class="docutils literal notranslate"><span class="pre">collect.wildcard</span></code>
+combines their data along time; it does not combine distinct series. A glob
+can match year-named files without any <code class="docutils literal notranslate"><span class="pre">{year}</span></code>,
+<code class="docutils literal notranslate"><span class="pre">{syear}</span></code>, or <code class="docutils literal notranslate"><span class="pre">{eyear}</span></code> template fields: choose <code class="docutils literal notranslate"><span class="pre">time_shard</span></code> when the
+files’ time ranges do not overlap, and <code class="docutils literal notranslate"><span class="pre">time_overlap</span></code> (with
+<code class="docutils literal notranslate"><span class="pre">merge_method</span></code>) only when they do. Decide from the data’s time coverage,
+not just from the filenames. Omit the setting or use <code class="docutils literal notranslate"><span class="pre">none</span></code> when exactly
+one file should match. See <a class="reference internal" href="#wildcard-modes">Wildcard Modes</a>.</p>
 </dd>
 <dt><code class="docutils literal notranslate"><span class="pre">collect.reader_args</span></code></dt><dd><p>Regular series keep the frequency contract (<code class="docutils literal notranslate"><span class="pre">force_regular:</span> <span class="pre">true</span></code>), declare
 <code class="docutils literal notranslate"><span class="pre">metadata.freq</span></code> as <code class="docutils literal notranslate"><span class="pre">infer</span></code> or an explicit frequency, and go to a regular
