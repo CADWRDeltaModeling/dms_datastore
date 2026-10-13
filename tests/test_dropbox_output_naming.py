@@ -12,8 +12,8 @@ from dms_datastore.read_ts import read_ts
 @pytest.mark.parametrize("entry_index, expected", [(0, [1.5, 2.5]), (1, [59.0, 60.0])])
 def test_cimis_recipe_reads_only_datetime_and_selected_value(tmp_path, entry_index, expected):
     recipe_path = (
-        Path(__file__).resolve().parents[1]
-        / "dms_datastore/dropbox_recipes/dropbox_cimis_hourly.yaml"
+        Path(dropbox_module.__file__).resolve().parent
+        / "dropbox_recipes/dropbox_cimis_hourly.yaml"
     )
     entry = get_spec(recipe_path)["data"][entry_index]
     collect = entry["collect"]
@@ -40,8 +40,8 @@ def test_cimis_recipe_reads_only_datetime_and_selected_value(tmp_path, entry_ind
 
 def test_cimis_recipe_reconciles_actual_annual_writer_outputs(tmp_path, monkeypatch):
     recipe_path = (
-        Path(__file__).resolve().parents[1]
-        / "dms_datastore/dropbox_recipes/dropbox_cimis_hourly.yaml"
+        Path(dropbox_module.__file__).resolve().parent
+        / "dropbox_recipes/dropbox_cimis_hourly.yaml"
     )
     spec = get_spec(recipe_path)
     incoming = tmp_path / "incoming"
