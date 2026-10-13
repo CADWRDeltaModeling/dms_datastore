@@ -1097,7 +1097,12 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                 validated_outputs.append((ts, meta_out, fname_base))
 
             for ts, meta_out, fname_base in validated_outputs:
-                produced_series.add(_series_id_from_name(fname_base, remove_source=False))
+                series_name = (
+                    fname_base.replace(".csv", "_*.csv")
+                    if write_args.get("chunk_years", False)
+                    else fname_base
+                )
+                produced_series.add(_series_id_from_name(series_name, remove_source=False))
                 fname_out = os.path.join(dest, fname_base)
                 write_ts_csv(ts, fname_out, metadata=meta_out, **write_args)
 

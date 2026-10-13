@@ -15,7 +15,6 @@ dependencies:
   - openpyxl
   - boto3 # for hrrr 
   - lxml # for pandas html parsing
-  - paramiko # for sftp cimis requests
   - numpy
   - pandas>=2
   - cfgrib

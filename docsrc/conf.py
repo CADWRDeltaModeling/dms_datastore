@@ -35,7 +35,6 @@ _MOCK_MODULES = [
     "diskcache",
     "seaborn",
     "dask", "dask.dataframe",
-    "paramiko",
     "boto3",
     "cfgrib",
     "eccodes",
@@ -57,7 +56,7 @@ if not os.path.exists("docs"):
     os.makedirs("docs")
 
 html_static_path = ['_static']
-#html_css_files = ['theme_overrides.css']
+html_css_files = ['mermaid_overrides.css']
 #html_context = {
 #    'css_files': [
 #        '_static/theme_overrides.css',  # override wide tables in RTD theme
@@ -100,7 +99,6 @@ autodoc_mock_imports = [
     "diskcache",
     "seaborn",
     "dask",
-    "paramiko",
     "boto3",
     "cfgrib",
     "eccodes",

@@ -96,8 +96,8 @@ download_hrrr --sdate 2024-01-01 --edate 2024-01-03 --dest <hrrr_raw_dir>
 # UCD IPM (positional dates)
 download_ucdipm 2024-01-01 2024-01-31 --stnkey 281
 
-# CIMIS
-download_cimis --hourly --download --existing-dir <formatted_dir>
+# CIMIS (daily, web API; requires CIMIS_API_KEY)
+download_cimis --start 2024-01-01 --end 2024-01-31 --stations cms140 --dest <raw_dir>
 
 # DCC gates
 download_dcc --base-dir <dcc_raw_dir>

@@ -99,13 +99,13 @@ data:
 
     output:
       repo_name: formatted          # must match a repo in dstore_config.yaml
+      #repo_data_dir: ./mock_repo   # dry run only: existing mock repo dir; directly under output, never under reconcile
       staging:
         dir: ./drop_staging         # must exist; staged files written here
         write_args:                 # optional kwargs to write_ts_csv
           float_format: "%.4f"
           chunk_years: false
       reconcile:                    # optional; if present, staged files are reconciled into repo
-        #repo_data_dir: ./fake_repo # override target dir (omit to use repo root from config)
         prefer: staged              # staged | repo
         allow_new_series: true
         inspection:
@@ -113,6 +113,20 @@ data:
           p3: 0.15
           p10: 0.05
 ```
+
+## Dry Run and Production (`output.repo_data_dir`)
+
+Reconciliation writes to the repository in place; the dropbox has no plan-only mode.
+A dry run redirects the write with `output.repo_data_dir`:
+
+- `repo_data_dir` goes **directly under `output`**. Under `output.reconcile` it is an error.
+- It must be an **existing directory**. A non-existent path is interpreted as a repo name and fails.
+- `repo_name` still governs naming, regularity, dtypes, and float format; only the physical target changes.
+- **Seed the mock repo** with copies of the current repo files for the series the recipe produces.
+  With an empty mock repo, `allow_new_series: false` raises (no namesake series) and
+  `allow_new_series: true` only exercises series creation, not the overlap merge.
+- Compare the mock result with the originals (`compare_directories` or a diff), then for
+  **production** remove `repo_data_dir` so the target is the configured root for `repo_name`.
 
 ## Metadata Sentinels
 

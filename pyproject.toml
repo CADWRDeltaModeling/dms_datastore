@@ -40,7 +40,6 @@ dependencies = [
     "lxml",
     "openpyxl",
     "omegaconf>=2.3",
-    "paramiko",
     "pandas>=2",
     "numpy>2",
     "xarray",

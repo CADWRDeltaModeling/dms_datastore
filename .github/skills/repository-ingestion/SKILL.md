@@ -31,7 +31,7 @@ download_noaa --start 2024-01-01 --end 2024-01-31 --param water_level --stations
 download_nwis --start 2024-01-01 --end 2024-01-31 --stations sjj --param 00060 --dest <raw_dir>
 download_ncro --start 2024-01-01 --end 2024-12-31 --stations orm --param elev --dest <raw_dir>
 download_cdec --start 2024-01-01 --end 2024-01-31 --stations cse --param elev --dest <raw_dir>
-download_cimis --start 2024-01-01 --end 2024-01-31 --stations ccc --dest <raw_dir>
+download_cimis --start 2024-01-01 --end 2024-01-31 --stations cms140 --dest <raw_dir>
 ```
 
 Some sources differ: `download_wdl` takes `--syear/--eyear`, `download_hycom` and `download_hrrr` take `--sdate/--edate`, gate downloaders take `--base-dir`.

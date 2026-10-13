@@ -22,6 +22,7 @@ mostly focused on environmental data for the Bay-Delta.
    commands
    dropbox
    read_data_meta
+  repo_data_usage
    repository
    Local Caching <notebooks/cache.ipynb>
 

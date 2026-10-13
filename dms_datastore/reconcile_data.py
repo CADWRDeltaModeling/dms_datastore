@@ -235,7 +235,7 @@ def _series_id_from_name(basename: str, remove_source: bool) -> str:
 
 
     try:
-        return to_wildcard(basename, remove_source=remove_source)
+        return to_wildcard(basename, remove_provider=remove_source)
     except Exception:
         # If a name doesn't match conventions, treat it as its own series.
         return basename

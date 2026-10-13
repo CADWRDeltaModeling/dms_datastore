@@ -1,0 +1,5 @@
+/* sphinxcontrib-mermaid fixes every svg at 500px tall, which shrinks tall flowcharts. */
+pre#recipe-decision-diagram > svg {
+    height: auto !important;
+    width: 100% !important;
+}

@@ -1,0 +1,92 @@
+# Stage the English-unit hourly CIMIS downloads before reconciling.
+# CIMIS timestamps are hour-ending PST; leave them unchanged.
+# This first pass selects values only; CIMIS QC codes are not interpreted.
+input_dir: W:/test_cimis/cimis_download
+staging_dir: W:/test_cimis/cimis_hourly_staging
+
+hourly_collect:
+  file_pattern: "cimis_{station_id}_{agency_id}_hourly_{syear}_{eyear}.csv"
+  location: ${input_dir}
+  recursive_search: false
+  reader: read_ts
+  reader_args:
+    hint: last_resort_csv
+    force_regular: true
+  splice_args:
+    rename: value
+
+hourly_metadata:
+  station_id: infer_from_filename
+  agency_id: infer_from_filename
+  agency: registry_lookup
+  source: cimis
+  subloc: default
+  freq: h
+  time_zone: Etc/GMT+8
+  time_zone_label: PST
+
+hourly_output:
+  repo_name: atmospheric
+  staging:
+    dir: ${staging_dir}
+    write_args:
+      float_format: "%.2f"
+      chunk_years: true
+      block_size: 1
+  # After inspection, dry-run against an existing mock directory first:
+  repo_data_dir: W:/test_cimis/atmospheric_mock
+  reconcile:
+    prefer: staged
+    allow_new_series: true
+  # Remove repo_data_dir only after validating the mock results.
+
+data:
+  - name: cimis_wind_speed
+    collect:
+      file_pattern: ${hourly_collect.file_pattern}
+      location: ${hourly_collect.location}
+      recursive_search: ${hourly_collect.recursive_search}
+      reader: ${hourly_collect.reader}
+      reader_args:
+        hint: ${hourly_collect.reader_args.hint}
+        force_regular: ${hourly_collect.reader_args.force_regular}
+        usecols: [datetime, HlyWindSpd.Value]
+      splice_args: ${hourly_collect.splice_args}
+      selector: HlyWindSpd.Value
+    metadata:
+      station_id: ${hourly_metadata.station_id}
+      agency_id: ${hourly_metadata.agency_id}
+      agency: ${hourly_metadata.agency}
+      source: ${hourly_metadata.source}
+      subloc: ${hourly_metadata.subloc}
+      freq: ${hourly_metadata.freq}
+      time_zone: ${hourly_metadata.time_zone}
+      time_zone_label: ${hourly_metadata.time_zone_label}
+      param: windspd
+      unit: mph
+    output: ${hourly_output}
+
+  - name: cimis_air_temp
+    collect:
+      file_pattern: ${hourly_collect.file_pattern}
+      location: ${hourly_collect.location}
+      recursive_search: ${hourly_collect.recursive_search}
+      reader: ${hourly_collect.reader}
+      reader_args:
+        hint: ${hourly_collect.reader_args.hint}
+        force_regular: ${hourly_collect.reader_args.force_regular}
+        usecols: [datetime, HlyAirTmp.Value]
+      splice_args: ${hourly_collect.splice_args}
+      selector: HlyAirTmp.Value
+    metadata:
+      station_id: ${hourly_metadata.station_id}
+      agency_id: ${hourly_metadata.agency_id}
+      agency: ${hourly_metadata.agency}
+      source: ${hourly_metadata.source}
+      subloc: ${hourly_metadata.subloc}
+      freq: ${hourly_metadata.freq}
+      time_zone: ${hourly_metadata.time_zone}
+      time_zone_label: ${hourly_metadata.time_zone_label}
+      param: airtemp
+      unit: deg_f
+    output: ${hourly_output}

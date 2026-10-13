@@ -51,10 +51,15 @@ Concepts to Settle Before Writing a Recipe
 Recipes connect a source file to one repository time series. A few datastore
 concepts determine the recipe's metadata and output policy:
 
-- **Receiving repository** is the target repository for the staged data. It must
+- **Receiving repository** is the target repository for the data, which determines
+  both its final location and the filename convention.  The repo name must
   match one of the configured repositories in ``dstore_config.yaml`` and align
-  with the data's regularity and family. Usually the receiving repository is
-  determined by a few questions:
+  with the data's regularity and family. The stations you are working with have to
+  be in the *station registry* for that repo, which is a CSV file listing all recognized stations
+  and listing simple metadata like location and operating agency (e.g. the canonical one is
+  `station_dbase.csv` which applies to the continuous stations). 
+  
+  Usually the correct receiving repository is determined by a few questions:
 
   - Is the data regularly sampled?
   - Is the data linked to structure operations?
@@ -62,27 +67,43 @@ concepts determine the recipe's metadata and output policy:
     or a harmonic forecast?
   - Is the data reported at a daily time step?
 
-- **Repository tier** describes the product being stored. ``formatted`` tiers
-  hold standardized source observations; ``processed`` is for derived, filled,
+- **Repository tier** is a hierarchy that applies to all the continuous stations. 
+  The lowest, ``raw``, isn't even a repo that is stored persistently; it is for initial ingestion and staging. 
+  The next tier,  ``formatted``,  holds standardized source observations; 
+  The ``screened `` tier unifies units and makes sure that multiple sources of
+  the same instrument's data are resolved. Finally ``processed`` is for derived, filled,
   or application-oriented products; ``structures_formatted`` is used for
   irregular structure and gate records. Choose a ``repo_name`` that exists in
   ``dstore_config.yaml`` and whose regularity matches the data. It is expected
-  that new repositories creation is to be done cautiously.
+  that new repositories creation is to be done infrequently and cautiously.
+  Don't make that your first move, but DO use the "repo_data_dir" field
+  to override the target initially. This allows a safe dry run to 
+  test your output before plastering data over a production repository.
 
-- **Series identity** is the station, sublocation, and parameter. Use a
+- **Series identity** is the station, sublocation, parameter and in some
+  cases agency that are needed to fully identify a series. Use a
   sublocation when a station has distinct sensors or products for the same
-  parameter; otherwise use ``default``. The station_id must be an entry in the
-  station registry. Coordinates belong in the registry, not in recipe-authored
+  parameter; otherwise use ``default`` which in most data use cases can be left blank
+  but in a recipe is better made explicit. The station_id must be an entry in the
+  station registry, which avoids orphans and certain kinds of mistakes. 
+  Coordinates belong in the registry, not in recipe-authored
   metadata, but don't cheat on this because a placeholder will be tedious to correct in the 
-  repository. See :doc:`concepts` and the ``station-registry`` skill.
+  repository. See :doc:`concepts` and the ``station-registry`` skill. You will find
+  that many recipes defer to the registry explicitly by saying::
 
-- **Provenance fields answer different questions.** ``agency`` identifies the
+      latitude: registry_lookup
+      longitude: registry_lookup
+      projection_x_coordinate: registry_lookup
+      projection_y_coordinate: registry_lookup
+
+- **Provenance fields answer different questions.** You will encounter names like
+- ``agency``, ``source`` and ``processor`` which answer different questions about
+- where the data comes from. ``agency`` identifies the
   instrument-owning agency, ``agency_id`` is its native station identifier,
   and ``source`` describes the collection or processing source for this
   product. So, for instance the ``agency`` might be ``NCRO`` (DWR North
-  Central Regional Office) but the ``source`` CDEC. Note that contrary
-  t 
-  the ``agency_id`` could be the USGS site number, and the ``source`` might indicate the specific data collection or processing method used.
+  Central Regional Office) but the ``source`` for the most recent months is often CDEC, 
+  which is a data mart that supplies real-time provisional-quality data over a number of stations. 
 - **Staging is not reconciliation.** Staging writes a standardized file format to
   a specified staging location. Often this file is a longer stretch or superset of 
   what will ultimately be spliced or merged into the repository.
@@ -91,39 +112,94 @@ concepts determine the recipe's metadata and output policy:
   new staged series or the original repo series should win where timestamps overlap.
   Familiarize yourself with the vtools methods for splicing or merging series. Generally
   we do not "shuffle timestamps" arbitrarily -- one or the other will prevail over time blocks.
-  Lastly, you can do a practice run by specifying ``repo_data_dir`` to point 
-  to a temporary location instead of the actual repository. You absolutely should do this
-  before running on the actual repository to catch any issues early.
+  Lastly, you can do a practice run by setting ``output.repo_data_dir`` (directly under
+  ``output``, not under ``reconcile``) to point to a temporary mock repository instead
+  of the actual repository. You absolutely should do this before running on the actual
+  repository to catch any issues early. See `Dry Run and Production`_.
 
 Recipe Decision Path
 --------------------
 
-Use this sequence to choose the recipe settings before filling in YAML:
+Use this sequence to choose the recipe settings before filling in YAML. Each box is
+labeled with the part of the recipe that the decisions inside it settle.
 
 .. mermaid::
+   :name: recipe-decision-diagram
 
+   %%{init: {"themeVariables": {"fontSize": "18px"}, "flowchart": {"subGraphTitleMargin": {"top": 6, "bottom": 24}}}}%%
    flowchart TD
-     A["Identify source files"] --> B{"Do filenames encode per-file metadata?"}
-     B -- Yes --> C["Use filename-template inference; omit wildcard"]
-     B -- No --> D{"How many files match?"}
-     D -- One --> E["Use one-file mode; omit wildcard"]
-     D -- Several --> F{"Do their time ranges overlap?"}
-     F -- No --> G["Use time_shard for non-overlapping blocks"]
-     F -- Yes --> H["Use time_overlap and choose the merge method"]
-     C --> I{"Is the series regularly sampled?"}
+     A["Identify source<br/>files as pattern"] --> B{"Wildcard?"}
+     B -- "Files are different series<br/>(e.g. variable or station)" --> C["Inference mode:<br/>metadata {field}<br/>placeholders in<br/>file pattern"]
+     B -- No --> E
+     B -- "Files are<br/>different years" --> F{"Times<br/>overlap?"}
+     subgraph WILDCARD ["collect.wildcard"]
+       E["none"]
+       G["time_shard"]
+       H["time_overlap<br/>+ merge_method"]
+     end
+     F -- No --> G
+     F -- Yes --> H
+     subgraph REGULARITY ["collect.reader_args"]
+       I{"Regularly<br/>sampled?"}
+       I -- Yes --> J["force_regular: true<br/>metadata.freq: infer<br/>or explicit ('15min');<br/>regular repo_name"]
+       I -- No --> K["force_regular: false<br/>metadata.freq: none;<br/>irregular repo_name"]
+     end
+     C --> I
      E --> I
      G --> I
      H --> I
-     I -- Yes --> J["Use a regular repo; set freq to infer or a frequency; keep force_regular true"]
-     I -- No --> K["Use an irregular repo; set freq to none and force_regular false"]
-     J --> L{"Are source timestamps DST-local?"}
+     subgraph TRANSFORMS ["transforms"]
+       L{"Timestamps<br/>DST-local?"}
+       L -- Yes --> M["dst_tz, before<br/>any coarsen"]
+       L -- No --> N["no time-zone<br/>transform"]
+     end
+     J --> L
      K --> L
-     L -- Yes --> M["Apply dst_tz before coarsening"]
-     L -- No --> N["Leave timestamps unchanged"]
-     M --> O{"Stage for review or reconcile now?"}
+     subgraph OUTPUT ["output"]
+       O{"Review only or<br/>update repo?"}
+       O -- Review only --> P["omit reconcile section"]
+       O -- Update repo --> Q["reconcile: set <br/>prefer: (repo/staged) and <br/>allow_new_series: true/false<br/>deliberately"]
+       Q --> R{"Dry run or<br/>production?"}
+       R -- Dry run --> S["repo_data_dir:<br/>mock repo<br/>directory"]
+       R -- Production --> T["omit repo_data_dir;<br/>target inferred from<br/>repo_name"]
+     end
+     M --> O
      N --> O
-     O -- Review only --> P["Omit reconcile"]
-     O -- Update repo --> Q["Set overlap preference and allow_new_series deliberately"]
+
+The boxes correspond to these decisions:
+
+Inference mode
+   If the matched files are different series (for example, different variables or
+   stations) and each file name encodes the identity (station, agency ID,
+   parameter, ...), write ``file_pattern`` as a template with ``{field}``
+   placeholders and omit ``wildcard``; each file becomes its own output. See
+   `Filename Templates (Inference Mode)`_.
+
+``collect.wildcard``
+   Otherwise the entry produces one series, and ``wildcard`` says how the matched
+   files combine into it: ``none`` when the pattern matches exactly one file,
+   ``time_shard`` when the files cover different, non-overlapping periods (such as
+   years), and ``time_overlap`` (with ``merge_method``) only when files genuinely
+   overlap in time. See `Wildcard Modes`_.
+
+``collect.reader_args``
+   Regular series keep the frequency contract (``force_regular: true``), declare
+   ``metadata.freq`` as ``infer`` or an explicit frequency, and go to a regular
+   ``output.repo_name``. Gate and event records are read irregularly
+   (``force_regular: false``, ``metadata.freq: none``) and go to an irregular
+   repository. See `Regular vs. Irregular Data`_.
+
+``transforms``
+   Local clock time with daylight saving is converted to a fixed offset with
+   ``dst_tz`` before any coarsening. See `Transforms`_.
+
+``output``
+   Stage only, to inspect the result, or add ``reconcile`` to merge into the
+   repository with an explicit overlap preference and a deliberate
+   ``allow_new_series`` setting. Do a dry run first by pointing
+   ``output.repo_data_dir`` at a mock repository; for production, remove
+   ``repo_data_dir`` so the target comes from ``repo_name``. See
+   `Output and Reconciliation`_ and `Dry Run and Production`_.
 
 For reconciliation, ``prefer: staged`` is appropriate when the staged data is
 authoritative over its covered interval, such as a consistent full-window
@@ -230,6 +306,7 @@ list of entries. Values are resolved with `OmegaConf
 
        output:
          repo_name: formatted      # must match a repo in dstore_config.yaml
+         # repo_data_dir: ./mock_repo  # dry run only; directly under output, never under reconcile
          staging:
            dir: ${repo_home}/incoming/drop_staging
            write_args:
@@ -249,11 +326,40 @@ Step by step:
 3. **Fill in ``metadata``.** Keep string fields lower case. Coordinates come from
    the registry — never hard-code them (see below).
 4. **Choose an ``output`` policy.** Stage into a scratch directory, then decide
-   whether/how to reconcile into the repo.
+   whether/how to reconcile into the repo. Reconcile into a mock repository
+   (``repo_data_dir``) before reconciling into the real one.
 
 Naming convention: keep recipe file names consistent and descriptive
 (``dropbox_smscg_scada.yaml``, ``dropbox_ccf.yaml``). Avoid the legacy ``spec``
 infix in new recipes.
+
+Example AI Prompt for Recipe Creation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: text
+
+  Use the dropbox-ingestion and station-registry skills to create a recipe
+  for the hourly CIMIS CSVs in W:/test_cimis/cimis_download, initially for
+  wind speed and air temperature only.
+
+  Target a regular, year-sharded repository named atmospheric. Check existing
+  configuration and the atmospheric station registry; create the repository
+  configuration and empty receiving directory if needed. Coordinates must
+  come from the registry.
+
+  Inspect the source headers, units, timestamps, and QC columns. Use
+  per-variable usecols where appropriate, including the timestamp and any
+  required QC fields. Make unit conversions and QC handling explicit.
+
+  Prefer standard variable names from the configured definitions and
+  mappings. Flag any filename-parser limitations, including underscores,
+  and discuss the naming fix with me rather than silently inventing aliases.
+
+  Start with staging only and provide instructions for mock-repo
+  reconciliation before production. Validate the complete
+  recipe-to-annual-shards-to-mock-repo path with small local test data.
+  Do not run the full ingestion or large diagnostics on W:; give me those
+  commands to run.
 
 Regular vs. Irregular Data
 --------------------------
@@ -415,7 +521,7 @@ Typically applied *after* ``dst_tz``:
          hyst: 0.5              # re-quantize only when value moves > 0.5*qwidth
          heartbeat_freq: 60min  # force a keep-alive sample during idle periods
 
-**Trim empty edges.** Drop leading/trailing all-NaN rows left by an export that
+**Trim empty edges.** Drop leading/trailing all-NaN rows left by feed that
 padded the record:
 
 .. code-block:: yaml
@@ -514,9 +620,11 @@ The following keys are rejected in recipe ``metadata`` (unless supplied via
    ``projection_y_coordinate``
 
 To fix missing or wrong coordinates, update the registry CSV — not the recipe.
-The registry provides ``agency_lat``/``agency_lon`` (agency-reported WGS84,
-written as ``latitude``/``longitude``) and ``x``/``y`` (EPSG:26910, potentially
-adjusted, written as ``projection_x_coordinate``/``projection_y_coordinate``).
+The registry provides ``agency_lat``/``agency_lon`` (the agency-reported
+location, EPSG:4269, kept as reported) and our preferred location as
+``lat``/``lon`` (EPSG:4269, written as ``latitude``/``longitude``) and
+``x``/``y`` (EPSG:26910, written as
+``projection_x_coordinate``/``projection_y_coordinate``).
 
 Output and Reconciliation
 -------------------------
@@ -525,7 +633,12 @@ Output and Reconciliation
 
 - ``repo_name`` — must match a repo defined in ``dstore_config.yaml``. The repo's
   ``regular``, ``dtypes``, and ``float_format`` settings are honored during
-  reconciliation.
+  reconciliation, and its configured root is the reconcile target unless
+  ``repo_data_dir`` is set.
+- ``repo_data_dir`` — optional, for dry runs only. An existing directory that
+  replaces the configured root as the reconcile target. It belongs directly under
+  ``output``; placing it under ``reconcile`` is an error. See
+  `Dry Run and Production`_.
 - ``staging.dir`` — a scratch directory that must exist (its leaf is created if
   the parent exists). Standardized files are written here.
 - ``staging.write_args`` — kwargs to ``write_ts_csv`` (e.g. ``float_format``,
@@ -544,6 +657,36 @@ Reconciliation is *content-smart*: it hashes the data section (ignoring header
 churn such as ``date_formatted``) and only rewrites when values actually differ.
 The dropbox passes the exact series it just produced to the reconciler, so
 unrelated files sharing the staging directory are not swept into the repo.
+
+Dry Run and Production
+~~~~~~~~~~~~~~~~~~~~~~
+
+Reconciliation writes to the repository in place; there is no plan-only mode for
+the dropbox. The dry run is done by redirecting the write with
+``output.repo_data_dir``:
+
+.. code-block:: yaml
+
+   output:
+     repo_name: formatted          # still governs naming, regularity, dtypes, float_format
+     repo_data_dir: ./mock_repo    # dry run: reconcile here instead of the configured root
+     staging:
+       dir: ./drop_staging
+     reconcile:
+       prefer: staged
+       allow_new_series: false
+
+**Dry run.** Create the mock directory and copy into it the current repository
+files for the series the recipe produces. The directory must exist; a path that
+does not exist is interpreted as a repository name and fails. Seeding it matters:
+with an empty mock repository, ``allow_new_series: false`` raises because there is
+no namesake series, and ``allow_new_series: true`` only exercises series creation,
+not the overlap merge. Run the recipe, then compare the mock files with the
+originals (``compare_directories`` or a diff) and inspect the joins.
+
+**Production.** Remove or comment out ``repo_data_dir`` and run again. The target
+is then the configured root for ``repo_name``. Staging may not coincide with or
+nest inside the target in either mode.
 
 Recommended Workflow: Backfill, then Top Off
 --------------------------------------------

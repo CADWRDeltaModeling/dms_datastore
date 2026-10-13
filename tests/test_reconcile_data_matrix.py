@@ -25,9 +25,45 @@ import numpy as np
 import pytest
 
 from dms_datastore.write_ts import write_ts_csv
-from dms_datastore.reconcile_data import update_repo, update_flagged_data
+from dms_datastore.reconcile_data import (
+    update_repo,
+    update_flagged_data,
+    _series_id_from_name,
+)
 
 NOW = pd.Timestamp("2026-02-08")
+
+
+@pytest.mark.parametrize("shard", ["2020", "2015_2020"])
+@pytest.mark.parametrize("remove_source", [False, True])
+def test_series_identity_wildcards_shards_and_optional_provider(shard, remove_source):
+    filename = f"cimis_cms140_140_windspd_{shard}.csv"
+    provider = "*" if remove_source else "cimis"
+
+    assert _series_id_from_name(filename, remove_source) == (
+        f"{provider}_cms140_140_windspd_*.csv"
+    )
+
+
+def test_update_repo_reconciles_only_selected_year_sharded_series(tmp_path):
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+    index = pd.date_range("2019-12-31", periods=48, freq="h")
+    values = pd.DataFrame({"value": np.ones(48)}, index=index)
+    write_ts_csv(values, staged / "cimis_cms140_140_windspd.csv", chunk_years=True)
+    write_ts_csv(values, staged / "cimis_cms140_140_airtemp.csv", chunk_years=True)
+
+    selected = {_series_id_from_name("cimis_cms140_140_windspd_*.csv", False)}
+    actions = update_repo(str(staged), str(repo), only_series=selected)
+
+    expected = {
+        "cimis_cms140_140_windspd_2019.csv",
+        "cimis_cms140_140_windspd_2020.csv",
+    }
+    assert {Path(action.repo_path).name for action in actions} == expected
+    assert {path.name for path in repo.glob("*.csv")} == expected
 
 
 def _mk_values(start="2024-01-01", end="2024-01-10", seed=0) -> pd.DataFrame:

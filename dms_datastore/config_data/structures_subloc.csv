@@ -1,0 +1,6 @@
+# structure_id is id of the site 
+# subloc is the "sublocation" which can differentiate substructures 
+structure_id,subloc,comment
+smscg,radial,
+smscg,flash,
+smscg,boatlock,

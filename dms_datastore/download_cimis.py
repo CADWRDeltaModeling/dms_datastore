@@ -1,13 +1,15 @@
-"""Download daily CIMIS station data and maintain one CSV per station."""
+"""Download daily or hourly CIMIS station data, one CSV per station and request window.
+
+Stations are looked up in the ``atmospheric`` registry (``agency == "cimis"``).
+Requests use the CIMIS web API and require the ``CIMIS_API_KEY`` environment
+variable when run from the command line.
+"""
 
 from __future__ import annotations
 
-import argparse
-import csv
 import json
+import logging
 import os
-import sys
-import tempfile
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
@@ -15,63 +17,88 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
+import click
+import pandas as pd
+from vtools import ts_splice
+
+from dms_datastore import dstore_config
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
+
+logger = logging.getLogger(__name__)
+
+CIMIS_REGISTRY = "atmospheric"
+CIMIS_AGENCY = "cimis"
+# The CIMIS network began in 1982; used as the default beginning of record.
+CIMIS_RECORD_START = date(1982, 1, 1)
+
 API_URL = "https://et.water.ca.gov/StationWeb/GetDataByStationNumber"
-DATA_ITEMS = (
-    "day-asce-eto,day-precip,day-sol-rad-avg,day-vap-pres-avg,"
-    "day-air-tmp-max,day-air-tmp-min,day-air-tmp-avg,day-rel-hum-max,"
-    "day-rel-hum-min,day-rel-hum-avg,day-dew-pnt,day-wind-spd-avg,"
-    "day-wind-run,day-soil-tmp-avg"
-)
+DATA_ITEMS = {
+    "D": (
+        "day-asce-eto,day-precip,day-sol-rad-avg,day-vap-pres-avg,"
+        "day-air-tmp-max,day-air-tmp-min,day-air-tmp-avg,day-rel-hum-max,"
+        "day-rel-hum-min,day-rel-hum-avg,day-dew-pnt,day-wind-spd-avg,"
+        "day-wind-run,day-soil-tmp-avg"
+    ),
+    "H": (
+        "hly-air-tmp,hly-dew-pnt,hly-asce-eto,hly-asce-etr,hly-net-rad,"
+        "hly-precip,hly-rel-hum,hly-res-wind,hly-soil-tmp,hly-sol-rad,"
+        "hly-vap-pres,hly-wind-dir,hly-wind-spd"
+    ),
+}
+FREQ_NAMES = {"D": "daily", "H": "hourly"}
 OUTPUT_DATE_FIELD = "Date"
+# Hourly records carry an hour-ending "Hour" field, 0100-2400.
+OUTPUT_HOUR_FIELD = "Hour"
 
 
 class RequestTimeoutError(RuntimeError):
     pass
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--stations",
-        type=Path,
-        default=Path(__file__).with_name("cimis_active_stations_20260825.csv"),
-        help="Active CIMIS station CSV.",
-    )
-    parser.add_argument(
-        "--output-dir",
-        type=Path,
-        default=Path(__file__).with_name("cimis_downloaded"),
-        help="Directory for station CSV files.",
-    )
-    parser.add_argument(
-        "--station",
-        action="append",
-        type=int,
-        help="Download only this station number; may be repeated.",
-    )
-    parser.add_argument(
-        "--start-date",
-        type=date.fromisoformat,
-        help="Override the computed start date (Connect date or last saved date).",
-    )
-    parser.add_argument(
-        "--end-date",
-        type=date.fromisoformat,
-        help="Override yesterday's date, useful for testing.",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=60,
-        help="HTTP timeout in seconds (default: 60).",
-    )
-    parser.add_argument(
-        "--chunk-days",
-        type=int,
-        default=5000,
-        help="Maximum days per API request (default: 5000; maximum: 5020).",
-    )
-    return parser.parse_args()
+def normalize_freq(freq):
+    """Return ``"D"`` or ``"H"`` for a case-insensitive frequency code."""
+    code = str(freq).strip().upper()
+    if code not in FREQ_NAMES:
+        raise ValueError(f"freq must be D (daily) or H (hourly), got {freq!r}")
+    return code
+
+
+def normalize_station_id(station):
+    """Return the registry id for a CIMIS station given as ``140`` or ``cms140``."""
+    sid = str(station).strip().lower()
+    return f"cms{int(sid)}" if sid.isdigit() else sid
+
+
+def cimis_stations(station_ids=None):
+    """Return CIMIS stations from the atmospheric registry.
+
+    Parameters
+    ----------
+    station_ids : iterable of str or int, optional
+        Registry station ids (``cms140``) or CIMIS station numbers
+        (``140``). All CIMIS stations are returned when omitted.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Registry rows, including ``station_id`` and ``agency_id``.
+
+    Raises
+    ------
+    ValueError
+        If any requested id is not a CIMIS station in the registry.
+    """
+    reg = dstore_config.registry_df(CIMIS_REGISTRY)
+    reg = reg[reg["agency"] == CIMIS_AGENCY]
+    if station_ids:
+        station_ids = list(dict.fromkeys(normalize_station_id(s) for s in station_ids))
+        missing = sorted(set(station_ids) - set(reg["station_id"]))
+        if missing:
+            raise ValueError(
+                f"Not CIMIS stations in the {CIMIS_REGISTRY} registry: {missing}"
+            )
+        reg = reg[reg["station_id"].isin(station_ids)]
+    return reg.reset_index(drop=True)
 
 
 def flatten_record(value: Any, prefix: str = "") -> dict[str, str]:
@@ -148,14 +175,15 @@ def request_records(
     end_date: date,
     api_key: str,
     timeout: int,
+    freq: str = "D",
 ) -> list[dict[str, str]]:
     parameters = {
         "stationNbrs": str(station_number),
         "startDate": start_date.isoformat(),
         "endDate": end_date.isoformat(),
-        "isHourly": "false",
+        "isHourly": "true" if freq == "H" else "false",
         "unitOfMeasure": "E",
-        "dataItems": DATA_ITEMS,
+        "dataItems": DATA_ITEMS[freq],
         "prefer": "WSN",
     }
     request = Request(
@@ -195,119 +223,290 @@ def request_records(
     return extract_records(payload)
 
 
-def read_existing(path: Path) -> tuple[list[dict[str, str]], date | None]:
-    if not path.exists():
-        return [], None
-    with path.open(newline="", encoding="utf-8-sig") as handle:
-        rows = list(csv.DictReader(handle))
-    dates = [date.fromisoformat(row[OUTPUT_DATE_FIELD][:10]) for row in rows if row.get(OUTPUT_DATE_FIELD)]
-    return rows, max(dates) if dates else None
+def chunk_windows(start_date: date, end_date: date, freq: str) -> list[tuple[date, date]]:
+    """Split ``[start_date, end_date]`` into request windows.
+
+    The API returns at most 5000 records per request, so daily requests
+    break at decades (Jan 1, 1990, 2000, ...) and hourly requests at
+    Jan 1 and Jul 1.
+
+    Parameters
+    ----------
+    start_date, end_date : date
+        Inclusive window.
+    freq : {"D", "H"}
+        Daily or hourly.
+
+    Returns
+    -------
+    list of (date, date)
+        Inclusive sub-windows covering the request in order.
+    """
+    windows = []
+    chunk_start = start_date
+    while chunk_start <= end_date:
+        if freq == "D":
+            boundary = date((chunk_start.year // 10 + 1) * 10, 1, 1)
+        elif chunk_start.month < 7:
+            boundary = date(chunk_start.year, 7, 1)
+        else:
+            boundary = date(chunk_start.year + 1, 1, 1)
+        chunk_end = min(boundary - timedelta(days=1), end_date)
+        windows.append((chunk_start, chunk_end))
+        chunk_start = chunk_end + timedelta(days=1)
+    return windows
 
 
-def write_records(path: Path, rows: list[dict[str, str]]) -> None:
-    fields = sorted({field for row in rows for field in row})
-    fields.remove(OUTPUT_DATE_FIELD)
-    fields.insert(0, OUTPUT_DATE_FIELD)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        "w", newline="", encoding="utf-8", dir=path.parent, delete=False
-    ) as handle:
-        temporary_path = Path(handle.name)
-        writer = csv.DictWriter(handle, fieldnames=fields, extrasaction="ignore")
-        writer.writeheader()
-        writer.writerows(sorted(rows, key=lambda row: row[OUTPUT_DATE_FIELD]))
-    temporary_path.replace(path)
+def records_to_frame(records: list[dict[str, str]], freq: str) -> pd.DataFrame:
+    """Convert API records to a DataFrame indexed by timestamp.
+
+    Hourly ``Hour`` values are hour-ending (``0100``-``2400``), so ``2400``
+    becomes midnight of the following day. ``Date`` and ``Hour`` are
+    dropped once folded into the index.
+    """
+    df = pd.DataFrame(records)
+    index = pd.to_datetime(df[OUTPUT_DATE_FIELD])
+    if freq == "H":
+        index = index + pd.to_timedelta(df[OUTPUT_HOUR_FIELD].astype(int) // 100, unit="h")
+    df = df.drop(columns=[c for c in (OUTPUT_DATE_FIELD, OUTPUT_HOUR_FIELD) if c in df.columns])
+    df.index = pd.DatetimeIndex(index, name="datetime")
+    return df.sort_index()
 
 
 def process_station(
-    station: dict[str, str],
-    output_dir: Path,
-    start_date_override: date | None,
+    station_id: str,
+    station_number: int,
+    dest_dir: Path,
+    start_date: date,
     end_date: date,
+    endfile,
     api_key: str,
     timeout: int,
-    chunk_days: int,
+    overwrite: bool = False,
+    freq: str = "D",
 ) -> str:
-    station_number = int(station["Station_Number"])
-    output_path = output_dir / f"station_{station_number}.csv"
-    existing, latest_date = read_existing(output_path)
-    if start_date_override:
-        start_date = start_date_override
-    else:
-        start_date = (latest_date + timedelta(days=1)) if latest_date else date.fromisoformat(station["Connect"][:10])
-    if start_date > end_date:
-        return f"{station_number}: up to date through {latest_date}"
+    """Download one station for ``[start_date, end_date]`` into a single CSV.
 
-    by_date = {row[OUTPUT_DATE_FIELD]: row for row in existing}
-    total_records = 0
-    chunk_start = start_date
-    current_chunk_days = chunk_days
-    while chunk_start <= end_date:
-        chunk_end = min(
-            chunk_start + timedelta(days=current_chunk_days - 1), end_date
+    Requests are made per :func:`chunk_windows`, stacked, and combined with
+    :func:`vtools.ts_splice`.
+
+    Parameters
+    ----------
+    station_id : str
+        Registry station id, e.g. ``cms140``.
+    station_number : int
+        CIMIS station number (registry ``agency_id``).
+    dest_dir : Path
+        Output directory.
+    start_date, end_date : date
+        Requested window, inclusive.
+    endfile : int
+        End year used in the file name (9999 for open-ended requests).
+    api_key : str
+        CIMIS API subscription key.
+    timeout : int
+        HTTP timeout in seconds.
+    overwrite : bool, optional
+        Replace an existing file instead of skipping it.
+    freq : {"D", "H"}, optional
+        Daily or hourly data.
+
+    Returns
+    -------
+    str
+        Outcome, as in ``download_cdec``: ``"success"``, ``"exists"``
+        (skipped existing file) or ``"no_data"`` (nothing written).
+    """
+    output_path = (
+        Path(dest_dir)
+        / f"cimis_{station_id}_{station_number}_{start_date.year}_{endfile}.csv"
+    )
+    if output_path.exists() and not overwrite:
+        logger.info(f"Skipping existing station because file exists: {output_path}")
+        return "exists"
+
+    frames = []
+    for chunk_start, chunk_end in chunk_windows(start_date, end_date, freq):
+        records = request_records(
+            station_number, chunk_start, chunk_end, api_key, timeout, freq
         )
-        try:
-            records = request_records(
-                station_number, chunk_start, chunk_end, api_key, timeout
-            )
-        except RequestTimeoutError:
-            attempted_days = (chunk_end - chunk_start).days + 1
-            if attempted_days == 1:
-                raise
-            current_chunk_days = max(1, attempted_days // 2)
-            print(
-                f"{station_number}: request timed out; retrying from "
-                f"{chunk_start} with {current_chunk_days}-day chunks"
-            )
-            continue
-        by_date.update({row[OUTPUT_DATE_FIELD]: row for row in records})
-        if records:
-            write_records(output_path, list(by_date.values()))
-        total_records += len(records)
-        print(
-            f"{station_number}: downloaded {len(records)} rows "
+        logger.debug(
+            f"{station_id}: downloaded {len(records)} rows "
             f"({chunk_start} to {chunk_end})"
         )
-        chunk_start = chunk_end + timedelta(days=1)
-    return f"{station_number}: complete, downloaded {total_records} rows"
+        if records:
+            frames.append(records_to_frame(records, freq))
+
+    if not frames:
+        return "no_data"
+    columns = list(dict.fromkeys(c for frame in frames for c in frame.columns))
+    df = ts_splice([frame.reindex(columns=columns) for frame in frames], transition="prefer_last")
+    df.index.name = "datetime"
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(output_path)
+    logger.info(f"{station_id}: wrote {len(df)} rows to {output_path.name}")
+    return "success"
 
 
-def main() -> int:
-    args = parse_args()
-    api_key = os.environ.get("CIMIS_API_KEY")
+def cimis_download(
+    stations: pd.DataFrame,
+    dest_dir,
+    api_key: str,
+    start: date | None = None,
+    end: date | None = None,
+    overwrite: bool = False,
+    timeout: int = 60,
+    freq: str = "D",
+) -> None:
+    """Download daily or hourly CIMIS data for each station into ``dest_dir``.
+
+    Each station is written to
+    ``cimis_<station_id>_<agency_id>_<syear>_<eyear>.csv``, where
+    ``eyear`` is 9999 when ``end`` is omitted. Existing files are skipped
+    unless ``overwrite`` is set. As in ``download_cdec``, stations with no
+    data in the window write nothing and are listed at INFO level. Request
+    failures are logged per station and reported together at the end.
+
+    Parameters
+    ----------
+    stations : pandas.DataFrame
+        Station rows with ``station_id`` and ``agency_id`` (CIMIS station
+        number) columns, e.g. from :func:`cimis_stations`.
+    dest_dir : str or Path
+        Output directory; created if needed.
+    api_key : str
+        CIMIS API subscription key.
+    start : date, optional
+        First day. Defaults to the start of the CIMIS network (1982).
+    end : date, optional
+        Last day, inclusive. Defaults to the latest available (today).
+    overwrite : bool, optional
+        Replace existing files instead of skipping them.
+    timeout : int, optional
+        HTTP timeout in seconds.
+    freq : str, optional
+        ``"D"`` (daily, default) or ``"H"`` (hourly), case-insensitive.
+
+    Raises
+    ------
+    ValueError
+        If ``api_key`` is empty, ``freq`` is invalid, ``end`` is after
+        today, or ``start`` is after ``end``.
+    RuntimeError
+        If any station failed.
+    """
     if not api_key:
-        print("CIMIS_API_KEY is not set in this PowerShell session.", file=sys.stderr)
-        return 2
-    if not 1 <= args.chunk_days <= 5020:
-        print("--chunk-days must be between 1 and 5020.", file=sys.stderr)
-        return 2
+        raise ValueError("api_key is required")
+    freq = normalize_freq(freq)
+    today = date.today()
+    if end is not None and end > today:
+        raise ValueError(f"end {end} is after today ({today})")
+    endfile = 9999 if end is None else end.year
+    end = end or today
+    start = start or CIMIS_RECORD_START
+    if start > end:
+        raise ValueError(f"start {start} is after end {end}")
+    dest_dir = Path(dest_dir)
 
-    end_date = args.end_date or (date.today() - timedelta(days=1))
-    with args.stations.open(newline="", encoding="utf-8-sig") as handle:
-        stations = list(csv.DictReader(handle))
-    selected = set(args.station or [])
-    if selected:
-        stations = [station for station in stations if int(station["Station_Number"]) in selected]
-
-    failures = 0
-    for station in stations:
+    failures = []
+    no_data = []
+    for _, station in stations.iterrows():
+        station_id = station["station_id"]
         try:
-            print(
-                process_station(
-                    station,
-                    args.output_dir,
-                    args.start_date,
-                    end_date,
-                    api_key,
-                    args.timeout,
-                    args.chunk_days,
-                )
+            outcome = process_station(
+                station_id,
+                int(station["agency_id"]),
+                dest_dir,
+                start,
+                end,
+                endfile,
+                api_key,
+                timeout,
+                overwrite,
+                freq,
             )
         except (KeyError, ValueError, RuntimeError, OSError) as error:
-            failures += 1
-            print(f"{station.get('Station_Number', '?')}: ERROR: {error}", file=sys.stderr)
-    return 1 if failures else 0
+            failures.append(station_id)
+            logger.error(f"{station_id}: {error}")
+            continue
+        if outcome == "no_data":
+            no_data.append(station_id)
+            logger.info(
+                f"No data found for station={station_id} freq={FREQ_NAMES[freq]} "
+                f"window={start} to {end}"
+            )
+    if no_data:
+        logger.info(f"Failed query stations (no data): {no_data}")
+    if failures:
+        raise RuntimeError(f"CIMIS download failed for stations: {failures}")
+
+
+@click.command()
+@click.option(
+    "--dest",
+    "dest_dir",
+    default="cimis_download",
+    type=click.Path(path_type=Path),
+    help="Destination directory for station CSV files.",
+)
+@click.option(
+    "--start",
+    default=None,
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="First date, e.g. 2024-01-01. Default: beginning of record (1982).",
+)
+@click.option(
+    "--end",
+    default=None,
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="Last date, inclusive; may not be after today. Default: latest available.",
+)
+@click.option(
+    "--stations",
+    multiple=True,
+    help="Station(s) as registry id (cms140) or CIMIS number (140). Default: all CIMIS stations in the atmospheric registry.",
+)
+@click.option(
+    "--overwrite",
+    is_flag=True,
+    help="Overwrite existing files (otherwise they are skipped).",
+)
+@click.option(
+    "--freq",
+    default="D",
+    show_default=True,
+    type=click.Choice(["D", "H"], case_sensitive=False),
+    help="Frequency code: D (daily) or H (hourly).",
+)
+@click.option("--timeout", default=60, show_default=True, type=int, help="HTTP timeout in seconds.")
+@click.option("--logdir", type=click.Path(path_type=Path), default=None)
+@click.option("--debug", is_flag=True)
+@click.option("--quiet", is_flag=True)
+@click.help_option("-h", "--help")
+def download_cimis_cli(dest_dir, start, end, stations, overwrite, freq, timeout, logdir, debug, quiet):
+    """Download daily or hourly CIMIS station data. Requires CIMIS_API_KEY in the environment."""
+    level, console = resolve_loglevel(debug=debug, quiet=quiet)
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=logdir,
+        logfile_prefix="download_cimis",
+    )
+    api_key = os.environ.get("CIMIS_API_KEY")
+    if not api_key:
+        raise click.UsageError("CIMIS_API_KEY environment variable is not set.")
+    cimis_download(
+        stations=cimis_stations(stations),
+        dest_dir=dest_dir,
+        api_key=api_key,
+        start=start.date() if start else None,
+        end=end.date() if end else None,
+        overwrite=overwrite,
+        timeout=timeout,
+        freq=freq,
+    )
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    download_cimis_cli()

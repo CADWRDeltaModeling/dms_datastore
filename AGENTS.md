@@ -117,5 +117,6 @@ Task-specific detail lives in skills and reference docs rather than in this file
 | Reading/writing repository time series: imports, `read_ts`, `read_ts_repo`, `read_ts_block`/`data_block`, `write_ts_csv`, `station_info` | `repo-data-usage` skill |
 | File naming grammar, CSV/front-matter format, metadata semantics | `repository-format` skill |
 | Download → reformat → screen → update sequence | `repository-ingestion` skill |
+| Writing or changing a `download_<source>.py` provider downloader | `downloader-builder` skill |
 | Dropbox recipe ingestion | `dropbox-ingestion` skill |
 | Station registry, coordinates, sublocations | `station-registry` skill |
