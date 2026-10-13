@@ -3,9 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-##############
-dms_datastore!
-##############
+###########
+Quick Intro
+###########
 
 dms_datastore is a package for downloading and managing a repository of csv files of continuous time series data, 
 mostly focused on environmental data for the Bay-Delta. 
@@ -18,13 +18,13 @@ mostly focused on environmental data for the Bay-Delta.
    install
    concepts
    station_info
+   repo_data_usage
+   dropbox
+   automatic_ingestion
+   Local Caching <notebooks/cache.ipynb>
    download_data
    commands
-   dropbox
-   read_data_meta
-   repo_data_usage
-   repository
-   Local Caching <notebooks/cache.ipynb>
+    contributing_docs
 
 
 
@@ -61,7 +61,7 @@ Quickstart: Things You Can Do Quickly with dms_datastore
 ========================================================
 
 Get station info
-''''''''''''''''
+----------------
 
 Lookup information on a station using a fragment of its name, standard id.::
 
@@ -77,7 +77,7 @@ Lookup information on a station using a fragment of its name, standard id.::
   sfp17      sfp17   usgs  374811122235001                          San Francisco Bay at Pier 17  553143.4  4184169.8   37.803000 -122.397000
 
 Download data
-'''''''''''''
+----------------
 
 If you know the station id and agency (see above), you can get data for individual or groups of stations or even from a list::
 
@@ -86,14 +86,16 @@ If you know the station id and agency (see above), you can get data for individu
 Of course this can be done programatically as well. A discussion can be found here: [REF]
 
 Read data
-'''''''''
+----------------
 
-There are three main routines [actually 2 one in dev], `read_ts`, `read_multi.ts_multifile_read` and `ts_**`. All are based on how they deal with 
-filenames that are wildcards to represent time sharding by years (file name ends in _2020.csv) or blocks of years (_2015_2019.csv):
+The main routines are ``read_ts_repo`` (one series from a repository), ``read_ts_block`` / ``data_block``
+(several stations and variables in one table), and ``read_ts`` (explicit files)::
 
-* read_ts is mostly designed around heterogeneous legacy formats. It can read wildcard if the files are otherwise the same basic format.
-* ts_multifile_read is a wrapper around read_ts that allows mixes of different formats. This would be useful if, for instance, historical data comes from one source/format and real-time data from another.
-* read_ts_multi assumes data is all in dms_datastore standard format and constructs multi-column views quickly.
+  from dms_datastore import read_ts_repo
+
+  ec = read_ts_repo("mrz", "ec")
+
+See :doc:`repo_data_usage` for reading and writing.
 
 
 Indices and tables
@@ -102,3 +104,5 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+

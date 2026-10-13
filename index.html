@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>dms_datastore! &mdash; dms_datastore 0.8.14.dev1+gedf094465 documentation</title>
+  <title>Quick Intro &mdash; dms_datastore 0.8.14.dev2+gfb894e969 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=82d0ad26"></script>
+      <script src="_static/documentation_options.js?v=4041c4ce"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -48,17 +48,16 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">dms_datastore!</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quick Intro</a></li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Time Series</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="automatic_ingestion.html">Automatic Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 <li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 </ul>
 
         </div>
@@ -75,7 +74,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">dms_datastore!</li>
+      <li class="breadcrumb-item active">Quick Intro</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -85,14 +84,14 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="dms-datastore">
-<h1>dms_datastore!<a class="headerlink" href="#dms-datastore" title="Link to this heading"></a></h1>
+  <section id="quick-intro">
+<h1>Quick Intro<a class="headerlink" href="#quick-intro" title="Link to this heading"></a></h1>
 <p>dms_datastore is a package for downloading and managing a repository of csv files of continuous time series data,
 mostly focused on environmental data for the Bay-Delta.</p>
 <div class="toctree-wrapper compound">
 <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">dms_datastore!</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quick Intro</a></li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="install.html#prerequisites">Prerequisites</a></li>
 <li class="toctree-l2"><a class="reference internal" href="install.html#conda">Conda</a></li>
@@ -105,20 +104,22 @@ mostly focused on environmental data for the Bay-Delta.</p>
 <li class="toctree-l3"><a class="reference internal" href="concepts.html#configured-repositories">Configured Repositories</a></li>
 <li class="toctree-l3"><a class="reference internal" href="concepts.html#directory-layout">Directory Layout</a></li>
 <li class="toctree-l3"><a class="reference internal" href="concepts.html#repository-configuration">Repository Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="concepts.html#data-flow-through-the-tiers">Data Flow Through the Tiers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="concepts.html#user-access">User Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#registry">Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#inventory">Inventory</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#design-principles">Design Principles</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="concepts.html#modes-of-ingestion">Modes of Ingestion</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="concepts.html#bulk-automated-download">Bulk Automated Download</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#automatic-ingestion">Automatic Ingestion</a></li>
 <li class="toctree-l3"><a class="reference internal" href="concepts.html#dropbox">Dropbox</a></li>
 <li class="toctree-l3"><a class="reference internal" href="concepts.html#other-downloader-scripts-and-data">Other Downloader Scripts and Data</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="concepts.html#station-sublocation-and-datastream-concepts">Station, Sublocation, and Datastream Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#agency-vs-source-vs-provider">Agency vs Source vs Provider</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts.html#file-naming-conventions">File Naming Conventions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="concepts.html#units-and-standardization">Units and Standardization</a></li>
-<li class="toctree-l2"><a class="reference internal" href="concepts.html#known-challenges-and-exceptions">Known Challenges and Exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#data-quality-and-flags">Data Quality and Flags</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a><ul>
@@ -132,30 +133,18 @@ mostly focused on environmental data for the Bay-Delta.</p>
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="download_data.html#specific-command-line-interfaces-utilities">Specific Command Line Interfaces/Utilities</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="download_data.html#cdec">CDEC</a></li>
-<li class="toctree-l3"><a class="reference internal" href="download_data.html#usgs-nwis">USGS (NWIS)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="download_data.html#noaa">NOAA</a></li>
-<li class="toctree-l3"><a class="reference internal" href="download_data.html#dwr-ncro">DWR-NCRO</a></li>
-<li class="toctree-l3"><a class="reference internal" href="download_data.html#dwr-des-dise">DWR-DES (DISE)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Time Series</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#reading-common-file-formats-and-metadata">Reading Common File Formats and Metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#writing-compliant-files">Writing Compliant Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#fetching-from-repo">Fetching From Repo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="repo_data_usage.html#read-one-series">Read one series</a></li>
+<li class="toctree-l3"><a class="reference internal" href="repo_data_usage.html#read-several-series-together">Read several series together</a></li>
+<li class="toctree-l3"><a class="reference internal" href="repo_data_usage.html#caching-repeated-reads">Caching repeated reads</a></li>
 </ul>
 </li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="commands.html#main-entrypoint">Main Entrypoint</a></li>
-<li class="toctree-l2"><a class="reference internal" href="commands.html#command-help-shortcuts">Command Help Shortcuts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="commands.html#workflow-a-repository-build-pipeline-download-reformat-auto-screen">Workflow A: Repository Build Pipeline (Download → Reformat → Auto Screen)</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="commands.html#examples">Examples</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="commands.html#workflow-b-dropbox-ingest-separate-workflow">Workflow B: Dropbox Ingest (separate workflow)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="commands.html#workflow-c-staging-repo-update-and-utilities">Workflow C: Staging → Repo update and utilities</a></li>
-<li class="toctree-l2"><a class="reference internal" href="commands.html#additional-utilities">Additional Utilities</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Ingestion</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="dropbox.html#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dropbox.html#motivation">Motivation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="dropbox.html#concepts-to-settle-before-writing-a-recipe">Concepts to Settle Before Writing a Recipe</a></li>
@@ -187,61 +176,52 @@ mostly focused on environmental data for the Bay-Delta.</p>
 <li class="toctree-l2"><a class="reference internal" href="dropbox.html#key-functions">Key Functions</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="read_data_meta.html#data-quality-and-flags">Data Quality and Flags</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#data-quality-flow">Data Quality Flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="automatic_ingestion.html">Automatic Ingestion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="automatic_ingestion.html#pipeline">Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="automatic_ingestion.html#data-screening-methods">Data Screening Methods</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="automatic_ingestion.html#built-in-screening-functions">Built-in screening functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="automatic_ingestion.html#additional-methods-from-vtools3">Additional methods from <code class="docutils literal notranslate"><span class="pre">vtools3</span></code></a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="read_data_meta.html#data-screening-methods">Data Screening Methods</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#built-in-screening-functions">Built-in screening functions</a></li>
-<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#additional-methods-from-vtools3">Additional methods from <code class="docutils literal notranslate"><span class="pre">vtools3</span></code></a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="read_data_meta.html#reading-data-with-read-ts-repo">Reading Data with <code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code></a><ul>
-<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#basic-usage">Basic usage</a></li>
-<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#function-parameters">Function parameters</a></li>
-<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#example-retrieval-and-visualization">Example: retrieval and visualization</a></li>
-<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#caching-repeated-reads">Caching repeated reads</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#imports">Imports</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#read-one-series-from-a-repository">Read one series from a repository</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#read-an-explicit-file">Read an explicit file</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#read-several-series-together">Read several series together</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#write-a-time-series">Write a time series</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#look-up-a-station">Look up a station</a></li>
-</ul>
-</li>
-<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#core-concepts">Core Concepts</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#repository-configuration">Repository Configuration</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="repository.html#key-terminology">Key terminology</a></li>
-<li class="toctree-l3"><a class="reference internal" href="repository.html#source-priority-configuration">Source Priority Configuration</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#filename-templates-and-interpretation">Filename Templates and Interpretation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#registry-station-dbase-csv">Registry (station_dbase.csv)</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#inventory-system">Inventory System</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="repository.html#file-inventory-repo-file-inventory">File inventory (<code class="docutils literal notranslate"><span class="pre">repo_file_inventory</span></code>)</a></li>
-<li class="toctree-l3"><a class="reference internal" href="repository.html#data-inventory-repo-data-inventory">Data inventory (<code class="docutils literal notranslate"><span class="pre">repo_data_inventory</span></code>)</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#populating-the-repository">Populating the Repository</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#read-ts-repo"><code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#write-ts-csv"><code class="docutils literal notranslate"><span class="pre">write_ts_csv</span></code></a><ul>
-<li class="toctree-l3"><a class="reference internal" href="repository.html#metadata-modes">Metadata modes</a></li>
-</ul>
-</li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#end-to-end-flow">End-to-End Flow</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#design-principles">Design Principles</a></li>
-<li class="toctree-l2"><a class="reference internal" href="repository.html#architectural-evolution-notes">Architectural Evolution Notes</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="notebooks/cache.html#Features">Features</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="download_data.html#cdec">CDEC</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#download-cdec">download_cdec</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="download_data.html#usgs-nwis">USGS (NWIS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#download-nwis">download_nwis</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="download_data.html#noaa">NOAA</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#download-noaa">download_noaa</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="download_data.html#dwr-ncro">DWR-NCRO</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#download-ncro">download_ncro</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="download_data.html#dwr-des-dise">DWR-DES (DISE)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#download-des">download_des</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#main-entrypoint">Main Entrypoint</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#command-help-shortcuts">Command Help Shortcuts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#workflow-a-repository-build-pipeline-download-reformat-auto-screen">Workflow A: Repository Build Pipeline (Download → Reformat → Auto Screen)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="commands.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#workflow-b-dropbox-ingest-separate-workflow">Workflow B: Dropbox Ingest (separate workflow)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#workflow-c-staging-repo-update-and-utilities">Workflow C: Staging → Repo update and utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#additional-utilities">Additional Utilities</a></li>
 </ul>
 </li>
 </ul>
@@ -282,6 +262,8 @@ setting up channels, the minimal installation is:</p>
 </section>
 <section id="quickstart-things-you-can-do-quickly-with-dms-datastore">
 <h2>Quickstart: Things You Can Do Quickly with dms_datastore<a class="headerlink" href="#quickstart-things-you-can-do-quickly-with-dms-datastore" title="Link to this heading"></a></h2>
+<section id="get-station-info">
+<h3>Get station info<a class="headerlink" href="#get-station-info" title="Link to this heading"></a></h3>
 <p>Lookup information on a station using a fragment of its name, standard id.:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ station_info francisco
 Matches:
@@ -295,18 +277,26 @@ sffpx      sffpx   noaa          9414290                                        
 sfp17      sfp17   usgs  374811122235001                          San Francisco Bay at Pier 17  553143.4  4184169.8   37.803000 -122.397000
 </pre></div>
 </div>
+</section>
+<section id="download-data">
+<h3>Download data<a class="headerlink" href="#download-data" title="Link to this heading"></a></h3>
 <p>If you know the station id and agency (see above), you can get data for individual or groups of stations or even from a list:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$ download_nwis --start 2022-01-01 --end 2022-06-01 --stations osj hol --param flow --dest .
 </pre></div>
 </div>
 <p>Of course this can be done programatically as well. A discussion can be found here: [REF]</p>
-<p>There are three main routines [actually 2 one in dev], <cite>read_ts</cite>, <cite>read_multi.ts_multifile_read</cite> and <cite>ts_**</cite>. All are based on how they deal with
-filenames that are wildcards to represent time sharding by years (file name ends in _2020.csv) or blocks of years (_2015_2019.csv):</p>
-<ul class="simple">
-<li><p>read_ts is mostly designed around heterogeneous legacy formats. It can read wildcard if the files are otherwise the same basic format.</p></li>
-<li><p>ts_multifile_read is a wrapper around read_ts that allows mixes of different formats. This would be useful if, for instance, historical data comes from one source/format and real-time data from another.</p></li>
-<li><p>read_ts_multi assumes data is all in dms_datastore standard format and constructs multi-column views quickly.</p></li>
-</ul>
+</section>
+<section id="read-data">
+<h3>Read data<a class="headerlink" href="#read-data" title="Link to this heading"></a></h3>
+<p>The main routines are <code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code> (one series from a repository), <code class="docutils literal notranslate"><span class="pre">read_ts_block</span></code> / <code class="docutils literal notranslate"><span class="pre">data_block</span></code>
+(several stations and variables in one table), and <code class="docutils literal notranslate"><span class="pre">read_ts</span></code> (explicit files):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_ts_repo</span>
+
+<span class="n">ec</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">"mrz"</span><span class="p">,</span> <span class="s2">"ec"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>See <a class="reference internal" href="repo_data_usage.html"><span class="doc">Reading and Writing Time Series</span></a> for reading and writing.</p>
+</section>
 </section>
 <section id="indices-and-tables">
 <h2>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h2>

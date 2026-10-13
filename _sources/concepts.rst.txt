@@ -91,7 +91,7 @@ Directory Layout
 
 The shared repositories live under the configured ``repo_base``
 (``//cnrastore-bdo/Modeling_Data/repo``). Bulk automated builds are staged in a parallel
-``repo_staging_auto`` tree and promoted after validation (see `Bulk Automated Download`_)::
+``repo_staging_auto`` tree and promoted after validation (see :doc:`automatic_ingestion`)::
 
    //cnrastore-bdo/Modeling_Data/
      repo/
@@ -156,60 +156,49 @@ Configuration can be inspected programmatically:
    dstore_config.repo_root("screened")
    dstore_config.config_file("station_dbase")
 
-See :doc:`repository` for the design of templates, registries, and provider resolution,
-and `Modes of Ingestion`_ for how data enter the repositories.
+A repository configuration missing ``root``, ``registry``, ``provider_key``,
+``provider_resolution_mode``, or ``filename_templates`` is an error. The legacy
+``parse.style: legacy`` option remains for backward compatibility. Filename templates are
+described under `File Naming Conventions`_.
 
 
-Data Flow Through the Tiers
----------------------------
+Registry
+--------
 
-.. mermaid::
+The registry (``station_dbase.csv`` for continuous data) is authoritative for station
+metadata: spatial, descriptive, and relationship information is joined onto the metadata
+parsed from filenames. Filenames are operational identifiers only::
 
-   flowchart LR
-    subgraph providers ["Data Providers"]
-      direction LR
-       d1["USGS"]
-       d2["DWR"]
-       d3["NOAA"]
-       d4["CDEC"]
-       d5["USBR"]
-    end
-    subgraph other ["Other Sources"]
-       o1["Vendor and SCADA exports, backfills, local products"]
-    end
-    subgraph repograph ["Repository Tiers"]
-      C2["raw/"]
-      D1["formatted/"]
-      E1["screened/"]
-      F1["processed/"]
-    end
-    subgraph userqaqc ["User QA/QC"]
-           H["Flag Editing"]
-           H-- updates user flag -->E1
-    end
-       providers --> B("Bulk download")
-       B --> C2
-       C2 --> D("Reformat")
-       D --> D1
-       other --> X("Dropbox recipe")
-       X --> D1
-       X --> F1
-       D1 --> E("Automated Screening")
-       E --> E1
-       E1 --> F("Process")
-       F --> F1
-       F1 --> G["Applications & Boundary Conditions"]
+   filename -> parsed metadata -> registry join -> enriched metadata
 
 
-User Access
------------
+Inventory
+---------
 
-The shared repository directories are read-only for most users. New data are staged in a
-working or ``incoming`` area and enter the repository through one of the
-`Modes of Ingestion`_ rather than by direct edits to repository files. Manual QA/QC is
-recorded as ``user_flag`` values in ``screened``. Users are generally not expected to
-access raw data directly; ``formatted`` data allows review of original downloaded values,
-and ``screened`` data includes user flags and consistent units.
+Inventory converts repository files into structured summaries. The file inventory
+(``repo_file_inventory``) groups by ``file_pattern`` and gives the filesystem view:
+physical file families, shard coverage, and provider-specific datasets. The data
+inventory (``repo_data_inventory``) groups by ``series_id`` and gives the logical view of
+one unique time series independent of provider. A ``series_id`` is constructed from
+``[provider?] | site | subloc | param | modifier?``.
+
+
+Design Principles
+-----------------
+
+Programmers are asked to respect the naming conventions and structural rules of the repository system:
+
+* The repository structure and naming conventions must be followed strictly. This is enforced.
+* Metadata must be complete and accurate, with no missing required fields. Take the time
+  to figure out whether the repo calles water temperature temp or temperature (temp).
+  Take the time to figure out every file has an index datetime or date, not Date/Time with 
+  special characters and capitalization. Even if you don't like the standard, having one is nice.
+* Use SKILLS to develop downloaders and recipes. There is a suggested prompt in the docs for 
+  a recipe.
+* Minimize hidden behavior: no implicit defaults and no guessing of providers.
+* Separation of concerns: ``interpret_fname`` parses filenames, the registry enriches
+  metadata, ``read_ts_repo`` looks up datasets, and ``write_ts_csv`` writes files. See
+  :doc:`repo_data_usage` for reading and writing.
 
 
 Modes of Ingestion
@@ -220,57 +209,14 @@ metadata, and units and are validated against the station registry; they differ 
 and in how much each source is individually controlled.
 
 
-Bulk Automated Download
------------------------
+Automatic Ingestion
+-------------------
 
-The bulk route refreshes the continuous family from providers with web services (USGS,
-NOAA, CDEC, DWR, USBR, and others) for the stations in the registry. ``populate_repo``
-drives the source downloaders. Tiers are built in a staging tree (``repo_staging_auto``)
-that alternates with the shared repository: each tier is validated in staging and
-promoted before the next tier is built from it.
-
-.. mermaid::
-
-   sequenceDiagram
-       participant AWS as Agency Web Services
-       participant SR as Staging Raw
-       participant SF as Staging Formatted
-       participant RF as Repo Formatted
-       participant SS as Staging Screened
-       participant RS as Repo Screened
-
-       AWS->>SR: populate_repo / download_*
-       SR->>SF: reformat
-       SF->>SF: usgs_multi
-       Note over SF,RF: spot_check --group continuous_formatted
-       SF->>RF: update_repo
-       RF->>SS: auto_screen
-       Note over SS,RS: spot_check --group continuous_screened
-       SS->>RS: update_flagged_data
-
-1. **Download.** ``populate_repo`` or an individual downloader writes provider files to
-   staging ``raw``.
-2. **Format.** ``reformat`` converts staging ``raw`` into staging ``formatted``;
-   ``usgs_multi`` then splits or consolidates USGS multi-sensor files in place.
-3. **Gate and promote formatted.** ``spot_check`` compares the staged formatted set
-   against the repository baseline (expected streams, file counts, and filename/registry
-   integrity) and fails if the build collapsed or regressed. ``update_repo`` then
-   reconciles the accepted staged files into repository ``formatted``.
-4. **Screen from the repository.** ``auto_screen`` reads repository ``formatted`` (its
-   default ``--repo``), not staging, so screening sees the full promoted history rather
-   than only the recent download. Output goes to staging ``screened`` with screened
-   naming (``--output-naming screened``) and results recorded in ``user_flag``.
-5. **Gate and promote screened.** ``spot_check`` checks staging ``screened``, and
-   ``update_flagged_data`` merges it into repository ``screened``. Because the repository
-   copy carries user flag edits, explicit flag conflicts default to the repository side
-   (``--flag-conflict prefer_repo``), so a rebuild does not erase manual QA/QC.
-
-Both promotion commands support ``--plan`` (with ``--out-actions``) for a dry run before
-``--apply``. ``compare_directories`` and ``inventory`` can be used to review remaining
-differences between staging and repository. When a gate fails, the staged data or its
-upstream cause is corrected and the step rerun; drift is not accepted into the
-repository silently. Gate definitions live in ``spot_check_spec.yaml``. Command
-examples are in :doc:`commands`.
+The automatic route refreshes the continuous family from providers with web services
+(USGS, NOAA, CDEC, DWR, USBR, and others) for the stations in the registry.
+``populate_repo`` drives the source downloaders, and the tiers are built in a staging
+tree and promoted one at a time after validation (download, reformat, gate, screen, gate).
+See :doc:`automatic_ingestion`.
 
 
 Dropbox
@@ -320,27 +266,86 @@ Station, Sublocation, and Datastream Concepts
    (station, sublocation, variable).
 
 
+Agency vs Source vs Provider
+============================
+
+Three related terms describe who is behind a series. They are often the same value but
+are not interchangeable.
+
+**Agency**
+   The organization that *observes* the data, recorded in the ``agency`` column of the
+   station registry (e.g., ``ncro``, ``usgs``, ``dwr_om``). It can include a program
+   name (``dwr_des``). It is a property of the station. ``agency_id`` is that agency's own
+   identifier for the station (e.g., ``11337190`` for USGS).
+
+**Source**
+   The system that *distributes* the data and from which a file was obtained (e.g.,
+   ``ncro`` for the Water Data Library, ``cdec`` for the real-time CDEC service). The
+   same observed series can be available from several sources, with different
+   latency and QA/QC. In ``raw`` and ``formatted`` filenames the source occupies the
+   first slot (``{source}_{station_id}_...``).
+
+**Provider**
+   The generic, configuration-level term for whatever fills the first filename slot of a
+   repository. Each repository sets ``provider_key`` to say which field that is:
+
+   * ``source`` for ``formatted``, ``proprietary_formatted``, and ``daily_formatted``,
+     and for the files in ``raw``;
+   * ``agency`` for ``screened`` and ``atmospheric``, which hold one version of each
+     series named by the observing agency;
+   * ``processor`` for ``processed``, ``structures_formatted``, and
+     ``structures_processed``, where the slot names the entity that produced or
+     delivered the series.
+
+How they interact: when a ``formatted`` repository holds a series from more than one
+source, the registry ``agency`` selects the preferred source through
+``provider_resolution_order``. For example, for a station whose agency is ``ncro`` the
+order is ``ncro`` then ``cdec``, so the quality-controlled WDL version wins and CDEC fills
+in where it is missing. Screening then writes a single version of the series into
+``screened``, renamed with the agency in the first slot, which is why that repository
+uses ``provider_resolution_mode: assume_unique``. The mapping is defined in
+``dstore_config.yaml``; see `Repository Configuration`_.
+
+Note that the agency and the source can differ, and the resolution order lists the
+sources to try for each agency. For example, the order for ``usbr`` is ``usgs``,
+``usbr``, then ``cdec``, and for ``ebmud`` it is ``usgs``, ``ebmud``, then ``cdec``.
+
+
 File Naming Conventions
 =======================
 
-Files follow the pattern::
+The configuration files for each repo give the expected filename pattern(s) for that repo. 
+For instance the formatted continuous repositories follow this pattern::
 
-   agency_dwrID[@subloc]_agencyID_variable[_YYYY[_9999]].csv
+  {source}_{station_id@subloc}_{agency_id}_{param}_{year}.csv
 
-Example: ``usgs_sjj@bgc_11337190_turbidity_2016_2020.csv``
+Each repository declares one or more ``filename_templates`` in ``dstore_config.yaml``
+that define a bidirectional mapping between metadata and filenames, for example::
+
+   {agency}_{station_id@subloc}_{agency_id}_{param}_{year}.csv
+
+Applied to ``usgs_dsj_11313433_ec_2020.csv`` it recovers ``agency=usgs``,
+``station_id=dsj``, ``subloc=default``, ``agency_id=11313433``, ``param=ec``, and
+``year=2020``. Parsing is structural, not heuristic, and a filename that matches no
+template is an error. Other metadata is likely stored in the file, but this is the 
+part for tying the filename to identity.
 
 Components:
 
-**agency**
-   The agency that collects the data, potentially including a high-level program name
-   (e.g., ``dwr_des``).
+**provider**
+   The first slot describes the provenance of the data: ``source``, ``agency`` 
+   (possibly including a program name such as
+   ``dwr_des``), or ``processor``, depending on the repository. See
+   `Agency vs Source vs Provider`_.
 
-**dwr ID and sublocation**
+**station_id and sublocation**
    The DWR station ID, followed by ``@subloc`` if a sublocation exists (e.g.,
-   ``anh@north``). The ``@`` symbol is structural.
+   ``anh@north``). The ``@`` symbol is structural, and ``subloc`` is ``default`` when
+   absent. ``station_id`` is the universal identity column for all sites (stations,
+   structures, synthetic locations) and is not configurable.
 
 **agency_id**
-   The identifier used by the collecting agency (e.g., ``11337190`` for USGS).
+   The identifier used by the observing agency (e.g., ``11337190`` for USGS).
 
 **variable**
    Standardized variable name (e.g., ``turbidity``, ``temp``, ``ec@daily``).
@@ -364,19 +369,35 @@ Units and Standardization
 * **Specific Conductivity (EC)**: Always normalized to 25°C (µS/cm at 25°C).
 
 
-Known Challenges and Exceptions
-===============================
+Data Quality and Flags
+======================
 
-**WDL Station IDs**
-   WDL station IDs may not match the canonical ``station_id`` due to appended ``"00"``
-   or ``"Q"`` suffixes. An internal alias is used as the ``station_id`` to ensure
-   uniqueness.
+Data quality is tracked through two complementary concepts:
 
-**SWP/CVP Exports**
-   Exports are calculated differently for hourly vs. instantaneous values, producing
-   distinct datasets. These different calculations are treated as "sublocations".
+**Status**
+   Data can be *Accepted* (flagged by provider, or with a QAQC flag indicating
+   attention) or *Provisional* (from a real-time source). The system prioritizes
+   data from the "provider of record" (e.g., Water Data Library – WDL) over
+   real-time sources (e.g., CDEC) for accepted data, while provisional data may
+   come from real-time backups.
 
-**USGS Multiple Instruments**
-   USGS may have multiple instruments measuring the same variable for one station ID
-   due to different programs or sublocations. The ``raw/`` directory can store dual
-   versions for QA/QC, though the processed set should ideally be unified.
+**Quality**
+   Includes *Provider quality* and *User quality*. Provider flags indicating bad
+   data are honored and lead to values being set to ``NaN``. *User quality* allows
+   the project's QA/QC process to signal bad data while preserving original values.
+   The ``user_flag`` column in screened data marks anomalous records: ``1`` means
+   anomalous, ``0`` (or ``NA``) means the anomaly was overridden by a user.
+
+.. mermaid::
+
+   graph LR
+       A[Raw Data] --> B{Provider Flags}
+       B --(Set to NaN)--> C[Formatted Data]
+       C --> D{Automated Screening}
+       D --> E[User QA/QC & Manual Review]
+       E --(Overrides auto flags, sets user_flag)--> F[Screened Data]
+       F --> G[Processed Data]
+
+Screening methods are listed in :doc:`automatic_ingestion`.
+
+

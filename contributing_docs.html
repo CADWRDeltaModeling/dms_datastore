@@ -1,0 +1,150 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contributing To The Docs &mdash; dms_datastore 0.8.14.dev2+gfb894e969 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+      <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
+      <link rel="stylesheet" type="text/css" href="_static/mermaid_overrides.css?v=3a91b99f" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=4041c4ce"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+      <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            dms_datastore
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="index.html">Quick Intro</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Time Series</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="automatic_ingestion.html">Automatic Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">dms_datastore</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Contributing To The Docs</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/contributing_docs.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="contributing-to-the-docs">
+<h1>Contributing To The Docs<a class="headerlink" href="#contributing-to-the-docs" title="Link to this heading"></a></h1>
+<p>Edit the reStructuredText (<code class="docutils literal notranslate"><span class="pre">.rst</span></code>) sources in <code class="docutils literal notranslate"><span class="pre">docsrc/</span></code>. Run the commands
+below from the repository root in a Conda-initialized terminal.</p>
+<section id="environment-setup-using-conda">
+<h2>Environment Setup Using Conda<a class="headerlink" href="#environment-setup-using-conda" title="Link to this heading"></a></h2>
+<p>Use <code class="docutils literal notranslate"><span class="pre">environment.yml</span></code> for the package’s runtime dependencies and
+<code class="docutils literal notranslate"><span class="pre">environment-doc.yml</span></code> for documentation tools. Create a separate documentation
+environment so your normal working environment remains unchanged.</p>
+<p>With recent Conda supporting <code class="docutils literal notranslate"><span class="pre">--format</span></code>, combine both files:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">conda create -n dms_datastore_doc --format cep-24 --file environment.yml --file environment-doc.yml</span>
+</pre></div>
+</div>
+<p>For older Conda, create the environment first, then add the documentation tools:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">conda env create -n dms_datastore_doc -f environment.yml</span>
+<span class="go">conda env update -n dms_datastore_doc -f environment-doc.yml</span>
+</pre></div>
+</div>
+<p>Do not add <code class="docutils literal notranslate"><span class="pre">--prune</span></code> to the overlay update: it does not describe the full
+environment and pruning can remove required runtime dependencies.</p>
+</section>
+<section id="build-and-preview">
+<h2>Build And Preview<a class="headerlink" href="#build-and-preview" title="Link to this heading"></a></h2>
+<p>After either setup path, activate the environment, install the checkout, and
+build the HTML documentation:</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="go">conda activate dms_datastore_doc</span>
+<span class="go">python -m pip install --no-deps -e .</span>
+<span class="go">sphinx-build -b html docsrc docs/html</span>
+</pre></div>
+</div>
+<p>Open <code class="docutils literal notranslate"><span class="pre">docs/html/index.html</span></code> in your browser. Check the build output for warnings
+and import errors, and inspect the pages you changed. Add new pages to the
+<code class="docutils literal notranslate"><span class="pre">toctree</span></code> in <code class="docutils literal notranslate"><span class="pre">docsrc/index.rst</span></code> so they appear in the table of contents.</p>
+<p>Submit changes to the documentation sources through a pull request. Generated
+HTML is built and published by the documentation workflow.</p>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Eli Ateljevich, CA DWR.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -5,7 +5,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Index &mdash; dms_datastore 0.8.14.dev1+gedf094465 documentation</title>
+  <title>Index &mdash; dms_datastore 0.8.14.dev2+gfb894e969 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -14,7 +14,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=82d0ad26"></script>
+      <script src="_static/documentation_options.js?v=4041c4ce"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -402,17 +402,16 @@ window.runMermaid = runMermaid;</script>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html">Quick Intro</a></li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Time Series</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="automatic_ingestion.html">Automatic Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 <li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 </ul>
 
         </div>
@@ -465,6 +464,8 @@ window.runMermaid = runMermaid;</script>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-debug">download_des command line option</a>
 </li>
+        <li><a href="download_data.html#cmdoption-download_ncro-debug">download_ncro command line option</a>
+</li>
         <li><a href="download_data.html#cmdoption-download_noaa-debug">download_noaa command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_nwis-debug">download_nwis command line option</a>
@@ -478,6 +479,8 @@ window.runMermaid = runMermaid;</script>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-dest">download_des command line option</a>
 </li>
+        <li><a href="download_data.html#cmdoption-download_ncro-dest">download_ncro command line option</a>
+</li>
         <li><a href="download_data.html#cmdoption-download_noaa-dest">download_noaa command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_nwis-dest">download_nwis command line option</a>
@@ -490,6 +493,8 @@ window.runMermaid = runMermaid;</script>
         <li><a href="download_data.html#cmdoption-download_cdec-end">download_cdec command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-end">download_des command line option</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-end">download_ncro command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_noaa-end">download_noaa command line option</a>
 </li>
@@ -516,6 +521,8 @@ window.runMermaid = runMermaid;</script>
       <ul>
         <li><a href="download_data.html#cmdoption-download_des-h">download_des command line option</a>
 </li>
+        <li><a href="download_data.html#cmdoption-download_ncro-h">download_ncro command line option</a>
+</li>
         <li><a href="download_data.html#cmdoption-download_noaa-h">download_noaa command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_nwis-h">download_nwis command line option</a>
@@ -526,6 +533,13 @@ window.runMermaid = runMermaid;</script>
 
       <ul>
         <li><a href="download_data.html#cmdoption-download_cdec-id_col">download_cdec command line option</a>
+</li>
+      </ul></li>
+      <li>
+    --inventory-only
+
+      <ul>
+        <li><a href="download_data.html#cmdoption-download_ncro-inventory-only">download_ncro command line option</a>
 </li>
       </ul></li>
       <li>
@@ -543,6 +557,8 @@ window.runMermaid = runMermaid;</script>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-logdir">download_des command line option</a>
 </li>
+        <li><a href="download_data.html#cmdoption-download_ncro-logdir">download_ncro command line option</a>
+</li>
         <li><a href="download_data.html#cmdoption-download_noaa-logdir">download_noaa command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_nwis-logdir">download_nwis command line option</a>
@@ -558,6 +574,8 @@ window.runMermaid = runMermaid;</script>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-overwrite">download_des command line option</a>
 </li>
+        <li><a href="download_data.html#cmdoption-download_ncro-overwrite">download_ncro command line option</a>
+</li>
         <li><a href="download_data.html#cmdoption-download_noaa-overwrite">download_noaa command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_nwis-overwrite">download_nwis command line option</a>
@@ -570,6 +588,8 @@ window.runMermaid = runMermaid;</script>
         <li><a href="download_data.html#cmdoption-download_cdec-param">download_cdec command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-param">download_des command line option</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-param">download_ncro command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_noaa-param">download_noaa command line option</a>
 </li>
@@ -591,6 +611,8 @@ window.runMermaid = runMermaid;</script>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-quiet">download_des command line option</a>
 </li>
+        <li><a href="download_data.html#cmdoption-download_ncro-quiet">download_ncro command line option</a>
+</li>
         <li><a href="download_data.html#cmdoption-download_noaa-quiet">download_noaa command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_nwis-quiet">download_nwis command line option</a>
@@ -603,6 +625,8 @@ window.runMermaid = runMermaid;</script>
         <li><a href="download_data.html#cmdoption-download_cdec-start">download_cdec command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-start">download_des command line option</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-start">download_ncro command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_noaa-start">download_noaa command line option</a>
 </li>
@@ -617,6 +641,8 @@ window.runMermaid = runMermaid;</script>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-stations">download_des command line option</a>
 </li>
+        <li><a href="download_data.html#cmdoption-download_ncro-stations">download_ncro command line option</a>
+</li>
         <li><a href="download_data.html#cmdoption-download_noaa-stations">download_noaa command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_nwis-stations">download_nwis command line option</a>
@@ -630,10 +656,19 @@ window.runMermaid = runMermaid;</script>
 </li>
       </ul></li>
       <li>
+    --update-inventory
+
+      <ul>
+        <li><a href="download_data.html#cmdoption-download_ncro-update-inventory">download_ncro command line option</a>
+</li>
+      </ul></li>
+      <li>
     -h
 
       <ul>
         <li><a href="download_data.html#cmdoption-download_des-h">download_des command line option</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-h">download_ncro command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_noaa-h">download_noaa command line option</a>
 </li>
@@ -707,6 +742,41 @@ window.runMermaid = runMermaid;</script>
 </li>
       </ul></li>
       <li>
+    download_ncro command line option
+
+      <ul>
+        <li><a href="download_data.html#cmdoption-download_ncro-debug">--debug</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-dest">--dest</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-end">--end</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-h">--help</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-inventory-only">--inventory-only</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-logdir">--logdir</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-overwrite">--overwrite</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-param">--param</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-quiet">--quiet</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-start">--start</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-stations">--stations</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-update-inventory">--update-inventory</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-h">-h</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-arg-STATIONFILE">STATIONFILE</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
     download_noaa command line option
 
       <ul>
@@ -741,8 +811,6 @@ window.runMermaid = runMermaid;</script>
         <li><a href="download_data.html#cmdoption-download_noaa-arg-STATIONFILE">STATIONFILE</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li>
     download_nwis command line option
 
@@ -787,6 +855,8 @@ window.runMermaid = runMermaid;</script>
         <li><a href="download_data.html#cmdoption-download_cdec-arg-STATIONFILE">download_cdec command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_des-arg-STATIONFILE">download_des command line option</a>
+</li>
+        <li><a href="download_data.html#cmdoption-download_ncro-arg-STATIONFILE">download_ncro command line option</a>
 </li>
         <li><a href="download_data.html#cmdoption-download_noaa-arg-STATIONFILE">download_noaa command line option</a>
 </li>

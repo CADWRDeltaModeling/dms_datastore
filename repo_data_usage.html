@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reading and Writing Data &mdash; dms_datastore 0.8.14.dev1+gedf094465 documentation</title>
+  <title>Reading and Writing Time Series &mdash; dms_datastore 0.8.14.dev2+gfb894e969 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,15 +15,15 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=82d0ad26"></script>
+      <script src="_static/documentation_options.js?v=4041c4ce"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Time Series Repositories" href="repository.html" />
-    <link rel="prev" title="Reading Time Series and Metadata" href="read_data_meta.html" /> 
+    <link rel="next" title="Dropbox Ingestion" href="dropbox.html" />
+    <link rel="prev" title="Station Database and Queries" href="station_info.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -47,25 +47,26 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html">Quick Intro</a></li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
-<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
-<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Reading and Writing Data</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#imports">Imports</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#read-one-series-from-a-repository">Read one series from a repository</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#read-an-explicit-file">Read an explicit file</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#read-several-series-together">Read several series together</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#write-a-time-series">Write a time series</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#look-up-a-station">Look up a station</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Reading and Writing Time Series</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#reading-common-file-formats-and-metadata">Reading Common File Formats and Metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#writing-compliant-files">Writing Compliant Files</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#fetching-from-repo">Fetching From Repo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#read-one-series">Read one series</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#read-several-series-together">Read several series together</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#caching-repeated-reads">Caching repeated reads</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="automatic_ingestion.html">Automatic Ingestion</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
 </ul>
 
         </div>
@@ -82,7 +83,7 @@
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Reading and Writing Data</li>
+      <li class="breadcrumb-item active">Reading and Writing Time Series</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/repo_data_usage.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -92,58 +93,89 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="reading-and-writing-data">
-<h1>Reading and Writing Data<a class="headerlink" href="#reading-and-writing-data" title="Link to this heading"></a></h1>
-<p>This tutorial covers the common ways to retrieve and save time-series data with
-<code class="docutils literal notranslate"><span class="pre">dms_datastore</span></code>. Repository-aware readers are preferred when data is in a
-configured repository; use <code class="docutils literal notranslate"><span class="pre">read_ts</span></code> for explicit files.</p>
-<section id="imports">
-<h2>Imports<a class="headerlink" href="#imports" title="Link to this heading"></a></h2>
-<p>The main functions are available from the package top level:</p>
+  <section id="reading-and-writing-time-series">
+<h1>Reading and Writing Time Series<a class="headerlink" href="#reading-and-writing-time-series" title="Link to this heading"></a></h1>
+<p>Repository-aware readers are preferred when data is in a configured repository; use
+<code class="docutils literal notranslate"><span class="pre">read_ts</span></code> for explicit files. The main functions are available from the package top
+level:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore</span><span class="w"> </span><span class="kn">import</span> <span class="n">read_ts</span><span class="p">,</span> <span class="n">read_ts_repo</span><span class="p">,</span> <span class="n">read_ts_block</span><span class="p">,</span> <span class="n">write_ts_csv</span>
 </pre></div>
 </div>
+<p>Before choosing a station id, use <code class="docutils literal notranslate"><span class="pre">station_info</span></code> to search the configured registries
+(see <a class="reference internal" href="station_info.html"><span class="doc">Station Database and Queries</span></a>):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">station_info</span> <span class="n">Martinez</span>
+<span class="n">station_info</span> <span class="o">--</span><span class="nb">list</span><span class="o">-</span><span class="n">registries</span>
+</pre></div>
+</div>
+<section id="reading-common-file-formats-and-metadata">
+<h2>Reading Common File Formats and Metadata<a class="headerlink" href="#reading-common-file-formats-and-metadata" title="Link to this heading"></a></h2>
+<p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">read_ts()</span></code> when you already know the file path. It
+detects supported time-series formats (repository files and many provider formats) and
+preserves their metadata and flag handling, unlike reading the CSV directly with pandas.
+A wildcard reads time shards (<code class="docutils literal notranslate"><span class="pre">_2020.csv</span></code> or <code class="docutils literal notranslate"><span class="pre">_2015_2019.csv</span></code>) that share a format:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">one_file</span> <span class="o">=</span> <span class="n">read_ts</span><span class="p">(</span><span class="s2">"data/usgs_mrz_11337190_ec_2023.csv"</span><span class="p">)</span>
+<span class="n">shards</span> <span class="o">=</span> <span class="n">read_ts</span><span class="p">(</span><span class="s2">"data/usgs_mrz_*_ec_*.csv"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Repository-format files carry a <code class="docutils literal notranslate"><span class="pre">#</span></code>-commented YAML header with metadata such as
+station, agency, variable, and units. The data columns are <code class="docutils literal notranslate"><span class="pre">value</span></code> and, in screened
+files, <code class="docutils literal notranslate"><span class="pre">user_flag</span></code> (see <a class="reference internal" href="concepts.html"><span class="doc">Concepts and Conventions</span></a> for flag semantics).</p>
 </section>
-<section id="read-one-series-from-a-repository">
-<h2>Read one series from a repository<a class="headerlink" href="#read-one-series-from-a-repository" title="Link to this heading"></a></h2>
-<p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">read_ts_repo()</span></code> to select a series by station
-and variable. The default repository is configured by <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code>
-(typically <code class="docutils literal notranslate"><span class="pre">screened</span></code>):</p>
+<section id="writing-compliant-files">
+<h2>Writing Compliant Files<a class="headerlink" href="#writing-compliant-files" title="Link to this heading"></a></h2>
+<p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">write_ts_csv()</span></code> to write a CSV with the standard
+metadata header:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">write_ts_csv</span><span class="p">(</span>
+    <span class="n">ec</span><span class="p">,</span>
+    <span class="s2">"output/mrz_ec.csv"</span><span class="p">,</span>
+    <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">"agency"</span><span class="p">:</span> <span class="s2">"usgs"</span><span class="p">,</span> <span class="s2">"station_id"</span><span class="p">:</span> <span class="s2">"mrz"</span><span class="p">},</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">metadata</span></code> argument may be:</p>
+<dl class="simple">
+<dt><code class="docutils literal notranslate"><span class="pre">None</span></code></dt><dd><p>Creates a minimal header (format and timestamp only).</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">dict</span></code> (preferred)</dt><dd><p>Structured metadata. It must include or receive <code class="docutils literal notranslate"><span class="pre">format</span></code>. The dict is not mutated.</p>
+</dd>
+<dt><code class="docutils literal notranslate"><span class="pre">str</span></code></dt><dd><p>A legacy or manual header, for migration purposes.</p>
+</dd>
+</dl>
+<p>Output formatting is stable, round trips are idempotent, and the YAML header is
+canonical. Avoid <code class="docutils literal notranslate"><span class="pre">DataFrame.to_csv</span></code> for repository-format data because it does not
+preserve the header or dtype conventions. To place a file in a repository, use the
+<a class="reference internal" href="dropbox.html"><span class="doc">Dropbox Ingestion</span></a> rather than writing into repository directories.</p>
+</section>
+<section id="fetching-from-repo">
+<h2>Fetching From Repo<a class="headerlink" href="#fetching-from-repo" title="Link to this heading"></a></h2>
+<section id="read-one-series">
+<h3>Read one series<a class="headerlink" href="#read-one-series" title="Link to this heading"></a></h3>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">read_ts_repo()</span></code> selects a series by station and variable,
+resolving file paths, provider priority, and time shards. The default repository is set
+in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code> (<code class="docutils literal notranslate"><span class="pre">screened</span></code>):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ec</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">"mrz"</span><span class="p">,</span> <span class="s2">"ec"</span><span class="p">)</span>
+<span class="n">ec_2023</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">"mrz"</span><span class="p">,</span> <span class="s2">"ec"</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="s2">"2023-01-01"</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">"2023-12-31"</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>The result is a pandas <code class="docutils literal notranslate"><span class="pre">DataFrame</span></code> indexed by datetime. You can select an
-inclusive time window in the call, or slice the returned data:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">ec_2023</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">"mrz"</span><span class="p">,</span> <span class="s2">"ec"</span><span class="p">,</span> <span class="n">start</span><span class="o">=</span><span class="s2">"2023-01-01"</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">"2023-12-31"</span><span class="p">)</span>
-</pre></div>
-</div>
-<p>Stations with multiple sensors can include the sublocation in the station id.
-Alternatively, pass it as <code class="docutils literal notranslate"><span class="pre">subloc=</span></code>. Variable modifiers can be included in
-the variable name:</p>
+<p>The result is a pandas <code class="docutils literal notranslate"><span class="pre">DataFrame</span></code> indexed by datetime. Sublocations can be given in
+the station id or with <code class="docutils literal notranslate"><span class="pre">subloc=</span></code> (not both), and variable modifiers are part of the
+variable name:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">upper_ec</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">"mrz@upper"</span><span class="p">,</span> <span class="s2">"ec"</span><span class="p">)</span>
 <span class="n">lower_ec</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">"mrz"</span><span class="p">,</span> <span class="s2">"ec"</span><span class="p">,</span> <span class="n">subloc</span><span class="o">=</span><span class="s2">"lower"</span><span class="p">)</span>
 <span class="n">daily_ec</span> <span class="o">=</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="s2">"mrz"</span><span class="p">,</span> <span class="s2">"ec@daily"</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Do not specify both <code class="docutils literal notranslate"><span class="pre">station&#64;subloc</span></code> and <code class="docutils literal notranslate"><span class="pre">subloc=</span></code>. The <code class="docutils literal notranslate"><span class="pre">force_regular</span></code>
-option defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>; keep it enabled for regular continuous data and
-fix irregular source data rather than suppressing the check.</p>
-</section>
-<section id="read-an-explicit-file">
-<h2>Read an explicit file<a class="headerlink" href="#read-an-explicit-file" title="Link to this heading"></a></h2>
-<p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">read_ts()</span></code> when you already know the file path.
-It detects supported time-series formats and preserves their metadata and flag
-handling, unlike reading the CSV directly with pandas:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">one_file</span> <span class="o">=</span> <span class="n">read_ts</span><span class="p">(</span><span class="s2">"data/usgs_mrz_11337190_ec_2023.csv"</span><span class="p">)</span>
-<span class="n">shards</span> <span class="o">=</span> <span class="n">read_ts</span><span class="p">(</span><span class="s2">"data/usgs_mrz_*_ec_*.csv"</span><span class="p">)</span>
-</pre></div>
-</div>
+<p>Other repositories are chosen with <code class="docutils literal notranslate"><span class="pre">repo=</span></code> (a configured name or a directory), and
+<code class="docutils literal notranslate"><span class="pre">meta=True</span></code> returns metadata alongside the data. <code class="docutils literal notranslate"><span class="pre">provider_priority</span></code> overrides the
+configured provider order. <code class="docutils literal notranslate"><span class="pre">force_regular</span></code> defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>; keep it enabled for
+regular continuous data and fix irregular source data rather than suppressing the check.</p>
+<p>Lookup is deterministic and fails on ambiguity rather than guessing a provider.</p>
 </section>
 <section id="read-several-series-together">
-<h2>Read several series together<a class="headerlink" href="#read-several-series-together" title="Link to this heading"></a></h2>
-<p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">read_ts_block()</span></code> to read combinations of
-stations and variables into one table. <code class="docutils literal notranslate"><span class="pre">tidy</span></code> uses a datetime/station index
-and one column per variable:</p>
+<h3>Read several series together<a class="headerlink" href="#read-several-series-together" title="Link to this heading"></a></h3>
+<p><code class="xref py py-func docutils literal notranslate"><span class="pre">read_ts_block()</span></code> reads combinations of stations and
+variables into one table. <code class="docutils literal notranslate"><span class="pre">dim=&quot;tidy&quot;</span></code> gives a datetime/station index with one column
+per variable:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">block</span> <span class="o">=</span> <span class="n">read_ts_block</span><span class="p">(</span>
     <span class="n">station</span><span class="o">=</span><span class="p">[</span><span class="s2">"mrz@upper"</span><span class="p">,</span> <span class="s2">"mrz@lower"</span><span class="p">],</span>
     <span class="n">param</span><span class="o">=</span><span class="p">[</span><span class="s2">"ec"</span><span class="p">,</span> <span class="s2">"temp"</span><span class="p">],</span>
@@ -153,39 +185,28 @@ and one column per variable:</p>
 <span class="p">)</span>
 </pre></div>
 </div>
-<p>Use <code class="docutils literal notranslate"><span class="pre">dim=&quot;flat&quot;</span></code> for a datetime index with columns such as
-<code class="docutils literal notranslate"><span class="pre">mrz&#64;upper_ec</span></code> and <code class="docutils literal notranslate"><span class="pre">mrz&#64;lower_temp</span></code>. For an explicit list of station and
-variable pairs, pass a CSV path using <code class="docutils literal notranslate"><span class="pre">request=</span></code> instead of <code class="docutils literal notranslate"><span class="pre">station=</span></code> and
-<code class="docutils literal notranslate"><span class="pre">param=</span></code>. The command-line equivalent is <code class="docutils literal notranslate"><span class="pre">data_block</span></code>:</p>
+<p><code class="docutils literal notranslate"><span class="pre">dim=&quot;flat&quot;</span></code> gives a datetime index with columns such as <code class="docutils literal notranslate"><span class="pre">mrz&#64;upper_ec</span></code> and
+<code class="docutils literal notranslate"><span class="pre">mrz&#64;lower_temp</span></code>. For an explicit list of station and variable pairs, pass a CSV path
+with <code class="docutils literal notranslate"><span class="pre">request=</span></code> instead of <code class="docutils literal notranslate"><span class="pre">station=</span></code> and <code class="docutils literal notranslate"><span class="pre">param=</span></code>. Block reads search
+<code class="docutils literal notranslate"><span class="pre">repo_search_order</span></code> (<code class="docutils literal notranslate"><span class="pre">processed</span></code> then <code class="docutils literal notranslate"><span class="pre">screened</span></code>). The command-line equivalent is
+<code class="docutils literal notranslate"><span class="pre">data_block</span></code>:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">data_block</span> <span class="o">-</span><span class="n">o</span> <span class="n">block</span><span class="o">.</span><span class="n">csv</span> <span class="o">-</span><span class="n">s</span> <span class="mi">2023</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">01</span> <span class="o">-</span><span class="n">e</span> <span class="mi">2023</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span> \
   <span class="o">--</span><span class="n">station</span> <span class="n">mrz</span><span class="nd">@upper</span> <span class="o">--</span><span class="n">station</span> <span class="n">mrz</span><span class="nd">@lower</span> <span class="o">--</span><span class="n">param</span> <span class="n">ec</span> <span class="o">--</span><span class="n">param</span> <span class="n">temp</span> <span class="o">--</span><span class="n">dim</span> <span class="n">tidy</span>
 </pre></div>
 </div>
 </section>
-<section id="write-a-time-series">
-<h2>Write a time series<a class="headerlink" href="#write-a-time-series" title="Link to this heading"></a></h2>
-<p>Use <code class="xref py py-func docutils literal notranslate"><span class="pre">write_ts_csv()</span></code> to write a CSV with the
-standard metadata header. Pass metadata explicitly when appropriate:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">write_ts_csv</span><span class="p">(</span>
-    <span class="n">ec</span><span class="p">,</span>
-    <span class="s2">"output/mrz_ec.csv"</span><span class="p">,</span>
-    <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">"agency"</span><span class="p">:</span> <span class="s2">"usgs"</span><span class="p">,</span> <span class="s2">"station_id"</span><span class="p">:</span> <span class="s2">"mrz"</span><span class="p">},</span>
-<span class="p">)</span>
+<section id="caching-repeated-reads">
+<h3>Caching repeated reads<a class="headerlink" href="#caching-repeated-reads" title="Link to this heading"></a></h3>
+<p>For repeated access to the same data the <code class="docutils literal notranslate"><span class="pre">&#64;cache_dataframe</span></code> decorator stores results:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">dms_datastore.caching</span><span class="w"> </span><span class="kn">import</span> <span class="n">cache_dataframe</span>
+
+<span class="nd">@cache_dataframe</span><span class="p">()</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">daily_flow</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">read_ts_repo</span><span class="p">(</span><span class="n">station</span><span class="p">,</span> <span class="n">variable</span><span class="p">)</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s2">"D"</span><span class="p">)</span><span class="o">.</span><span class="n">mean</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Avoid <code class="docutils literal notranslate"><span class="pre">DataFrame.to_csv</span></code> for repository-format data because it does not
-preserve the standard metadata header or dtype conventions. See
-<a class="reference internal" href="repository.html"><span class="doc">Time Series Repositories</span></a> for repository file and metadata details.</p>
+<p>See the <a class="reference internal" href="notebooks/cache.html"><span class="doc">Local Caching notebook</span></a> for a walkthrough.</p>
 </section>
-<section id="look-up-a-station">
-<h2>Look up a station<a class="headerlink" href="#look-up-a-station" title="Link to this heading"></a></h2>
-<p>Before choosing a station id, use <code class="docutils literal notranslate"><span class="pre">station_info</span></code> to search the configured
-registries:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">station_info</span> <span class="n">Martinez</span>
-<span class="n">station_info</span> <span class="o">--</span><span class="nb">list</span><span class="o">-</span><span class="n">registries</span>
-</pre></div>
-</div>
-<p>The Python equivalent is <code class="docutils literal notranslate"><span class="pre">dms_datastore.station_info.station_info(search)</span></code>.</p>
 </section>
 </section>
 
@@ -193,8 +214,8 @@ registries:</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="read_data_meta.html" class="btn btn-neutral float-left" title="Reading Time Series and Metadata" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="repository.html" class="btn btn-neutral float-right" title="Time Series Repositories" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="station_info.html" class="btn btn-neutral float-left" title="Station Database and Queries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="dropbox.html" class="btn btn-neutral float-right" title="Dropbox Ingestion" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

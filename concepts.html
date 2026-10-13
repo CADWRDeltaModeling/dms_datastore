@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Concepts and Conventions &mdash; dms_datastore 0.8.14.dev1+gedf094465 documentation</title>
+  <title>Concepts and Conventions &mdash; dms_datastore 0.8.14.dev2+gfb894e969 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=82d0ad26"></script>
+      <script src="_static/documentation_options.js?v=4041c4ce"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -405,7 +405,7 @@ window.runMermaid = runMermaid;</script>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html">Quick Intro</a></li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Concepts and Conventions</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
@@ -414,30 +414,31 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l3"><a class="reference internal" href="#configured-repositories">Configured Repositories</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#directory-layout">Directory Layout</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#repository-configuration">Repository Configuration</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#data-flow-through-the-tiers">Data Flow Through the Tiers</a></li>
-<li class="toctree-l3"><a class="reference internal" href="#user-access">User Access</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#registry">Registry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#inventory">Inventory</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#design-principles">Design Principles</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#modes-of-ingestion">Modes of Ingestion</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#bulk-automated-download">Bulk Automated Download</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#automatic-ingestion">Automatic Ingestion</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#dropbox">Dropbox</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#other-downloader-scripts-and-data">Other Downloader Scripts and Data</a></li>
 </ul>
 </li>
 <li class="toctree-l2"><a class="reference internal" href="#station-sublocation-and-datastream-concepts">Station, Sublocation, and Datastream Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#agency-vs-source-vs-provider">Agency vs Source vs Provider</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#file-naming-conventions">File Naming Conventions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#units-and-standardization">Units and Standardization</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#known-challenges-and-exceptions">Known Challenges and Exceptions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#data-quality-and-flags">Data Quality and Flags</a></li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Time Series</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="automatic_ingestion.html">Automatic Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 <li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
 <li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 </ul>
 
         </div>
@@ -554,7 +555,7 @@ registry of synthetic locations.</p></td>
 <h3>Directory Layout<a class="headerlink" href="#directory-layout" title="Link to this heading"></a></h3>
 <p>The shared repositories live under the configured <code class="docutils literal notranslate"><span class="pre">repo_base</span></code>
 (<code class="docutils literal notranslate"><span class="pre">//cnrastore-bdo/Modeling_Data/repo</span></code>). Bulk automated builds are staged in a parallel
-<code class="docutils literal notranslate"><span class="pre">repo_staging_auto</span></code> tree and promoted after validation (see <a class="reference internal" href="#bulk-automated-download">Bulk Automated Download</a>):</p>
+<code class="docutils literal notranslate"><span class="pre">repo_staging_auto</span></code> tree and promoted after validation (see <a class="reference internal" href="automatic_ingestion.html"><span class="doc">Automatic Ingestion</span></a>):</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">//</span><span class="n">cnrastore</span><span class="o">-</span><span class="n">bdo</span><span class="o">/</span><span class="n">Modeling_Data</span><span class="o">/</span>
   <span class="n">repo</span><span class="o">/</span>
     <span class="n">continuous</span><span class="o">/</span>
@@ -612,55 +613,45 @@ Configuration can be inspected programmatically:</p>
 <span class="n">dstore_config</span><span class="o">.</span><span class="n">config_file</span><span class="p">(</span><span class="s2">"station_dbase"</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>See <a class="reference internal" href="repository.html"><span class="doc">Time Series Repositories</span></a> for the design of templates, registries, and provider resolution,
-and <a class="reference internal" href="#modes-of-ingestion">Modes of Ingestion</a> for how data enter the repositories.</p>
+<p>A repository configuration missing <code class="docutils literal notranslate"><span class="pre">root</span></code>, <code class="docutils literal notranslate"><span class="pre">registry</span></code>, <code class="docutils literal notranslate"><span class="pre">provider_key</span></code>,
+<code class="docutils literal notranslate"><span class="pre">provider_resolution_mode</span></code>, or <code class="docutils literal notranslate"><span class="pre">filename_templates</span></code> is an error. The legacy
+<code class="docutils literal notranslate"><span class="pre">parse.style:</span> <span class="pre">legacy</span></code> option remains for backward compatibility. Filename templates are
+described under <a class="reference internal" href="#file-naming-conventions">File Naming Conventions</a>.</p>
 </section>
-<section id="data-flow-through-the-tiers">
-<h3>Data Flow Through the Tiers<a class="headerlink" href="#data-flow-through-the-tiers" title="Link to this heading"></a></h3>
-<pre  class="mermaid">
-        flowchart LR
- subgraph providers [&quot;Data Providers&quot;]
-   direction LR
-    d1[&quot;USGS&quot;]
-    d2[&quot;DWR&quot;]
-    d3[&quot;NOAA&quot;]
-    d4[&quot;CDEC&quot;]
-    d5[&quot;USBR&quot;]
- end
- subgraph other [&quot;Other Sources&quot;]
-    o1[&quot;Vendor and SCADA exports, backfills, local products&quot;]
- end
- subgraph repograph [&quot;Repository Tiers&quot;]
-   C2[&quot;raw/&quot;]
-   D1[&quot;formatted/&quot;]
-   E1[&quot;screened/&quot;]
-   F1[&quot;processed/&quot;]
- end
- subgraph userqaqc [&quot;User QA/QC&quot;]
-        H[&quot;Flag Editing&quot;]
-        H-- updates user flag --&gt;E1
- end
-    providers --&gt; B(&quot;Bulk download&quot;)
-    B --&gt; C2
-    C2 --&gt; D(&quot;Reformat&quot;)
-    D --&gt; D1
-    other --&gt; X(&quot;Dropbox recipe&quot;)
-    X --&gt; D1
-    X --&gt; F1
-    D1 --&gt; E(&quot;Automated Screening&quot;)
-    E --&gt; E1
-    E1 --&gt; F(&quot;Process&quot;)
-    F --&gt; F1
-    F1 --&gt; G[&quot;Applications &amp; Boundary Conditions&quot;]
-    </pre></section>
-<section id="user-access">
-<h3>User Access<a class="headerlink" href="#user-access" title="Link to this heading"></a></h3>
-<p>The shared repository directories are read-only for most users. New data are staged in a
-working or <code class="docutils literal notranslate"><span class="pre">incoming</span></code> area and enter the repository through one of the
-<a class="reference internal" href="#modes-of-ingestion">Modes of Ingestion</a> rather than by direct edits to repository files. Manual QA/QC is
-recorded as <code class="docutils literal notranslate"><span class="pre">user_flag</span></code> values in <code class="docutils literal notranslate"><span class="pre">screened</span></code>. Users are generally not expected to
-access raw data directly; <code class="docutils literal notranslate"><span class="pre">formatted</span></code> data allows review of original downloaded values,
-and <code class="docutils literal notranslate"><span class="pre">screened</span></code> data includes user flags and consistent units.</p>
+<section id="registry">
+<h3>Registry<a class="headerlink" href="#registry" title="Link to this heading"></a></h3>
+<p>The registry (<code class="docutils literal notranslate"><span class="pre">station_dbase.csv</span></code> for continuous data) is authoritative for station
+metadata: spatial, descriptive, and relationship information is joined onto the metadata
+parsed from filenames. Filenames are operational identifiers only:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">filename</span> <span class="o">-&gt;</span> <span class="n">parsed</span> <span class="n">metadata</span> <span class="o">-&gt;</span> <span class="n">registry</span> <span class="n">join</span> <span class="o">-&gt;</span> <span class="n">enriched</span> <span class="n">metadata</span>
+</pre></div>
+</div>
+</section>
+<section id="inventory">
+<h3>Inventory<a class="headerlink" href="#inventory" title="Link to this heading"></a></h3>
+<p>Inventory converts repository files into structured summaries. The file inventory
+(<code class="docutils literal notranslate"><span class="pre">repo_file_inventory</span></code>) groups by <code class="docutils literal notranslate"><span class="pre">file_pattern</span></code> and gives the filesystem view:
+physical file families, shard coverage, and provider-specific datasets. The data
+inventory (<code class="docutils literal notranslate"><span class="pre">repo_data_inventory</span></code>) groups by <code class="docutils literal notranslate"><span class="pre">series_id</span></code> and gives the logical view of
+one unique time series independent of provider. A <code class="docutils literal notranslate"><span class="pre">series_id</span></code> is constructed from
+<code class="docutils literal notranslate"><span class="pre">[provider?]</span> <span class="pre">|</span> <span class="pre">site</span> <span class="pre">|</span> <span class="pre">subloc</span> <span class="pre">|</span> <span class="pre">param</span> <span class="pre">|</span> <span class="pre">modifier?</span></code>.</p>
+</section>
+<section id="design-principles">
+<h3>Design Principles<a class="headerlink" href="#design-principles" title="Link to this heading"></a></h3>
+<p>Programmers are asked to respect the naming conventions and structural rules of the repository system:</p>
+<ul class="simple">
+<li><p>The repository structure and naming conventions must be followed strictly. This is enforced.</p></li>
+<li><p>Metadata must be complete and accurate, with no missing required fields. Take the time
+to figure out whether the repo calles water temperature temp or temperature (temp).
+Take the time to figure out every file has an index datetime or date, not Date/Time with
+special characters and capitalization. Even if you don’t like the standard, having one is nice.</p></li>
+<li><p>Use SKILLS to develop downloaders and recipes. There is a suggested prompt in the docs for
+a recipe.</p></li>
+<li><p>Minimize hidden behavior: no implicit defaults and no guessing of providers.</p></li>
+<li><p>Separation of concerns: <code class="docutils literal notranslate"><span class="pre">interpret_fname</span></code> parses filenames, the registry enriches
+metadata, <code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code> looks up datasets, and <code class="docutils literal notranslate"><span class="pre">write_ts_csv</span></code> writes files. See
+<a class="reference internal" href="repo_data_usage.html"><span class="doc">Reading and Writing Time Series</span></a> for reading and writing.</p></li>
+</ul>
 </section>
 </section>
 <section id="modes-of-ingestion">
@@ -668,54 +659,13 @@ and <code class="docutils literal notranslate"><span class="pre">screened</span>
 <p>Time series reach the repository by two routes. Both produce files with the same naming,
 metadata, and units and are validated against the station registry; they differ in scale
 and in how much each source is individually controlled.</p>
-<section id="bulk-automated-download">
-<h3>Bulk Automated Download<a class="headerlink" href="#bulk-automated-download" title="Link to this heading"></a></h3>
-<p>The bulk route refreshes the continuous family from providers with web services (USGS,
-NOAA, CDEC, DWR, USBR, and others) for the stations in the registry. <code class="docutils literal notranslate"><span class="pre">populate_repo</span></code>
-drives the source downloaders. Tiers are built in a staging tree (<code class="docutils literal notranslate"><span class="pre">repo_staging_auto</span></code>)
-that alternates with the shared repository: each tier is validated in staging and
-promoted before the next tier is built from it.</p>
-<pre  class="mermaid">
-        sequenceDiagram
-    participant AWS as Agency Web Services
-    participant SR as Staging Raw
-    participant SF as Staging Formatted
-    participant RF as Repo Formatted
-    participant SS as Staging Screened
-    participant RS as Repo Screened
-
-    AWS-&gt;&gt;SR: populate_repo / download_*
-    SR-&gt;&gt;SF: reformat
-    SF-&gt;&gt;SF: usgs_multi
-    Note over SF,RF: spot_check --group continuous_formatted
-    SF-&gt;&gt;RF: update_repo
-    RF-&gt;&gt;SS: auto_screen
-    Note over SS,RS: spot_check --group continuous_screened
-    SS-&gt;&gt;RS: update_flagged_data
-    </pre><ol class="arabic simple">
-<li><p><strong>Download.</strong> <code class="docutils literal notranslate"><span class="pre">populate_repo</span></code> or an individual downloader writes provider files to
-staging <code class="docutils literal notranslate"><span class="pre">raw</span></code>.</p></li>
-<li><p><strong>Format.</strong> <code class="docutils literal notranslate"><span class="pre">reformat</span></code> converts staging <code class="docutils literal notranslate"><span class="pre">raw</span></code> into staging <code class="docutils literal notranslate"><span class="pre">formatted</span></code>;
-<code class="docutils literal notranslate"><span class="pre">usgs_multi</span></code> then splits or consolidates USGS multi-sensor files in place.</p></li>
-<li><p><strong>Gate and promote formatted.</strong> <code class="docutils literal notranslate"><span class="pre">spot_check</span></code> compares the staged formatted set
-against the repository baseline (expected streams, file counts, and filename/registry
-integrity) and fails if the build collapsed or regressed. <code class="docutils literal notranslate"><span class="pre">update_repo</span></code> then
-reconciles the accepted staged files into repository <code class="docutils literal notranslate"><span class="pre">formatted</span></code>.</p></li>
-<li><p><strong>Screen from the repository.</strong> <code class="docutils literal notranslate"><span class="pre">auto_screen</span></code> reads repository <code class="docutils literal notranslate"><span class="pre">formatted</span></code> (its
-default <code class="docutils literal notranslate"><span class="pre">--repo</span></code>), not staging, so screening sees the full promoted history rather
-than only the recent download. Output goes to staging <code class="docutils literal notranslate"><span class="pre">screened</span></code> with screened
-naming (<code class="docutils literal notranslate"><span class="pre">--output-naming</span> <span class="pre">screened</span></code>) and results recorded in <code class="docutils literal notranslate"><span class="pre">user_flag</span></code>.</p></li>
-<li><p><strong>Gate and promote screened.</strong> <code class="docutils literal notranslate"><span class="pre">spot_check</span></code> checks staging <code class="docutils literal notranslate"><span class="pre">screened</span></code>, and
-<code class="docutils literal notranslate"><span class="pre">update_flagged_data</span></code> merges it into repository <code class="docutils literal notranslate"><span class="pre">screened</span></code>. Because the repository
-copy carries user flag edits, explicit flag conflicts default to the repository side
-(<code class="docutils literal notranslate"><span class="pre">--flag-conflict</span> <span class="pre">prefer_repo</span></code>), so a rebuild does not erase manual QA/QC.</p></li>
-</ol>
-<p>Both promotion commands support <code class="docutils literal notranslate"><span class="pre">--plan</span></code> (with <code class="docutils literal notranslate"><span class="pre">--out-actions</span></code>) for a dry run before
-<code class="docutils literal notranslate"><span class="pre">--apply</span></code>. <code class="docutils literal notranslate"><span class="pre">compare_directories</span></code> and <code class="docutils literal notranslate"><span class="pre">inventory</span></code> can be used to review remaining
-differences between staging and repository. When a gate fails, the staged data or its
-upstream cause is corrected and the step rerun; drift is not accepted into the
-repository silently. Gate definitions live in <code class="docutils literal notranslate"><span class="pre">spot_check_spec.yaml</span></code>. Command
-examples are in <a class="reference internal" href="commands.html"><span class="doc">dms_datastore Command Reference</span></a>.</p>
+<section id="automatic-ingestion">
+<h3>Automatic Ingestion<a class="headerlink" href="#automatic-ingestion" title="Link to this heading"></a></h3>
+<p>The automatic route refreshes the continuous family from providers with web services
+(USGS, NOAA, CDEC, DWR, USBR, and others) for the stations in the registry.
+<code class="docutils literal notranslate"><span class="pre">populate_repo</span></code> drives the source downloaders, and the tiers are built in a staging
+tree and promoted one at a time after validation (download, reformat, gate, screen, gate).
+See <a class="reference internal" href="automatic_ingestion.html"><span class="doc">Automatic Ingestion</span></a>.</p>
 </section>
 <section id="dropbox">
 <h3>Dropbox<a class="headerlink" href="#dropbox" title="Link to this heading"></a></h3>
@@ -728,7 +678,7 @@ it, reconciles that file into a named repository (commonly <code class="docutils
 or <code class="docutils literal notranslate"><span class="pre">structures_formatted</span></code>) under an explicit overlap policy. Metadata and coordinates
 are validated against the station registry before anything reaches the repository.
 Recipes serve as the record of how each series was produced and can be rerun to top off
-ongoing feeds. See <a class="reference internal" href="dropbox.html"><span class="doc">Dropbox Data Ingestion</span></a>.</p>
+ongoing feeds. See <a class="reference internal" href="dropbox.html"><span class="doc">Dropbox Ingestion</span></a>.</p>
 </section>
 <section id="other-downloader-scripts-and-data">
 <h3>Other Downloader Scripts and Data<a class="headerlink" href="#other-downloader-scripts-and-data" title="Link to this heading"></a></h3>
@@ -759,22 +709,77 @@ concept generalizes depths and other ambiguities.</p>
 </dd>
 </dl>
 </section>
+<section id="agency-vs-source-vs-provider">
+<h2>Agency vs Source vs Provider<a class="headerlink" href="#agency-vs-source-vs-provider" title="Link to this heading"></a></h2>
+<p>Three related terms describe who is behind a series. They are often the same value but
+are not interchangeable.</p>
+<dl class="simple">
+<dt><strong>Agency</strong></dt><dd><p>The organization that <em>observes</em> the data, recorded in the <code class="docutils literal notranslate"><span class="pre">agency</span></code> column of the
+station registry (e.g., <code class="docutils literal notranslate"><span class="pre">ncro</span></code>, <code class="docutils literal notranslate"><span class="pre">usgs</span></code>, <code class="docutils literal notranslate"><span class="pre">dwr_om</span></code>). It can include a program
+name (<code class="docutils literal notranslate"><span class="pre">dwr_des</span></code>). It is a property of the station. <code class="docutils literal notranslate"><span class="pre">agency_id</span></code> is that agency’s own
+identifier for the station (e.g., <code class="docutils literal notranslate"><span class="pre">11337190</span></code> for USGS).</p>
+</dd>
+<dt><strong>Source</strong></dt><dd><p>The system that <em>distributes</em> the data and from which a file was obtained (e.g.,
+<code class="docutils literal notranslate"><span class="pre">ncro</span></code> for the Water Data Library, <code class="docutils literal notranslate"><span class="pre">cdec</span></code> for the real-time CDEC service). The
+same observed series can be available from several sources, with different
+latency and QA/QC. In <code class="docutils literal notranslate"><span class="pre">raw</span></code> and <code class="docutils literal notranslate"><span class="pre">formatted</span></code> filenames the source occupies the
+first slot (<code class="docutils literal notranslate"><span class="pre">{source}_{station_id}_...</span></code>).</p>
+</dd>
+<dt><strong>Provider</strong></dt><dd><p>The generic, configuration-level term for whatever fills the first filename slot of a
+repository. Each repository sets <code class="docutils literal notranslate"><span class="pre">provider_key</span></code> to say which field that is:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">source</span></code> for <code class="docutils literal notranslate"><span class="pre">formatted</span></code>, <code class="docutils literal notranslate"><span class="pre">proprietary_formatted</span></code>, and <code class="docutils literal notranslate"><span class="pre">daily_formatted</span></code>,
+and for the files in <code class="docutils literal notranslate"><span class="pre">raw</span></code>;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">agency</span></code> for <code class="docutils literal notranslate"><span class="pre">screened</span></code> and <code class="docutils literal notranslate"><span class="pre">atmospheric</span></code>, which hold one version of each
+series named by the observing agency;</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">processor</span></code> for <code class="docutils literal notranslate"><span class="pre">processed</span></code>, <code class="docutils literal notranslate"><span class="pre">structures_formatted</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">structures_processed</span></code>, where the slot names the entity that produced or
+delivered the series.</p></li>
+</ul>
+</dd>
+</dl>
+<p>How they interact: when a <code class="docutils literal notranslate"><span class="pre">formatted</span></code> repository holds a series from more than one
+source, the registry <code class="docutils literal notranslate"><span class="pre">agency</span></code> selects the preferred source through
+<code class="docutils literal notranslate"><span class="pre">provider_resolution_order</span></code>. For example, for a station whose agency is <code class="docutils literal notranslate"><span class="pre">ncro</span></code> the
+order is <code class="docutils literal notranslate"><span class="pre">ncro</span></code> then <code class="docutils literal notranslate"><span class="pre">cdec</span></code>, so the quality-controlled WDL version wins and CDEC fills
+in where it is missing. Screening then writes a single version of the series into
+<code class="docutils literal notranslate"><span class="pre">screened</span></code>, renamed with the agency in the first slot, which is why that repository
+uses <code class="docutils literal notranslate"><span class="pre">provider_resolution_mode:</span> <span class="pre">assume_unique</span></code>. The mapping is defined in
+<code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code>; see <a class="reference internal" href="#repository-configuration">Repository Configuration</a>.</p>
+<p>Note that the agency and the source can differ, and the resolution order lists the
+sources to try for each agency. For example, the order for <code class="docutils literal notranslate"><span class="pre">usbr</span></code> is <code class="docutils literal notranslate"><span class="pre">usgs</span></code>,
+<code class="docutils literal notranslate"><span class="pre">usbr</span></code>, then <code class="docutils literal notranslate"><span class="pre">cdec</span></code>, and for <code class="docutils literal notranslate"><span class="pre">ebmud</span></code> it is <code class="docutils literal notranslate"><span class="pre">usgs</span></code>, <code class="docutils literal notranslate"><span class="pre">ebmud</span></code>, then <code class="docutils literal notranslate"><span class="pre">cdec</span></code>.</p>
+</section>
 <section id="file-naming-conventions">
 <h2>File Naming Conventions<a class="headerlink" href="#file-naming-conventions" title="Link to this heading"></a></h2>
-<p>Files follow the pattern:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">agency_dwrID</span><span class="p">[</span><span class="nd">@subloc</span><span class="p">]</span><span class="n">_agencyID_variable</span><span class="p">[</span><span class="n">_YYYY</span><span class="p">[</span><span class="n">_9999</span><span class="p">]]</span><span class="o">.</span><span class="n">csv</span>
+<p>The configuration files for each repo give the expected filename pattern(s) for that repo.
+For instance the formatted continuous repositories follow this pattern:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">source</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">station_id</span><span class="nd">@subloc</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">agency_id</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">param</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">year</span><span class="p">}</span><span class="o">.</span><span class="n">csv</span>
 </pre></div>
 </div>
-<p>Example: <code class="docutils literal notranslate"><span class="pre">usgs_sjj&#64;bgc_11337190_turbidity_2016_2020.csv</span></code></p>
+<p>Each repository declares one or more <code class="docutils literal notranslate"><span class="pre">filename_templates</span></code> in <code class="docutils literal notranslate"><span class="pre">dstore_config.yaml</span></code>
+that define a bidirectional mapping between metadata and filenames, for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">{</span><span class="n">agency</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">station_id</span><span class="nd">@subloc</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">agency_id</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">param</span><span class="p">}</span><span class="n">_</span><span class="p">{</span><span class="n">year</span><span class="p">}</span><span class="o">.</span><span class="n">csv</span>
+</pre></div>
+</div>
+<p>Applied to <code class="docutils literal notranslate"><span class="pre">usgs_dsj_11313433_ec_2020.csv</span></code> it recovers <code class="docutils literal notranslate"><span class="pre">agency=usgs</span></code>,
+<code class="docutils literal notranslate"><span class="pre">station_id=dsj</span></code>, <code class="docutils literal notranslate"><span class="pre">subloc=default</span></code>, <code class="docutils literal notranslate"><span class="pre">agency_id=11313433</span></code>, <code class="docutils literal notranslate"><span class="pre">param=ec</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">year=2020</span></code>. Parsing is structural, not heuristic, and a filename that matches no
+template is an error. Other metadata is likely stored in the file, but this is the
+part for tying the filename to identity.</p>
 <p>Components:</p>
 <dl class="simple">
-<dt><strong>agency</strong></dt><dd><p>The agency that collects the data, potentially including a high-level program name
-(e.g., <code class="docutils literal notranslate"><span class="pre">dwr_des</span></code>).</p>
+<dt><strong>provider</strong></dt><dd><p>The first slot describes the provenance of the data: <code class="docutils literal notranslate"><span class="pre">source</span></code>, <code class="docutils literal notranslate"><span class="pre">agency</span></code>
+(possibly including a program name such as
+<code class="docutils literal notranslate"><span class="pre">dwr_des</span></code>), or <code class="docutils literal notranslate"><span class="pre">processor</span></code>, depending on the repository. See
+<a class="reference internal" href="#agency-vs-source-vs-provider">Agency vs Source vs Provider</a>.</p>
 </dd>
-<dt><strong>dwr ID and sublocation</strong></dt><dd><p>The DWR station ID, followed by <code class="docutils literal notranslate"><span class="pre">&#64;subloc</span></code> if a sublocation exists (e.g.,
-<code class="docutils literal notranslate"><span class="pre">anh&#64;north</span></code>). The <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> symbol is structural.</p>
+<dt><strong>station_id and sublocation</strong></dt><dd><p>The DWR station ID, followed by <code class="docutils literal notranslate"><span class="pre">&#64;subloc</span></code> if a sublocation exists (e.g.,
+<code class="docutils literal notranslate"><span class="pre">anh&#64;north</span></code>). The <code class="docutils literal notranslate"><span class="pre">&#64;</span></code> symbol is structural, and <code class="docutils literal notranslate"><span class="pre">subloc</span></code> is <code class="docutils literal notranslate"><span class="pre">default</span></code> when
+absent. <code class="docutils literal notranslate"><span class="pre">station_id</span></code> is the universal identity column for all sites (stations,
+structures, synthetic locations) and is not configurable.</p>
 </dd>
-<dt><strong>agency_id</strong></dt><dd><p>The identifier used by the collecting agency (e.g., <code class="docutils literal notranslate"><span class="pre">11337190</span></code> for USGS).</p>
+<dt><strong>agency_id</strong></dt><dd><p>The identifier used by the observing agency (e.g., <code class="docutils literal notranslate"><span class="pre">11337190</span></code> for USGS).</p>
 </dd>
 <dt><strong>variable</strong></dt><dd><p>Standardized variable name (e.g., <code class="docutils literal notranslate"><span class="pre">turbidity</span></code>, <code class="docutils literal notranslate"><span class="pre">temp</span></code>, <code class="docutils literal notranslate"><span class="pre">ec&#64;daily</span></code>).</p>
 </dd>
@@ -796,21 +801,32 @@ Forecast) compliant wherever possible.</p></li>
 <li><p><strong>Specific Conductivity (EC)</strong>: Always normalized to 25°C (µS/cm at 25°C).</p></li>
 </ul>
 </section>
-<section id="known-challenges-and-exceptions">
-<h2>Known Challenges and Exceptions<a class="headerlink" href="#known-challenges-and-exceptions" title="Link to this heading"></a></h2>
+<section id="data-quality-and-flags">
+<h2>Data Quality and Flags<a class="headerlink" href="#data-quality-and-flags" title="Link to this heading"></a></h2>
+<p>Data quality is tracked through two complementary concepts:</p>
 <dl class="simple">
-<dt><strong>WDL Station IDs</strong></dt><dd><p>WDL station IDs may not match the canonical <code class="docutils literal notranslate"><span class="pre">station_id</span></code> due to appended <code class="docutils literal notranslate"><span class="pre">&quot;00&quot;</span></code>
-or <code class="docutils literal notranslate"><span class="pre">&quot;Q&quot;</span></code> suffixes. An internal alias is used as the <code class="docutils literal notranslate"><span class="pre">station_id</span></code> to ensure
-uniqueness.</p>
+<dt><strong>Status</strong></dt><dd><p>Data can be <em>Accepted</em> (flagged by provider, or with a QAQC flag indicating
+attention) or <em>Provisional</em> (from a real-time source). The system prioritizes
+data from the “provider of record” (e.g., Water Data Library – WDL) over
+real-time sources (e.g., CDEC) for accepted data, while provisional data may
+come from real-time backups.</p>
 </dd>
-<dt><strong>SWP/CVP Exports</strong></dt><dd><p>Exports are calculated differently for hourly vs. instantaneous values, producing
-distinct datasets. These different calculations are treated as “sublocations”.</p>
-</dd>
-<dt><strong>USGS Multiple Instruments</strong></dt><dd><p>USGS may have multiple instruments measuring the same variable for one station ID
-due to different programs or sublocations. The <code class="docutils literal notranslate"><span class="pre">raw/</span></code> directory can store dual
-versions for QA/QC, though the processed set should ideally be unified.</p>
+<dt><strong>Quality</strong></dt><dd><p>Includes <em>Provider quality</em> and <em>User quality</em>. Provider flags indicating bad
+data are honored and lead to values being set to <code class="docutils literal notranslate"><span class="pre">NaN</span></code>. <em>User quality</em> allows
+the project’s QA/QC process to signal bad data while preserving original values.
+The <code class="docutils literal notranslate"><span class="pre">user_flag</span></code> column in screened data marks anomalous records: <code class="docutils literal notranslate"><span class="pre">1</span></code> means
+anomalous, <code class="docutils literal notranslate"><span class="pre">0</span></code> (or <code class="docutils literal notranslate"><span class="pre">NA</span></code>) means the anomaly was overridden by a user.</p>
 </dd>
 </dl>
+<pre  class="mermaid">
+        graph LR
+    A[Raw Data] --&gt; B{Provider Flags}
+    B --(Set to NaN)--&gt; C[Formatted Data]
+    C --&gt; D{Automated Screening}
+    D --&gt; E[User QA/QC &amp; Manual Review]
+    E --(Overrides auto flags, sets user_flag)--&gt; F[Screened Data]
+    F --&gt; G[Processed Data]
+    </pre><p>Screening methods are listed in <a class="reference internal" href="automatic_ingestion.html"><span class="doc">Automatic Ingestion</span></a>.</p>
 </section>
 </section>
 

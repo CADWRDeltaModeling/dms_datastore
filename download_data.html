@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Downloading Utilities &mdash; dms_datastore 0.8.14.dev1+gedf094465 documentation</title>
+  <title>Downloading Utilities &mdash; dms_datastore 0.8.14.dev2+gfb894e969 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=82d0ad26"></script>
+      <script src="_static/documentation_options.js?v=4041c4ce"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -23,7 +23,7 @@
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
     <link rel="next" title="dms_datastore Command Reference" href="commands.html" />
-    <link rel="prev" title="Station Database and Queries" href="station_info.html" /> 
+    <link rel="prev" title="Cache Round-Trip Example with Metadata" href="notebooks/cache.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -47,39 +47,38 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html">Quick Intro</a></li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Time Series</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="automatic_ingestion.html">Automatic Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Downloading Utilities</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#specific-command-line-interfaces-utilities">Specific Command Line Interfaces/Utilities</a><ul>
-<li class="toctree-l3"><a class="reference internal" href="#cdec">CDEC</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#download-cdec">download_cdec</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#cdec">CDEC</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#download-cdec">download_cdec</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#usgs-nwis">USGS (NWIS)</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#download-nwis">download_nwis</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#usgs-nwis">USGS (NWIS)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#download-nwis">download_nwis</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#noaa">NOAA</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#download-noaa">download_noaa</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#noaa">NOAA</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#download-noaa">download_noaa</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#dwr-ncro">DWR-NCRO</a><ul>
-<li class="toctree-l4"><a class="reference internal" href="#download-des">download_des</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dwr-ncro">DWR-NCRO</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#download-ncro">download_ncro</a></li>
 </ul>
 </li>
-<li class="toctree-l3"><a class="reference internal" href="#dwr-des-dise">DWR-DES (DISE)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dwr-des-dise">DWR-DES (DISE)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#download-des">download_des</a></li>
 </ul>
 </li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
-<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 </ul>
 
         </div>
@@ -108,12 +107,10 @@
              
   <section id="downloading-utilities">
 <h1>Downloading Utilities<a class="headerlink" href="#downloading-utilities" title="Link to this heading"></a></h1>
-<section id="specific-command-line-interfaces-utilities">
-<h2>Specific Command Line Interfaces/Utilities<a class="headerlink" href="#specific-command-line-interfaces-utilities" title="Link to this heading"></a></h2>
 <section id="cdec">
-<h3>CDEC<a class="headerlink" href="#cdec" title="Link to this heading"></a></h3>
+<h2>CDEC<a class="headerlink" href="#cdec" title="Link to this heading"></a></h2>
 <section id="download-cdec">
-<h4>download_cdec<a class="headerlink" href="#download-cdec" title="Link to this heading"></a></h4>
+<h3>download_cdec<a class="headerlink" href="#download-cdec" title="Link to this heading"></a></h3>
 <p>CLI for downloading CDEC water data.</p>
 <p class="rubric">Usage</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>download_cdec<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>STATIONFILE<span class="o">]</span>...
@@ -199,9 +196,9 @@
 </section>
 </section>
 <section id="usgs-nwis">
-<h3>USGS (NWIS)<a class="headerlink" href="#usgs-nwis" title="Link to this heading"></a></h3>
+<h2>USGS (NWIS)<a class="headerlink" href="#usgs-nwis" title="Link to this heading"></a></h2>
 <section id="download-nwis">
-<h4>download_nwis<a class="headerlink" href="#download-nwis" title="Link to this heading"></a></h4>
+<h3>download_nwis<a class="headerlink" href="#download-nwis" title="Link to this heading"></a></h3>
 <p>CLI for downloading NWIS (National Water Information System).</p>
 <p class="rubric">Usage</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>download_nwis<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>STATIONFILE<span class="o">]</span>...
@@ -281,9 +278,9 @@
 </section>
 </section>
 <section id="noaa">
-<h3>NOAA<a class="headerlink" href="#noaa" title="Link to this heading"></a></h3>
+<h2>NOAA<a class="headerlink" href="#noaa" title="Link to this heading"></a></h2>
 <section id="download-noaa">
-<h4>download_noaa<a class="headerlink" href="#download-noaa" title="Link to this heading"></a></h4>
+<h3>download_noaa<a class="headerlink" href="#download-noaa" title="Link to this heading"></a></h3>
 <p>Command line interface to download NOAA water level data.</p>
 <p>STATIONFILE: CSV-format station file(s).</p>
 <p>example usage:
@@ -378,19 +375,101 @@ dms download_noaa –start 2020-01-01 –end 2020-12-31 –param water_level –
 </section>
 </section>
 <section id="dwr-ncro">
-<h3>DWR-NCRO<a class="headerlink" href="#dwr-ncro" title="Link to this heading"></a></h3>
-<p>It has traditionally been difficult to write robots to scrape data from Water Data Library.
-The utility download_wdl is included but is not maintained and may fail to function or to retrieve
-recent files. There are newer web services (public) that we are testing, but NCRO has
-expressed some concern about overuse during peak hours when the services are used by staff to work on data.
-The current interface shown here is for downloading period of record files,
-so its interface is simpler, less flexible and different from the others.</p>
-<p>#.. argparse::
-#    :module: dms_datastore.download_ncro
-#    :func: create_arg_parser
-#    :prog: download_ncro.py</p>
+<h2>DWR-NCRO<a class="headerlink" href="#dwr-ncro" title="Link to this heading"></a></h2>
+<p>This utility allows downloading data from the DWR-NCRO web services. They have expressed a concern about overuse during peak hours when the services are used by staff to work on data.</p>
+<section id="download-ncro">
+<h3>download_ncro<a class="headerlink" href="#download-ncro" title="Link to this heading"></a></h3>
+<p>Download NCRO timeseries data for selected stations/parameters. Use –inventory-only to refresh inventory metadata without downloading timeseries files.</p>
+<p class="rubric">Usage</p>
+<div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>download_ncro<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>STATIONFILE<span class="o">]</span>...
+</pre></div>
+</div>
+<p class="rubric">Options</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-dest">
+<span class="sig-name descname"><span class="pre">--dest</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;dest_dir&gt;</span></span><a class="headerlink" href="#cmdoption-download_ncro-dest" title="Link to this definition"></a></dt>
+<dd><p>Destination directory for downloaded files.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-start">
+<span class="sig-name descname"><span class="pre">--start</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;start&gt;</span></span><a class="headerlink" href="#cmdoption-download_ncro-start" title="Link to this definition"></a></dt>
+<dd><p>Start time, format 2009-03-31 14:00</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-end">
+<span class="sig-name descname"><span class="pre">--end</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;end&gt;</span></span><a class="headerlink" href="#cmdoption-download_ncro-end" title="Link to this definition"></a></dt>
+<dd><p>End time, format 2009-03-31 14:00</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-param">
+<span class="sig-name descname"><span class="pre">--param</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;param&gt;</span></span><a class="headerlink" href="#cmdoption-download_ncro-param" title="Link to this definition"></a></dt>
+<dd><p>Parameter(s) to be downloaded.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-stations">
+<span class="sig-name descname"><span class="pre">--stations</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;stations&gt;</span></span><a class="headerlink" href="#cmdoption-download_ncro-stations" title="Link to this definition"></a></dt>
+<dd><p>Id or name of one or more stations.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-logdir">
+<span class="sig-name descname"><span class="pre">--logdir</span></span><span class="sig-prename descclassname"> <span class="pre">&lt;logdir&gt;</span></span><a class="headerlink" href="#cmdoption-download_ncro-logdir" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-debug">
+<span class="sig-name descname"><span class="pre">--debug</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_ncro-debug" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-quiet">
+<span class="sig-name descname"><span class="pre">--quiet</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_ncro-quiet" title="Link to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-inventory-only">
+<span class="sig-name descname"><span class="pre">--inventory-only</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_ncro-inventory-only" title="Link to this definition"></a></dt>
+<dd><p>Download/refresh NCRO inventory metadata only, then exit without downloading timeseries data.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-update-inventory">
+<span class="sig-name descname"><span class="pre">--update-inventory</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_ncro-update-inventory" title="Link to this definition"></a></dt>
+<dd><p>Force an NCRO inventory refresh attempt even if the cached inventory is still fresh.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-h">
+<span class="sig-name descname"><span class="pre">-h</span></span><span class="sig-prename descclassname"></span><span class="sig-prename descclassname"><span class="pre">,</span> </span><span class="sig-name descname"><span class="pre">--help</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_ncro-h" title="Link to this definition"></a></dt>
+<dd><p>Show this message and exit.</p>
+</dd></dl>
+
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-overwrite">
+<span class="sig-name descname"><span class="pre">--overwrite</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_ncro-overwrite" title="Link to this definition"></a></dt>
+<dd><p>Overwrite existing files (if False they will be skipped, presumably for speed)</p>
+</dd></dl>
+
+<p class="rubric">Arguments</p>
+<dl class="std option">
+<dt class="sig sig-object std" id="cmdoption-download_ncro-arg-STATIONFILE">
+<span class="sig-name descname"><span class="pre">STATIONFILE</span></span><span class="sig-prename descclassname"></span><a class="headerlink" href="#cmdoption-download_ncro-arg-STATIONFILE" title="Link to this definition"></a></dt>
+<dd><p>Optional argument(s)</p>
+</dd></dl>
+
+</section>
+</section>
+<section id="dwr-des-dise">
+<h2>DWR-DES (DISE)<a class="headerlink" href="#dwr-des-dise" title="Link to this heading"></a></h2>
+<p>DWR Division of Environmental Services has been renamed but the name has not yet been updated here.
+These web services are internal to DWR. External users can get reformatted/screened data from our group or request data
+from DWR liasons who are identified on CDEC on a per-station basis.</p>
 <section id="download-des">
-<h4>download_des<a class="headerlink" href="#download-des" title="Link to this heading"></a></h4>
+<h3>download_des<a class="headerlink" href="#download-des" title="Link to this heading"></a></h3>
 <p>CLI for downloading DES (DWR Environmental Services) data.</p>
 <p class="rubric">Usage</p>
 <div class="highlight-shell notranslate"><div class="highlight"><pre><span></span>download_des<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span><span class="w"> </span><span class="o">[</span>STATIONFILE<span class="o">]</span>...
@@ -463,20 +542,13 @@ so its interface is simpler, less flexible and different from the others.</p>
 
 </section>
 </section>
-<section id="dwr-des-dise">
-<h3>DWR-DES (DISE)<a class="headerlink" href="#dwr-des-dise" title="Link to this heading"></a></h3>
-<p>DWR Division of Environmental Services has been renamed but the name has not yet been updated here.
-These web services are internal to DWR. External users can get reformatted/screened data from our group or request data
-from DWR liasons who are identified on CDEC on a per-station basis.</p>
-</section>
-</section>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="station_info.html" class="btn btn-neutral float-left" title="Station Database and Queries" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="notebooks/cache.html" class="btn btn-neutral float-left" title="Cache Round-Trip Example with Metadata" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="commands.html" class="btn btn-neutral float-right" title="dms_datastore Command Reference" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

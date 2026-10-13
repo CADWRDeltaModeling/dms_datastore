@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dropbox Data Ingestion &mdash; dms_datastore 0.8.14.dev1+gedf094465 documentation</title>
+  <title>Dropbox Ingestion &mdash; dms_datastore 0.8.14.dev2+gfb894e969 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=82d0ad26"></script>
+      <script src="_static/documentation_options.js?v=4041c4ce"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -380,8 +380,8 @@ window.runMermaid = runMermaid;</script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Reading Time Series and Metadata" href="read_data_meta.html" />
-    <link rel="prev" title="dms_datastore Command Reference" href="commands.html" /> 
+    <link rel="next" title="Automatic Ingestion" href="automatic_ingestion.html" />
+    <link rel="prev" title="Reading and Writing Time Series" href="repo_data_usage.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -405,13 +405,12 @@ window.runMermaid = runMermaid;</script>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="index.html">Quick Intro</a></li>
 <li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
 <li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
-<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
-<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Dropbox Data Ingestion</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Time Series</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Dropbox Ingestion</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#motivation">Motivation</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#concepts-to-settle-before-writing-a-recipe">Concepts to Settle Before Writing a Recipe</a></li>
@@ -443,10 +442,10 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l2"><a class="reference internal" href="#key-functions">Key Functions</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
+<li class="toctree-l1"><a class="reference internal" href="automatic_ingestion.html">Automatic Ingestion</a></li>
 <li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
 </ul>
 
         </div>
@@ -463,7 +462,7 @@ window.runMermaid = runMermaid;</script>
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
       <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
-      <li class="breadcrumb-item active">Dropbox Data Ingestion</li>
+      <li class="breadcrumb-item active">Dropbox Ingestion</li>
       <li class="wy-breadcrumbs-aside">
             <a href="_sources/dropbox.rst.txt" rel="nofollow"> View page source</a>
       </li>
@@ -473,8 +472,8 @@ window.runMermaid = runMermaid;</script>
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="dropbox-data-ingestion">
-<h1>Dropbox Data Ingestion<a class="headerlink" href="#dropbox-data-ingestion" title="Link to this heading"></a></h1>
+  <section id="dropbox-ingestion">
+<h1>Dropbox Ingestion<a class="headerlink" href="#dropbox-ingestion" title="Link to this heading"></a></h1>
 <section id="overview">
 <h2>Overview<a class="headerlink" href="#overview" title="Link to this heading"></a></h2>
 <p>The <em>dropbox</em> is the standard-conformant on-ramp for getting time series into a
@@ -794,6 +793,7 @@ infix in new recipes.</p>
 for the hourly CIMIS CSVs in W:/test_cimis/cimis_download, initially for
 wind speed and air temperature only.
 
+Unusually, this requires a repository. A registry has been started.
 Target a regular, year-sharded repository named atmospheric. Check existing
 configuration and the atmospheric station registry; create the repository
 configuration and empty receiving directory if needed. Coordinates must
@@ -801,7 +801,11 @@ come from the registry.
 
 Inspect the source headers, units, timestamps, and QC columns. Use
 per-variable usecols where appropriate, including the timestamp and any
-required QC fields. Make unit conversions and QC handling explicit.
+required QC fields. Make unit conversions and QC handling explicit. If
+a specialized reader is required, describe the options: put the complexities
+in the original script, extend read_ts or make a custom reader as needed for dropbox.
+This has never been done before, but there is a config slot for it. The data are
+hourly averages stamped at the end of the interval.
 
 Prefer standard variable names from the configured definitions and
 mappings. Flag any filename-parser limitations, including underscores,
@@ -1211,8 +1215,8 @@ into a repository.</p></li>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="commands.html" class="btn btn-neutral float-left" title="dms_datastore Command Reference" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="read_data_meta.html" class="btn btn-neutral float-right" title="Reading Time Series and Metadata" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="repo_data_usage.html" class="btn btn-neutral float-left" title="Reading and Writing Time Series" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="automatic_ingestion.html" class="btn btn-neutral float-right" title="Automatic Ingestion" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

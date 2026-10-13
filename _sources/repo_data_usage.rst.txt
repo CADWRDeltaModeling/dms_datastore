@@ -1,60 +1,100 @@
-****************************
-Reading and Writing Data
-****************************
 
-This tutorial covers the common ways to retrieve and save time-series data with
-``dms_datastore``. Repository-aware readers are preferred when data is in a
-configured repository; use ``read_ts`` for explicit files.
+###############################
+Reading and Writing Time Series
+###############################
 
-Imports
-=======
-
-The main functions are available from the package top level::
+Repository-aware readers are preferred when data is in a configured repository; use
+``read_ts`` for explicit files. The main functions are available from the package top
+level::
 
    from dms_datastore import read_ts, read_ts_repo, read_ts_block, write_ts_csv
 
-Read one series from a repository
-=================================
+Before choosing a station id, use ``station_info`` to search the configured registries
+(see :doc:`station_info`)::
 
-Use :func:`~dms_datastore.read_multi.read_ts_repo` to select a series by station
-and variable. The default repository is configured by ``dstore_config.yaml``
-(typically ``screened``)::
+   station_info Martinez
+   station_info --list-registries
+
+
+Reading Common File Formats and Metadata
+========================================
+
+Use :func:`~dms_datastore.read_ts.read_ts` when you already know the file path. It
+detects supported time-series formats (repository files and many provider formats) and
+preserves their metadata and flag handling, unlike reading the CSV directly with pandas.
+A wildcard reads time shards (``_2020.csv`` or ``_2015_2019.csv``) that share a format::
+
+   one_file = read_ts("data/usgs_mrz_11337190_ec_2023.csv")
+   shards = read_ts("data/usgs_mrz_*_ec_*.csv")
+
+Repository-format files carry a ``#``-commented YAML header with metadata such as
+station, agency, variable, and units. The data columns are ``value`` and, in screened
+files, ``user_flag`` (see :doc:`concepts` for flag semantics).
+
+
+Writing Compliant Files
+=======================
+
+Use :func:`~dms_datastore.write_ts.write_ts_csv` to write a CSV with the standard
+metadata header::
+
+   write_ts_csv(
+       ec,
+       "output/mrz_ec.csv",
+       metadata={"agency": "usgs", "station_id": "mrz"},
+   )
+
+The ``metadata`` argument may be:
+
+``None``
+   Creates a minimal header (format and timestamp only).
+
+``dict`` (preferred)
+   Structured metadata. It must include or receive ``format``. The dict is not mutated.
+
+``str``
+   A legacy or manual header, for migration purposes.
+
+Output formatting is stable, round trips are idempotent, and the YAML header is
+canonical. Avoid ``DataFrame.to_csv`` for repository-format data because it does not
+preserve the header or dtype conventions. To place a file in a repository, use the
+:doc:`dropbox` rather than writing into repository directories.
+
+
+Fetching From Repo
+==================
+
+Read one series
+---------------
+
+:func:`~dms_datastore.read_multi.read_ts_repo` selects a series by station and variable,
+resolving file paths, provider priority, and time shards. The default repository is set
+in ``dstore_config.yaml`` (``screened``)::
 
    ec = read_ts_repo("mrz", "ec")
-
-The result is a pandas ``DataFrame`` indexed by datetime. You can select an
-inclusive time window in the call, or slice the returned data::
-
    ec_2023 = read_ts_repo("mrz", "ec", start="2023-01-01", end="2023-12-31")
 
-Stations with multiple sensors can include the sublocation in the station id.
-Alternatively, pass it as ``subloc=``. Variable modifiers can be included in
-the variable name::
+The result is a pandas ``DataFrame`` indexed by datetime. Sublocations can be given in
+the station id or with ``subloc=`` (not both), and variable modifiers are part of the
+variable name::
 
    upper_ec = read_ts_repo("mrz@upper", "ec")
    lower_ec = read_ts_repo("mrz", "ec", subloc="lower")
    daily_ec = read_ts_repo("mrz", "ec@daily")
 
-Do not specify both ``station@subloc`` and ``subloc=``. The ``force_regular``
-option defaults to ``True``; keep it enabled for regular continuous data and
-fix irregular source data rather than suppressing the check.
+Other repositories are chosen with ``repo=`` (a configured name or a directory), and
+``meta=True`` returns metadata alongside the data. ``provider_priority`` overrides the
+configured provider order. ``force_regular`` defaults to ``True``; keep it enabled for
+regular continuous data and fix irregular source data rather than suppressing the check.
 
-Read an explicit file
-=====================
-
-Use :func:`~dms_datastore.read_ts.read_ts` when you already know the file path.
-It detects supported time-series formats and preserves their metadata and flag
-handling, unlike reading the CSV directly with pandas::
-
-   one_file = read_ts("data/usgs_mrz_11337190_ec_2023.csv")
-   shards = read_ts("data/usgs_mrz_*_ec_*.csv")
+Lookup is deterministic and fails on ambiguity rather than guessing a provider.
 
 Read several series together
-============================
+----------------------------
 
-Use :func:`~dms_datastore.read_block.read_ts_block` to read combinations of
-stations and variables into one table. ``tidy`` uses a datetime/station index
-and one column per variable::
+:func:`~dms_datastore.read_block.read_ts_block` reads combinations of stations and
+variables into one table. ``dim="tidy"`` gives a datetime/station index with one column
+per variable::
 
    block = read_ts_block(
        station=["mrz@upper", "mrz@lower"],
@@ -64,37 +104,24 @@ and one column per variable::
        end="2023-01-02",
    )
 
-Use ``dim="flat"`` for a datetime index with columns such as
-``mrz@upper_ec`` and ``mrz@lower_temp``. For an explicit list of station and
-variable pairs, pass a CSV path using ``request=`` instead of ``station=`` and
-``param=``. The command-line equivalent is ``data_block``::
+``dim="flat"`` gives a datetime index with columns such as ``mrz@upper_ec`` and
+``mrz@lower_temp``. For an explicit list of station and variable pairs, pass a CSV path
+with ``request=`` instead of ``station=`` and ``param=``. Block reads search
+``repo_search_order`` (``processed`` then ``screened``). The command-line equivalent is
+``data_block``::
 
    data_block -o block.csv -s 2023-01-01 -e 2023-01-02 \
      --station mrz@upper --station mrz@lower --param ec --param temp --dim tidy
 
-Write a time series
-===================
+Caching repeated reads
+----------------------
 
-Use :func:`~dms_datastore.write_ts.write_ts_csv` to write a CSV with the
-standard metadata header. Pass metadata explicitly when appropriate::
+For repeated access to the same data the ``@cache_dataframe`` decorator stores results::
 
-   write_ts_csv(
-       ec,
-       "output/mrz_ec.csv",
-       metadata={"agency": "usgs", "station_id": "mrz"},
-   )
+   from dms_datastore.caching import cache_dataframe
 
-Avoid ``DataFrame.to_csv`` for repository-format data because it does not
-preserve the standard metadata header or dtype conventions. See
-:doc:`repository` for repository file and metadata details.
+   @cache_dataframe()
+   def daily_flow(station, variable):
+       return read_ts_repo(station, variable).resample("D").mean()
 
-Look up a station
-=================
-
-Before choosing a station id, use ``station_info`` to search the configured
-registries::
-
-   station_info Martinez
-   station_info --list-registries
-
-The Python equivalent is ``dms_datastore.station_info.station_info(search)``.
+See the :doc:`Local Caching notebook <notebooks/cache>` for a walkthrough.
