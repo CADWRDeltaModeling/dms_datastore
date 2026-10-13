@@ -114,6 +114,7 @@ Task-specific detail lives in skills and reference docs rather than in this file
 | Module map, layers, data-flow stages | [.github/docs/PACKAGE_GUIDE.md](.github/docs/PACKAGE_GUIDE.md) |
 | Key files to read first | [.github/docs/SOURCE_MAP.md](.github/docs/SOURCE_MAP.md) |
 | Test layout and invocation | [.github/docs/TESTING_GUIDE.md](.github/docs/TESTING_GUIDE.md) |
+| Documentation environment setup, Sphinx builds, and autodoc troubleshooting | `documentation` skill |
 | Reading/writing repository time series: imports, `read_ts`, `read_ts_repo`, `read_ts_block`/`data_block`, `write_ts_csv`, `station_info` | `repo-data-usage` skill |
 | File naming grammar, CSV/front-matter format, metadata semantics | `repository-format` skill |
 | Download → reformat → screen → update sequence | `repository-ingestion` skill |
