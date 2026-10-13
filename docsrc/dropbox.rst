@@ -129,17 +129,13 @@ labeled with the part of the recipe that the decisions inside it settle.
 
    %%{init: {"themeVariables": {"fontSize": "18px"}, "flowchart": {"subGraphTitleMargin": {"top": 6, "bottom": 24}}}}%%
    flowchart TD
-     A["Identify source<br/>files as pattern"] --> B{"Wildcard?"}
-     B -- "Files are different series<br/>(e.g. variable or station)" --> C["Inference mode:<br/>metadata {field}<br/>placeholders in<br/>file pattern"]
-     B -- No --> E
-     B -- "Files are<br/>different years" --> F{"Times<br/>overlap?"}
-     subgraph WILDCARD ["collect.wildcard"]
-       E["none"]
-       G["time_shard"]
-       H["time_overlap<br/>+ merge_method"]
-     end
-     F -- No --> G
-     F -- Yes --> H
+     A["Use file_pattern<br/>to discover files"] --> B{"Does each match<br/>represent a distinct series/datastream?"}
+     B -- Yes --> C["Inference mode:<br/>filename template +<br/>metadata inference;<br/>omit collect.wildcard"]
+    B -- "No: output series/stream;<br/>distributed over<br/>files by time" --> D{"How many files<br/>match this series?"}
+     D -- One --> E["Omit collect.wildcard<br/>or set it to none"]
+     D -- Several --> F{"Do their time<br/>ranges overlap?"}
+     F -- No --> G["collect.wildcard:<br/>time_shard"]
+     F -- Yes --> H["collect.wildcard:<br/>time_overlap + merge_method"]
      subgraph REGULARITY ["collect.reader_args"]
        I{"Regularly<br/>sampled?"}
        I -- Yes --> J["force_regular: true<br/>metadata.freq: infer<br/>or explicit ('15min');<br/>regular repo_name"]
@@ -169,19 +165,25 @@ labeled with the part of the recipe that the decisions inside it settle.
 
 The boxes correspond to these decisions:
 
-Inference mode
-   If the matched files are different series (for example, different variables or
-   stations) and each file name encodes the identity (station, agency ID,
-   parameter, ...), write ``file_pattern`` as a template with ``{field}``
-   placeholders and omit ``wildcard``; each file becomes its own output. See
-   `Filename Templates (Inference Mode)`_.
+File discovery and inference
+  ``collect.file_pattern`` discovers candidate files. A glob pattern such as
+  ``*.csv`` or ``flow_*.csv`` uses glob wildcards (``*`` and ``?``); these are
+  different from ``{field}`` placeholders in a filename template. Use template
+  inference when matched files represent distinct series and their identity can
+  be resolved from filename fields and/or the station registry. Each matched
+  file is then processed as its own output, and ``collect.wildcard`` must be
+  omitted. Do not choose inference merely because filenames contain years.
+  See `Filename Templates (Inference Mode)`_.
 
 ``collect.wildcard``
-   Otherwise the entry produces one series, and ``wildcard`` says how the matched
-   files combine into it: ``none`` when the pattern matches exactly one file,
-   ``time_shard`` when the files cover different, non-overlapping periods (such as
-   years), and ``time_overlap`` (with ``merge_method``) only when files genuinely
-   overlap in time. See `Wildcard Modes`_.
+  When multiple files share one output-series identity, ``collect.wildcard``
+  combines their data along time; it does not combine distinct series. A glob
+  can match year-named files without any ``{year}``,
+  ``{syear}``, or ``{eyear}`` template fields: choose ``time_shard`` when the
+  files' time ranges do not overlap, and ``time_overlap`` (with
+  ``merge_method``) only when they do. Decide from the data's time coverage,
+  not just from the filenames. Omit the setting or use ``none`` when exactly
+  one file should match. See `Wildcard Modes`_.
 
 ``collect.reader_args``
    Regular series keep the frequency contract (``force_regular: true``), declare

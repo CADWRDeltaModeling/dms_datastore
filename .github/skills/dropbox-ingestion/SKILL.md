@@ -110,7 +110,7 @@ Mirrors the "Recipe Decision Path" diagram in `dropbox.rst`. Each step settles o
 
 1. **Inference mode vs. `collect.wildcard`.** Identify the source files as a pattern, then:
    - Files are *different series* (e.g. different variables or stations) whose names encode identity → **inference mode**: `file_pattern` is a template with `{field}` placeholders; omit `wildcard` (setting it raises). Each file is its own output.
-   - Otherwise one series per entry, and `collect.wildcard` is one of:
+   - Otherwise the matches share one output-series identity and one entry produces that series. Multi-file modes combine the data along time; they do not combine distinct series. `collect.wildcard` is one of:
      - `none` (or omitted) — pattern matches exactly one file; multiple matches raise.
      - `time_shard` — files cover different, non-overlapping periods (e.g. years).
      - `time_overlap` + `merge_method` (`ts_splice` | `ts_merge`, with `merge_args`) — only when files genuinely overlap in time. Rare; don't copy it in reflexively.
