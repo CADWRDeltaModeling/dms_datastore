@@ -12,7 +12,7 @@ dependencies:
   - numpy>=2.0
   - pandas>=2  
   - numba>=0.61
-  - vtools3>=3.9.21  
+  - vtools3>=3.11.1  
   - scipy
   - tqdm
   - openpyxl
