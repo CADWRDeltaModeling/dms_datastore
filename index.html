@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>dms_datastore! &mdash; dms_datastore 0.8.14.dev1+g8372e9f3b documentation</title>
+  <title>dms_datastore! &mdash; dms_datastore 0.8.14.dev1+gedf094465 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=6ed7b831"></script>
+      <script src="_static/documentation_options.js?v=82d0ad26"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -24,7 +24,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Reading and Writing Data" href="repo_data_usage.html" /> 
+    <link rel="next" title="Installation" href="install.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -46,9 +46,19 @@
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <ul>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
 <li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html"> Local Caching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 </ul>
 
         </div>
@@ -80,7 +90,122 @@
 <p>dms_datastore is a package for downloading and managing a repository of csv files of continuous time series data,
 mostly focused on environmental data for the Bay-Delta.</p>
 <div class="toctree-wrapper compound">
-<ul>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="install.html#prerequisites">Prerequisites</a></li>
+<li class="toctree-l2"><a class="reference internal" href="install.html#conda">Conda</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="concepts.html">Concepts and Conventions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#repositories-and-tiers">Repositories and Tiers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#tiers">Tiers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#configured-repositories">Configured Repositories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#directory-layout">Directory Layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#repository-configuration">Repository Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#data-flow-through-the-tiers">Data Flow Through the Tiers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#user-access">User Access</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#modes-of-ingestion">Modes of Ingestion</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#bulk-automated-download">Bulk Automated Download</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#dropbox">Dropbox</a></li>
+<li class="toctree-l3"><a class="reference internal" href="concepts.html#other-downloader-scripts-and-data">Other Downloader Scripts and Data</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#station-sublocation-and-datastream-concepts">Station, Sublocation, and Datastream Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#file-naming-conventions">File Naming Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#units-and-standardization">Units and Standardization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="concepts.html#known-challenges-and-exceptions">Known Challenges and Exceptions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="station_info.html#station-lookup">Station Lookup</a></li>
+<li class="toctree-l2"><a class="reference internal" href="station_info.html#configuration-system">Configuration System</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="station_info.html#main-configuration-files">Main configuration files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="station_info.html#key-data-files">Key data files</a></li>
+<li class="toctree-l3"><a class="reference internal" href="station_info.html#configuration-api">Configuration API</a></li>
+<li class="toctree-l3"><a class="reference internal" href="station_info.html#screen-configuration">Screen Configuration</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="download_data.html#specific-command-line-interfaces-utilities">Specific Command Line Interfaces/Utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#cdec">CDEC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#usgs-nwis">USGS (NWIS)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#noaa">NOAA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#dwr-ncro">DWR-NCRO</a></li>
+<li class="toctree-l3"><a class="reference internal" href="download_data.html#dwr-des-dise">DWR-DES (DISE)</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#main-entrypoint">Main Entrypoint</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#command-help-shortcuts">Command Help Shortcuts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#workflow-a-repository-build-pipeline-download-reformat-auto-screen">Workflow A: Repository Build Pipeline (Download → Reformat → Auto Screen)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="commands.html#examples">Examples</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#workflow-b-dropbox-ingest-separate-workflow">Workflow B: Dropbox Ingest (separate workflow)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#workflow-c-staging-repo-update-and-utilities">Workflow C: Staging → Repo update and utilities</a></li>
+<li class="toctree-l2"><a class="reference internal" href="commands.html#additional-utilities">Additional Utilities</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#motivation">Motivation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#concepts-to-settle-before-writing-a-recipe">Concepts to Settle Before Writing a Recipe</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#recipe-decision-path">Recipe Decision Path</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#cli">CLI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#recipe-resolution">Recipe Resolution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#programmatic-use">Programmatic Use</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#how-to-write-a-recipe">How to Write a Recipe</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="dropbox.html#example-ai-prompt-for-recipe-creation">Example AI Prompt for Recipe Creation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#regular-vs-irregular-data">Regular vs. Irregular Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#wildcard-modes">Wildcard Modes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#filename-templates-inference-mode">Filename Templates (Inference Mode)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#transforms">Transforms</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="dropbox.html#common-transforms">Common Transforms</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#metadata">Metadata</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#coordinate-policy">Coordinate Policy</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#output-and-reconciliation">Output and Reconciliation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="dropbox.html#dry-run-and-production">Dry Run and Production</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#recommended-workflow-backfill-then-top-off">Recommended Workflow: Backfill, then Top Off</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#common-pitfalls">Common Pitfalls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#failure-handling">Failure Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#bundled-examples">Bundled Examples</a></li>
+<li class="toctree-l2"><a class="reference internal" href="dropbox.html#key-functions">Key Functions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="read_data_meta.html#data-quality-and-flags">Data Quality and Flags</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#data-quality-flow">Data Quality Flow</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="read_data_meta.html#data-screening-methods">Data Screening Methods</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#built-in-screening-functions">Built-in screening functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#additional-methods-from-vtools3">Additional methods from <code class="docutils literal notranslate"><span class="pre">vtools3</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="read_data_meta.html#reading-data-with-read-ts-repo">Reading Data with <code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#basic-usage">Basic usage</a></li>
+<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#function-parameters">Function parameters</a></li>
+<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#example-retrieval-and-visualization">Example: retrieval and visualization</a></li>
+<li class="toctree-l3"><a class="reference internal" href="read_data_meta.html#caching-repeated-reads">Caching repeated reads</a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#imports">Imports</a></li>
 <li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#read-one-series-from-a-repository">Read one series from a repository</a></li>
@@ -90,7 +215,32 @@ mostly focused on environmental data for the Bay-Delta.</p>
 <li class="toctree-l2"><a class="reference internal" href="repo_data_usage.html#look-up-a-station">Look up a station</a></li>
 </ul>
 </li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html"> Local Caching</a><ul>
+<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#core-concepts">Core Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#repository-configuration">Repository Configuration</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="repository.html#key-terminology">Key terminology</a></li>
+<li class="toctree-l3"><a class="reference internal" href="repository.html#source-priority-configuration">Source Priority Configuration</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#filename-templates-and-interpretation">Filename Templates and Interpretation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#registry-station-dbase-csv">Registry (station_dbase.csv)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#inventory-system">Inventory System</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="repository.html#file-inventory-repo-file-inventory">File inventory (<code class="docutils literal notranslate"><span class="pre">repo_file_inventory</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="repository.html#data-inventory-repo-data-inventory">Data inventory (<code class="docutils literal notranslate"><span class="pre">repo_data_inventory</span></code>)</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#populating-the-repository">Populating the Repository</a></li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#read-ts-repo"><code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#write-ts-csv"><code class="docutils literal notranslate"><span class="pre">write_ts_csv</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="repository.html#metadata-modes">Metadata modes</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#end-to-end-flow">End-to-End Flow</a></li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#design-principles">Design Principles</a></li>
+<li class="toctree-l2"><a class="reference internal" href="repository.html#architectural-evolution-notes">Architectural Evolution Notes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="notebooks/cache.html#Features">Features</a></li>
 </ul>
 </li>
@@ -172,7 +322,7 @@ filenames that are wildcards to represent time sharding by years (file name ends
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="repo_data_usage.html" class="btn btn-neutral float-right" title="Reading and Writing Data" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="install.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

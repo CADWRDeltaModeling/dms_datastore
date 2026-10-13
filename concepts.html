@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Concepts and Conventions &mdash; dms_datastore 0.8.14.dev1+g8372e9f3b documentation</title>
+  <title>Concepts and Conventions &mdash; dms_datastore 0.8.14.dev1+gedf094465 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=6ed7b831"></script>
+      <script src="_static/documentation_options.js?v=82d0ad26"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -379,7 +379,9 @@ window.addEventListener("load", load);
 window.runMermaid = runMermaid;</script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
-    <link rel="search" title="Search" href="search.html" /> 
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Station Database and Queries" href="station_info.html" />
+    <link rel="prev" title="Installation" href="install.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -401,9 +403,41 @@ window.runMermaid = runMermaid;</script>
   </form>
 </div>
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
-              <ul>
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="index.html">dms_datastore!</a></li>
+<li class="toctree-l1"><a class="reference internal" href="install.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Concepts and Conventions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#repositories-and-tiers">Repositories and Tiers</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#tiers">Tiers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#configured-repositories">Configured Repositories</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#directory-layout">Directory Layout</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#repository-configuration">Repository Configuration</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-flow-through-the-tiers">Data Flow Through the Tiers</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#user-access">User Access</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#modes-of-ingestion">Modes of Ingestion</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#bulk-automated-download">Bulk Automated Download</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#dropbox">Dropbox</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#other-downloader-scripts-and-data">Other Downloader Scripts and Data</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#station-sublocation-and-datastream-concepts">Station, Sublocation, and Datastream Concepts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#file-naming-conventions">File Naming Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#units-and-standardization">Units and Standardization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#known-challenges-and-exceptions">Known Challenges and Exceptions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="station_info.html">Station Database and Queries</a></li>
+<li class="toctree-l1"><a class="reference internal" href="download_data.html">Downloading Utilities</a></li>
+<li class="toctree-l1"><a class="reference internal" href="commands.html">dms_datastore Command Reference</a></li>
+<li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Data Ingestion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="read_data_meta.html">Reading Time Series and Metadata</a></li>
 <li class="toctree-l1"><a class="reference internal" href="repo_data_usage.html">Reading and Writing Data</a></li>
-<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html"> Local Caching</a></li>
+<li class="toctree-l1"><a class="reference internal" href="repository.html">Time Series Repositories</a></li>
+<li class="toctree-l1"><a class="reference internal" href="notebooks/cache.html">Local Caching</a></li>
 </ul>
 
         </div>
@@ -783,7 +817,10 @@ versions for QA/QC, though the processed set should ideally be unified.</p>
 
            </div>
           </div>
-          <footer>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="install.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="station_info.html" class="btn btn-neutral float-right" title="Station Database and Queries" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
 
   <hr/>
 
