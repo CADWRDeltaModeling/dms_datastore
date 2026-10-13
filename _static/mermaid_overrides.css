@@ -3,3 +3,5 @@ pre#recipe-decision-diagram > svg {
     height: auto !important;
     width: 100% !important;
 }
+
+.wy-side-nav-search img.logo { width: 180px; height: auto; }
