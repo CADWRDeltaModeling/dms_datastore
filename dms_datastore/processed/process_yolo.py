@@ -11,6 +11,7 @@ from vtools import *
 from dms_datastore.read_ts import *
 from vtools.functions.unit_conversions import ec_psu_25c, CFS2CMS, CMS2CFS
 from vtools.functions.error_detect import *
+from vtools import cosine_lanczos
 import yaml
 from dms_datastore.read_multi import read_ts_repo
 from dms_datastore.write_ts import write_ts_csv
@@ -256,8 +257,10 @@ def fill_lisbon_flow(lisbon_flow_unfilled, sdate, edate):
         station_id="toe", variable="flow", start=sdate, end=edate
     )
 
+    toe_flow_filtered = cosine_lanczos(toe_flow.interpolate(limit=4), '40h')
+
     lisbon_flow_unfilled[lisbon_flow_unfilled.isnull()] = (
-        toe_flow[lisbon_flow_unfilled.isnull()] - 200
+        toe_flow_filtered[lisbon_flow_unfilled.isnull()] - 200
     )  # todo: simple relationship
     lisbon_flow_filled = lisbon_flow_unfilled.interpolate(limit=20)
     if np.sum(lisbon_flow_filled.isna().values) > 0:
