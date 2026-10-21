@@ -226,6 +226,8 @@ def read_ts_repo(
         ``{"target_freq": "<freq>", "method": "interp"|"asfreq"}``.
 
         Default ``None`` raises ``ValueError`` when frequencies differ.
+        Interpolation changes the sampling interval only; source gaps longer
+        than four target steps stay ``NaN``.
 
     dtypes : None or "infer" or dict, optional
         Column dtype handling for the generic dms1/CSV reader.  Only the
@@ -575,43 +577,68 @@ def _infer_series_decimal_places(ts, max_places=4):
     inferred = int(pd.Series(places).median())
     return max(0, min(inferred, max_places))
 
-def _transform_interp(ts, target_freq):
-    """Interpolate a time series to a regular grid at *target_freq*.
+def _transform_interp(ts, target_freq, max_missing=4):
+    """Interpolate a regular time series onto a grid at *target_freq*.
 
-    The output grid is aligned to the target frequency (not to the first
-    observed timestamp).  Source precision is inferred and used to round
-    the interpolated values.
+    This is a change of sampling interval, not gap filling. A target point is
+    interpolated only when the valid source samples on either side of it are
+    no farther apart than the larger of one source interval and
+    ``max_missing + 1`` target intervals; longer gaps stay ``NaN``. The output
+    grid is aligned to the target frequency (not to the first observed
+    timestamp), and values are rounded to the inferred source precision.
 
     Parameters
     ----------
     ts : pandas.DataFrame
-        Input time series.  Must have a ``DatetimeIndex``.
+        Input time series with a regular ``DatetimeIndex`` (``ts.index.freq``
+        set) and numeric columns.
     target_freq : pandas.DateOffset or str
         Target frequency for the output grid.
+    max_missing : int, optional
+        Largest number of consecutive missing target points that may be
+        bridged by interpolation across a gap in the source. Default 4.
 
     Returns
     -------
     pandas.DataFrame
         Time series on a regular grid at *target_freq*, with values
         rounded to the inferred source precision.
+
+    Raises
+    ------
+    ValueError
+        If *ts* has no regular frequency.
     """
+    source_freq = getattr(ts.index, "freq", None)
+    if source_freq is None:
+        raise ValueError("Interpolating to a new frequency requires a regular source series")
+    target_off = _freq_to_offset(target_freq)
+    max_gap = max(pd.Timedelta(source_freq.nanos, unit="ns"),
+                  (max_missing + 1) * pd.Timedelta(target_off.nanos, unit="ns"))
+
     # infer source precision before interpolation
     round_places = _infer_series_decimal_places(ts)
 
     # build a canonical grid aligned to the target frequency, not to the
     # first timestamp in the source file
-    start = ts.index.min().floor(target_freq)
-    end = ts.index.max().ceil(target_freq)
+    start = ts.index.min().floor(target_off)
+    end = ts.index.max().ceil(target_off)
 
     new_index = pd.date_range(
         start=start,
         end=end,
-        freq=target_freq,
+        freq=target_off,
     )
+    union = ts.index.union(new_index)
 
-    out = ts.reindex(ts.index.union(new_index)).sort_index()
-    out = out.interpolate(method="time")
-    out = out.reindex(new_index)
+    cols = {}
+    for col in ts.columns:
+        valid = ts[col].dropna()
+        times = pd.Series(valid.index, index=valid.index)
+        span = times.reindex(union, method="bfill") - times.reindex(union, method="ffill")
+        filled = ts[col].reindex(union).interpolate(method="time", limit_area="inside")
+        cols[col] = filled.where(span <= max_gap).reindex(new_index)
+    out = pd.DataFrame(cols, index=new_index)
     out.index.name = ts.index.name
 
     if round_places is not None:
@@ -1060,6 +1087,8 @@ def ts_multifile_read(
         ``{"target_freq": "<freq>", "method": "interp"|"asfreq"}``.
 
         Default ``None`` raises ``ValueError`` when frequencies differ.
+        Interpolation changes the sampling interval only; source gaps longer
+        than four target steps stay ``NaN``.
 
     Returns
     -------
