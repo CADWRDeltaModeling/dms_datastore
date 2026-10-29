@@ -28,6 +28,7 @@ from dms_datastore.coarsen_file import coarsen_ts_cli
 from dms_datastore.update_repo import update_repo
 from dms_datastore.update_flagged_data import update_flagged_data
 from dms_datastore.rationalize_time_partitions import rationalize_time_partitions_cli
+from dms_datastore.des_view_overlap import des_view_overlap_cli
 from dms_datastore.spot_check import spot_check_cli
 from dms_datastore.populate_daily import populate_daily_cli
 from dms_datastore.processed.process_elev_data import process_elev_cli
@@ -74,6 +75,7 @@ cli.add_command(coarsen_ts_cli, "coarsen")
 cli.add_command(update_flagged_data,"updated_flagged_data")
 cli.add_command(update_repo,"update_repo")
 cli.add_command(rationalize_time_partitions_cli, "rationalize_time_partitions")
+cli.add_command(des_view_overlap_cli, "des_view_overlap")
 cli.add_command(populate_daily_cli, "populate_daily")
 cli.add_command(spot_check_cli, "spot_check")
 cli.add_command(process_elev_cli, "process_elev")
