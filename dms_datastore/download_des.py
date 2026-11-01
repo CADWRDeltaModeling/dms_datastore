@@ -59,7 +59,15 @@ def open_url_no_ssl_cert_check(url):
     with the current Windows login (the DES server requires Negotiate/NTLM)
     """
     # Imported lazily so the module still imports on non-Windows platforms
-    from requests_negotiate_sspi import HttpNegotiateAuth
+    try:
+        from requests_negotiate_sspi import HttpNegotiateAuth
+    except ImportError as e:
+        raise ImportError(
+            "DWR-DES downloads require Windows integrated authentication via "
+            "requests-negotiate-sspi (Windows only). Install with "
+            "'conda install -c conda-forge requests-negotiate-sspi' or "
+            "'pip install dms_datastore[des]'."
+        ) from e
 
     response = requests.get(url, verify=False, auth=HttpNegotiateAuth())
     response.raise_for_status()

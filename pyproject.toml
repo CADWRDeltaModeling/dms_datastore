@@ -35,7 +35,6 @@ dependencies = [
     "tqdm",
 	"pytz",
     "requests",
-    "requests-negotiate-sspi; sys_platform == 'win32'",
     "httpx",
     "boto3",
     "lxml",
@@ -65,6 +64,12 @@ dev = [
 pdf = [
     "tabula-py>=2.9.0",
     "pdfplumber>=0.7.6",
+]
+# Windows integrated auth for the DWR-DES TelemetryDirect server (Windows only).
+# Kept out of [project].dependencies because conda.recipe/meta.yaml copies those
+# verbatim into conda run requirements, which cannot express environment markers.
+des = [
+    "requests-negotiate-sspi; sys_platform == 'win32'",
 ]
 # These are the tools needed to perform documentation
 doc = [
