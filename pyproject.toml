@@ -143,6 +143,16 @@ markers = [
     "integration: tests that require network access or external credentials",
 ]
 
+[project.entry-points."timeseries.readers"]
+read_ts = "dms_datastore.read_ts:read_ts"
+read_ts_repo = "dms_datastore.read_multi:read_ts_repo"
+
+[project.entry-points."timeseries.transforms"]
+trim_data = "dms_datastore.dropbox_data:_transform_trim_data"
+add_column = "dms_datastore.dropbox_data:_transform_add_column"
+linear = "dms_datastore.dropbox_data:_transform_linear"
+fill_sweep = "dms_datastore.dropbox_data:_transform_fill_sweep"
+
 [project.scripts]
 dms = "dms_datastore.__main__:cli"
 download_noaa = "dms_datastore.download_noaa:download_noaa_cli"

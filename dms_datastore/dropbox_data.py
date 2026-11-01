@@ -6,8 +6,8 @@ import yaml
 import glob
 import click
 import dms_datastore.dstore_config
-from vtools import dst_st, ts_merge, ts_splice,ts_coarsen
-from vtools.functions import unit_conversions as uc
+from vtools import ts_merge, ts_splice
+from vtools.plugins import load_plugins
 from omegaconf import OmegaConf
 from vtools.data.indexing import infer_freq_robust
 from dms_datastore.read_ts import read_ts, infer_freq_robust
@@ -28,10 +28,12 @@ _cached_spec = None
 
 _TRANSFORMS = {}
 
-def register_transform(name, func):
+def register_transform(name, func, *, override=False):
     if not isinstance(name, str) or not name:
         raise ValueError("transform name must be a non-empty string")
-    if name in _TRANSFORMS:
+    if not callable(func):
+        raise TypeError(f"transform '{name}' must be callable")
+    if not override and name in _get_transforms():
         raise ValueError(f"transform '{name}' is already registered")
     _TRANSFORMS[name] = func
 
@@ -72,10 +74,7 @@ def _validated_output_filename(meta, repo_name, write_args, listing_name):
 
 
 def reader_for(fstr):
-    if fstr == "read_ts":
-        return read_ts
-    else:
-        return None
+    return load_plugins("timeseries.readers").get(fstr)
 
 
 class DataCollector(object):
@@ -94,38 +93,6 @@ class DataCollector(object):
         if self.recursive:
             return os.path.join(self.location, "**", self.file_pattern)
         return os.path.join(self.location, self.file_pattern)
-
-
-# YAML uses dst_tz; keep dst_st as implementation name.
-def _transform_dst_tz(ts, **targs):
-    return dst_st(ts, **targs)
-
- 
-def _transform_dst_st(ts, **targs):
-    return dst_st(ts, **targs)
-
-
-def _transform_coarsen(
-    ts,
-    *,
-    grid="1min",
-    preserve_vals=(),
-    qwidth=None,
-    hyst=1.0,
-    heartbeat_freq="120min",
-    **kwargs,
-):
-    # strict: no silent extra args (you asked for fail-fast)
-    if kwargs:
-        raise ValueError(f"coarsen transform got unexpected args: {sorted(kwargs.keys())}")
-    return ts_coarsen(
-        ts,
-        grid=grid,
-        preserve_vals=preserve_vals,
-        qwidth=qwidth,
-        hyst=hyst,
-        heartbeat_freq=heartbeat_freq,
-    )
 
 
 def _transform_trim_data(ts, *, side="both", criterion="all_nan", **kwargs):
@@ -200,20 +167,6 @@ def _transform_linear(ts, *, scale=1.0, offset=0.0, **kwargs):
     return ts * scale + offset
 
 
-def _transform_unit_conversion(ts, *, from_unit, to_unit, **kwargs):
-    """Convert a time series between supported units.
-
-    This wraps the repo's existing unit conversion backend so dropbox recipes can
-    express unit changes explicitly instead of approximating them with a linear
-    transform. The conversion is applied in-order as part of the recipe pipeline.
-    """
-    if kwargs:
-        raise ValueError(
-            f"unit_conversion transform got unexpected args: {sorted(kwargs.keys())}"
-        )
-    return uc.convert_units(ts, from_unit, to_unit)
-
-
 def _transform_fill_sweep(ts, *, limit=None, **kwargs):
     """Fill missing values with a forward pass then backward pass.
 
@@ -234,15 +187,20 @@ def _transform_fill_sweep(ts, *, limit=None, **kwargs):
     return ts.ffill(limit=limit).bfill(limit=limit)
 
 
-# register built-ins
-register_transform("dst_st", _transform_dst_st)
-register_transform("coarsen", _transform_coarsen)
-register_transform("dst_tz", _transform_dst_tz)
-register_transform("trim_data", _transform_trim_data)
-register_transform("add_column", _transform_add_column)
-register_transform("linear", _transform_linear)
-register_transform("unit_conversion", _transform_unit_conversion)
-register_transform("fill_sweep", _transform_fill_sweep)
+_TRANSFORMS.update({
+    "trim_data": _transform_trim_data,
+    "add_column": _transform_add_column,
+    "linear": _transform_linear,
+    "fill_sweep": _transform_fill_sweep,
+})
+
+
+def _get_transforms():
+    transforms = load_plugins("timeseries.transforms", overrides=_TRANSFORMS)
+    transforms.setdefault("unit_conversion", transforms["convert_units"])
+    transforms.setdefault("coarsen", transforms["ts_coarsen"])
+    transforms.setdefault("dst_tz", transforms["dst_st"])
+    return transforms
 
 
 
@@ -461,7 +419,7 @@ def infer_meta(fpath, listing, fail="none"):
     return meta
 
 
-def _apply_transforms(ts, transforms):
+def _apply_transforms(ts, transforms, *, registry=None):
     """
     Apply transforms in-order.
 
@@ -473,6 +431,7 @@ def _apply_transforms(ts, transforms):
     if not transforms:
         return ts
 
+    registry = _get_transforms() if registry is None else registry
     for t in transforms:
         if isinstance(t, str):
             tname = t
@@ -490,11 +449,11 @@ def _apply_transforms(ts, transforms):
             raise ValueError(f"Transform must be str or dict, got {type(t)}")
  
 
-        if tname not in _TRANSFORMS:
+        if tname not in registry:
             raise ValueError(f"Unknown transform '{tname}'")
         else:
             logger.debug("dropbox: applying transform=%s args=%s", tname, targs)
-        ts = _TRANSFORMS[tname](ts, **targs)
+        ts = registry[tname](ts, **targs)
 
     return ts
 
@@ -720,6 +679,8 @@ def _staging_conflicts_with_repo(staged_dir, repo_dir):
 def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
     logger.info("dropbox: loaded %d recipe entries", len(spec["data"]))
     always_skip = True
+    readers = load_plugins("timeseries.readers")
+    transform_registry = _get_transforms()
 
     selected_names = None if not selected_names else set(selected_names)
     seen_names = set()
@@ -837,7 +798,7 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                "dropbox: listing=%s location=%s pattern=%s wildcard=%s inference_mode=%s",
                 name, location, file_pattern, wildcard, inference_mode
            )
-            reader = reader_for(item["reader"])
+            reader = readers.get(item["reader"])
             if reader is None:
                 raise ValueError(f"{name}: unknown reader '{item['reader']}'")
 
@@ -986,7 +947,7 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
             if inference_mode:
                 unregistered_files = []
                 for meta_source_path, ts in per_file_results:
-                    ts = _apply_transforms(ts, transforms)
+                    ts = _apply_transforms(ts, transforms, registry=transform_registry)
                     try:
                         inferred_meta = _infer_meta_from_template_path(meta_source_path, listing)
                         meta_out = populate_meta(
@@ -1060,7 +1021,7 @@ def apply_dropbox_workflow(spec, selected_names=None, omit_unregistered=False):
                             ) from e
                         raise
 
-                ts = _apply_transforms(ts, transforms)
+                ts = _apply_transforms(ts, transforms, registry=transform_registry)
                 inferring_meta = "metadata_infer" in listing
                 if inferring_meta:
                     inferred_meta = infer_meta(meta_source_path, listing)

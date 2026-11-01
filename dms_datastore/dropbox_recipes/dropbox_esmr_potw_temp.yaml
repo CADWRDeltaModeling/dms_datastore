@@ -59,8 +59,8 @@ data:
     transforms:
       - name: unit_conversion
         args:
-          from_unit: "degF"
-          to_unit: "degC"
+          in_unit: "degF"
+          out_unit: "degC"
       - name: fill_sweep
         args: {}
     metadata:
