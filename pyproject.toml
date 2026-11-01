@@ -35,6 +35,7 @@ dependencies = [
     "tqdm",
 	"pytz",
     "requests",
+    "requests-negotiate-sspi; sys_platform == 'win32'",
     "httpx",
     "boto3",
     "lxml",

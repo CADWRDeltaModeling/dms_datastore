@@ -55,11 +55,15 @@ def is_unique(s):
 
 def open_url_no_ssl_cert_check(url):
     """
-    returns a url open handle without SSL certification checks
+    returns a url open handle without SSL certification checks, authenticating
+    with the current Windows login (the DES server requires Negotiate/NTLM)
     """
-    return io.BytesIO(
-        requests.get(url, verify=False).content
-    )  #  needed to bypass SSL certification checks
+    # Imported lazily so the module still imports on non-Windows platforms
+    from requests_negotiate_sspi import HttpNegotiateAuth
+
+    response = requests.get(url, verify=False, auth=HttpNegotiateAuth())
+    response.raise_for_status()
+    return io.BytesIO(response.content)
 
 
 def query_station_data(program_id, result_id, start, end):
@@ -67,7 +71,7 @@ def query_station_data(program_id, result_id, start, end):
     if pd.isnull(end):
         end = pd.Timestamp.now()
     url = (
-        f"https://dwrmsweb0263.ad.water.ca.gov/TelemetryDirect/api/Results/ResultData?program={program_id}"
+        f"https://dwrmsweb1105.ad.water.ca.gov/TelemetryDirect/api/Results/ResultData?program={program_id}"
         f"&resultid={result_id}&start={start:%Y-%m-%d:%H:%M:%S}&end={end:%Y-%m-%d:%H:%M:%S}&version=1"
     )
     logger.info("url=" + url)
@@ -140,7 +144,7 @@ def des_metadata(station_id, agency_id, rid):
     meta["agency_interval_name"] = rid.interval_name
     meta["agency_station_name"] = rid.station_name
     meta["source"] = (
-        "https://dwrmsweb0263.ad.water.ca.gov/TelemetryDirect/api/Results/ReadingDates"
+        "https://dwrmsweb1105.ad.water.ca.gov/TelemetryDirect/api/Results/ReadingDates"
     )
     return meta
 
@@ -158,10 +162,10 @@ def inventory(program_name, program_id):
     """
 
     url = (
-        "https://dwrmsweb0263.ad.water.ca.gov/TelemetryDirect/api/Results?program="
+        "https://dwrmsweb1105.ad.water.ca.gov/TelemetryDirect/api/Results?program="
         + str(program_id)
     )
-
+    print(url)
     results_df = pd.read_csv(
         open_url_no_ssl_cert_check(url),
         sep="|",
@@ -339,7 +343,7 @@ def des_download(stations, dest_dir, start, end=None, param=None, overwrite=Fals
         for ndx, rid in rids.iterrows():
             rid_code = rid.result_id
             prog_id = rid.program_id
-            url = f"https://dwrmsweb0263.ad.water.ca.gov/TelemetryDirect/api/Results/ReadingDates?program={prog_id}&resultid={rid_code}"
+            url = f"https://dwrmsweb1105.ad.water.ca.gov/TelemetryDirect/api/Results/ReadingDates?program={prog_id}&resultid={rid_code}"
             max_retry = 12
             itry = 0
             while itry < max_retry:
