@@ -1,354 +1,579 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-import matplotlib.pyplot as plt
-from vtools.functions.filter import *
-from vtools.data.vtime import *
+import logging
 import os.path as osp
-from dms_datastore.read_ts import *
-from vtools.functions.merge import *
-from vtools.functions.error_detect import med_outliers
-import datetime as dtm
-import vtools.functions.unit_conversions as units
-from vtools.functions.unit_conversions import ec_psu_25c
-from scipy.ndimage import gaussian_filter1d
+import re
+from functools import lru_cache
+from pathlib import Path
 
-# from vtools.functions.error_detect import *
+import click
 import pandas as pd
-import csv
-import numpy as np
 
+from vtools import ts_merge
+from vtools.functions.error_detect import med_outliers
+from dms_datastore.read_multi import read_ts_repo
+from dms_datastore.logging_config import configure_logging, resolve_loglevel
 
-def describe_null(dset, name):
-    print(f"null for {name}")
+logger = logging.getLogger(__name__)
 
-    if dset.isnull().values.any():
-        try:
-            isnan = dset.isnull().any(axis=1)
-            intnan = isnan.loc[dset.first_valid_index() : dset.last_valid_index()]
-            nans = dset.loc[isnan, :]
-            print("dataframe")
-        except:
-            isnan = dset.isnull()
-            intnan = isnan.loc[dset.first_valid_index() : dset.last_valid_index()]
-            nans = dset[isnan]
-            print("series")
-        interiornan = intnan.sum(axis=0)
-        count = isnan.sum(axis=0)
-        print("Count: {} Interior: {}".format(count, interiornan))
-        print(nans)
-    else:
-        print("None")
+_BUFFER = pd.Timedelta(days=5)
+_INTERVAL = "15min"
+_TEMP_RANGE = (1.0, 40.0)  # degC; values outside are treated as bad data
 
-
-def read_pd(fname):
-    ts = pd.read_csv(
-        fname, index_col=1, parse_dates=[1], header=0, comment="#", na_values="M"
-    )
-    ts.columns = [x.strip() for x in ts.columns]
-    val = ts[["Value"]].as_matrix()
-    times = ts.index.to_pydatetime()
-    tsout = its(times, val)
-    tsout = its2rts(tsout, minutes(15))
-    tsout.data = tsout.data.flatten()
-    return tsout
-
-
-def f_to_c(ts):
-    return (ts - 32.0) * 5.0 / 9.0
-
-
-temp_ndx = {
-    "time": 0,
-    "coyote": 1,
-    "sjr": 2,
-    "calaveras": 3,
-    "east": 4,
-    "american": 5,
-    "sac": 6,
-    "yolo_toedrain": 7,
-    "yolo": 8,
-    "napa": 9,
-}
-nstation = 4
-sdate = pd.Timestamp(2006, 10, 1)
-edate = pd.Timestamp(2025, 6, 30)
-buffer = days(5)
-
-repo_dir = "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
-cdec_dir = "data/cdec_download"
-usgs_dir = "Data/usgs_download"
-ncro_dir = "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
-des_dir = "Data/des_download"
-usgs_legacy = "//cnrastore-bdo/Modeling_Data/projects/usgs/usgs_aquarius_request_2020/"
-
-print("Knights Landing")
-"""
-As of 2021-12-01 update, the closest data is in the Sac above Colusa Drain station, which is quite near the boundary
-Although, it is pretty far upstream, Sac @ Wilkins Slough (USGS) matches well enough to be a surrogate
-Slightly downstream is the USGS verona station as reported on NWIS. This station stops in 2017, and then went "rogue", reporting on CDEC
-but with no maintenance and deteriorating quality to the point where we talked to them about it and they took it off. 
-
-Freeeport was originally thought to be a good substitute after that, but it turns out to be awful in 2020 and 2021 late summer. Hopefully 
-There are enough alternate sources to not need this.
-"""
-
-
-freeport = read_ts(osp.join(repo_dir, "usgs_fpt_11447650_temp*.csv")).squeeze()
-freeport = freeport.interpolate(limit=8).squeeze()
-
-freeport_early = read_ts(
-    osp.join(
-        usgs_legacy,
-        "11447650/Temperature,_water.degC.(DATA_PROGRAM)@11447650.EntireRecord.csv",
-    ),
-    start=sdate - buffer,
-)
-freeport_early = freeport_early.interpolate(limit=8).squeeze()
-
-# This station stopped reporting temperature in 2017 on NWIS but seemingly has data on CDEC,
-# Didn't update file because it isn't being updated
-verona_t = read_ts(
-    osp.join(usgs_dir, "t_verona_usgs.rdb"), start=sdate, end=edate
-).squeeze()
-verona_t = verona_t.interpolate(limit=20)
-verona_early = read_ts(
-    osp.join(usgs_legacy, "11425500/Temperature,_water.degC@11425500.EntireRecord.csv"),
-    start=sdate - buffer,
-)
-verona_early = verona_early.interpolate(limit=8).squeeze()
-
-
-# This is the period of record DWR Knights Landing off WDL
-# knights_t = read_ts(osp.join(wdl_dir,"ncro_klup_a0223002_temp_2006_*.csv"))
-knights_t = read_ts(osp.join(ncro_dir, "ncro_klup_*_temp_*.csv"))
-knights_t.columns = ["klup"]
-
-
-# This is a real time update of klup we got on a one off basis
-# knights_t2 = pd.read_csv(osp.join(wdl_dir,"SacRabCBD_2021-11-17_110212_-0800.csv"),header=1,parse_dates=["datetime"],index_col="datetime").loc[:,"Temp"].to_frame()
-# knights_t2 = knights_t2.resample('15T').interpolate(limit=2)
-# knights_t2.columns = ["klup"]
-# knights_t = ts_merge([knights_t,knights_t2])
-knights_t = knights_t.interpolate(limit=12).squeeze()
-
-# This is the Wilkins slough station
-wilkins = read_ts(osp.join(usgs_dir, "usgs_wlk_11390500_temp_2006_*.csv"))
-wilkins = wilkins.interpolate(limit=12).squeeze()
-
-verona_merged = ts_merge(
-    [
-        x.squeeze()
-        for x in [knights_t, wilkins, verona_t, verona_early, freeport, freeport_early]
-    ]
-)
-print(verona_merged)
-
-# ax=verona_merged.plot(color="0.5",linewidth=3)
-# verona_t.plot(ax=ax)
-# knights_t.plot(ax=ax)
-# wilkins.plot(ax=ax)
-# freeport.plot(ax=ax)
-# plt.legend(["merged","verona","knights","wilkins","freeport"])
-# plt.show()
-
-# ax=verona_merged.plot(color="0.5",linewidth=3)
-# freeport.plot(ax=ax)
-# plt.show()
-describe_null(verona_merged, "Verona")
-
-# verona_merged = ts_merge([verona_t,verona1_t,
-#                     verona2_t["2019-02-28":"2020-10-17"],
-#                     verona2_t["2020-12-23":"2021-01-03"],
-#                     verona2_t["2021-01-05":"2021-03-04"],
-#                     freeport])
-
-print("Sac has nan: %s" % verona_merged.isnull().any())
-
-
-print("SJR")
-
-sjr_t = read_ts(
-    osp.join(usgs_dir, "usgs_vns_11303500_temp_*.csv"), start=sdate, end=edate
-)
-print(sjr_t)
-sjr_t = sjr_t.interpolate(limit=8)
-sjr_t.columns = ["sjr"]
-
-
-sjr_des_t = read_ts(osp.join(des_dir, "des_sjr_90_temp_*.csv"), start=sdate, end=edate)
-sjr_des_t.columns = ["sjr"]
-sjr_des_t = sjr_des_t.interpolate(limit=8)
-
-sjr_cdec_t = read_ts(osp.join(cdec_dir, "cdec_ver_*temp_*.csv"), start=sdate, end=edate)
-sjr_cdec_t[sjr_cdec_t < 32.0] = np.nan
-sjr_cdec_t = f_to_c(sjr_cdec_t)
-sjr_usbr = sjr_cdec_t.resample(minutes(15)).interpolate(method="index", limit=8)
-sjr_usbr.columns = ["sjr"]
-sjr = ts_merge([sjr_t, sjr_des_t, sjr_usbr])
-
-
-print("SJR has nan: %s" % sjr.isnull().any())
-
-print("Mokelumne")
-nmr_dwr = read_ts(
-    osp.join(ncro_dir, "ncro_mkn_b94133_temp_*.csv"), start=sdate, end=edate
-)
-nmr_dwr = med_outliers(nmr_dwr, scale=0.2, range=(2, 35))
-nmr_dwr = nmr_dwr.interpolate(limit=20)
-nmr_t = read_ts(
-    osp.join(usgs_dir, "t_moke_nf_usgs.rdb")
-)  # North Fork Moke = cdec nmr, no longer updated so older file name
-nmr_t = med_outliers(nmr_t, scale=2.0, range=(2, 35))
-nmr_t = nmr_t.interpolate(limit=20)
-# nmr_t.data[nmr_t.data < 40.] = np.nan
-nmr_t = nmr_t.interpolate(limit=8)
-smr_t = read_ts(
-    osp.join(usgs_dir, "t_moke_sf_usgs.rdb")
-)  # No longer updated, so older file name
-smr_t = med_outliers(nmr_t, scale=2.0, range=(2, 35))
-nmr_dwr.columns = ["nmr_t"]
-nmr_t.columns = ["nmr_t"]
-smr_t.columns = ["nmr_t"]
-
-mkn_t = read_ts(
-    osp.join(cdec_dir, "cdec_mkn_*temp_*.csv")
-)  # this, unusually, is in degrees C
-mkn_t = med_outliers(mkn_t, range=(2, 35))
-mkn_t = mkn_t.interpolate(limit=20)
-mkn_t.columns = ["nmr_t"]
-
-nmr_t = ts_merge([nmr_dwr, nmr_t, smr_t, mkn_t])
-
-ax = nmr_t.plot()
-mkn_t.plot(ax=ax)
-plt.show()
-
-# nmr_t = f_to_c(nmr_t)
-print("Moke has nan: %s" % nmr_t.isnull().any())
-
-
-print("American")
-watt_t = read_ts(
-    osp.join(usgs_dir, "usgs_awb_11446980_temp_*.csv"), start=sdate, end=edate
-).squeeze()
-watt_t = watt_t.interpolate(limit=20)
-watt_t.columns = ["american"]
-# fairoak_t = read_ts(osp.join(usgs_dir,"t_fair_oaks_usgs.rdb"),start=sdate,end=edate).squeeze()
-fairoak_t = read_ts(
-    osp.join(usgs_dir, "usgs_afo_11446500_temp_*.csv"), start=sdate, end=edate
-).squeeze()
-fairoak_t = fairoak_t.interpolate(limit=20)
-
-
-fairoak_t.columns = ["american"]
-watt_final_t = ts_merge([watt_t, fairoak_t])
-watt_final_t = watt_final_t.interpolate()
-print("American has nan: %s" % watt_final_t.isnull().any())
-print(watt_final_t)
-
-
-print("Yolo (Lisbon Weir)")
-lisbon_t = read_ts(osp.join(ncro_dir, "ncro_lis_b9156000_temp_*.csv")).squeeze()
-lisbon_t = med_outliers(lisbon_t, scale=2.0, range=(5, 35))
-
-lis_cdec = (
-    read_ts(osp.join(cdec_dir, "cdec_lis_*temp_*.csv"))
-    .clip(lower=38.0, upper=85.0)
-    .squeeze()
-)
-lis_cdec2 = med_outliers(lis_cdec, scale=2.0, range=(39, 85.0))
-lis_cdec2 = f_to_c(lis_cdec2["2020-08-30":"2021-08-24"])
-
-# ax = lisbon_t.plot()
-# lis_cdec.plot(ax=ax)
-# lis_cdec2.plot(ax=ax)
-# plt.legend(["lisbon_t","cdec","cdec out"])
-# plt.show()
-lisbon_t = ts_merge([lisbon_t, lis_cdec2])
-print("Lisbon")
-print(lisbon_t)
-
-temp = pd.concat([sjr, nmr_t, watt_final_t, verona_merged, lisbon_t], axis=1)
-print(temp)
-
-temp.columns = ["sjr", "east", "american", "sac", "yolo_toedrain"]
-
-# eliminate extremes
-temp[temp > 40] = np.nan
-temp[temp < 1] = np.nan
-temp = temp.resample("15min").asfreq()
-
-
-# fillin approximations
-# this is a function to allow some flexibility in how it is done
-def fillin_columns(arr, dest, src):
-    arr[dest] = arr[dest].fillna(arr[src])
-
-
-temp.index.name = "datetime"
-temp.loc[sdate:edate, :].to_csv(
-    "temp_no_impute.csv", date_format="%Y-%m-%dT%H:%M", float_format="%.1f"
-)
-temp.loc[sdate:edate, :].plot()
-plt.show()
-
-# East is used here for filling but eventually overwritten by American
-fillin_columns(temp, "sjr", "yolo_toedrain")
-fillin_columns(temp, "sjr", "east")
-fillin_columns(temp, "yolo_toedrain", "east")
-fillin_columns(temp, "yolo_toedrain", "sjr")
-fillin_columns(temp, "east", "sac")
-fillin_columns(temp, "sac", "east")
-fillin_columns(temp, "east", "sjr")
-fillin_columns(temp, "sac", "sjr")
-fillin_columns(temp, "american", "east")
-fillin_columns(temp, "american", "sac")
-
-temp["east"] = temp[
-    "american"
-]  # Here east is replaced, after noting that temperatures in this area are lower
-temp["coyote"] = temp["east"]
-temp["napa"] = temp["east"]
-temp["calaveras"] = temp["east"]
-temp["yolo"] = temp["yolo_toedrain"]
-
-temp.loc[sdate:edate, :].plot()
-plt.show()
-
-
-temp = temp.loc[sdate:edate, :]
-nanbycolumn = temp.isnull().any(axis=0)
-anynan = nanbycolumn.any()
-if anynan:
-    print("There were nan temperatures in clipped range: %s" % anynan)
-    print(nanbycolumn)
-    # for key in temp.columns:
-    #    if temp[key].isnull().any():
-    #        print("Nan in column: %s" % key)
-else:
-    print("No NaN data found within clipped date range after filling")
-
-columns = [
-    "coyote",
-    "sjr",
-    "calaveras",
-    "east",
-    "american",
-    "sac",
-    "yolo_toedrain",
-    "yolo",
-    "napa",
+# Cross-fill order carried over from the legacy script: (destination, source).
+_CROSS_FILL = [
+    ("sjr", "yolo_toedrain"),
+    ("sjr", "east"),
+    ("yolo_toedrain", "east"),
+    ("yolo_toedrain", "sjr"),
+    ("east", "sac"),
+    ("sac", "east"),
+    ("east", "sjr"),
+    ("sac", "sjr"),
+    ("american", "east"),
+    ("american", "sac"),
 ]
-temp[columns].to_csv(
-    "temp_new.th",
-    date_format="%Y-%m-%dT%H:%M",
-    float_format="%.1f",
-    sep=" ",
-    lineterminator="\n",
-)
 
-# This subset is enough to see the missign values and nature, since the others are pure copies
-temp[["sac", "east", "american", "sjr", "yolo_toedrain"]].plot(subplots=True)
-plt.legend()
-plt.show()
+
+def _read_temp(station_id, provider, sdate, edate):
+    """Read a water temperature series for one station/provider as a Series, padded by ``_BUFFER``."""
+    df = read_ts_repo(
+        station_id=station_id,
+        variable="temp",
+        start=sdate - _BUFFER,
+        end=edate + _BUFFER,
+        provider_priority=[provider],
+    )
+    return df["value"]
+
+
+def _to_interval(ts, limit):
+    """Resample ``ts`` to 15 minutes and interpolate gaps of at most ``limit`` steps."""
+    return ts.resample(_INTERVAL).interpolate(method="index", limit=limit)
+
+
+def _fillin_columns(df, dest, src):
+    """Fill missing values in column ``dest`` from column ``src``."""
+    df[dest] = df[dest].fillna(df[src])
+
+
+def _build_sac_temp(sdate, edate):
+    """Merge NCRO Knights Landing, USGS Wilkins Slough, and USGS Freeport temperature."""
+    knights = _to_interval(_read_temp("klup", "ncro", sdate, edate), 12)
+    wilkins = _to_interval(_read_temp("wlk", "usgs", sdate, edate), 12)
+    freeport = _to_interval(_read_temp("fpt", "usgs", sdate, edate), 8)
+    return ts_merge([knights, wilkins, freeport])
+
+
+def _build_sjr_temp(sdate, edate):
+    """Merge USGS Vernalis and USBR Vernalis temperature."""
+    vns = _to_interval(_read_temp("vns", "usgs", sdate, edate), 8)
+    ver = _to_interval(_read_temp("ver", "usbr", sdate, edate), 8)
+    return ts_merge([vns, ver])
+
+
+def _build_east_temp(sdate, edate):
+    """Merge NCRO Mokelumne (mkn) and USBR North Fork Mokelumne (nmr) temperature."""
+    mkn = _read_temp("mkn", "ncro", sdate, edate)
+    mkn = med_outliers(mkn, scale=0.2, range=(2, 35))
+    mkn = _to_interval(mkn, 20)
+    nmr = _read_temp("nmr", "usbr", sdate, edate)
+    nmr = med_outliers(nmr, scale=2.0, range=(2, 35))
+    nmr = _to_interval(nmr, 20)
+    return ts_merge([mkn, nmr])
+
+
+def _build_american_temp(sdate, edate):
+    """Merge USGS Watt Avenue and Fair Oaks temperature, then fill remaining gaps."""
+    watt = _to_interval(_read_temp("awb", "usgs", sdate, edate), 20)
+    fairoak = _to_interval(_read_temp("afo", "usgs", sdate, edate), 20)
+    # Unlimited fill is a placeholder inherited from the legacy script.
+    return ts_merge([watt, fairoak]).interpolate()
+
+
+def _build_yolo_toedrain_temp(sdate, edate):
+    """Read NCRO Lisbon temperature with outliers removed."""
+    lisbon = _read_temp("lis", "ncro", sdate, edate)
+    lisbon = med_outliers(lisbon, scale=2.0, range=(5, 35))
+    return _to_interval(lisbon, 8)
+
+
+@lru_cache(maxsize=2)
+def _build_temp_block(sdate, edate):
+    """Build the cross-filled water temperature table for all boundary locations.
+
+    Returns
+    -------
+    pandas.DataFrame
+        15-minute temperature with columns ``sac``, ``sjr``, ``east``,
+        ``american``, ``yolo_toedrain``, ``coyote``, ``napa``,
+        ``calaveras``, ``consumnes``, and ``yolo``, clipped to
+        ``sdate``:``edate``.
+    """
+    block = pd.concat(
+        {
+            "sjr": _build_sjr_temp(sdate, edate),
+            "east": _build_east_temp(sdate, edate),
+            "american": _build_american_temp(sdate, edate),
+            "sac": _build_sac_temp(sdate, edate),
+            "yolo_toedrain": _build_yolo_toedrain_temp(sdate, edate),
+        },
+        axis=1,
+    )
+    block = block.mask((block < _TEMP_RANGE[0]) | (block > _TEMP_RANGE[1]))
+    block = block.resample(_INTERVAL).asfreq()
+
+    # East is used for filling but then replaced by American, which is colder.
+    for dest, src in _CROSS_FILL:
+        _fillin_columns(block, dest, src)
+    block["east"] = block["american"]
+    block["coyote"] = block["east"]
+    block["napa"] = block["east"]
+    block["calaveras"] = block["east"]
+    block["consumnes"] = block["east"]
+    block["yolo"] = block["yolo_toedrain"]
+    return block.loc[sdate:edate]
+
+
+def _write_temp(ts, outdir, filename, label):
+    """Check ``ts`` for gaps and write it to ``outdir/filename``."""
+    ts = ts.copy()
+    nmissing = int(ts.isnull().sum())
+    if nmissing > 0:
+        raise ValueError(
+            "There are {} missing values in the {} water temperature after processing.".format(
+                nmissing, label
+            )
+        )
+    ts.index.name = "Date/time"
+    ts.name = "Temperature (degC)"
+    ts.to_csv(osp.join(outdir, filename), float_format="%.1f")
+    logger.info("Wrote %s", osp.join(outdir, filename))
+
+
+def process_sac_temp(sdate, edate, outdir):
+    """Process Sacramento River water temperature boundary condition.
+
+    NCRO Knights Landing (``klup``, interpolation limit 12), USGS Wilkins
+    Slough (``wlk``, limit 12), and USGS Freeport (``fpt``, limit 8) are
+    merged with that priority. Values outside 1-40 degC are masked, and
+    remaining gaps are filled from the east and San Joaquin series. The
+    result is written to ``sac_temp.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``sac_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to ``sac_temp.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Sacramento temperature after
+        processing.
+    """
+    _write_temp(_build_temp_block(sdate, edate)["sac"], outdir, "sac_temp.csv", "Sacramento")
+
+
+def process_sjr_temp(sdate, edate, outdir):
+    """Process San Joaquin River water temperature boundary condition.
+
+    USGS Vernalis (``vns``) and USBR Vernalis (``ver``, hourly upsampled
+    to 15 minutes) are interpolated (limit 8) and merged with USGS taking
+    priority. Remaining gaps are filled from the Yolo Toe Drain and east
+    series. The result is written to ``sjr_temp.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``sjr_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to ``sjr_temp.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the San Joaquin temperature after
+        processing.
+    """
+    _write_temp(_build_temp_block(sdate, edate)["sjr"], outdir, "sjr_temp.csv", "San Joaquin")
+
+
+def process_american_temp(sdate, edate, outdir):
+    """Process American River water temperature boundary condition.
+
+    USGS Watt Avenue (``awb``) and Fair Oaks (``afo``) are interpolated
+    (limit 20), merged, and gap-filled by interpolation. Any remaining
+    gaps are filled from the east and Sacramento series. The result is
+    written to ``american_temp.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``american_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to ``american_temp.csv``
+        in ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the American temperature after
+        processing.
+    """
+    _write_temp(_build_temp_block(sdate, edate)["american"], outdir, "american_temp.csv", "American")
+
+
+def process_east_temp(sdate, edate, outdir):
+    """Process eastside stream water temperature boundary condition.
+
+    NCRO Mokelumne (``mkn``) and USBR North Fork Mokelumne (``nmr``) are
+    cleaned with ``med_outliers``, interpolated (limit 20), and merged
+    for gap filling, but the product itself is set equal to American
+    River temperature because eastside streams are colder. The result is
+    written to ``east_temp.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``east_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to ``east_temp.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the east temperature after
+        processing.
+    """
+    _write_temp(_build_temp_block(sdate, edate)["east"], outdir, "east_temp.csv", "East")
+
+
+def process_coyote_temp(sdate, edate, outdir):
+    """Process Coyote Creek water temperature, assumed equal to the east series.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``coyote_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to ``coyote_temp.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Coyote Creek temperature.
+    """
+    _write_temp(_build_temp_block(sdate, edate)["coyote"], outdir, "coyote_temp.csv", "Coyote Creek")
+
+
+def process_napa_temp(sdate, edate, outdir):
+    """Process Napa River water temperature, assumed equal to the east series.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``napa_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to ``napa_temp.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Napa River temperature.
+    """
+    _write_temp(_build_temp_block(sdate, edate)["napa"], outdir, "napa_temp.csv", "Napa")
+
+
+def process_calaveras_temp(sdate, edate, outdir):
+    """Process Calaveras River water temperature, assumed equal to the east series.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``calaveras_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to ``calaveras_temp.csv``
+        in ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Calaveras temperature.
+    """
+    _write_temp(_build_temp_block(sdate, edate)["calaveras"], outdir, "calaveras_temp.csv", "Calaveras")
+
+
+def process_consumnes_temp(sdate, edate, outdir):
+    """Process Consumnes River water temperature, assumed equal to the east series.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``consumnes_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to ``consumnes_temp.csv``
+        in ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Consumnes temperature.
+    """
+    _write_temp(_build_temp_block(sdate, edate)["consumnes"], outdir, "consumnes_temp.csv", "Consumnes")
+
+
+def process_yolo_toedrain_temp(sdate, edate, outdir):
+    """Process Yolo Toe Drain water temperature boundary condition.
+
+    NCRO Lisbon (``lis``) is cleaned with ``med_outliers`` (range 5-35
+    degC) and interpolated (limit 8). Remaining gaps are filled from the
+    east and San Joaquin series. The result is written to
+    ``yolo_toedrain_temp.csv``.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``yolo_toedrain_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to
+        ``yolo_toedrain_temp.csv`` in ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Yolo Toe Drain temperature after
+        processing.
+    """
+    _write_temp(
+        _build_temp_block(sdate, edate)["yolo_toedrain"],
+        outdir,
+        "yolo_toedrain_temp.csv",
+        "Yolo Toe Drain",
+    )
+
+
+def process_yolo_temp(sdate, edate, outdir):
+    """Process Yolo Bypass water temperature, assumed equal to the Toe Drain series.
+
+    Parameters
+    ----------
+    sdate : pandas.Timestamp
+        Start of the period to which the final product is clipped.
+    edate : pandas.Timestamp
+        End of the period to which the final product is clipped.
+    outdir : str
+        Directory to which ``yolo_temp.csv`` is written.
+
+    Returns
+    -------
+    None
+        Writes the processed temperature series to ``yolo_temp.csv`` in
+        ``outdir``.
+
+    Raises
+    ------
+    ValueError
+        If missing values remain in the Yolo temperature.
+    """
+    _write_temp(_build_temp_block(sdate, edate)["yolo"], outdir, "yolo_temp.csv", "Yolo")
+
+
+# Ordered registry of processed-temperature products: (step name, worker function).
+# Each worker has the signature ``func(sdate, edate, outdir)`` and writes one product CSV.
+_TW_STEPS = [
+    ("sac", process_sac_temp),
+    ("sjr", process_sjr_temp),
+    ("american", process_american_temp),
+    ("east", process_east_temp),
+    ("coyote", process_coyote_temp),
+    ("napa", process_napa_temp),
+    ("calaveras", process_calaveras_temp),
+    ("consumnes", process_consumnes_temp),
+    ("yolo_toedrain", process_yolo_toedrain_temp),
+    ("yolo", process_yolo_temp),
+]
+
+TW_STEP_NAMES = [name for name, _ in _TW_STEPS]
+
+
+def _split_multi(values):
+    """Flatten a tuple of CLI option values, splitting each on commas/whitespace."""
+    out = []
+    for v in values or ():
+        out.extend(part for part in re.split(r"[,\s]+", str(v).strip()) if part)
+    return out
+
+
+def select_tw_steps(include=None, exclude=None):
+    """Resolve which water temperature steps to run.
+
+    Parameters
+    ----------
+    include : sequence of str, optional
+        Run only these steps. Mutually exclusive with ``exclude``.
+    exclude : sequence of str, optional
+        Run every step except these.
+
+    Returns
+    -------
+    list of (str, callable)
+        The ordered ``(name, worker)`` pairs to run.
+
+    Raises
+    ------
+    ValueError
+        If both ``include`` and ``exclude`` are given, or if any name is not a
+        recognized step.
+    """
+    include = _split_multi(include)
+    exclude = _split_multi(exclude)
+    if include and exclude:
+        raise ValueError("Use only one of --include or --exclude, not both.")
+
+    unknown = [s for s in include + exclude if s not in TW_STEP_NAMES]
+    if unknown:
+        raise ValueError(
+            f"Unknown temperature step(s): {unknown}. Valid steps: {TW_STEP_NAMES}."
+        )
+
+    if include:
+        keep = set(include)
+        return [(n, f) for n, f in _TW_STEPS if n in keep]
+    if exclude:
+        drop = set(exclude)
+        return [(n, f) for n, f in _TW_STEPS if n not in drop]
+    return list(_TW_STEPS)
+
+
+def process_tw(start, end, outdir, include=None, exclude=None):
+    """Run the selected processed-temperature products, writing one CSV per step.
+
+    Parameters
+    ----------
+    start, end : str or pandas.Timestamp
+        Inclusive bounds of the processing window. ``end`` defaults to
+        today when ``None``.
+    outdir : str or pathlib.Path
+        Directory to which the product CSVs are written.
+    include : sequence of str, optional
+        Run only these steps (starts from nothing).
+    exclude : sequence of str, optional
+        Run all steps except these (starts from everything).
+    """
+    sdate = pd.to_datetime(start)
+    edate = pd.Timestamp.now().normalize() if end is None else pd.to_datetime(end)
+    outdir = str(outdir)
+    for name, func in select_tw_steps(include=include, exclude=exclude):
+        logger.info("Processing temperature step: %s", name)
+        func(sdate, edate, outdir)
+
+
+@click.command("process_tw")
+@click.option("--start", type=str, default="2020-01-01 00:00:00", show_default=True,
+              help="Start of the processing window.")
+@click.option("--end", type=str, default=None,
+              help="End of the processing window. Defaults to today.")
+@click.option("--outdir", type=click.Path(path_type=Path),
+              default=r"\\cnrastore-bdo\Modeling_Data\repo_processing_scratch",
+              show_default=True, help="Directory to write output CSVs to.")
+@click.option("--include", multiple=True,
+              help="Run ONLY these steps (starts from nothing). Repeatable or "
+                   "comma-/space-separated. Steps: " + ", ".join(TW_STEP_NAMES) + ".")
+@click.option("--exclude", multiple=True,
+              help="Run EVERYTHING except these steps (starts from everything). "
+                   "Repeatable or comma-/space-separated. Mutually exclusive with --include.")
+@click.option("--logdir", type=click.Path(path_type=Path), default="logs",
+              help="Directory for log files.")
+@click.option("--debug", is_flag=True, help="Enable debug logging.")
+@click.option("--quiet", is_flag=True, help="Suppress console output.")
+@click.help_option("-h", "--help")
+def process_tw_cli(start, end, outdir, include, exclude, logdir, debug, quiet):
+    """Run one or all processed water temperature products, writing CSVs to --outdir.
+
+    By default every step runs. Use --include to run only specific steps
+    (selection starts from nothing) or --exclude to run everything except
+    certain steps. The two options are mutually exclusive. Available steps:
+    sac, sjr, american, east, coyote, napa, calaveras, consumnes, yolo_toedrain,
+    yolo.
+    """
+    level, console = resolve_loglevel(debug=debug, quiet=quiet)
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=logdir,
+        logfile_prefix="process_tw",
+    )
+    process_tw(start, end, outdir, include=include, exclude=exclude)
+
+
+if __name__ == '__main__':
+    process_tw_cli()
