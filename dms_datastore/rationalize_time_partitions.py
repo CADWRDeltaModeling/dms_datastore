@@ -4,6 +4,8 @@ operates solely on the RAW tier of repo and is mostly targetted at DES data
 
 Provides:
   - rationalize_time_partitions(pat): legacy filename-span-based supersession logic
+    (spec='generic'), or YAML rules plus a data-driven default partition for
+    series without an explicit rule
   - rationalize_time_partitions_from_yaml(...): explicit YAML-driven canonical
     time partitioning with slicing semantics, omit completeness checks, and
     optional renaming to match actual data span.
@@ -102,8 +104,12 @@ def rationalize_time_partitions(
           1) Apply any YAML rule(s) whose `pattern` matches one or more files in that
              group. Each YAML rule is applied only to the subset ("pool") of files in
              that group that match the rule pattern.
-          2) Apply legacy supersession to the remaining files in that group that are
-             not owned by any YAML rule pattern.
+          2) Apply the default partition (see :func:`_default_partition_paths`)
+             to the remaining files in that group that are not owned by any
+             YAML rule pattern: files engulfed by another file's filename year
+             span are omitted, and the rest are sliced into monotone,
+             non-overlapping windows that hand over at each newer file's first
+             valid timestamp.
 
         YAML rules that match nothing in the `pat` universe are ignored.
 
@@ -224,10 +230,14 @@ def rationalize_time_partitions(
             remaining = allpaths2
 
     if remaining:
-        logger.info(f"legacy fallback: {len(remaining)} of {len(allpaths)} files")
-        _legacy_supersession_paths(remaining, dry_run=dry_run)
+        logger.info(f"default partition: {len(remaining)} of {len(allpaths)} files")
+        _default_partition_paths(
+            remaining,
+            dry_run=dry_run,
+            warn_on_remaining_overlap=warn_on_remaining_overlap,
+        )
     else:
-        logger.info("legacy fallback: 0 files (all matched by YAML patterns)")
+        logger.info("default partition: 0 files (all matched by YAML patterns)")
 
 def _legacy_rationalize_time_partitions(pat: str) -> None:
     """
@@ -690,6 +700,177 @@ def _legacy_supersession_paths(paths: List[Path], *, dry_run: bool) -> None:
             logger.info(s)
 
 
+
+# --------------------------------------------------------------------------------------
+# Default partitioning for series not covered by an explicit YAML rule
+# --------------------------------------------------------------------------------------
+
+def _filename_engulfed(metas: List[dict]) -> set[str]:
+    """Names of files whose filename year span lies within another file's span.
+
+    Uses the legacy inclusive-year test (no file reads): the provider's span
+    labels are taken as the statement of which instrument is the program's
+    record. For identical spans the later name in sort order is kept so that
+    one file survives.
+    """
+    out: set[str] = set()
+    for m in metas:
+        sy, ey = int(m["syear"]), int(m["eyear"])
+        for m2 in metas:
+            if m2 is m:
+                continue
+            sy2, ey2 = int(m2["syear"]), int(m2["eyear"])
+            if sy2 <= sy and ey2 >= ey:
+                if (sy2, ey2) != (sy, ey) or m2["filename"] > m["filename"]:
+                    out.add(m["filename"])
+                    break
+    return out
+
+
+def _read_valid_span(path: Path):
+    """Return (first_valid, last_valid) timestamps of a raw file, or (None, None)."""
+    df = read_ts(str(path), force_regular=True, freq=None)
+    valid = df.notna().any(axis=1).to_numpy()
+    if not valid.any():
+        return None, None
+    vidx = df.index[valid]
+    return vidx[0], vidx[-1]
+
+
+def _monotone_partition_plan(spans: List[Tuple[Path, pd.Timestamp, pd.Timestamp]]):
+    """Order files by first valid timestamp; each takes over at its first valid value.
+
+    Returns
+    -------
+    include : list of (path, start), start is None for the first file
+    anomalies : list of path
+        Files that cannot take over without handing back: their valid data lie
+        inside an earlier file's valid data, or they start at the same time as
+        the previous file. These need an explicit rule.
+    overlapping : bool
+        Whether any valid-data spans overlap (i.e. slicing would change anything).
+    """
+    order = sorted(spans, key=lambda s: (s[1], s[0].name))
+    anomalies: List[Path] = []
+    max_last = None
+    prev_first = None
+    for path, first, last in order:
+        if max_last is not None and (last <= max_last or first == prev_first):
+            anomalies.append(path)
+        max_last = last if max_last is None else max(max_last, last)
+        prev_first = first
+    overlapping = any(order[i][2] >= order[i + 1][1] for i in range(len(order) - 1))
+    include = [(p, None if i == 0 else first) for i, (p, first, _) in enumerate(order)]
+    return include, anomalies, overlapping
+
+
+def _delete_omitted(paths: List[Path], *, dry_run: bool) -> None:
+    for p in paths:
+        if dry_run:
+            logger.info(f"omitted {p.name} (dry run)")
+        elif p.exists():
+            p.unlink()
+            logger.info(f"omitted {p.name}")
+
+
+def _default_partition_paths(
+    paths: List[Path], *, dry_run: bool, warn_on_remaining_overlap: bool = True
+) -> None:
+    """Default rationalization for series with no explicit YAML rule.
+
+    For each series (source/param/station_id/subloc) with more than one file:
+
+    1. Files whose *filename* year span lies within another file's span are
+       omitted (deleted), as in the legacy rule and without reading any file.
+       An engulfed instrument is treated as not intended for the record.
+       Identical spans keep the later name.
+    2. If the surviving filename spans overlap, survivors are read and sliced
+       into half-open windows ``[first_valid_k, first_valid_{k+1})`` ordered by
+       first valid timestamp (first file unbounded below, last unbounded
+       above). Handoff is monotone: a newer file never hands back.
+    3. If a survivor cannot take over without handing back (its valid data lie
+       inside an earlier file's), the survivors are left as-is with a warning;
+       an explicit rule is needed. Survivors with no valid data are left as-is.
+
+    Slicing, renaming and deletion reuse :func:`_apply_rule`. A failure in one
+    series is logged and does not stop the others.
+    """
+    groups: Dict[tuple, List[Tuple[Path, dict]]] = {}
+    for p in paths:
+        meta = interpret_fname(p.name, naming=_raw_naming())
+        key = (meta["source"], meta["param"], meta["station_id"], meta["subloc"])
+        groups.setdefault(key, []).append((p, meta))
+
+    for key, items in groups.items():
+        if len(items) < 2:
+            continue
+        try:
+            omit_names = _filename_engulfed([m for _, m in items])
+            omitted = sorted(p for p, _ in items if p.name in omit_names)
+            for p in omitted:
+                logger.info(f"default partition: {p.name} is engulfed by another file's span")
+
+            survivors = sorted(
+                ((p, m) for p, m in items if p.name not in omit_names),
+                key=lambda x: (int(x[1]["syear"]), int(x[1]["eyear"]), x[0].name),
+            )
+            # Without engulfment, eyears increase with syears, so checking
+            # neighbours is enough.
+            fname_overlap = any(
+                int(survivors[i][1]["eyear"]) >= int(survivors[i + 1][1]["syear"])
+                for i in range(len(survivors) - 1)
+            )
+            if not fname_overlap:
+                _delete_omitted(omitted, dry_run=dry_run)
+                continue
+
+            spans: List[Tuple[Path, pd.Timestamp, pd.Timestamp]] = []
+            for p, _ in survivors:
+                first, last = _read_valid_span(p)
+                if first is None:
+                    logger.info(f"default partition: {p.name} has no valid data; left as-is")
+                    continue
+                spans.append((p, first, last))
+
+            if len(spans) < 2:
+                _delete_omitted(omitted, dry_run=dry_run)
+                continue
+
+            include, anomalies, overlapping = _monotone_partition_plan(spans)
+            if anomalies:
+                logger.warning(
+                    "default partition: cannot hand over to "
+                    f"{[p.name for p in anomalies]} without handing back; survivors "
+                    f"of series {key} left as-is. Add an explicit rationalize rule."
+                )
+                _delete_omitted(omitted, dry_run=dry_run)
+                continue
+            if not overlapping:
+                _delete_omitted(omitted, dry_run=dry_run)
+                continue
+
+            for p, s in include:
+                logger.info(
+                    f"default partition: {p.name} takes over at "
+                    f"{'start' if s is None else s}"
+                )
+            rule = {
+                "include": [
+                    {"fname": p.name, "start": _START if s is None else s.isoformat()}
+                    for p, s in include
+                ],
+                "omit": [p.name for p in omitted],
+            }
+            _apply_rule(
+                rule=rule,
+                pool=[p for p, _, _ in spans] + omitted,
+                dry_run=dry_run,
+                warn_on_remaining_overlap=warn_on_remaining_overlap,
+            )
+        except Exception as exc:
+            logger.error(
+                f"default partition failed for series {key}; files left as-is: {exc}"
+            )
 
 # --------------------------------------------------------------------------------------
 # Click CLI (simple, direct)

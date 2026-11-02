@@ -8,7 +8,11 @@
 # Notes:
 #   - All matching is done by exact basename equality within the pool.
 #   - Time windows are left-closed/right-open to avoid duplicates at boundaries.
-#   - This mode is intended to run *before* general "superset deletes subset" logic.
+#   - Series without a rule get a default: files whose filename year span lies
+#     within another file's span are omitted (as in the legacy rule), and the rest
+#     hand over monotonically at each newer file's first valid timestamp. Add a
+#     rule here only to override it (e.g. a different cut-over date, or handing
+#     back to an earlier file).
 
 rationalize:
   - pattern: "des_mrz@upper*_ec_*.csv"

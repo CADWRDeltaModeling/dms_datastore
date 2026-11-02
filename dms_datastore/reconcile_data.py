@@ -988,7 +988,7 @@ def update_repo(
     p3: float = 0.15,
     atol: float = 0.0,
     rtol: float = 0.0,
-    freq_mismatch: str = "quarantine",
+    freq_mismatch: str = "replace",
     regular: bool = True,
     dtypes: Optional[dict] = None,
     float_format: Optional[str] = None,
@@ -1080,8 +1080,11 @@ def update_repo(
 
     **Escalation**
 
-    If a meaningful change is detected outside the recent window, the function
-    adds reconcile actions for the recent window shards as well.
+    If a meaningful change is detected outside the recent window, or a
+    frequency mismatch is detected in any inspected shard, the function adds
+    reconcile actions for all other shards of the series. Escalated shards are
+    frequency-checked at apply time and follow the same ``freq_mismatch``
+    policy as inspected shards.
     """
 
     if now is None:
@@ -1301,6 +1304,9 @@ def update_repo(
                         repo_path=rpath,
                     )
                 )
+                # A series has one resolved frequency, so a mismatch in any
+                # shard implies the uninspected shards are stale too.
+                changed_old = True
                 continue
 
             # only "both_regular_same" falls through to normal reconcile
@@ -1467,6 +1473,33 @@ def update_repo(
                 rdf = read_ts(a.repo_path, force_regular=regular, **read_kwargs)
             except NotImplementedError:
                 rdf = read_ts(a.repo_path, force_regular=False, **read_kwargs)
+
+            if regular:
+                # Escalated shards (escalated_due_to_old_change) are added
+                # without the planning-phase frequency classification, so
+                # re-check here and apply the same policy rather than letting
+                # ts_merge fail on mismatched frequencies.
+                status, freq_reason, sfreq, rfreq = compare_regular_freq(sdf, rdf)
+                if status != "both_regular_same":
+                    if status == "dst_irregular" or (
+                        status == "both_regular_different" and freq_mismatch == "replace"
+                    ):
+                        logger.warning(
+                            "Splice skipped (%s); replacing whole file: staged=%s repo=%s "
+                            "staged_freq=%s repo_freq=%s",
+                            freq_reason, a.staged_path, a.repo_path, sfreq, rfreq,
+                        )
+                        if sdf.index.name is None:
+                            sdf.index.name = "datetime"
+                        _write_preserving_header(df=sdf, dest_path=a.repo_path, header_text=head, float_format=float_format)
+                    else:
+                        logger.warning(
+                            "Quarantining staged file and skipping splice: %s (%s) "
+                            "staged_freq=%s repo_freq=%s",
+                            a.staged_path, freq_reason, sfreq, rfreq,
+                        )
+                        _quarantine_file(a.staged_path)
+                    continue
 
             if not regular:
                 # Irregular top-off: stitch by time patches so irregular steps

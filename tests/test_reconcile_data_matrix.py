@@ -394,6 +394,78 @@ def test_update_repo_apply_freq_mismatch_replace(tmp_path: Path) -> None:
     assert pd.to_datetime(out.index).to_series().diff().iloc[1:].eq(pd.Timedelta("15min")).all()
 
 
+@pytest.mark.parametrize("freq_mismatch", ["quarantine", "replace"])
+def test_update_repo_apply_escalated_shard_freq_mismatch(tmp_path: Path, monkeypatch, freq_mismatch) -> None:
+    """Escalated shards skip planning-phase freq checks; apply must not crash in ts_merge."""
+    monkeypatch.chdir(tmp_path)
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\n"
+
+    # 2015 (age > 10, p10=1): same freq, changed data -> triggers escalation
+    old = _mk_values_freq("h", periods=24, start="2015-06-01", seed=1)
+    old_changed = old.copy()
+    old_changed.iloc[-1, 0] += 10.0
+    write_ts_csv(old, repo / "cdec_foo_123_flow_2015.csv", metadata=meta, chunk_years=False)
+    write_ts_csv(old_changed, staged / "cdec_foo_123_flow_2015.csv", metadata=meta, chunk_years=False)
+
+    # 2016 (age 10, p3=0): never inspected, staged 15min vs repo hourly
+    f16 = "cdec_foo_123_flow_2016.csv"
+    staged16 = _mk_values_freq("15min", periods=16, start="2016-06-01", seed=2)
+    repo16 = _mk_values_freq("h", periods=4, start="2016-06-01", seed=3)
+    write_ts_csv(staged16, staged / f16, metadata=meta, chunk_years=False)
+    write_ts_csv(repo16, repo / f16, metadata=meta, chunk_years=False)
+
+    actions = update_repo(
+        str(staged), str(repo),
+        now=NOW, p10=1.0, p3=0.0,
+        freq_mismatch=freq_mismatch,
+        plan=False,
+    )
+    assert any(a.reason == "escalated_due_to_old_change" and a.shard == "2016" for a in actions)
+
+    out = pd.read_csv(repo / f16, comment="#", parse_dates=["datetime"], index_col="datetime")
+    step = pd.Timedelta("1h") if freq_mismatch == "quarantine" else pd.Timedelta("15min")
+    assert pd.to_datetime(out.index).to_series().diff().iloc[1:].eq(step).all()
+    assert (tmp_path / "quarantine" / f16).exists() == (freq_mismatch == "quarantine")
+
+
+@pytest.mark.parametrize("freq_mismatch", ["quarantine", "replace"])
+def test_update_repo_freq_mismatch_triggers_escalation(tmp_path: Path, monkeypatch, freq_mismatch) -> None:
+    """A mismatch in a sampled shard escalates the series so unsampled stale shards are handled."""
+    monkeypatch.chdir(tmp_path)
+    staged = tmp_path / "staging"
+    repo = tmp_path / "repo"
+    staged.mkdir()
+    repo.mkdir()
+    meta = "station_id: foo\nparam: flow\nunit: ft^3/s\n"
+
+    # 2015 sampled (p10=1), 2016 not sampled (p3=0); both 15min staged vs hourly repo
+    for year, seed in (("2015", 1), ("2016", 3)):
+        f = f"cdec_foo_123_flow_{year}.csv"
+        write_ts_csv(_mk_values_freq("15min", periods=16, start=f"{year}-06-01", seed=seed),
+                     staged / f, metadata=meta, chunk_years=False)
+        write_ts_csv(_mk_values_freq("h", periods=4, start=f"{year}-06-01", seed=seed + 1),
+                     repo / f, metadata=meta, chunk_years=False)
+
+    actions = update_repo(
+        str(staged), str(repo),
+        now=NOW, p10=1.0, p3=0.0,
+        freq_mismatch=freq_mismatch,
+        plan=False,
+    )
+    by_shard = {a.shard: a for a in actions}
+    assert by_shard["2016"].reason == "escalated_due_to_old_change"
+
+    step = pd.Timedelta("1h") if freq_mismatch == "quarantine" else pd.Timedelta("15min")
+    for year in ("2015", "2016"):
+        out = pd.read_csv(repo / f"cdec_foo_123_flow_{year}.csv", comment="#",
+                          parse_dates=["datetime"], index_col="datetime")
+        assert pd.to_datetime(out.index).to_series().diff().iloc[1:].eq(step).all()
+
+
 def test_update_repo_plan_repo_irregular_replaced(tmp_path: Path) -> None:
     staged = tmp_path / "staging"
     repo = tmp_path / "repo"

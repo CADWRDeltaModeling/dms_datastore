@@ -226,8 +226,9 @@ def read_ts_repo(
         ``{"target_freq": "<freq>", "method": "interp"|"asfreq"}``.
 
         Default ``None`` raises ``ValueError`` when frequencies differ.
-        Interpolation changes the sampling interval only; source gaps longer
-        than four target steps stay ``NaN``.
+        Interpolation changes the sampling interval only; target points are
+        filled only between consecutive valid source samples, and series
+        already at the target frequency are left unchanged.
 
     dtypes : None or "infer" or dict, optional
         Column dtype handling for the generic dms1/CSV reader.  Only the
@@ -577,15 +578,16 @@ def _infer_series_decimal_places(ts, max_places=4):
     inferred = int(pd.Series(places).median())
     return max(0, min(inferred, max_places))
 
-def _transform_interp(ts, target_freq, max_missing=4):
+def _transform_interp(ts, target_freq):
     """Interpolate a regular time series onto a grid at *target_freq*.
 
     This is a change of sampling interval, not gap filling. A target point is
-    interpolated only when the valid source samples on either side of it are
-    no farther apart than the larger of one source interval and
-    ``max_missing + 1`` target intervals; longer gaps stay ``NaN``. The output
-    grid is aligned to the target frequency (not to the first observed
-    timestamp), and values are rounded to the inferred source precision.
+    interpolated only when it lies between two *consecutive* valid source
+    samples (no more than one source interval apart). Missing or
+    provider-rejected source values (already ``NaN``) are never bridged, so a
+    target point adjacent to a gap stays ``NaN``. The output grid is aligned
+    to the target frequency (not to the first observed timestamp), and values
+    are rounded to the inferred source precision.
 
     Parameters
     ----------
@@ -594,9 +596,6 @@ def _transform_interp(ts, target_freq, max_missing=4):
         set) and numeric columns.
     target_freq : pandas.DateOffset or str
         Target frequency for the output grid.
-    max_missing : int, optional
-        Largest number of consecutive missing target points that may be
-        bridged by interpolation across a gap in the source. Default 4.
 
     Returns
     -------
@@ -613,8 +612,7 @@ def _transform_interp(ts, target_freq, max_missing=4):
     if source_freq is None:
         raise ValueError("Interpolating to a new frequency requires a regular source series")
     target_off = _freq_to_offset(target_freq)
-    max_gap = max(pd.Timedelta(source_freq.nanos, unit="ns"),
-                  (max_missing + 1) * pd.Timedelta(target_off.nanos, unit="ns"))
+    max_gap = pd.Timedelta(source_freq.nanos, unit="ns")
 
     # infer source precision before interpolation
     round_places = _infer_series_decimal_places(ts)
@@ -780,8 +778,10 @@ def _apply_freq_resolution(ordered_items, freq_resolver):
     """Apply frequency resolution to a list of time series items.
 
     If all series share the same frequency, the list is returned unchanged.
-    Otherwise the appropriate transform is applied to each item, producing
-    a new list at the reconciled target frequency.
+    Otherwise the appropriate transform is applied to each item that is not
+    already at the target frequency, producing a new list at the reconciled
+    target frequency. Items already at the target are passed through unchanged
+    so that native samples are never interpolated or gap-filled.
 
     Parameters
     ----------
@@ -811,8 +811,13 @@ def _apply_freq_resolution(ordered_items, freq_resolver):
     if transform is None:
         return ordered_items, target_freq
 
+    target_label = _freq_to_label(target_freq)
     resolved = []
     for item in ordered_items:
+        if item["freq_label"] == target_label:
+            # Already on the target grid: never interpolate native data.
+            resolved.append(item)
+            continue
         ts = transform(item["ts"], target_freq)
         new_label = _series_freq_label(ts)
         resolved.append(
@@ -1087,8 +1092,9 @@ def ts_multifile_read(
         ``{"target_freq": "<freq>", "method": "interp"|"asfreq"}``.
 
         Default ``None`` raises ``ValueError`` when frequencies differ.
-        Interpolation changes the sampling interval only; source gaps longer
-        than four target steps stay ``NaN``.
+        Interpolation changes the sampling interval only; target points are
+        filled only between consecutive valid source samples, and series
+        already at the target frequency are left unchanged.
 
     Returns
     -------

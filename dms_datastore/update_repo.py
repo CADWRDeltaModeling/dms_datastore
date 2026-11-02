@@ -53,9 +53,9 @@ logger = logging.getLogger(__name__)
 @click.option(
     "--freq-mismatch",
     type=click.Choice(["quarantine", "replace"], case_sensitive=False),
-    default="quarantine",
+    default="replace",
     show_default=True,
-    help="When staged and repo are both regular but have different inferred frequencies, quarantine staged or replace the repo file.",
+    help="When staged and repo are both regular but have different inferred frequencies, replace the repo file (a series has one resolved frequency) or quarantine staged.",
 )
 @click.option("--plan", is_flag=True, default=False, help="Dry-run: compute and print actions without writing.")
 @click.option("--apply", is_flag=True, default=False, help="Execute: write changes to the repo.")
