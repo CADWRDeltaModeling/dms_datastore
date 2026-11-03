@@ -664,7 +664,10 @@ Output and Reconciliation
 Reconciliation is *content-smart*: it hashes the data section (ignoring header
 churn such as ``date_formatted``) and only rewrites when values actually differ.
 The dropbox passes the exact series it just produced to the reconciler, so
-unrelated files sharing the staging directory are not swept into the repo.
+unrelated files sharing the staging directory are not swept into the repo. If a
+staged shard's frequency differs from the repository shard's, the repository
+shard is replaced as a whole rather than merged. The full shard-by-shard rules
+are described in :doc:`automatic_ingestion`.
 
 Dry Run and Production
 ~~~~~~~~~~~~~~~~~~~~~~
