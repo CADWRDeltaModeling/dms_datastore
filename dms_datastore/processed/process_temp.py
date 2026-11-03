@@ -134,7 +134,12 @@ def _build_temp_block(sdate, edate):
 
 
 def _write_temp(ts, outdir, filename, label):
-    """Check ``ts`` for gaps and write it to ``outdir/filename``."""
+    """Trim trailing missing values, check ``ts`` for gaps, and write it to ``outdir/filename``."""
+    # Sources end at different times, so the block's last rows can be NaN for slower feeds.
+    last = ts.last_valid_index()
+    if last is not None and last < ts.index[-1]:
+        logger.info("%s water temperature trimmed to last valid time %s", label, last)
+        ts = ts.loc[:last]
     ts = ts.copy()
     nmissing = int(ts.isnull().sum())
     if nmissing > 0:

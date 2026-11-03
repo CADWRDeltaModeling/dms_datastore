@@ -1,0 +1,418 @@
+# Production recipe: processed boundary WATER TEMPERATURE from process_tw.py.
+#
+# Run after dropbox_temp_init.yaml has loaded the legacy history. Picks up the
+# `<name>_temp.csv` products that `process_tw` writes to repo_processing_scratch and
+# reconciles them into the `processed` repo. Regular 15-min series.
+# The lumped `east` product is intentionally not ingested.
+
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_processing_scratch/staging   # staging scratch area; the reconcile destination is inferred from repo_name
+modeling_data: //cnrastore-bdo/Modeling_Data/
+target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
+target_tz_label: PST
+
+
+data:
+  - name: sack_temp
+    skip: False
+    collect:
+      file_pattern: "sac_temp.csv"
+      wildcard: time_shard
+      location: "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: sack
+      agency: usgs
+      source: usgs
+      processor: dms   # required by the 'processed' repo filename templates
+      subloc: default
+      freq: infer
+      param: temp
+      unit: deg_c
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: NCRO Knights Landing, USGS Wilkins Slough and USGS Freeport merged and interpolated; gaps filled from east and San Joaquin
+      process_script: process_temp.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: repo
+        allow_new_series: false
+
+  - name: sjr_temp
+    skip: False
+    collect:
+      file_pattern: "sjr_temp.csv"
+      wildcard: time_shard
+      location: "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: vns
+      agency: usgs
+      source: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: temp
+      unit: deg_c
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: USGS and USBR Vernalis merged and interpolated; gaps filled from Yolo Toe Drain and east
+      process_script: process_temp.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo
+      reconcile:
+        prefer: repo
+        allow_new_series: false
+
+  - name: american_temp
+    skip: False
+    collect:
+      file_pattern: "american_temp.csv"
+      wildcard: time_shard
+      location: "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: american
+      agency: usgs
+      source: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: temp
+      unit: deg_c
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: USGS Watt Avenue and Fair Oaks merged and interpolated; remaining gaps filled from east and Sacramento
+      process_script: process_temp.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo
+      reconcile:
+        prefer: repo
+        allow_new_series: false
+
+  - name: coyote_temp
+    skip: False
+    collect:
+      file_pattern: "coyote_temp.csv"
+      wildcard: time_shard
+      location: "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: coyote
+      agency: usgs
+      source: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: temp
+      unit: deg_c
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Assumed equal to the east boundary series, which is set equal to American River temperature
+      process_script: process_temp.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo
+      reconcile:
+        prefer: repo
+        allow_new_series: false
+
+  - name: napa_temp
+    skip: False
+    collect:
+      file_pattern: "napa_temp.csv"
+      wildcard: time_shard
+      location: "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: napa
+      agency: usgs
+      source: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: temp
+      unit: deg_c
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Assumed equal to the east boundary series, which is set equal to American River temperature
+      process_script: process_temp.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo
+      reconcile:
+        prefer: repo
+        allow_new_series: false
+
+  - name: calaveras_temp
+    skip: False
+    collect:
+      file_pattern: "calaveras_temp.csv"
+      wildcard: time_shard
+      location: "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: calaveras
+      agency: usace
+      source: usace
+      processor: dms
+      subloc: default
+      freq: infer
+      param: temp
+      unit: deg_c
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Assumed equal to the east boundary series, which is set equal to American River temperature
+      process_script: process_temp.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo
+      reconcile:
+        prefer: repo
+        allow_new_series: false
+
+  - name: consumnes_temp
+    skip: False
+    collect:
+      file_pattern: "consumnes_temp.csv"
+      wildcard: time_shard
+      location: "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: consumnes
+      agency: usgs
+      source: usgs
+      processor: dms
+      subloc: default
+      freq: infer
+      param: temp
+      unit: deg_c
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Assumed equal to the east boundary series, which is set equal to American River temperature
+      process_script: process_temp.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo
+      reconcile:
+        prefer: staged
+        allow_new_series: true   # not in dropbox_temp_init.yaml, so the series is new
+
+  - name: ytoe_temp
+    skip: False
+    collect:
+      file_pattern: "yolo_toedrain_temp.csv"
+      wildcard: time_shard
+      location: "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: ytoe
+      agency: dwr_ncro
+      source: dwr_ncro
+      processor: dms
+      subloc: default
+      freq: infer
+      param: temp
+      unit: deg_c
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: NCRO Lisbon with outliers removed and interpolated; gaps filled from east and San Joaquin
+      process_script: process_temp.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo
+      reconcile:
+        prefer: repo
+        allow_new_series: false
+
+  - name: yolo_temp
+    skip: False
+    collect:
+      file_pattern: "yolo_temp.csv"
+      wildcard: time_shard
+      location: "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: yolo
+      agency: dwr_ncro
+      source: dwr_ncro
+      processor: dms
+      subloc: default
+      freq: infer
+      param: temp
+      unit: deg_c
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Assumed equal to the Yolo Toe Drain series
+      process_script: process_temp.py
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo
+      reconcile:
+        prefer: repo
+        allow_new_series: false
