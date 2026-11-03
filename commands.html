@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>dms_datastore Command Reference &mdash; dms_datastore 0.8.18.dev4+g2cd0b3d4d documentation</title>
+  <title>dms_datastore Command Reference &mdash; dms_datastore 0.8.18.dev5+ge9fbd5d63 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=5a3d5fc1"></script>
+      <script src="_static/documentation_options.js?v=a89ae436"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -184,6 +184,13 @@ download_hrrr<span class="w"> </span>--sdate<span class="w"> </span><span class=
 download_ucdipm<span class="w"> </span><span class="m">2024</span>-01-01<span class="w"> </span><span class="m">2024</span>-01-31<span class="w"> </span>--stnkey<span class="w"> </span><span class="m">281</span>
 </pre></div>
 </div>
+<p>Stage 1b: Rationalize overlapping instrument files (DES; run by <code class="docutils literal notranslate"><span class="pre">populate_repo</span></code>)</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>rationalize_time_partitions<span class="w"> </span><span class="s2">"des*_*.csv"</span><span class="w"> </span>--spec<span class="w"> </span>des_rationalize_time_spec<span class="w"> </span>--root-dir<span class="w"> </span>&lt;raw_dir&gt;<span class="w"> </span>--dry-run
+rationalize_time_partitions<span class="w"> </span><span class="s2">"des*_*.csv"</span><span class="w"> </span>--spec<span class="w"> </span>des_rationalize_time_spec<span class="w"> </span>--root-dir<span class="w"> </span>&lt;raw_dir&gt;
+</pre></div>
+</div>
+<p>Run on a fresh download; it rewrites raw files in place. See
+<a class="reference internal" href="automatic_ingestion.html"><span class="doc">Automatic Ingestion</span></a> (Multi-instrument records).</p>
 <p>Stage 2: Reformat raw → formatted</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>reformat<span class="w"> </span>--inpath<span class="w"> </span>&lt;raw_dir&gt;<span class="w"> </span>--outpath<span class="w"> </span>&lt;formatted_dir&gt;
 </pre></div>
@@ -210,6 +217,9 @@ download_ucdipm<span class="w"> </span><span class="m">2024</span>-01-01<span cl
 update_repo<span class="w"> </span>&lt;staging_formatted_dir&gt;<span class="w"> </span>&lt;repo_formatted_dir&gt;<span class="w"> </span>--apply
 </pre></div>
 </div>
+<p>Shards whose frequency differs from the repository are replaced by default
+(<code class="docutils literal notranslate"><span class="pre">--freq-mismatch</span> <span class="pre">replace</span></code>). Which shards are compared, and when a whole series is
+reconciled, is described in <a class="reference internal" href="automatic_ingestion.html"><span class="doc">Automatic Ingestion</span></a>.</p>
 </section>
 <section id="additional-utilities">
 <h2>Additional Utilities<a class="headerlink" href="#additional-utilities" title="Link to this heading"></a></h2>

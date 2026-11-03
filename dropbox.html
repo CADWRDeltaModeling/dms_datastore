@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dropbox Ingestion &mdash; dms_datastore 0.8.18.dev4+g2cd0b3d4d documentation</title>
+  <title>Dropbox Ingestion &mdash; dms_datastore 0.8.18.dev5+ge9fbd5d63 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=5a3d5fc1"></script>
+      <script src="_static/documentation_options.js?v=a89ae436"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -1092,7 +1092,10 @@ re-inspecting <em>older shards</em> (see cautions below).</p></li>
 <p>Reconciliation is <em>content-smart</em>: it hashes the data section (ignoring header
 churn such as <code class="docutils literal notranslate"><span class="pre">date_formatted</span></code>) and only rewrites when values actually differ.
 The dropbox passes the exact series it just produced to the reconciler, so
-unrelated files sharing the staging directory are not swept into the repo.</p>
+unrelated files sharing the staging directory are not swept into the repo. If a
+staged shard’s frequency differs from the repository shard’s, the repository
+shard is replaced as a whole rather than merged. The full shard-by-shard rules
+are described in <a class="reference internal" href="automatic_ingestion.html"><span class="doc">Automatic Ingestion</span></a>.</p>
 <section id="dry-run-and-production">
 <h3>Dry Run and Production<a class="headerlink" href="#dry-run-and-production" title="Link to this heading"></a></h3>
 <p>Reconciliation writes to the repository in place; there is no plan-only mode for

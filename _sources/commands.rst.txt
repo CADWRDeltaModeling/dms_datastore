@@ -98,6 +98,16 @@ Examples
    # UCD IPM (positional dates)
    download_ucdipm 2024-01-01 2024-01-31 --stnkey 281
 
+Stage 1b: Rationalize overlapping instrument files (DES; run by ``populate_repo``)
+
+.. code-block:: bash
+
+   rationalize_time_partitions "des*_*.csv" --spec des_rationalize_time_spec --root-dir <raw_dir> --dry-run
+   rationalize_time_partitions "des*_*.csv" --spec des_rationalize_time_spec --root-dir <raw_dir>
+
+Run on a fresh download; it rewrites raw files in place. See
+:doc:`automatic_ingestion` (Multi-instrument records).
+
 Stage 2: Reformat raw → formatted
 
 .. code-block:: bash
@@ -130,6 +140,10 @@ Workflow C: Staging → Repo update and utilities
 
    update_repo <staging_formatted_dir> <repo_formatted_dir> --plan --out-actions update_plan.csv
    update_repo <staging_formatted_dir> <repo_formatted_dir> --apply
+
+Shards whose frequency differs from the repository are replaced by default
+(``--freq-mismatch replace``). Which shards are compared, and when a whole series is
+reconciled, is described in :doc:`automatic_ingestion`.
 
 Additional Utilities
 --------------------

@@ -6,7 +6,7 @@
   <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Automatic Ingestion &mdash; dms_datastore 0.8.18.dev4+g2cd0b3d4d documentation</title>
+  <title>Automatic Ingestion &mdash; dms_datastore 0.8.18.dev5+ge9fbd5d63 documentation</title>
       <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=03e43079" />
       <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
       <link rel="stylesheet" type="text/css" href="_static/plot_directive.css" />
@@ -15,7 +15,7 @@
   
       <script src="_static/jquery.js?v=5d32c60e"></script>
       <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
-      <script src="_static/documentation_options.js?v=5a3d5fc1"></script>
+      <script src="_static/documentation_options.js?v=a89ae436"></script>
       <script src="_static/doctools.js?v=9bcbadda"></script>
       <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
       <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
@@ -414,6 +414,12 @@ window.runMermaid = runMermaid;</script>
 <li class="toctree-l1"><a class="reference internal" href="dropbox.html">Dropbox Ingestion</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Automatic Ingestion</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#pipeline">Pipeline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#multi-instrument-records">Multi-instrument records</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#frequency-resolution-in-reformat">Frequency resolution in reformat</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#how-promotion-reconciles-staged-and-repository-files">How promotion reconciles staged and repository files</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#when-to-rebuild-instead">When to rebuild instead</a></li>
+</ul>
+</li>
 <li class="toctree-l2"><a class="reference internal" href="#data-screening-methods">Data Screening Methods</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#built-in-screening-functions">Built-in screening functions</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#additional-methods-from-vtools3">Additional methods from <code class="docutils literal notranslate"><span class="pre">vtools3</span></code></a></li>
@@ -479,7 +485,9 @@ are not covered by web services enter through the <a class="reference internal" 
     SS-&gt;&gt;RS: update_flagged_data
     </pre><ol class="arabic simple">
 <li><p><strong>Download.</strong> <code class="docutils literal notranslate"><span class="pre">populate_repo</span></code> or an individual downloader writes provider files to
-staging <code class="docutils literal notranslate"><span class="pre">raw</span></code>.</p></li>
+staging <code class="docutils literal notranslate"><span class="pre">raw</span></code>. For DES, <code class="docutils literal notranslate"><span class="pre">populate_repo</span></code> then runs <code class="docutils literal notranslate"><span class="pre">rationalize_time_partitions</span></code>
+so that overlapping instrument files do not overlap in time (see
+<a class="reference internal" href="#multi-instrument-records">Multi-instrument records</a>).</p></li>
 <li><p><strong>Format.</strong> <code class="docutils literal notranslate"><span class="pre">reformat</span></code> converts staging <code class="docutils literal notranslate"><span class="pre">raw</span></code> into staging <code class="docutils literal notranslate"><span class="pre">formatted</span></code>;
 <code class="docutils literal notranslate"><span class="pre">usgs_multi</span></code> then splits or consolidates USGS multi-sensor files in place.</p></li>
 <li><p><strong>Gate and promote formatted.</strong> <code class="docutils literal notranslate"><span class="pre">spot_check</span></code> compares the staged formatted set
@@ -501,6 +509,130 @@ differences between staging and repository. When a gate fails, the staged data o
 upstream cause is corrected and the step rerun; drift is not accepted into the
 repository silently. Gate definitions live in <code class="docutils literal notranslate"><span class="pre">spot_check_spec.yaml</span></code>. Command
 examples are in <a class="reference internal" href="commands.html"><span class="doc">dms_datastore Command Reference</span></a>.</p>
+</section>
+<section id="multi-instrument-records">
+<h2>Multi-instrument records<a class="headerlink" href="#multi-instrument-records" title="Link to this heading"></a></h2>
+<p>Some providers, notably DES, publish a station’s record as several raw files, one per
+instrument or deployment, named with the years each covers (for example
+<code class="docutils literal notranslate"><span class="pre">des_mal&#64;upper_60_ph_2000_2008.csv</span></code> and <code class="docutils literal notranslate"><span class="pre">des_mal&#64;upper_60_ph_2004_2019.csv</span></code>). These
+files can overlap in time. The formatted series must use one instrument at any given
+time: values from different instruments are never mixed, and one instrument’s gaps
+(including values the provider flagged as bad) are never filled from another.</p>
+<p><code class="docutils literal notranslate"><span class="pre">rationalize_time_partitions</span></code> enforces this on the raw tier, series by series:</p>
+<ol class="arabic simple">
+<li><p><strong>Engulfed files are dropped.</strong> A file whose filename year span lies within another
+file’s span is deleted, without being read. An engulfed instrument is treated as a
+side deployment that the provider did not intend as the record.</p></li>
+<li><p><strong>Overlapping files are cut, not merged.</strong> The remaining files are ordered by their
+first valid value. Each newer file takes over at its first valid value and keeps the
+record from then on; the older file is trimmed to end just before that time. There
+is no hand-back to an older file.</p></li>
+<li><p><strong>Explicit rules override the default.</strong> A rule in <code class="docutils literal notranslate"><span class="pre">des_rationalize_cfg.yaml</span></code> can
+choose a different cut-over date, keep a short-lived instrument for a period, or hand
+back to an earlier file. If the default would need a hand-back (a later file whose
+data lie inside an earlier file’s), the series is left unchanged and a warning asks
+for an explicit rule.</p></li>
+</ol>
+<p>Rationalization rewrites and renames raw files in place, and explicit rules refer to
+the file names as downloaded. Run it on a fresh download (as <code class="docutils literal notranslate"><span class="pre">populate_repo</span></code> does),
+use <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> to review the planned cut-overs, and do not rerun explicit rules on
+files they have already cut.</p>
+</section>
+<section id="frequency-resolution-in-reformat">
+<h2>Frequency resolution in reformat<a class="headerlink" href="#frequency-resolution-in-reformat" title="Link to this heading"></a></h2>
+<p>DES raw files for one series are reformatted together into a single formatted series
+at a <strong>single frequency</strong>. When the files differ (for example an hourly early record
+and a 15-minute later one), <code class="docutils literal notranslate"><span class="pre">reformat_freq_resolver_from_labels</span></code> chooses the target
+(typically the finer one) and converts the other files:</p>
+<ul class="simple">
+<li><p>Files already at the target frequency are copied unchanged; native values are never
+interpolated.</p></li>
+<li><p>A converted file is interpolated only between <strong>consecutive valid readings</strong>. A
+target slot next to a missing or provider-rejected reading stays empty, so
+interpolation never bridges a gap or replaces a flagged value. For example, 10-minute
+readings at 00:10 and 00:20 fill the 15-minute slot at 00:15; if 00:20 is missing,
+00:15 stays empty.</p></li>
+<li><p>Converted values are rounded to the source file’s typical precision.</p></li>
+</ul>
+<p>Because the whole series is resolved to one frequency, every year of a series that
+contains a finer instrument is written at the finer frequency, including years that
+only ever had the coarser instrument. Readers that span repository files of differing
+frequency (<code class="docutils literal notranslate"><span class="pre">read_ts_repo</span></code>) raise an error unless a <code class="docutils literal notranslate"><span class="pre">freq_resolver</span></code> is supplied;
+the same interpolation rules apply there.</p>
+</section>
+<section id="how-promotion-reconciles-staged-and-repository-files">
+<h2>How promotion reconciles staged and repository files<a class="headerlink" href="#how-promotion-reconciles-staged-and-repository-files" title="Link to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">update_repo</span></code> compares staged files with repository files <strong>year shard by year
+shard</strong>. It is designed for nightly use: it rewrites only what changed and samples older
+history rather than re-reading all of it.</p>
+<p><strong>Which shards are compared.</strong> Shards from the last <code class="docutils literal notranslate"><span class="pre">--recent-years</span></code> (default 3) are
+always compared. Older shards are sampled: <code class="docutils literal notranslate"><span class="pre">--p3</span></code> (default 0.15) of shards 3 to 10
+years old and <code class="docutils literal notranslate"><span class="pre">--p10</span></code> (default 0.05) of older ones. The sample is deterministic, so
+the same old shards are chosen on every run with the same settings. A shard whose data
+section is byte-identical to the repository’s is skipped.</p>
+<p><strong>What happens to a compared shard.</strong></p>
+<table class="docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Comparison</p></th>
+<th class="head"><p>Action</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Missing in repository</p></td>
+<td><p>write the staged shard</p></td>
+</tr>
+<tr class="row-odd"><td><p>Same frequency, data differ</p></td>
+<td><p>splice: staged values win where present</p></td>
+</tr>
+<tr class="row-even"><td><p>Different frequency</p></td>
+<td><p>replace (default) or quarantine</p></td>
+</tr>
+<tr class="row-odd"><td><p>Repository shard irregular</p></td>
+<td><p>replace</p></td>
+</tr>
+<tr class="row-even"><td><p>Staged shard irregular</p></td>
+<td><p>quarantine the staged file, skip</p></td>
+</tr>
+</tbody>
+</table>
+<ul class="simple">
+<li><p><em>Splice</em> merges with staged priority. Where the staged shard has values, they win;
+where it has interior gaps, the gaps are kept. Repository values <strong>before the first
+or after the last</strong> staged value in the shard are kept.</p></li>
+<li><p><em>Replace</em> writes the staged shard over the repository shard as a whole, keeping the
+repository file’s header. <code class="docutils literal notranslate"><span class="pre">--freq-mismatch</span> <span class="pre">replace</span></code> is the default because a series
+has a single resolved frequency, so a staged shard at a new frequency supersedes the
+old one. <code class="docutils literal notranslate"><span class="pre">--freq-mismatch</span> <span class="pre">quarantine</span></code> leaves the repository shard unchanged instead.</p></li>
+<li><p><em>Quarantine</em> copies the staged file to a <code class="docutils literal notranslate"><span class="pre">quarantine</span></code> directory under the current
+working directory and logs it.</p></li>
+</ul>
+<p><strong>Escalation.</strong> Two findings mean the sample is not enough and the whole series is
+reconciled: a data change in a shard older than the recent window (the provider revised
+history), or a frequency mismatch in any compared shard (the series’ frequency
+changed). Every other shard of the series is then processed, each with the same
+frequency check and rules as above. A frequency change normally appears in the recent
+years first, so it propagates through the whole series in one run.</p>
+<p><strong>Screened tier.</strong> <code class="docutils literal notranslate"><span class="pre">update_flagged_data</span></code> follows the same shard logic but merges
+<code class="docutils literal notranslate"><span class="pre">user_flag</span></code> values so that manual QA/QC decisions survive. Its <code class="docutils literal notranslate"><span class="pre">--freq-mismatch</span></code>
+default remains <code class="docutils literal notranslate"><span class="pre">quarantine</span></code>, because replacing a screened shard discards the
+repository’s flags for that shard.</p>
+<section id="when-to-rebuild-instead">
+<h3>When to rebuild instead<a class="headerlink" href="#when-to-rebuild-instead" title="Link to this heading"></a></h3>
+<p>Nightly reconciliation converges slowly for changes that affect old history broadly,
+such as a change in reformat or rationalization rules. Most old shards are not
+sampled, and a splice keeps repository values at the edges of a shard. After such a
+change, rebuild the affected provider instead:</p>
+<ol class="arabic simple">
+<li><p>Rebuild staging (download, rationalize, reformat) with the new code.</p></li>
+<li><p>Check that staging covers every series and year the repository holds for that
+provider, so nothing the provider no longer serves is lost.</p></li>
+<li><p>Remove that provider’s files from repository <code class="docutils literal notranslate"><span class="pre">formatted</span></code> (and <code class="docutils literal notranslate"><span class="pre">screened</span></code>, if it
+carries no manual flags you need), then promote and screen again. Every shard is
+then written fresh.</p></li>
+</ol>
+<p>Alternatively, <code class="docutils literal notranslate"><span class="pre">update_repo</span> <span class="pre">--p3</span> <span class="pre">1</span> <span class="pre">--p10</span> <span class="pre">1</span></code> compares every shard once, but edge values
+kept by splicing may remain.</p>
+</section>
 </section>
 <section id="data-screening-methods">
 <h2>Data Screening Methods<a class="headerlink" href="#data-screening-methods" title="Link to this heading"></a></h2>
