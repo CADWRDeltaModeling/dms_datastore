@@ -541,7 +541,7 @@ def process_tw(start, end, outdir, include=None, exclude=None):
         func(sdate, edate, outdir)
 
 
-@click.command("process_tw")
+@click.command("process_temp")
 @click.option("--start", type=str, default="2020-01-01 00:00:00", show_default=True,
               help="Start of the processing window.")
 @click.option("--end", type=str, default=None,
