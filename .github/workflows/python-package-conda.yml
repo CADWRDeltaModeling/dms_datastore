@@ -9,25 +9,24 @@ jobs:
       max-parallel: 5
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    - name: Set up Python 3.13
-      uses: actions/setup-python@v4
+    - name: Set up Miniforge
+      # Runner images from Ubuntu 26.04 onward no longer ship Miniconda.
+      uses: conda-incubator/setup-miniconda@v3
       with:
-        python-version: "3.13"
-    - name: Add conda to system path
-      run: |
-        # $CONDA is an environment variable pointing to the root of the miniconda directory
-        echo $CONDA/bin >> $GITHUB_PATH
+        miniforge-version: latest
+        auto-activate-base: true
+        activate-environment: ""
     - name: Conda build package and upload to anaconda.org
+      shell: bash -el {0}
       env:
         ANACONDA_CHANNEL_UPLOAD_TOKEN: ${{ secrets.ANACONDA_CHANNEL_UPLOAD_TOKEN }}
       run: |
         set -euo pipefail
 
         conda create -n test_dms_datastore -y conda-build conda-verify numpy anaconda-client
-        source $CONDA/etc/profile.d/conda.sh
         conda activate test_dms_datastore
 
         pip install setuptools_scm

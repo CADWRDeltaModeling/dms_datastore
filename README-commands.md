@@ -218,8 +218,8 @@ merge_files --merge-type merge --order last --pattern "<formatted_dir>/usgs_*.cs
 coarsen --help
 coarsen input.csv output.csv --grid 15min --qwidth 0.05 --heartbeat-freq 120min
 
-# rationalize time partitions
+# rationalize overlapping instrument files on a fresh raw download (DES; populate_repo runs this)
 rationalize_time_partitions --help
-rationalize_time_partitions "<formatted_dir>/*.csv" --dry-run
-rationalize_time_partitions "<formatted_dir>/*.csv" --yaml dms_datastore/config_data/rationalize_time_partitions.yaml --root-dir <project_root>
+rationalize_time_partitions "des*_*.csv" --spec des_rationalize_time_spec --root-dir <raw_dir> --dry-run
+rationalize_time_partitions "des*_*.csv" --spec des_rationalize_time_spec --root-dir <raw_dir>
 ```
