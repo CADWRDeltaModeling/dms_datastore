@@ -5,7 +5,7 @@ cvp,CVP Export Flow (Tracy Pumping Plant),usbr,37.816643,-121.558644,626865.0,41
 ccc,CCWD Rock Slough Diversion Flow,ccwd,37.996274,-121.701902,613977.7,4206196.5,Filled CCWD Rock Slough diversion flow derived from CDEC station inb
 cccoldr,CCWD Old River Diversion Flow,ccwd,37.885779,-121.575998,625220.4,4194097.8,Filled CCWD Old River diversion flow derived from CDEC station idb
 moke,Mokelumne River Flow,usgs,38.158612,-121.302495,648720.0,4224775.0,Filled Mokelumne River flow derived from USGS station wbr
-consumnes,Consumnes River Flow,usgs,38.500280,-121.044171,670551.0,4263137.0,Filled Consumnes River flow derived from USGS station mhb
+cosumnes,Cosumnes River Flow,usgs,38.500280,-121.044171,670551.0,4263137.0,Filled Cosumnes River flow derived from USGS station mhb
 saci,Calculated Sacramento River at I Street Flow,dwr_ncro,38.588631,-121.505355,630173.3,4272187.3,Calculated Sacramento River flow using fpt and afo data
 sack,Sacramento River at K Street Flow,usgs,38.456020,-121.501343,630762.5,4257477.0,Filled Sacramento River flow derived from USGS station fpt
 american,American River Flow,usgs,38.635559,-121.226667,654346.1,4277827.0,Filled American River flow derived from USGS station afo

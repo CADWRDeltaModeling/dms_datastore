@@ -105,7 +105,7 @@ def _build_temp_block(sdate, edate):
     pandas.DataFrame
         15-minute temperature with columns ``sac``, ``sjr``, ``east``,
         ``american``, ``yolo_toedrain``, ``coyote``, ``napa``,
-        ``calaveras``, ``consumnes``, and ``yolo``, clipped to
+        ``calaveras``, ``cosumnes``, and ``yolo``, clipped to
         ``sdate``:``edate``.
     """
     block = pd.concat(
@@ -128,7 +128,7 @@ def _build_temp_block(sdate, edate):
     block["coyote"] = block["east"]
     block["napa"] = block["east"]
     block["calaveras"] = block["east"]
-    block["consumnes"] = block["east"]
+    block["cosumnes"] = block["east"]
     block["yolo"] = block["yolo_toedrain"]
     return block.loc[sdate:edate]
 
@@ -362,8 +362,8 @@ def process_calaveras_temp(sdate, edate, outdir):
     _write_temp(_build_temp_block(sdate, edate)["calaveras"], outdir, "calaveras_temp.csv", "Calaveras")
 
 
-def process_consumnes_temp(sdate, edate, outdir):
-    """Process Consumnes River water temperature, assumed equal to the east series.
+def process_cosumnes_temp(sdate, edate, outdir):
+    """Process Cosumnes River water temperature, assumed equal to the east series.
 
     Parameters
     ----------
@@ -372,20 +372,20 @@ def process_consumnes_temp(sdate, edate, outdir):
     edate : pandas.Timestamp
         End of the period to which the final product is clipped.
     outdir : str
-        Directory to which ``consumnes_temp.csv`` is written.
+        Directory to which ``cosumnes_temp.csv`` is written.
 
     Returns
     -------
     None
-        Writes the processed temperature series to ``consumnes_temp.csv``
+        Writes the processed temperature series to ``cosumnes_temp.csv``
         in ``outdir``.
 
     Raises
     ------
     ValueError
-        If missing values remain in the Consumnes temperature.
+        If missing values remain in the Cosumnes temperature.
     """
-    _write_temp(_build_temp_block(sdate, edate)["consumnes"], outdir, "consumnes_temp.csv", "Consumnes")
+    _write_temp(_build_temp_block(sdate, edate)["cosumnes"], outdir, "cosumnes_temp.csv", "Cosumnes")
 
 
 def process_yolo_toedrain_temp(sdate, edate, outdir):
@@ -461,7 +461,7 @@ _TW_STEPS = [
     ("coyote", process_coyote_temp),
     ("napa", process_napa_temp),
     ("calaveras", process_calaveras_temp),
-    ("consumnes", process_consumnes_temp),
+    ("cosumnes", process_cosumnes_temp),
     ("yolo_toedrain", process_yolo_toedrain_temp),
     ("yolo", process_yolo_temp),
 ]
@@ -566,7 +566,7 @@ def process_tw_cli(start, end, outdir, include, exclude, logdir, debug, quiet):
     By default every step runs. Use --include to run only specific steps
     (selection starts from nothing) or --exclude to run everything except
     certain steps. The two options are mutually exclusive. Available steps:
-    sac, sjr, american, east, coyote, napa, calaveras, consumnes, yolo_toedrain,
+    sac, sjr, american, east, coyote, napa, calaveras, cosumnes, yolo_toedrain,
     yolo.
     """
     level, console = resolve_loglevel(debug=debug, quiet=quiet)

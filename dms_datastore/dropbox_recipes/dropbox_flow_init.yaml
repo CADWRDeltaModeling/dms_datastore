@@ -598,8 +598,8 @@ data:
          rename: value
     transforms:
     metadata:
-      station_id: consumnes
-      agency_id: consumnes
+      station_id: cosumnes
+      agency_id: cosumnes
       source: usgs
       agency: usgs
       processor: dms

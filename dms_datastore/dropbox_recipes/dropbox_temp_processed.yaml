@@ -282,10 +282,10 @@ data:
         prefer: repo
         allow_new_series: false
 
-  - name: consumnes_temp
+  - name: cosumnes_temp
     skip: False
     collect:
-      file_pattern: "consumnes_temp.csv"
+      file_pattern: "cosumnes_temp.csv"
       wildcard: time_shard
       location: "${modeling_data}/repo_processing_scratch/"
       recursive_search: False
@@ -301,7 +301,7 @@ data:
       selector: null
     transforms:
     metadata:
-      station_id: consumnes
+      station_id: cosumnes
       agency: usgs
       source: usgs
       processor: dms

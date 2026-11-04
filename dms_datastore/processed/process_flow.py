@@ -68,36 +68,36 @@ def process_mokelumne_flow(sdate, edate, outdir):
 
 
 
-def process_consumnes_flow(sdate, edate, outdir):
-    """Process Consumnes River flow at Michigan Bar (station ``mhb``).
+def process_cosumnes_flow(sdate, edate, outdir):
+    """Process Cosumnes River flow at Michigan Bar (station ``mhb``).
 
     USGS flow is read and gap-filled by direct interpolation. If the
     processing window fully covers 2023-08-19 through 2023-08-29, that
     span is replaced with its own mean value (preserving a legacy
     manual correction). The result is written to
-    ``consumnes_flow.csv``.
+    ``cosumnes_flow.csv``.
 
     Parameters
     ----------
     sdate : pandas.Timestamp
-        Start of the period over which Consumnes flow is read and
+        Start of the period over which Cosumnes flow is read and
         processed.
     edate : pandas.Timestamp
-        End of the period over which Consumnes flow is read and
+        End of the period over which Cosumnes flow is read and
         processed.
     outdir : str
-        Directory to which ``consumnes_flow.csv`` is written.
+        Directory to which ``cosumnes_flow.csv`` is written.
 
     Returns
     -------
     None
-        Writes the processed flow series to ``consumnes_flow.csv`` in
+        Writes the processed flow series to ``cosumnes_flow.csv`` in
         ``outdir``.
 
     Raises
     ------
     ValueError
-        If missing values remain in the Consumnes flow at MHB after
+        If missing values remain in the Cosumnes flow at MHB after
         interpolation.
     """
     mhb_usgs = read_ts_repo(station_id='mhb', variable='flow',start=sdate,end=edate)
@@ -106,9 +106,9 @@ def process_consumnes_flow(sdate, edate, outdir):
         replace_val = mhb_usgs.loc["2023-08-19":"2023-08-29"]['value'].mean()
         mhb_usgs.loc["2023-08-19":"2023-08-29"] = replace_val #preserve the modification from the archived script
     if mhb_usgs.isnull().sum().sum() > 0:
-        raise ValueError("There are {} missing values in the Consumnes flow at MHB after interpolation.".format(mhb_usgs.isnull().sum().sum()))
+        raise ValueError("There are {} missing values in the Cosumnes flow at MHB after interpolation.".format(mhb_usgs.isnull().sum().sum()))
     else:
-        filename = 'consumnes_flow.csv'
+        filename = 'cosumnes_flow.csv'
         mhb_usgs.index.name = 'Date/time'
         mhb_usgs.name = 'Flow (cfs)'
         mhb_usgs.to_csv(osp.join(outdir, filename))
@@ -594,7 +594,7 @@ _FLOW_STEPS = [
     ("swp", process_swp_flow),
     ("northbay", process_northbay_flow),
     ("mokelumne", process_mokelumne_flow),
-    ("consumnes", process_consumnes_flow),
+    ("cosumnes", process_cosumnes_flow),
     ("american_sac", process_american_sac_flow),
     ("ccwd", process_ccwd_flow),
     ("cvp", process_cvp_flow),
@@ -704,7 +704,7 @@ def process_flow_cli(start, end, outdir, include, exclude, logdir, debug, quiet)
     By default every step runs. Use --include to run only specific steps
     (selection starts from nothing) or --exclude to run everything except
     certain steps. The two options are mutually exclusive. Available steps:
-    swp, northbay, mokelumne, consumnes, american_sac, ccwd, cvp, calaveras,
+    swp, northbay, mokelumne, cosumnes, american_sac, ccwd, cvp, calaveras,
     napa, coyote.
     """
     level, console = resolve_loglevel(debug=debug, quiet=quiet)

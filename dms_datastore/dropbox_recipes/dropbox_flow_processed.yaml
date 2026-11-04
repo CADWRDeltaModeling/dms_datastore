@@ -57,10 +57,10 @@ data:
         prefer: staged
         allow_new_series: false
 
-  - name: consumnes_flow
+  - name: cosumnes_flow
     skip: False
     collect:
-      file_pattern: "consumnes_flow.csv"
+      file_pattern: "cosumnes_flow.csv"
       wildcard: time_shard
       location:   "${modeling_data}/repo_processing_scratch/"
       recursive_search: False
@@ -76,8 +76,8 @@ data:
       selector: null
     transforms:
     metadata:
-      station_id: consumnes
-      agency_id: consumnes
+      station_id: cosumnes
+      agency_id: cosumnes
       source: usgs
       agency: usgs
       processor: dms
