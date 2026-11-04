@@ -104,9 +104,7 @@ def _build_temp_block(sdate, edate):
     -------
     pandas.DataFrame
         15-minute temperature with columns ``sac``, ``sjr``, ``east``,
-        ``american``, ``yolo_toedrain``, ``coyote``, ``napa``,
-        ``calaveras``, ``cosumnes``, and ``yolo``, clipped to
-        ``sdate``:``edate``.
+        ``american``, and ``yolo_toedrain``, clipped to ``sdate``:``edate``.
     """
     block = pd.concat(
         {
@@ -125,11 +123,6 @@ def _build_temp_block(sdate, edate):
     for dest, src in _CROSS_FILL:
         _fillin_columns(block, dest, src)
     block["east"] = block["american"]
-    block["coyote"] = block["east"]
-    block["napa"] = block["east"]
-    block["calaveras"] = block["east"]
-    block["cosumnes"] = block["east"]
-    block["yolo"] = block["yolo_toedrain"]
     return block.loc[sdate:edate]
 
 
@@ -284,110 +277,6 @@ def process_east_temp(sdate, edate, outdir):
     _write_temp(_build_temp_block(sdate, edate)["east"], outdir, "east_temp.csv", "East")
 
 
-def process_coyote_temp(sdate, edate, outdir):
-    """Process Coyote Creek water temperature, assumed equal to the east series.
-
-    Parameters
-    ----------
-    sdate : pandas.Timestamp
-        Start of the period to which the final product is clipped.
-    edate : pandas.Timestamp
-        End of the period to which the final product is clipped.
-    outdir : str
-        Directory to which ``coyote_temp.csv`` is written.
-
-    Returns
-    -------
-    None
-        Writes the processed temperature series to ``coyote_temp.csv`` in
-        ``outdir``.
-
-    Raises
-    ------
-    ValueError
-        If missing values remain in the Coyote Creek temperature.
-    """
-    _write_temp(_build_temp_block(sdate, edate)["coyote"], outdir, "coyote_temp.csv", "Coyote Creek")
-
-
-def process_napa_temp(sdate, edate, outdir):
-    """Process Napa River water temperature, assumed equal to the east series.
-
-    Parameters
-    ----------
-    sdate : pandas.Timestamp
-        Start of the period to which the final product is clipped.
-    edate : pandas.Timestamp
-        End of the period to which the final product is clipped.
-    outdir : str
-        Directory to which ``napa_temp.csv`` is written.
-
-    Returns
-    -------
-    None
-        Writes the processed temperature series to ``napa_temp.csv`` in
-        ``outdir``.
-
-    Raises
-    ------
-    ValueError
-        If missing values remain in the Napa River temperature.
-    """
-    _write_temp(_build_temp_block(sdate, edate)["napa"], outdir, "napa_temp.csv", "Napa")
-
-
-def process_calaveras_temp(sdate, edate, outdir):
-    """Process Calaveras River water temperature, assumed equal to the east series.
-
-    Parameters
-    ----------
-    sdate : pandas.Timestamp
-        Start of the period to which the final product is clipped.
-    edate : pandas.Timestamp
-        End of the period to which the final product is clipped.
-    outdir : str
-        Directory to which ``calaveras_temp.csv`` is written.
-
-    Returns
-    -------
-    None
-        Writes the processed temperature series to ``calaveras_temp.csv``
-        in ``outdir``.
-
-    Raises
-    ------
-    ValueError
-        If missing values remain in the Calaveras temperature.
-    """
-    _write_temp(_build_temp_block(sdate, edate)["calaveras"], outdir, "calaveras_temp.csv", "Calaveras")
-
-
-def process_cosumnes_temp(sdate, edate, outdir):
-    """Process Cosumnes River water temperature, assumed equal to the east series.
-
-    Parameters
-    ----------
-    sdate : pandas.Timestamp
-        Start of the period to which the final product is clipped.
-    edate : pandas.Timestamp
-        End of the period to which the final product is clipped.
-    outdir : str
-        Directory to which ``cosumnes_temp.csv`` is written.
-
-    Returns
-    -------
-    None
-        Writes the processed temperature series to ``cosumnes_temp.csv``
-        in ``outdir``.
-
-    Raises
-    ------
-    ValueError
-        If missing values remain in the Cosumnes temperature.
-    """
-    _write_temp(_build_temp_block(sdate, edate)["cosumnes"], outdir, "cosumnes_temp.csv", "Cosumnes")
-
-
 def process_yolo_toedrain_temp(sdate, edate, outdir):
     """Process Yolo Toe Drain water temperature boundary condition.
 
@@ -425,32 +314,6 @@ def process_yolo_toedrain_temp(sdate, edate, outdir):
     )
 
 
-def process_yolo_temp(sdate, edate, outdir):
-    """Process Yolo Bypass water temperature, assumed equal to the Toe Drain series.
-
-    Parameters
-    ----------
-    sdate : pandas.Timestamp
-        Start of the period to which the final product is clipped.
-    edate : pandas.Timestamp
-        End of the period to which the final product is clipped.
-    outdir : str
-        Directory to which ``yolo_temp.csv`` is written.
-
-    Returns
-    -------
-    None
-        Writes the processed temperature series to ``yolo_temp.csv`` in
-        ``outdir``.
-
-    Raises
-    ------
-    ValueError
-        If missing values remain in the Yolo temperature.
-    """
-    _write_temp(_build_temp_block(sdate, edate)["yolo"], outdir, "yolo_temp.csv", "Yolo")
-
-
 # Ordered registry of processed-temperature products: (step name, worker function).
 # Each worker has the signature ``func(sdate, edate, outdir)`` and writes one product CSV.
 _TW_STEPS = [
@@ -458,12 +321,7 @@ _TW_STEPS = [
     ("sjr", process_sjr_temp),
     ("american", process_american_temp),
     ("east", process_east_temp),
-    ("coyote", process_coyote_temp),
-    ("napa", process_napa_temp),
-    ("calaveras", process_calaveras_temp),
-    ("cosumnes", process_cosumnes_temp),
     ("yolo_toedrain", process_yolo_toedrain_temp),
-    ("yolo", process_yolo_temp),
 ]
 
 TW_STEP_NAMES = [name for name, _ in _TW_STEPS]
@@ -566,8 +424,7 @@ def process_tw_cli(start, end, outdir, include, exclude, logdir, debug, quiet):
     By default every step runs. Use --include to run only specific steps
     (selection starts from nothing) or --exclude to run everything except
     certain steps. The two options are mutually exclusive. Available steps:
-    sac, sjr, american, east, coyote, napa, calaveras, cosumnes, yolo_toedrain,
-    yolo.
+    sac, sjr, american, east, yolo_toedrain.
     """
     level, console = resolve_loglevel(debug=debug, quiet=quiet)
     configure_logging(
