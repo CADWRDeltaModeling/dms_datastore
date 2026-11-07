@@ -473,8 +473,29 @@ applied in order. Built-ins:
    positive-inflow convention) or a simple unit/datum shift. Args: ``scale``
    (default ``1.0``), ``offset`` (default ``0.0``).
 
+``unit_conversion``
+  Use the public vtools ``convert_units`` callable directly. Args:
+  ``in_unit`` and ``out_unit``. Existing recipes must rename ``from_unit``
+  to ``in_unit`` and ``to_unit`` to ``out_unit``.
+
 Custom transforms can be registered at runtime with
 ``register_transform(name, func)``.
+
+Transforms are ordinary callables invoked as ``func(ts, **args)`` and may
+accept a Series or a multicolumn DataFrame. Register public vtools functions
+directly, without forwarding wrappers or decorators. Vtools supplies reusable
+algorithms; dropbox may also supply local operations. For example:
+
+.. code-block:: python
+
+  from dms_datastore.dropbox_data import register_transform
+  from vtools.functions.unit_conversions import convert_units
+
+  register_transform("my_conversion", convert_units)
+
+Vtools-backed ``dst_tz``/``dst_st``, ``coarsen``, and ``unit_conversion``
+use their callable's native signatures and reject unknown arguments. All
+public ``ts_coarsen`` keyword arguments are available through ``coarsen``.
 
 .. note::
 
