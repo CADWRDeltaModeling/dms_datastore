@@ -16,11 +16,10 @@ from . import store_utils as utils
 # The PDF is visually a four-column table, but it is not rectangular data:
 # year labels are embedded in the table, dates are omitted for subsequent
 # operations on the same day, and remarks/action text may wrap onto later
-# visual lines.  These x-coordinate breaks are stable in the USBR PDF and let
-# us preserve the column semantics while parsing it as a stateful event log.
-_DATE_XMAX = 150
-_TIME_XMAX = 225
-_ACTION_XMAX = 300
+# visual lines.  The page scale of the USBR PDF has changed over time, so column
+# breaks are derived per page from the x positions of the DATE/TIME/ACTION/
+# REMARKS header row rather than hard-coded.
+_HEADER_LABELS = ("DATE", "TIME", "ACTION", "REMARKS")
 _LINE_Y_TOLERANCE = 2.0
 
 _DATE_RE = re.compile(r"^\d{1,2}/\d{1,2}/\d{2,4}$")
@@ -48,6 +47,29 @@ def _group_words_into_lines(words, tolerance=_LINE_Y_TOLERANCE):
     for line in lines:
         line["words"].sort(key=lambda item: item["x0"])
     return lines
+
+
+def _find_header(lines):
+    """Locate the DATE/TIME/ACTION/REMARKS header among grouped lines.
+
+    Returns
+    -------
+    tuple
+        ``(index, (date_xmax, time_xmax, action_xmax))`` where the column
+        breaks are midpoints between adjacent header labels.
+
+    Raises
+    ------
+    ValueError
+        If no header line is present.
+    """
+    for index, line in enumerate(lines):
+        x0_by_text = {word["text"].upper(): word["x0"] for word in line["words"]}
+        if all(label in x0_by_text for label in _HEADER_LABELS):
+            xs = [x0_by_text[label] for label in _HEADER_LABELS]
+            breaks = tuple((a + b) / 2.0 for a, b in zip(xs[:-1], xs[1:]))
+            return index, breaks
+    raise ValueError("No DATE/TIME/ACTION/REMARKS header line found")
 
 
 def _parse_datetime(date_text, time_text):
@@ -112,13 +134,18 @@ def parse_dcc_pdf(pdfname):
 
     with pdfplumber.open(pdfname) as pdf:
         for page_number, page in enumerate(pdf.pages, start=1):
-            words = page.extract_words()
-            for line in _group_words_into_lines(words):
-                # Titles and the DATE/TIME/ACTION/REMARKS header are above the
-                # data region on every page.
-                if line["top"] < 100:
-                    continue
+            lines = _group_words_into_lines(page.extract_words())
+            try:
+                header_index, (date_xmax, time_xmax, action_xmax) = _find_header(
+                    lines
+                )
+            except ValueError as exc:
+                raise RuntimeError(
+                    f"{exc} on PDF page {page_number} of {pdfname}"
+                ) from exc
 
+            # Titles and the header row itself precede the data region.
+            for line in lines[header_index + 1 :]:
                 line_words = line["words"]
                 full_line = _join_words(line_words)
 
@@ -128,14 +155,14 @@ def parse_dcc_pdf(pdfname):
                 if _YEAR_RE.match(full_line):
                     continue
 
-                date_words = [w for w in line_words if w["x0"] < _DATE_XMAX]
+                date_words = [w for w in line_words if w["x0"] < date_xmax]
                 time_words = [
-                    w for w in line_words if _DATE_XMAX <= w["x0"] < _TIME_XMAX
+                    w for w in line_words if date_xmax <= w["x0"] < time_xmax
                 ]
                 action_words = [
-                    w for w in line_words if _TIME_XMAX <= w["x0"] < _ACTION_XMAX
+                    w for w in line_words if time_xmax <= w["x0"] < action_xmax
                 ]
-                remarks_words = [w for w in line_words if w["x0"] >= _ACTION_XMAX]
+                remarks_words = [w for w in line_words if w["x0"] >= action_xmax]
 
                 date_text = _join_words(date_words)
                 time_text = _join_words(time_words)
