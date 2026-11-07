@@ -1,0 +1,72 @@
+
+
+# Banks Pumping Plant (SWP) flow produced by process_banks.py from the SAP unit status
+# change log (merged by merge_banks_exports.py). The result is proprietary, so it goes to the
+# proprietary_processed repo.
+#
+# Workflow:
+#   1. merge_banks_exports  ... EXPORT_*.csv -> sap_banks_2006_9999_qaqc.csv (clifton_court/banks_pumping)
+#   2. process_banks --outfile <location below>/dms_hro_flow.csv
+#   3. run this recipe
+#
+# Time zone: the SAP log is in Pacific local clock time (DST observed). process_banks.py
+# converts it to PST with vtools.dst_st and writes a regular 15-min series, so this recipe
+# applies no dst_tz transform. Adding one would shift the data a second time.
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo/continuous/proprietary/staging   # staging scratch area; the reconcile destination is inferred from repo_name
+modeling_data: //cnrastore-bdo/Modeling_Data/
+target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
+target_tz_label: PST
+
+
+data:
+  - name: hro_flow
+    skip: False
+    collect:
+      file_pattern: "dms_hro_flow.csv"
+      wildcard: time_shard    # time_sharded | time_overlap | data | none.
+            # If time_sharded, indicates non-overlapping timestamps that uses year chunking.
+            # If time_overlap, indicates wildcards are ordered by date 20250531(lexicographic must = chronological)
+            # If data, represents different station/variable. Look for metadata in the file and station lists.
+            # If none, a wildcard is an error. # todo: test
+      location:   "${modeling_data}/repo_processing_scratch/"  # where process_banks.py writes dms_hro_flow.csv
+      recursive_search: False
+      reader: read_ts    # Names, pointers to code etc. To be fleshed out
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice" # We will not call read_ts on wildcard, but rather glob and read and creat list of dfs
+      merge_args:
+         transition: prefer_last
+      selector: null  # Usually a column name. When read_last_resort_csv is used, use null.
+    transforms:   # none: already PST (see note at the top)
+    metadata:
+      station_id: hro
+      agency_id: registry_lookup       # station registry (continuous): HRO
+      station_name: registry_lookup    # Harvey O Banks PP
+      source: sap                      # SAP unit status log, proprietary
+      agency: dwr
+      processor: dms   # required by the 'processed' repo filename templates
+      subloc: default
+      freq: infer   # None for irregular, "infer" for infer.
+      param: flow
+      unit: f^3/s
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: SWP Banks pumping unit status changes converted to flow with unit capacities (DFD rating), DST converted to PST, gaussian smoothed (sigma=2 on 15-min steps)
+      process_script: process_banks.py
+
+    output:
+      repo_name: proprietary_processed   # pointer to an entry in dstore_config.yaml
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.2f"
+          chunk_years: False
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged        # process_banks recomputes the full history, so staged values are internally consistent
+        allow_new_series: True   # first run creates dms_hro_flow.csv; set to False afterwards

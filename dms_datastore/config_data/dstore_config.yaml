@@ -198,6 +198,25 @@ repos:
     data_key: [station_id, subloc, param]
 
 
+  # Derived/filled series built from proprietary inputs (e.g. SWP Banks pumping from SAP).
+  # Mirrors `processed`: named by processor, and the registry joins the continuous registry
+  # (station locations such as hro) with synthetic locations, so a recipe can look up
+  # station metadata in either.
+  proprietary_processed:
+    root: "//cnrastore-bdo/Modeling_Data/repo/continuous/proprietary/processed"
+    registry: [continuous, processed_synthetic]
+    provider_key: processor
+    provider_resolution_mode: assume_unique
+    filename_templates:
+      - "{processor}_{station_id@subloc}_{param@modifier}.csv"
+      - "{processor}_{station_id@subloc}_{param@modifier}_{year}.csv"
+      - "{processor}_{station_id@subloc}_{param@modifier}_{syear}_{eyear}.csv"
+      - "{processor}_{station_id@subloc}_{param}_{year}.csv"
+      - "{processor}_{station_id@subloc}_{param}.csv"
+    file_key: [processor, station_id, subloc, param, modifier, shard]
+    data_key: [processor, subloc, param, modifier]
+
+
   screened:
     root: "//cnrastore-bdo/Modeling_Data/repo/continuous/screened"
     registry: continuous

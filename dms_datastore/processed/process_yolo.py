@@ -303,39 +303,69 @@ def fill_yolototal(yolo_total_raw, sdate, edate):
     return yolo_total_filled
 
 
-def adjust_yoloflow(yolo_flow_raw, low_flow):
-    """Clip effective Yolo Bypass flow to remove negative values.
+def split_yolo_total(total, toe=None, threshold=4000.0, toe_share=0.05):
+    """Split total Yolo Bypass flow into effective Toe Drain and Bypass flow.
 
-    Prints the count of values below -1.0 cfs in ``yolo_flow_raw`` before
-    adjustment. Values at positions flagged by ``low_flow`` are forced to
-    zero, and any remaining negative values are also set to zero.
+    When ``total`` is at or below ``threshold`` the Toe Drain carries all of
+    it and the Bypass carries none. Above ``threshold`` the Toe Drain takes
+    ``toe`` plus ``toe_share`` of the excess of ``total`` over ``toe``, and
+    the Bypass takes the remainder, clipped at zero.
 
     Parameters
     ----------
-    yolo_flow_raw : pandas.DataFrame or pandas.Series
-        Raw effective Yolo Bypass flow (e.g. total flow minus effective
-        Toe Drain flow), which may contain small negative values due to
-        the subtraction.
-    low_flow : pandas.Series of bool
-        Boolean mask, aligned with ``yolo_flow_raw``, indicating
-        low-flow conditions (total flow at or below the bypass threshold)
-        where Yolo Bypass flow should be forced to zero.
+    total : pandas.Series or pandas.DataFrame
+        Total Yolo flow (Bypass plus Toe Drain), e.g. Woodland plus
+        Sacramento Weir, or a forecast of it.
+    toe : pandas.Series or pandas.DataFrame, optional
+        Toe Drain flow before apportioning the excess, aligned with
+        ``total``. :func:`process_yolo_effective_flow` passes the measured
+        (Lisbon) flow clipped at ``threshold``. Default:
+        ``total.clip(upper=threshold)``, for use when Toe Drain flow is not
+        known separately, as in a forecast. Without Lisbon elevation, the
+        Bypass is then treated as active only when ``total`` exceeds
+        ``threshold``.
+    threshold : float
+        Total flow above which the Bypass is active, in the units of
+        ``total``. Default 4000 cfs.
+    toe_share : float
+        Fraction of the excess over ``toe`` assigned to the Toe Drain when
+        the Bypass is active.
 
     Returns
     -------
-    pandas.DataFrame or pandas.Series
-        The adjusted Yolo Bypass flow with negative and low-flow values
-        set to zero.
+    toe_eff, yolo_eff : same type as ``total``
+        Effective Toe Drain and Yolo Bypass flow. Missing ``total`` gives
+        missing values in both.
+
+    Examples
+    --------
+    With ``toe`` omitted, a total of 10000 cfs splits into 4300 cfs Toe
+    Drain and 5700 cfs Bypass; a total of 3000 cfs is all Toe Drain.
     """
-    print(
-        "Number of negative Yolo flow value before adjustment: {}".format(
-            (yolo_flow_raw < -1.0).sum()
-        )
-    )
-    yolo_flow = yolo_flow_raw.copy()
-    yolo_flow[low_flow] = 0.0
-    yolo_flow[yolo_flow < 0.0] = 0.0
-    return yolo_flow
+    if toe is None:
+        toe = total.clip(upper=threshold)
+    low = total <= threshold
+    toe_eff = toe.mask(~low, toe + toe_share * (total - toe))
+    yolo_eff = total - toe_eff
+    yolo_eff = yolo_eff.mask(low, 0.0)
+    yolo_eff = yolo_eff.mask(yolo_eff < 0.0, 0.0)
+    return toe_eff, yolo_eff
+
+
+def transform_yolo_toe_drain(ts, *, threshold=4000.0, toe_share=0.05):
+    """Effective Toe Drain part of total Yolo flow (a ``timeseries.transforms`` plug-in).
+
+    See :func:`split_yolo_total`; Toe Drain flow is not known separately.
+    """
+    return split_yolo_total(ts, threshold=threshold, toe_share=toe_share)[0]
+
+
+def transform_yolo_bypass(ts, *, threshold=4000.0, toe_share=0.05):
+    """Effective Yolo Bypass part of total Yolo flow (a ``timeseries.transforms`` plug-in).
+
+    See :func:`split_yolo_total`; Toe Drain flow is not known separately.
+    """
+    return split_yolo_total(ts, threshold=threshold, toe_share=toe_share)[1]
 
 
 def process_yolo_effective_flow(toe_raw, lisbon_elev, sdate, edate):
@@ -348,9 +378,8 @@ def process_yolo_effective_flow(toe_raw, lisbon_elev, sdate, edate):
     estimate (via :func:`est_yolo_woodland_sacweir` and
     :func:`fill_yolototal`), clips effective Toe Drain flow to 4000 cfs,
     and apportions any total flow above 4000 cfs 5% to the Toe Drain and
-    95% to the Bypass. Effective Yolo Bypass flow is then computed as the
-    total minus effective Toe Drain flow and adjusted to remove negative
-    values via :func:`adjust_yoloflow`. Diagnostic counts of negative
+    95% to the Bypass with :func:`split_yolo_total`, which also clips
+    negative Bypass flow to zero. Diagnostic counts of negative
     values and remaining gaps are printed.
 
     Parameters
@@ -420,17 +449,17 @@ def process_yolo_effective_flow(toe_raw, lisbon_elev, sdate, edate):
     toe_eff[~is_yolo_active & toe_eff.isnull()] = yolo_data_all.yolo_total[
         ~is_yolo_active & toe_eff.isnull()
     ]
-    # Use yolo_total flow to determine whether high flow occurs or not
-    full_low = yolo_data_all.yolo_total <= 4000.0
-    full_high = ~full_low  # recipricol for convenience
-    # adjust toe_eff when yolo_total is high
-    toe_eff.mask(
-        full_high, toe_eff + 0.05 * (yolo_data_all.yolo_total - toe_eff), inplace=True
+    # Use yolo_total flow to determine whether high flow occurs or not,
+    # and apportion the excess above 4000 cfs between toe drain and bypass
+    toe_eff, yolo_eff = split_yolo_total(
+        yolo_data_all.yolo_total, toe=toe_eff, threshold=4000.0, toe_share=0.05
     )
     yolo_data_all["toe_eff"] = toe_eff
-    # compute effective yolo flow
-    yolo_eff_raw = yolo_data_all.yolo_total - yolo_data_all.toe_eff
-    yolo_eff = adjust_yoloflow(yolo_eff_raw, full_low)
+    print(
+        "Number of negative Yolo flow value before adjustment: {}".format(
+            ((yolo_data_all.yolo_total - toe_eff) < -1.0).sum()
+        )
+    )
     yolo_data_all["yolo_eff"] = yolo_eff
     print(
         "Number of negative Yolo flow value after adjustment: {}".format(

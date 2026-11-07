@@ -574,13 +574,6 @@ def _check_metadata(meta, repo_name):
     except Exception as e:
         raise ValueError(f"Invalid time_zone '{tz}': {e}. Must be a valid timezone name recognized by pandas and compatible with vtools.dst_st.")
 
-    try:
-        # dst_st validates timezone semantics by application
-        # We don't apply it, just verify compatibility
-        _ = dst_st
-    except Exception:
-        raise ValueError(f"time_zone '{tz}' is not DST-compatible via vtools.dst_st")
-
     # spatial checks: either lat/lon OR projected coords
     lat = meta.get("latitude", None)
     lon = meta.get("longitude", None)
