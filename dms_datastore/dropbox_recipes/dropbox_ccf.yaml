@@ -6,6 +6,7 @@ target_tz_label: PST
 
 data:
   - name: ccfb_init
+    skip: True
     # One-time backfill of the historical CCFB radial-gate record, years 2020-2023.
     # Source files gate_height_wonderware_pst_YYYY.csv are the DST-cleaned outputs
     # of make_wonderware_pst.py (naive PST; raw yearly SCADA files span the Nov
@@ -13,7 +14,6 @@ data:
     # Later years (2024x/2025x) are already covered in the repo. Loads 2020-2023
     # into structures_formatted; the incremental CC_Gate_Positions feed (ccfb)
     # tops off going forward. Set skip: true once this has run successfully.
-    skip: False
     collect:
       file_pattern: "gate_height_wonderware_pst_*.csv"
       wildcard: time_overlap    # lexicographic order = chronological (pst_2020 < pst_2021 < ...)
