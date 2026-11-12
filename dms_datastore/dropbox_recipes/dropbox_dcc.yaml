@@ -34,6 +34,7 @@ data:
       station_id: dcc
       name: Delta Cross Channel
       agency_id: dcc
+      processor: dms
       agency: usbr
       source: usbr
       freq: None
