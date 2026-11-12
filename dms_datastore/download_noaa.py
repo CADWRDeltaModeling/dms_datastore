@@ -200,6 +200,15 @@ def download_station_data(
             "timezone": "LST",
             "source": "http://tidesandcurrents.noaa.gov/",
         },
+        "air_pressure": {
+            "agency": "noaa",
+            "unit": "mb",
+            "station_id": f"{agency_id}",
+            "station_name": f"{station_name}",
+            "param": "pressure",
+            "timezone": "LST",
+            "source": "http://tidesandcurrents.noaa.gov/",
+        },
     }
 
     yearname = f"{start.year}_{endfile}"
@@ -292,7 +301,8 @@ def download_station_data(
                     continue
             
             if first:
-                headers["datum"] = datum
+                if param != "air_pressure":  # a datum is meaningless for barometric pressure
+                    headers["datum"] = datum
                 write_header(path, headers)
             
             write_table(raw_table, path, first)
@@ -336,7 +346,7 @@ def noaa_download(stations, dest_dir, start, end=None, param=None, overwrite=Fal
 
     # This is an attempt to short-circuit the download of water levels for non-tidal stations
     # The correctness of this remains to be checked.
-    if param in ("elev", "water_level", "hourly_height", "predictions"):
+    if param in ("elev", "water_level", "hourly_height", "predictions", "pressure", "air_pressure"):
         stations = stations.loc[subprogram(stations) == "tidecurrent"]
     elif param in ("temp", "temperature", "conductivity", "ec"):
         stations = stations.loc[subprogram(stations) == "buoy"]
@@ -492,7 +502,7 @@ def download_noaa(
 @click.option(
     "--param",
     default=None,
-    help="Product to download: water_level, predictions, water_temperature, conductivity.",
+    help="Product to download: water_level, predictions, water_temperature, conductivity, air_pressure.",
 )
 @click.option("--stations", multiple=True, help="Id or name of one or more stations.")
 @click.option(
