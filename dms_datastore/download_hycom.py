@@ -117,6 +117,7 @@ def hycom_schism_opendap_alt2(start=None, end=None, dest=None):
             lat=slice(37, 39),
             lon=slice(236, 239),
         )
+        subset3 = subset3.rename({"time": "time_ssh"})
         ##sub['salinity' = sub['salinity']*sub['salinity']get
         # newtime = pd.date_range(s,freq='1H',periods=24)
         # resampled= subset.interp(time=newtime)
@@ -137,6 +138,13 @@ def hycom_schism_opendap_alt2(start=None, end=None, dest=None):
             unlimited_dims=["time"],
             encoding={"water_temp": {"_FillValue": -9999.0}},
         )
+        subset3.to_netcdf(
+            filename,
+            mode="a",
+            format="NETCDF4_CLASSIC",
+            unlimited_dims=["time_ssh"],
+            encoding={"surf_el": {"_FillValue": -9999.0}},
+        )
         s = s + days(1)
         e = e + hours(24)
 
@@ -151,9 +159,11 @@ def hycom_schism_opendap_latest(dest=None):
     """
     url = "https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02_s3z/FMRC_ESPC-D-V02_s3z_best.ncd?lat,lon,time,salinity"
     url2 = "https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02_t3z/FMRC_ESPC-D-V02_t3z_best.ncd?lat,lon,time,water_temp"
+    url3 = "https://tds.hycom.org/thredds/dodsC/FMRC_ESPC-D-V02_ssh/FMRC_ESPC-D-V02_ssh_best.ncd?lat,lon,time,surf_el"
 
     data = xr.open_dataset(url)
     data2 = xr.open_dataset(url2)
+    data3 = xr.open_dataset(url3)
 
     if os.path.exists(dest) is False:
         os.mkdir(dest)
@@ -196,6 +206,12 @@ def hycom_schism_opendap_latest(dest=None):
             lat=slice(lat_low, lat_high),
             lon=slice(lon_low, lon_high),
         )
+        subset3 = data3.sel(
+            time=slice(s.to_datetime64(), e.to_datetime64()),
+            lat=slice(lat_low, lat_high),
+            lon=slice(lon_low, lon_high),
+        ).rename({"time": "time_ssh"})
+        
         datestr = s.strftime("%Y%m%d")
         filename = os.path.join(dest, "hycom_raw_" + datestr + ".nc")
         subset.to_netcdf(
@@ -211,6 +227,13 @@ def hycom_schism_opendap_latest(dest=None):
             format="NETCDF4_CLASSIC",
             unlimited_dims=["time"],
             encoding={"water_temp": {"_FillValue": -9999.0}},
+        )
+        subset3.to_netcdf(
+            filename,
+            mode="a",
+            format="NETCDF4_CLASSIC",
+            unlimited_dims=[],
+            encoding={"surf_el": {"_FillValue": -9999.0}},
         )
         s = s + days(1)
         e = e + hours(24)
@@ -301,6 +324,21 @@ def process_hycom(start=None, end=None, dest="./processed", raw="./raw"):
         resampled1 = raw_nc1.interp(time=newtime1)
         newtime2 = pd.date_range(e, freq="1h", periods=24)
         resampled2 = raw_nc2.interp(time=newtime2)
+
+        resampled = []
+        for raw_nc, newtime in (
+            (raw_nc1, newtime1),
+            (raw_nc2, newtime2),
+        ):
+            hourly = raw_nc[["water_temp", "salinity"]].interp(time=newtime)
+
+            if "surf_el" in raw_nc:
+                ssh = raw_nc["surf_el"].rename({"time_ssh": "time"})
+                hourly["surf_el"] = ssh.sel(time=newtime)
+
+            resampled.append(hourly)
+
+        resampled1, resampled2 = resampled
 
         resampled1["time"] = resampled1.time - pd.Timedelta(8, "h")
         resampled2["time"] = resampled2.time - pd.Timedelta(8, "h")
