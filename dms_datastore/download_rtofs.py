@@ -17,6 +17,8 @@ retain original files, including bundled diagnostics and velocities.
 After downloads, complete fixed-PST days are regridded and interpolated hourly
 into processed/rtofs_interpolated_hourly_pstYYYYMMDD.nc. Use --process-only
 for existing downloads or --skip-processing for download-only operation.
+Each RTOFS run also produces one fixed-point NAVD88 CSV containing that run's
+full hourly surface forecast.
 """
 
 import fnmatch
@@ -41,6 +43,11 @@ DEFAULT_PATTERNS = (
 )
 LEAD_TIME = re.compile(r"(?:_|\.)([fn])(\d{2,3})(?:_|\.)")
 LAT_LON_BOUNDS = {"lat": (37, 39), "lon": (236, 239)}
+RTOFS_POINT_COORDS_UTM10N = (
+	(508879.733, 4157870.920),
+	(539094.454,  4140103.110), 
+	(503429.325, 4204146.620),
+)
 
 
 def subset_rtofs_dataset(
@@ -129,8 +136,32 @@ def _interpolate_rtofs_grid(data, fields, utc_hours, latitudes, longitudes, max_
 	first = max(0, int(np.searchsorted(times, utc_hours[0], side="right")) - 1)
 	last = min(len(times), int(np.searchsorted(times, utc_hours[-1], side="left")) + 1)
 	data = data.isel(MT=slice(first, last))
-	if np.any(np.diff(data.MT.values) > np.timedelta64(max_gap_hours, "h")):
-		raise ValueError(f"Missing RTOFS samples: a time gap exceeds {max_gap_hours} hours")
+	gap_durations = np.diff(data.MT.values)
+	gap_indices = np.flatnonzero(
+		gap_durations > np.timedelta64(max_gap_hours, "h")
+	)
+	if len(gap_indices):
+		gap_descriptions = []
+		for index in gap_indices:
+			start = np.datetime_as_string(data.MT.values[index], unit="m").replace(
+				"T", " "
+			)
+			end = np.datetime_as_string(data.MT.values[index + 1], unit="m").replace(
+				"T", " "
+			)
+			duration = gap_durations[index] / np.timedelta64(1, "h")
+			gap_descriptions.append(
+				f"{start} UTC to {end} UTC ({duration:g} hours)"
+			)
+		gap_summary = (
+			"a time gap exceeds"
+			if len(gap_indices) == 1
+			else f"{len(gap_indices)} time gaps exceed"
+		)
+		raise ValueError(
+			f"Missing RTOFS samples: {gap_summary} {max_gap_hours} hours "
+			f"for {', '.join(fields)}: {'; '.join(gap_descriptions)}"
+		)
 	hourly = data[fields].interp(MT=utc_hours)
 	latitude = data.Latitude.values
 	longitude = data.Longitude.values % 360
@@ -232,6 +263,243 @@ def interpolate_rtofs_day(
 	return result
 
 
+def _convert_rtofs_surface_to_navd88(surface, latitude, longitude, vdatum_grid):
+	"""Convert MSL-referenced RTOFS elevations using the NOAA datum grid."""
+	import numpy as np
+	import xarray as xr
+	from pyproj import Transformer
+	from scipy.spatial import cKDTree
+
+	vdatum_grid = Path(vdatum_grid)
+	if not vdatum_grid.is_file():
+		raise FileNotFoundError(f"WCOFS vertical-datum grid not found: {vdatum_grid}")
+	with xr.open_dataset(vdatum_grid, decode_times=False) as datum_data:
+		required = {"latitude", "longitude", "navd88tomsl"}
+		missing = required.difference(datum_data.variables)
+		if missing:
+			raise ValueError(
+				f"{vdatum_grid} is missing datum variables: {sorted(missing)}"
+			)
+		datum_latitude = np.asarray(datum_data["latitude"].values, dtype=float)
+		datum_longitude = np.asarray(datum_data["longitude"].values, dtype=float)
+		navd88_to_msl = np.asarray(
+			datum_data["navd88tomsl"].values, dtype=float
+		).copy()
+		fill_value = datum_data["navd88tomsl"].attrs.get("filledvalue")
+		datum_description = datum_data["navd88tomsl"].attrs.get("long_name", "")
+
+	normalized_description = datum_description.lower()
+	if not (
+		"navd88 minus mean sea level" in normalized_description
+		or (
+			"north american vertical datum of 1988" in normalized_description
+			and "minus mean sea level" in normalized_description
+		)
+	):
+		raise ValueError(
+			f"{vdatum_grid} navd88tomsl metadata does not identify "
+			"'NAVD88 minus mean sea level'"
+		)
+	if not (
+		datum_latitude.ndim == datum_longitude.ndim == navd88_to_msl.ndim == 2
+		and datum_latitude.shape == datum_longitude.shape == navd88_to_msl.shape
+	):
+		raise ValueError(f"Invalid coordinate or offset dimensions in {vdatum_grid}")
+	if fill_value is not None:
+		navd88_to_msl[navd88_to_msl == float(fill_value)] = np.nan
+
+	latitude = np.asarray(latitude, dtype=float)
+	longitude = np.asarray(longitude, dtype=float)
+	surface = np.asarray(surface, dtype=float)
+	if latitude.ndim != 1 or longitude.ndim != 1:
+		raise ValueError("RTOFS latitude and longitude must be 1-D axes")
+	grid_lon, grid_lat = np.meshgrid(longitude, latitude)
+	if surface.ndim != 3 or surface.shape[1:] != grid_lat.shape:
+		raise ValueError("RTOFS surface shape does not match its coordinate axes")
+
+	valid_target = (
+		np.isfinite(grid_lat)
+		& np.isfinite(grid_lon)
+		& np.isfinite(surface).any(axis=0)
+	)
+	valid_datum = (
+		np.isfinite(datum_latitude)
+		& np.isfinite(datum_longitude)
+		& np.isfinite(navd88_to_msl)
+	)
+	if not valid_datum.any():
+		raise ValueError(f"No valid NAVD88 datum offsets in {vdatum_grid}")
+
+	transformer = Transformer.from_crs("EPSG:4326", "EPSG:26910", always_xy=True)
+	datum_x, datum_y = transformer.transform(
+		datum_longitude[valid_datum], datum_latitude[valid_datum]
+	)
+	datum_values = navd88_to_msl[valid_datum]
+	valid_projected = np.isfinite(datum_x) & np.isfinite(datum_y)
+	datum_points = np.column_stack(
+		(np.asarray(datum_x)[valid_projected], np.asarray(datum_y)[valid_projected])
+	)
+	datum_values = datum_values[valid_projected]
+	if not len(datum_points):
+		raise ValueError(f"No valid projected datum-grid points in {vdatum_grid}")
+
+	target_lon = np.where(grid_lon > 180.0, grid_lon - 360.0, grid_lon)
+	target_x, target_y = transformer.transform(target_lon, grid_lat)
+	if np.any(valid_target & ~(np.isfinite(target_x) & np.isfinite(target_y))):
+		raise ValueError("Could not project all wet RTOFS grid cells to EPSG:26910")
+	target_points = np.column_stack(
+		(np.asarray(target_x)[valid_target], np.asarray(target_y)[valid_target])
+	)
+	if not len(target_points):
+		raise ValueError("RTOFS data has no valid wet grid cells to convert")
+
+	neighbor_count = min(4, len(datum_points))
+	distances, neighbors = cKDTree(datum_points).query(
+		target_points, k=neighbor_count
+	)
+	if neighbor_count == 1:
+		distances = distances[:, np.newaxis]
+		neighbors = neighbors[:, np.newaxis]
+	if np.any(distances[:, 0] > 10000.0):
+		count = int(np.count_nonzero(distances[:, 0] > 10000.0))
+		raise ValueError(
+			f"No nearby datum-grid coverage for {count} wet RTOFS cell(s) "
+			f"within 10 km in {vdatum_grid}"
+		)
+
+	neighbor_values = datum_values[neighbors]
+	offsets = np.empty(len(target_points), dtype=float)
+	exact = distances[:, 0] <= 1e-3
+	offsets[exact] = neighbor_values[exact, 0]
+	if (~exact).any():
+		weights = 1.0 / np.square(distances[~exact])
+		offsets[~exact] = np.sum(
+			weights * neighbor_values[~exact], axis=1
+		) / weights.sum(axis=1)
+
+	offset_grid = np.full(grid_lat.shape, np.nan, dtype=float)
+	offset_grid[valid_target] = offsets
+	if not np.isfinite(offset_grid[valid_target]).all():
+		raise ValueError("Could not determine a NAVD88 offset for every wet RTOFS cell")
+	# navd88tomsl is NAVD88 minus MSL; subtract it from MSL-referenced zeta.
+	return surface - offset_grid[np.newaxis, :, :]
+
+
+def _write_rtofs_point_timeseries(
+	time_index, latitude, longitude, surface, csv_dir, forecast_date,
+):
+	"""Write one forecast's NAVD88 surface time series at the fixed UTM points."""
+	import numpy as np
+	import pandas as pd
+
+	from compare_subtide_schism_ocean import _interpolate_rtofs_to_boundary
+
+	latitude = np.asarray(latitude, dtype=float)
+	longitude = np.asarray(longitude, dtype=float)
+	surface = np.asarray(surface, dtype=float)
+	if latitude.ndim != 1 or longitude.ndim != 1:
+		raise ValueError("RTOFS point extraction requires 1-D latitude and longitude axes")
+	if surface.ndim != 3 or surface.shape[1:] != (len(latitude), len(longitude)):
+		raise ValueError("RTOFS surface shape does not match point-extraction coordinates")
+	time_index = pd.DatetimeIndex(time_index, name="time")
+	if len(time_index) != surface.shape[0]:
+		raise ValueError("RTOFS time coordinate does not match surface time dimension")
+	if time_index.tz is not None:
+		time_index = time_index.tz_convert("Etc/GMT+8").tz_localize(None)
+
+	point_xy = np.asarray(RTOFS_POINT_COORDS_UTM10N, dtype=float)
+	point_indices = np.arange(1, len(point_xy) + 1)
+	point_series = _interpolate_rtofs_to_boundary(
+		time_index, latitude, longitude, surface, point_indices, point_xy
+	)
+	columns = [
+		(
+			f"point_{index}_easting_{easting:.3f}_northing_{northing:.3f}"
+				"_surf_el_m_NAVD88"
+		)
+		for index, (easting, northing) in enumerate(point_xy, start=1)
+	]
+	point_series.columns = columns
+	missing_points = [
+		column for column in columns if not point_series[column].notna().any()
+	]
+	if missing_points:
+		raise ValueError(
+			"No RTOFS surface elevations are available for point(s): "
+			+ ", ".join(missing_points)
+		)
+
+	csv_dir = Path(csv_dir)
+	csv_dir.mkdir(parents=True, exist_ok=True)
+	csv_path = csv_dir / f"forecast_rtofs_{forecast_date:%Y%m%d}.csv"
+	point_series.to_csv(
+		csv_path,
+		index_label="time_fixed_PST",
+		date_format="%Y-%m-%d %H:%M:%S",
+	)
+	logging.info("Saved NAVD88 RTOFS point time series to: %s", csv_path)
+	return csv_path
+
+
+def _write_rtofs_run_point_timeseries(
+	surface_paths, processed_dir, forecast_date, vdatum_grid,
+	lat_bounds, lon_bounds, lat_count, lon_count,
+):
+	"""Interpolate one run's full forecast and write its fixed-point CSV."""
+	import numpy as np
+	import pandas as pd
+
+	surface = _load_rtofs_series(
+		surface_paths, ["ssh"], lat_bounds, lon_bounds
+	)
+	utc_times = pd.date_range(
+		pd.Timestamp(surface.MT.values[0]),
+		pd.Timestamp(surface.MT.values[-1]),
+		freq="h",
+	)
+	if len(utc_times) < 2:
+		raise ValueError(
+			f"Forecast {forecast_date:%Y-%m-%d} has fewer than two surface times"
+		)
+	latitudes = np.linspace(*lat_bounds, lat_count)
+	longitudes = np.linspace(*lon_bounds, lon_count)
+	hourly_surface = _interpolate_rtofs_grid(
+		surface,
+		["ssh"],
+		utc_times.values,
+		latitudes,
+		longitudes,
+		3,
+	)["ssh"].values
+	navd88_surface = _convert_rtofs_surface_to_navd88(
+		hourly_surface, latitudes, longitudes, vdatum_grid
+	)
+	pst_times = utc_times - pd.Timedelta(hours=8)
+	csv_dir = Path(processed_dir).parent / "csv"
+	return _write_rtofs_point_timeseries(
+		pst_times,
+		latitudes,
+		longitudes,
+		navd88_surface,
+		csv_dir,
+		forecast_date,
+	)
+
+
+def _group_surface_paths_by_run(surface_paths):
+	"""Group surface files by their dated RTOFS forecast-run directory."""
+	grouped = {}
+	for path in surface_paths:
+		match = re.fullmatch(r"rtofs\.(\d{8})", path.parent.name)
+		if match is None:
+			raise ValueError(
+				f"Cannot determine forecast initialization date from {path.parent}"
+			)
+		forecast_date = datetime.strptime(match.group(1), "%Y%m%d")
+		grouped.setdefault((path.parent, forecast_date), []).append(path)
+	return grouped
+
+
 def _load_rtofs_series(paths, fields, lat_bounds, lon_bounds):
 	"""Load a consistent cropped grid; newer runs win at duplicate valid times."""
 	import numpy as np
@@ -258,6 +526,7 @@ def process_rtofs(
 	input_dir: Path, processed_dir: Path = None, start=None, end=None,
 	lat_bounds=LAT_LON_BOUNDS["lat"], lon_bounds=LAT_LON_BOUNDS["lon"],
 	lat_count: int = 51, lon_count: int = 38, region: str = "US_west",
+	vdatum_grid: Path = None,
 ):
 	"""Write complete hourly PST days combining downloaded RTOFS fields.
 
@@ -278,12 +547,18 @@ def process_rtofs(
 		Regular target grid sizes, default 51 by 38 from hycomschema.
 	region : {'US_west', 'US_east', 'alaska'}, optional
 		Regional 3-D product to combine with the global elevation product.
+	vdatum_grid : Path, optional
+		NOAA WCOFS datum NetCDF containing latitude, longitude, and
+		navd88tomsl. Defaults to wcofs_vdatums.nc beside processed_dir.
 
 	Returns
 	-------
 	list of Path
 		Files named rtofs_interpolated_hourly_pstYYYYMMDD.nc, with unlimited
 		24-sample time, double temp/salt/surf_el, 1-D lat/lon, and all depths.
+		One NAVD88 point time-series CSV per dated input forecast run is saved
+		under processed_dir.parent / "csv"; each CSV contains the run's full
+		hourly surface forecast.
 
 	Notes
 	-----
@@ -324,10 +599,47 @@ def process_rtofs(
 	if processed_dir is None:
 		processed_dir = (input_dir.parent if input_dir.name == "subset" else input_dir) / "processed"
 	processed_dir = Path(processed_dir)
+	if vdatum_grid is None:
+		vdatum_candidates = (
+			processed_dir.parent / "wcofs_vdatums.nc",
+			processed_dir.parent / "wcofs_vdatum.nc",
+			input_dir / "wcofs_vdatums.nc",
+			input_dir / "wcofs_vdatum.nc",
+		)
+		vdatum_grid = next(
+			(path for path in vdatum_candidates if path.is_file()), None
+		)
+		if vdatum_grid is None:
+			raise FileNotFoundError(
+				"No WCOFS datum grid found; pass --vdatum-grid with the NetCDF "
+				"containing latitude, longitude, and navd88tomsl"
+			)
+	vdatum_grid = Path(vdatum_grid)
+	if not vdatum_grid.is_file():
+		raise FileNotFoundError(f"WCOFS vertical-datum grid not found: {vdatum_grid}")
 	processed_dir.mkdir(parents=True, exist_ok=True)
 	written = []
 	for day in pd.date_range(start, end, freq="d"):
 		data = interpolate_rtofs_day(surface, hydrography, day, lat_bounds, lon_bounds, lat_count, lon_count)
+		data["surf_el"] = (
+			data["surf_el"].dims,
+			_convert_rtofs_surface_to_navd88(
+				data["surf_el"].values,
+				data["lat"].values,
+				data["lon"].values,
+				vdatum_grid,
+			),
+			dict(data["surf_el"].attrs),
+		)
+		data["surf_el"].attrs.update(
+			vertical_datum="NAVD88",
+			comment=(
+				"RTOFS sea-surface elevation assumed referenced to MSL and "
+				f"converted to NAVD88 using {vdatum_grid.name}."
+			),
+		)
+		data.attrs["vertical_datum"] = "NAVD88"
+		data.attrs["vertical_datum_grid"] = vdatum_grid.name
 		data = data.assign_coords(time=("time", np.arange(24, dtype=np.int32), dict(data.time.attrs)))
 		data.time.attrs.update(units=f"hours since {day:%Y-%m-%d} 00:00:00", calendar="proleptic_gregorian")
 		data.attrs["source_files"] = "\n".join(str(path.relative_to(input_dir)) for path in sorted(surface_paths + hydro_paths))
@@ -346,6 +658,19 @@ def process_rtofs(
 			partial_path.unlink(missing_ok=True)
 		written.append(filename)
 		logging.info("Saved 24 hourly PST samples to: %s", filename)
+	for (_, forecast_date), run_surface_paths in _group_surface_paths_by_run(
+		surface_paths
+	).items():
+		_write_rtofs_run_point_timeseries(
+			run_surface_paths,
+			processed_dir,
+			forecast_date,
+			vdatum_grid,
+			lat_bounds,
+			lon_bounds,
+			lat_count,
+			lon_count,
+		)
 	return written
 
 
@@ -759,6 +1084,10 @@ All depths are retained; temporal and spatial interpolation are linear.
 Each processed file has 24 hours in fixed PST (UTC-8, without daylight saving).
 Incomplete edge days are skipped; no time/spatial extrapolation is performed.
 Processed output: OUTPUT/processed/rtofs_interpolated_hourly_pstYYYYMMDD.nc.
+Point time series: one OUTPUT/csv/forecast_rtofs_YYYYMMDD.csv per input forecast
+run, containing all hourly forecast times at the three configured UTM zone 10N
+locations. RTOFS surface elevation is assumed MSL-referenced and converted to
+NAVD88 using OUTPUT/wcofs_vdatums.nc by default. Override with --vdatum-grid.
 Processing dates are PST dates, distinct from UTC forecast run dates.
 Use --process-only with downloaded files; --skip-processing disables processing.""",
 )
@@ -782,6 +1111,7 @@ Use --process-only with downloaded files; --skip-processing disables processing.
 @click.option("--processed-dir", type=click.Path(path_type=Path), help="Daily processed output folder")
 @click.option("--process-start", type=click.DateTime(formats=["%Y-%m-%d"]), help="First PST calendar date to process (inclusive)")
 @click.option("--process-end", type=click.DateTime(formats=["%Y-%m-%d"]), help="Last PST calendar date to process (inclusive)")
+@click.option("--vdatum-grid", type=click.Path(path_type=Path), help="WCOFS datum NetCDF containing latitude, longitude, and navd88tomsl; defaults to <output>/wcofs_vdatums.nc")
 @click.option("--lat-count", type=click.IntRange(min=2), default=51, show_default=True, help="Regular processed-grid latitude count")
 @click.option("--lon-count", type=click.IntRange(min=2), default=38, show_default=True, help="Regular processed-grid longitude count")
 @click.option("--dry-run", is_flag=True, help="List selected source files and sizes without downloading")
@@ -791,7 +1121,7 @@ def main(
 	date, start, end, output, forecast_steps, pattern, region, source,
 	lat_bounds, lon_bounds, no_subset, run_type, list_dates, days_back,
 	process_only, skip_processing, input_dir, processed_dir, process_start,
-	process_end, lat_count, lon_count, dry_run, overwrite, debug,
+	process_end, vdatum_grid, lat_count, lon_count, dry_run, overwrite, debug,
 ):
 	"""Download forecast runs and/or combine complete hourly PST days."""
 	if bool(start) != bool(end):
@@ -820,6 +1150,7 @@ def main(
 		"start": process_start, "end": process_end,
 		"lat_bounds": lat_bounds, "lon_bounds": lon_bounds,
 		"lat_count": lat_count, "lon_count": lon_count, "region": region,
+		"vdatum_grid": vdatum_grid,
 	}
 	try:
 		if process_only:
