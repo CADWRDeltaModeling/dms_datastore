@@ -6,42 +6,57 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  pages: write
-  id-token: write
+  contents: read
 
 concurrency:
-  group: "pages"
+  group: pages
   cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -el {0}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+      - name: Set up runtime environment
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          python-version: "3.10"
-      - name: Install pandoc
-        run: sudo apt-get install -y pandoc
-      - name: Install Python dependencies
+          miniforge-version: latest
+          activate-environment: dms_datastore_doc
+          environment-file: environment.yml
+          conda-remove-defaults: true
+
+      - name: Add documentation overlay and install checkout
         run: |
-          python -m pip install --upgrade pip
-          pip install pandas numpy pyyaml click requests httpx scipy matplotlib xarray tqdm openpyxl lxml
-          pip install -r docsrc/requirements.txt
-          pip install --no-deps -e .
-      - name: Build HTML
+          conda env update -n dms_datastore_doc -f environment-doc.yml
+          python -m pip install --no-deps -e .
+
+      - name: Build Sphinx
         run: |
-          cd docsrc/
-          make clean
-          make html
-      - name: Run ghp-import
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config http.postBuffer 157286400
-          ghp-import -n -p -f ./docs/html
+          make -C docsrc clean
+          make -C docsrc html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/html
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
 

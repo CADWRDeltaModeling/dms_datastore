@@ -83,5 +83,5 @@ This may download the CLI and browser dependencies on first use. It is separate 
 
 ## Dependency maintenance
 
-Compare `environment-doc.yml` with the `doc` extra in `pyproject.toml`, `docsrc/requirements.txt`, and `.github/workflows/build_sphinx.yml` when documentation dependencies change. CI currently has its own installation path; editing the overlay alone does not change CI.
+Compare `environment-doc.yml` with the `doc` extra in `pyproject.toml` and `docsrc/requirements.txt` when documentation dependencies change. `.github/workflows/build_sphinx.yml` builds from `environment.yml` plus `environment-doc.yml`, so editing the overlay changes CI. It publishes `docs/html` through the GitHub Pages artifact actions, which requires Settings -> Pages to use GitHub Actions.
 Preserve the distinction between the Pandoc executable provided by Conda and the Python `pandoc` wrapper installed through the overlay's pip section.
