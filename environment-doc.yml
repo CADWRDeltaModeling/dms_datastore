@@ -7,7 +7,8 @@
 # conda env update -n dms_datastore_doc -f environment-doc.yml
 # conda activate dms_datastore_doc
 # python -m pip install --no-deps -e .
-# sphinx-build -b html docsrc docs/html
+# cd docsrc
+# make html
 # This file is used only when explicitly included; normal setup is unchanged.
 # Optional standalone Mermaid rendering (downloads the CLI on first use):
 # npm exec --package=@mermaid-js/mermaid-cli -- mmdc --help
@@ -26,7 +27,6 @@ dependencies:
   - sphinxcontrib-bibtex
   - sphinxcontrib-mermaid
   - myst-parser
-  - ghp-import
   - numpydoc
   - pillow>=4.0.0
   - nbsphinx

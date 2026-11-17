@@ -19,6 +19,7 @@ Use both environment files:
 The overlay covers this project's and BayDeltaSCHISM's documentation-support collections. Do not add downstream runtime packages such as `schimpy` or SCHISM-specific dependencies to it.
 Normal environment setup is unchanged unless the overlay is explicitly included.
 Use a separate `dms_datastore_doc` environment; do not augment `base` with project dependencies.
+`build_doc_env.bat` and `build_doc_env.sh` are convenience wrappers over the older-Conda steps below and the editable installation, not alternative dependency definitions. They do not replace an existing environment.
 
 ### Recent Conda: combine the files
 
@@ -57,11 +58,13 @@ After either setup path:
 ```shell
 conda activate dms_datastore_doc
 python -m pip install --no-deps -e .
-sphinx-build -b html docsrc docs/html
+cd docsrc
+make html
 ```
 
+Use `.\make.bat html` in Windows PowerShell, and `make clean` then `make html` for a fresh build. This is the same build CI runs.
 Use `--no-deps` for the editable install because the two environment files supply the dependencies. Adding `[doc]` to a pip install with `--no-deps` does not install the extra's dependencies.
-For a fresh validation build, use `sphinx-build -E -a -b html docsrc docs/html`. Check the build output for import errors and missing CLI sections, not just whether HTML files were produced.
+Check the build output for import errors and missing CLI sections, not just whether HTML files were produced.
 
 ### Optional standalone Mermaid rendering
 
@@ -83,5 +86,5 @@ This may download the CLI and browser dependencies on first use. It is separate 
 
 ## Dependency maintenance
 
-Compare `environment-doc.yml` with the `doc` extra in `pyproject.toml` and `docsrc/requirements.txt` when documentation dependencies change. `.github/workflows/build_sphinx.yml` builds from `environment.yml` plus `environment-doc.yml`, so editing the overlay changes CI. It publishes `docs/html` through the GitHub Pages artifact actions, which requires Settings -> Pages to use GitHub Actions.
+Compare `environment-doc.yml` with the `doc` extra in `pyproject.toml` when documentation dependencies change. `.github/workflows/build_sphinx.yml` builds from `environment.yml` plus `environment-doc.yml` with `make html`, so editing the overlay changes CI. It publishes `docs/html` through the GitHub Pages artifact actions, which requires Settings -> Pages to use GitHub Actions and the `github-pages` environment to allow the publishing branch or tag. Do not restore branch-based publishing with `ghp-import` or a separate `docsrc/requirements.txt`.
 Preserve the distinction between the Pandoc executable provided by Conda and the Python `pandoc` wrapper installed through the overlay's pip section.

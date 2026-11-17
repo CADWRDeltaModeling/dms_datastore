@@ -9,7 +9,7 @@ Deeper material is split out of AGENTS.md:
 - [docs/PACKAGE_GUIDE.md](docs/PACKAGE_GUIDE.md) — module map and architecture
 - [docs/SOURCE_MAP.md](docs/SOURCE_MAP.md) — key files to read first
 - [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) — test layout and invocation
-- `skills/` — `repository-format`, `repository-ingestion`, `dropbox-ingestion`, `station-registry`
+- `skills/` — `repository-format`, `repository-ingestion`, `dropbox-ingestion`, `station-registry`, `repo-data-usage`, `downloader-builder`, `documentation`
 
 
 # Build and Test
@@ -24,4 +24,11 @@ pip install --no-deps -e .
 ```
 
 pytest is configured in `pyproject.toml` (`[tool.pytest.ini_options]`): strict markers, JUnit XML output, ignores `setup.py` and `build/`.
+
+# Documentation
+
+For Sphinx work, use the [documentation skill](skills/documentation/SKILL.md).
+`environment.yml` plus the `environment-doc.yml` overlay supplies `dms_datastore_doc`; `make html`
+in `docsrc` builds to `docs/html`. Contributor instructions are in
+[contributing_docs.rst](../docsrc/contributing_docs.rst).
 
