@@ -182,7 +182,7 @@ def request_records(
         "startDate": start_date.isoformat(),
         "endDate": end_date.isoformat(),
         "isHourly": "true" if freq == "H" else "false",
-        "unitOfMeasure": "E",
+        "unitOfMeasure": "M",
         "dataItems": DATA_ITEMS[freq],
         "prefer": "WSN",
     }
