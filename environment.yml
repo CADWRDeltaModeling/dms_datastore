@@ -38,6 +38,11 @@ dependencies:
   - httpx
   - pytest
   - pytest-runner
+  - geopandas
+  - shapely
+  - requests
+  - omegaconf
+  - netcdf4
 #- pip:
   #   - -e git+https://github.com/CADWRDeltaModeling/dms_datastore#egg=dms_datastore
 # alternatively if you want to develop ...
