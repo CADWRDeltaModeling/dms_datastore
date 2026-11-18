@@ -90,3 +90,27 @@ data:
       param: airtemp
       unit: deg_f
     output: ${hourly_output}
+  - name: cimis_precip
+    collect:
+      file_pattern: ${hourly_collect.file_pattern}
+      location: ${hourly_collect.location}
+      recursive_search: ${hourly_collect.recursive_search}
+      reader: ${hourly_collect.reader}
+      reader_args:
+        hint: ${hourly_collect.reader_args.hint}
+        force_regular: ${hourly_collect.reader_args.force_regular}
+        usecols: [datetime, HlyPrecip.Value]
+      splice_args: ${hourly_collect.splice_args}
+      selector: HlyPrecip.Value
+    metadata:
+      station_id: ${hourly_metadata.station_id}
+      agency_id: ${hourly_metadata.agency_id}
+      agency: ${hourly_metadata.agency}
+      source: ${hourly_metadata.source}
+      subloc: ${hourly_metadata.subloc}
+      freq: ${hourly_metadata.freq}
+      time_zone: ${hourly_metadata.time_zone}
+      time_zone_label: ${hourly_metadata.time_zone_label}
+      param: precip
+      unit: in
+    output: ${hourly_output}
