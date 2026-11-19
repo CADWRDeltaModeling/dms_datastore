@@ -54,6 +54,7 @@ def subset_rtofs_dataset(
 	data,
 	lat_bounds=LAT_LON_BOUNDS["lat"],
 	lon_bounds=LAT_LON_BOUNDS["lon"],
+	include_velocity: bool = False,
 ):
 	"""Crop RTOFS's curvilinear grid, keeping requested fields at all depths.
 
@@ -72,7 +73,8 @@ def subset_rtofs_dataset(
 	xarray.Dataset
 		Smallest rectangular grid enclosing the selected cells. Cells outside
 		the box are masked. Retains ssh, temperature, and salinity when present,
-		along with coordinates and Date; does not subset depth or time.
+		and optionally 3-D velocity fields when requested, along with coordinates
+		and Date; does not subset depth or time.
 	"""
 	import numpy as np
 
@@ -98,6 +100,20 @@ def subset_rtofs_dataset(
 		latitude.dims[1]: slice(int(columns.min()), int(columns.max()) + 1),
 	}
 	fields = [name for name in ("ssh", "temperature", "salinity") if name in data]
+	if include_velocity:
+		velocity_pattern = re.compile(
+			r"(?:^u$|^v$|velocity|water_u|water_v|uvel|vvel|u_component_of_current|v_component_of_current)",
+			re.IGNORECASE,
+		)
+		velocity_fields = [
+			name for name in data.data_vars
+			if velocity_pattern.search(name)
+		]
+		if "rtofs_glo_3dz_" in str(data.encoding.get("source", "")) and not velocity_fields:
+			raise ValueError("Requested velocity fields are not present in this 3-D RTOFS source file")
+		for name in velocity_fields:
+			if name not in fields:
+				fields.append(name)
 	if not fields:
 		raise ValueError("Dataset has no ssh, temperature, or salinity fields")
 	coordinates = [name for name in ("Latitude", "Longitude", "Date") if name in data]
@@ -108,6 +124,7 @@ def subset_rtofs_dataset(
 	subset.attrs = dict(data.attrs)
 	subset.attrs["subset_lat_bounds"] = list(lat_bounds)
 	subset.attrs["subset_lon_bounds"] = list(lon_bounds)
+	subset.attrs["subset_include_velocity"] = "true" if include_velocity else "false"
 	return subset
 
 
@@ -267,7 +284,7 @@ def _convert_rtofs_surface_to_navd88(surface, latitude, longitude, vdatum_grid):
 	"""Convert MSL-referenced RTOFS elevations using the NOAA datum grid."""
 	import numpy as np
 	import xarray as xr
-	from pyproj import Transformer
+	from pyproj import Transformer, network
 	from scipy.spatial import cKDTree
 
 	vdatum_grid = Path(vdatum_grid)
@@ -329,11 +346,23 @@ def _convert_rtofs_surface_to_navd88(surface, latitude, longitude, vdatum_grid):
 	)
 	if not valid_datum.any():
 		raise ValueError(f"No valid NAVD88 datum offsets in {vdatum_grid}")
-
-	transformer = Transformer.from_crs("EPSG:4326", "EPSG:26910", always_xy=True)
-	datum_x, datum_y = transformer.transform(
-		datum_longitude[valid_datum], datum_latitude[valid_datum]
-	)
+	network_enabled = network.is_network_enabled()
+	try:
+		network.set_network_enabled(False)
+		transformer = Transformer.from_crs(
+			"EPSG:4326", "EPSG:26910", always_xy=True
+		)
+		datum_x, datum_y = transformer.transform(
+			datum_longitude[valid_datum],
+			datum_latitude[valid_datum],
+			errcheck=True,
+		)
+		target_lon = np.where(grid_lon > 180.0, grid_lon - 360.0, grid_lon)
+		target_x, target_y = transformer.transform(
+			target_lon, grid_lat, errcheck=True
+		)
+	finally:
+		network.set_network_enabled(network_enabled)
 	datum_values = navd88_to_msl[valid_datum]
 	valid_projected = np.isfinite(datum_x) & np.isfinite(datum_y)
 	datum_points = np.column_stack(
@@ -343,8 +372,6 @@ def _convert_rtofs_surface_to_navd88(surface, latitude, longitude, vdatum_grid):
 	if not len(datum_points):
 		raise ValueError(f"No valid projected datum-grid points in {vdatum_grid}")
 
-	target_lon = np.where(grid_lon > 180.0, grid_lon - 360.0, grid_lon)
-	target_x, target_y = transformer.transform(target_lon, grid_lat)
 	if np.any(valid_target & ~(np.isfinite(target_x) & np.isfinite(target_y))):
 		raise ValueError("Could not project all wet RTOFS grid cells to EPSG:26910")
 	target_points = np.column_stack(
@@ -726,6 +753,7 @@ class S3Downloader:
 	def download_subset_file(
 		self, key: str, output_path: Path, size: int,
 		lat_bounds, lon_bounds, overwrite: bool = False,
+		include_velocity: bool = False,
 	) -> bool:
 		"""Download, crop, and atomically save a NetCDF subset; remove the source.
 
@@ -742,17 +770,42 @@ class S3Downloader:
 			"subset_source_size": str(size),
 			"subset_source": self.source_identity(),
 			"subset_version": 2,
+			"subset_include_velocity": "true" if include_velocity else "false",
 		}
+		file_name = Path(key).name
+		require_velocity = include_velocity and (
+			"rtofs_glo_3dz_" in file_name or "rtofs_glo_2ds_" in file_name
+		)
 		if not overwrite and output_path.is_file():
 			try:
 				with xr.open_dataset(output_path, decode_times=False) as existing:
-					if (
-						all(existing.attrs.get(name) == value for name, value in metadata.items())
+					matches_source_and_bounds = (
+						existing.attrs.get("subset_source_key") == key
+						and existing.attrs.get("subset_source_size") == str(size)
+						and existing.attrs.get("subset_source") == self.source_identity()
 						and list(existing.attrs.get("subset_lat_bounds", [])) == list(lat_bounds)
 						and list(existing.attrs.get("subset_lon_bounds", [])) == list(lon_bounds)
-					):
-						logging.info("Already subsetted: %s", output_path)
-						return True
+					)
+					if not matches_source_and_bounds:
+						logging.warning("Existing subset metadata mismatch; rebuilding: %s", output_path)
+						raise ValueError("subset metadata mismatch")
+					if require_velocity:
+						var_names = {name.lower() for name in existing.data_vars}
+						has_velocity = bool(
+							{"u", "v"}.intersection(var_names)
+							or any(
+								"velocity" in name or "water_u" in name or "water_v" in name
+								for name in var_names
+							)
+						)
+						if not has_velocity:
+							logging.info(
+								"Subset missing velocity fields; rebuilding with --add-vel: %s",
+								output_path,
+							)
+							raise ValueError("subset missing velocity fields")
+					logging.info("Already subsetted: %s", output_path)
+					return True
 			except (OSError, ValueError):
 				logging.warning("Cannot read existing subset; rebuilding: %s", output_path)
 		partial_path = output_path.with_name(output_path.name + ".part")
@@ -763,7 +816,22 @@ class S3Downloader:
 				if not self.download_file(key, source_path, size):
 					return False
 				with xr.open_dataset(source_path) as data:
-					subset = subset_rtofs_dataset(data, lat_bounds, lon_bounds)
+					subset = subset_rtofs_dataset(
+						data, lat_bounds, lon_bounds, include_velocity=include_velocity
+					)
+					if require_velocity:
+						var_names = {name.lower() for name in subset.data_vars}
+						has_velocity = bool(
+							{"u", "v"}.intersection(var_names)
+							or any(
+								"velocity" in name or "water_u" in name or "water_v" in name
+								for name in var_names
+							)
+						)
+						if not has_velocity:
+							raise ValueError(
+								f"Source file does not provide velocity fields required by --add-vel: {key}"
+							)
 					subset.attrs.update(metadata)
 					for name in subset.variables:
 						subset[name].encoding = {
@@ -880,6 +948,7 @@ def download_rtofs(
 	lat_bounds=LAT_LON_BOUNDS["lat"],
 	lon_bounds=LAT_LON_BOUNDS["lon"],
 	subset: bool = True,
+	add_vel: bool = False,
 ) -> bool:
 	"""Download matching RTOFS files for one daily model run.
 
@@ -916,6 +985,9 @@ def download_rtofs(
 	subset : bool, optional
 		Save only ssh, temperature, salinity, and their coordinates within the
 		box, keeping all depths. False retains original files without cropping.
+	add_vel : bool, optional
+		When True with subset mode, ensure 3-D subset files include velocity
+		fields; existing subset files missing velocity are rebuilt.
 
 	Returns
 	-------
@@ -935,6 +1007,8 @@ def download_rtofs(
 		patterns = (DEFAULT_PATTERNS[0], f"rtofs_glo_3dz_*_6hrly_hvr_{region}.nc")
 	else:
 		patterns = (pattern,) if isinstance(pattern, str) else tuple(pattern)
+	if add_vel and not any("rtofs_glo_3dz_" in candidate for candidate in patterns):
+		patterns = patterns + (f"rtofs_glo_3dz_*_6hrly_hvr_{region}.nc",)
 	if not patterns:
 		raise ValueError("At least one filename pattern is required")
 	if date is None:
@@ -980,8 +1054,13 @@ def download_rtofs(
 		if dry_run:
 			logging.info("%s (%d bytes)", s3_downloader.location(obj["Key"]), obj["Size"])
 		elif subset:
+			file_name = Path(obj["Key"]).name
+			include_velocity = add_vel and (
+				"rtofs_glo_3dz_" in file_name or "rtofs_glo_2ds_" in file_name
+			)
 			if not s3_downloader.download_subset_file(
 				obj["Key"], output_path, obj["Size"], lat_bounds, lon_bounds, overwrite,
+				include_velocity=include_velocity,
 			):
 				success = False
 		elif not overwrite and output_path.is_file() and output_path.stat().st_size == obj["Size"]:
@@ -1079,6 +1158,7 @@ Only ssh, temperature, salinity and coordinates are saved, at all depths.
 Cropped output: OUTPUT/subset/rtofs.YYYYMMDD/; temporary sources are removed.
 S3 transfers whole files before cropping; --dry-run sizes are transfer sizes.
 Use --no-subset to retain original files without geographic/variable filtering.
+Use --add-vel to ensure 3-D subset files include velocity fields.
 Processing combines temp, salt, and surf_el on a regular 51x38 lat/lon grid.
 All depths are retained; temporal and spatial interpolation are linear.
 Each processed file has 24 hours in fixed PST (UTC-8, without daylight saving).
@@ -1102,6 +1182,7 @@ Use --process-only with downloaded files; --skip-processing disables processing.
 @click.option("--lat-bounds", type=float, nargs=2, default=LAT_LON_BOUNDS["lat"], metavar="SOUTH NORTH", callback=_validate_bounds, help="Latitude box")
 @click.option("--lon-bounds", type=float, nargs=2, default=LAT_LON_BOUNDS["lon"], metavar="WEST EAST", callback=_validate_bounds, help="Longitude box in degrees east, 0-360")
 @click.option("--no-subset", is_flag=True, help="Retain original NOAA files without cropping or filtering fields")
+@click.option("--add-vel", is_flag=True, help="With subset mode, ensure 2-D and 3-D subset files include velocity fields")
 @click.option("--run-type", type=click.Choice(["forecast", "nowcast", "all"]), default="forecast", show_default=True, help="Product time type")
 @click.option("--list-dates", is_flag=True, help="List recent available run dates and exit")
 @click.option("--days-back", type=click.IntRange(min=1), default=7, show_default=True, help="Number of available dates to list")
@@ -1119,7 +1200,7 @@ Use --process-only with downloaded files; --skip-processing disables processing.
 @click.option("--debug", is_flag=True, help="Enable debug logging")
 def main(
 	date, start, end, output, forecast_steps, pattern, region, source,
-	lat_bounds, lon_bounds, no_subset, run_type, list_dates, days_back,
+	lat_bounds, lon_bounds, no_subset, add_vel, run_type, list_dates, days_back,
 	process_only, skip_processing, input_dir, processed_dir, process_start,
 	process_end, vdatum_grid, lat_count, lon_count, dry_run, overwrite, debug,
 ):
@@ -1141,6 +1222,8 @@ def main(
 		)
 	if process_only and skip_processing:
 		raise click.UsageError("--process-only and --skip-processing cannot be used together")
+	if add_vel and no_subset:
+		raise click.UsageError("--add-vel requires subset mode; remove --no-subset")
 
 	setup_logging(debug)
 	downloader = NomadsDownloader() if source == "nomads" else S3Downloader()
@@ -1169,7 +1252,7 @@ def main(
 				dry_run=dry_run, overwrite=overwrite,
 				region=region,
 				lat_bounds=lat_bounds, lon_bounds=lon_bounds,
-				subset=not no_subset,
+				subset=not no_subset, add_vel=add_vel,
 			):
 				success = False
 			date += timedelta(days=1)
