@@ -19,6 +19,10 @@ from urllib.request import Request, urlopen
 import click
 import numpy as np
 import pytz
+try:
+	from dms_datastore.logging_config import configure_logging, resolve_loglevel
+except ModuleNotFoundError:  # pragma: no cover - supports direct script execution
+	from logging_config import configure_logging, resolve_loglevel
 
 
 LAT_BOUNDS = (37.36, 39.0)
@@ -53,6 +57,7 @@ FIELD_ATTRIBUTES = {
 	"dlwrf": {"units": "W m-2", "long_name": "Downward long-wave radiation flux"},
 	"dswrf": {"units": "W m-2", "long_name": "Downward short-wave radiation flux"},
 }
+logger = logging.getLogger(__name__)
 
 
 def forecast_hours(max_hour=384):
@@ -130,8 +135,8 @@ def separate_flux_intervals(starts, ends, averages):
 		elif starts[index] != ends[index - 1]:
 			raise ValueError("Gap or overlap in GFS flux averaging windows")
 	if np.any(values < 0):
-		logging.warning("Clipping %d negative de-averaged flux values (minimum %g)",
-						np.count_nonzero(values < 0), values.min())
+		logger.warning("Clipping %d negative de-averaged flux values (minimum %g)",
+					   np.count_nonzero(values < 0), values.min())
 		values = np.maximum(values, 0)
 	return intervals, ends, values
 
@@ -249,8 +254,8 @@ def download_s3_fields(initialization, hour, client):
 				or len(payload) != end - start + 1):
 			raise ValueError(f"Incomplete or incorrect S3 byte range for {key}")
 		parts.append(payload)
-	logging.info("S3 f%03d: downloaded %.2f MiB of %.2f MiB",
-				 hour, sum(map(len, parts)) / 2**20, size / 2**20)
+	logger.info("S3 f%03d: downloaded %.2f MiB of %.2f MiB",
+				hour, sum(map(len, parts)) / 2**20, size / 2**20)
 	return b"".join(parts)
 
 
@@ -368,12 +373,12 @@ def download_forecast(initialization, hours, cache_dir, lat_bounds=LAT_BOUNDS,
 	for hour in hours:
 		path = directory / f"gfs.t{initialization:%H}z.pgrb2.0p25.f{hour:03d}.subset.grib2"
 		if path.exists() and (not overwrite or process_only):
-			logging.info("Using cached f%03d", hour)
+			logger.info("Using cached f%03d", hour)
 			payload = path.read_bytes()
 		else:
 			if process_only:
 				raise FileNotFoundError(f"Missing cached subset: {path}")
-			logging.info("Downloading %s %s f%03d", source.upper(), initialization.strftime("%Y-%m-%d %HZ"), hour)
+			logger.info("Downloading %s %s f%03d", source.upper(), initialization.strftime("%Y-%m-%d %HZ"), hour)
 			if source == "s3":
 				if s3_client is None:
 					s3_client = create_s3_client()
@@ -514,7 +519,7 @@ def write_sflux(output_path, initialization, valid_date, fields, lat, lon,
 	finally:
 		dataset.close()
 		partial.unlink(missing_ok=True)
-	logging.info("Saved %s (%d hourly records)", output_path, count)
+	logger.info("Saved %s (%d hourly records)", output_path, count)
 	return output_path
 
 
@@ -551,7 +556,7 @@ def process_gfs(initialization, hours, records, output_dir, lat_bounds=LAT_BOUND
 							and existing.sizes.get("time") == len(day_leads))
 			if not matching:
 				raise ValueError(f"Existing output belongs to another run/box, source, or is incomplete; use --overwrite: {path}")
-			logging.info("Already exists: %s", path)
+			logger.info("Already exists: %s", path)
 		else:
 			indices = np.asarray(day_leads) - leads[0]
 			write_sflux(path, initialization, valid_date,
@@ -593,15 +598,18 @@ def _validate_max_hour(ctx, param, value):
 	context_settings={"help_option_names": ["-h", "--help"]},
 	help="Download NOAA GFS forecasts and write daily Pacific SCHISM sflux files.",
 	epilog="""\
+\b
 Examples:
-  python download_gfs.py -d 2026-10-19 -c 0 -o ./data
-  python download_gfs.py -d 2026-07-23 --source s3 -o ./data
+  python download_gfs.py -d 2026-10-19 -c 0 --dest ./gfs_download
+  python download_gfs.py -d 2026-07-23 --source s3 --dest ./gfs_download
   python download_gfs.py -sdate 2026-10-19 -edate 2026-10-20 -c 0 -c 12
 
-The default 384-hour run covers at least 15 complete Pacific days.
-NOMADS retains only recent runs; S3 provides archived runs where available.
-S3 transfers global forcing fields, then crops locally (larger downloads).
-Cached subsets support --process-only; use the same --source as the cache.""",
+\b
+Notes:
+  The default 384-hour run covers at least 15 complete Pacific days.
+  NOMADS retains only recent runs; S3 provides archived runs where available.
+  S3 transfers global forcing fields, then crops locally (larger downloads).
+  Cached subsets support --process-only; use the same --source as the cache.""",
 )
 @click.option("-d", "--date", type=click.DateTime(formats=["%Y-%m-%d"]), callback=_date_as_date, help="UTC run date, YYYY-MM-DD")
 @click.option("-sdate", "--start", type=click.DateTime(formats=["%Y-%m-%d"]), callback=_date_as_date, help="First UTC run date (inclusive)")
@@ -615,13 +623,15 @@ Cached subsets support --process-only; use the same --source as the cache.""",
 @click.option("--source", type=click.Choice(["nomads", "s3"]), default="nomads", show_default=True, help="Download service; NOMADS is for recent runs, S3 for archived runs")
 @click.option("--lat-bounds", type=float, nargs=2, default=LAT_BOUNDS, metavar="SOUTH NORTH", callback=_validate_bounds, help="Latitude bounds")
 @click.option("--lon-bounds", type=float, nargs=2, default=LON_BOUNDS, metavar="WEST EAST", callback=_validate_bounds, help="Longitude bounds")
-@click.option("-o", "--output-dir", type=click.Path(path_type=Path), default=Path("./data"), show_default=True, help="Output root")
+@click.option("-o", "--dest", "--output-dir", "dest_dir", type=click.Path(path_type=Path), default=Path("./gfs_download"), show_default=True, help="Output root for downloaded/processed GFS files")
 @click.option("--process-only", is_flag=True, help="Process cached GRIB subsets without network access")
 @click.option("--dry-run", is_flag=True, help="Show forecast leads and Pacific days without downloading")
 @click.option("--overwrite", is_flag=True, help="Replace cached GRIB and daily NetCDF files")
+@click.option("--logdir", type=click.Path(path_type=Path), default=Path("logs"), show_default=True, help="Directory for log files")
+@click.option("--quiet", is_flag=True, help="Suppress console logging")
 @click.option("--debug", is_flag=True, help="Enable debug logging and tracebacks")
-def main(date, start, end, cycles, max_hour, source, lat_bounds, lon_bounds,
-		 output_dir, process_only, dry_run, overwrite, debug):
+def download_gfs_cli(date, start, end, cycles, max_hour, source, lat_bounds, lon_bounds,
+					 dest_dir, process_only, dry_run, overwrite, logdir, quiet, debug):
 	"""Download one or more GFS runs and write daily SCHISM atmospheric forcing."""
 	if date is None and start is None:
 		raise click.UsageError("Provide --date or --start/--end")
@@ -636,8 +646,14 @@ def main(date, start, end, cycles, max_hour, source, lat_bounds, lon_bounds,
 	if process_only and dry_run:
 		raise click.UsageError("--process-only cannot be combined with --dry-run")
 
-	logging.basicConfig(level=logging.DEBUG if debug else logging.INFO,
-						format="%(asctime)s %(levelname)s %(message)s")
+	level, console = resolve_loglevel(debug=debug, quiet=quiet)
+	configure_logging(
+		package_name="dms_datastore",
+		level=level,
+		console=console,
+		logdir=Path(logdir) if logdir is not None else None,
+		logfile_prefix="download_gfs",
+	)
 	try:
 		hours = forecast_hours(max_hour)
 		valid_run_date = start_date
@@ -647,20 +663,23 @@ def main(date, start, end, cycles, max_hour, source, lat_bounds, lon_bounds,
 				days = complete_sflux_days(initialization, hours[0], hours[-1])
 				if not days:
 					raise ValueError("Requested forecast has no complete Pacific day; increase --max-hour")
-				logging.info("%s %s: %d native files, f%03d..f%03d, %d complete Pacific days",
-							 source.upper(), initialization.isoformat(), len(hours), hours[0], hours[-1], len(days))
+				logger.info("%s %s: %d native files, f%03d..f%03d, %d complete Pacific days",
+							source.upper(), initialization.isoformat(), len(hours), hours[0], hours[-1], len(days))
 				for day, day_hours in days.items():
-					logging.info("  %s: %d hourly records", day, len(day_hours))
+					logger.info("  %s: %d hourly records", day, len(day_hours))
 				if not dry_run:
-					records = download_forecast(initialization, hours, output_dir / "grib",
+					records = download_forecast(initialization, hours, dest_dir / "grib",
 												lat_bounds, lon_bounds,
 												overwrite, process_only, source=source)
-					process_gfs(initialization, hours, records, output_dir,
+					process_gfs(initialization, hours, records, dest_dir,
 								lat_bounds, lon_bounds, overwrite, source=source)
 			valid_run_date += timedelta(days=1)
 	except Exception as error:
-		logging.error("GFS download/processing failed: %s", error, exc_info=debug)
+		logger.error("GFS download/processing failed: %s", error, exc_info=debug)
 		raise click.ClickException(str(error)) from error
+
+
+main = download_gfs_cli
 
 
 if __name__ == "__main__":
