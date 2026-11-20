@@ -1189,6 +1189,7 @@ Nowcast elevation notes:
         "-o",
         "--dest",
         "--output",
+        dest="output",
         type=str,
         default="./wcofs_rtofs_data",
         help="Output directory (default: ./wcofs_rtofs_data)",
