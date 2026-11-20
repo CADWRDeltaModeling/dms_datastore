@@ -11,6 +11,12 @@ every 3 hours from the cycle start; each file's internal time is used). The prev
 day's cycle is also downloaded, files are cropped to the latitude/longitude box used
 by download_rtofs.py, and complete fixed-PST days are interpolated hourly into
 OUTPUT/wcofs/processed/wcofs_interpolated_hourly_pstYYYYMMDD.nc.
+For each downloaded WCOFS forecast run, NAVD88 surface elevations at the
+configured UTM 10N points are written to OUTPUT/wcofs/csv/
+forecast_wcofs_YYYYMMDD_tCCz.csv using lead files f003 through f072.
+Use --add-vel to ensure regular-grid NetCDF subsets include velocity fields.
+Datum-grid matching uses the same locally installed horizontal projection for
+both grids, without remote PROJ downloads; offsets must be within 10 km.
 The --nowcast-elevation option downloads WCOFS 2ds.nNNN files, crops them to
 the same box, and combines their elevation and grid data into one hourly
 fixed-PST file for each complete Pacific day.
@@ -41,6 +47,11 @@ LAT_LON_BOUNDS = {"lat": (37, 39), "lon": (236, 239)}
 NETCDF_STEPS = range(3, 73, 3)
 NOWCAST_STEPS = range(1, 25)
 NETCDF_NAME = re.compile(r"wcofs\.t(\d{2})z\.(\d{8})\.regulargrid\.f(\d{3})\.nc$")
+WCOFS_POINT_COORDS_UTM10N = (
+    (508879.733, 4157870.920),
+    (549801.682, 4139846.580),
+    (503429.325, 4204146.620),
+)
 
 
 def setup_logging(debug: bool = False) -> None:
@@ -148,6 +159,7 @@ def download_wcofs(
     lat_bounds=LAT_LON_BOUNDS["lat"],
     lon_bounds=LAT_LON_BOUNDS["lon"],
     overwrite: bool = False,
+    add_vel: bool = False,
 ) -> bool:
     """
     Download WCOFS data from NOAA S3 bucket.
@@ -171,6 +183,8 @@ def download_wcofs(
         NetCDF only: latitude and longitude (0-360 degrees east) crop box.
     overwrite : bool, optional
         NetCDF only: rebuild subsets even when a matching subset exists.
+    add_vel : bool, optional
+        NetCDF only: ensure subset files include velocity variables.
 
     Returns
     -------
@@ -183,7 +197,7 @@ def download_wcofs(
     if file_format == "netcdf":
         return download_wcofs_netcdf(
             output_dir, s3_downloader, date, round, forecast_steps,
-            lat_bounds, lon_bounds, overwrite,
+            lat_bounds, lon_bounds, overwrite, add_vel,
         )
 
     round_str = f"{round:02d}"
@@ -364,6 +378,7 @@ def subset_wcofs_dataset(
     data,
     lat_bounds=LAT_LON_BOUNDS["lat"],
     lon_bounds=LAT_LON_BOUNDS["lon"],
+    include_velocity: bool = False,
 ):
     """Crop a WCOFS regular-grid dataset to a latitude/longitude box.
 
@@ -371,7 +386,7 @@ def subset_wcofs_dataset(
     ----------
     data : xarray.Dataset
         WCOFS regular-grid file with rectilinear 2-D Latitude/Longitude and
-        temp, salt, and zeta.
+        temp, salt, and zeta; when requested, velocity variables are retained.
     lat_bounds : pair of float, optional
         Inclusive south/north limits in degrees north, default (37, 39).
     lon_bounds : pair of float, optional
@@ -381,8 +396,9 @@ def subset_wcofs_dataset(
     Returns
     -------
     xarray.Dataset
-        temp and salt (time, Depth, lat, lon) and zeta (time, lat, lon) on
-        1-D lat and lon (0-360 degrees east) coordinates, at all depths.
+        temp and salt (time, Depth, lat, lon), zeta (time, lat, lon), and
+        optionally velocity variables on 1-D lat and lon (0-360 degrees east)
+        coordinates, at all depths.
     """
     import numpy as np
 
@@ -409,13 +425,43 @@ def subset_wcofs_dataset(
     rows = slice(int(rows.min()), int(rows.max()) + 1)
     columns = slice(int(columns.min()), int(columns.max()) + 1)
     y_dim, x_dim = data["Latitude"].dims
-    subset = data[["temp", "salt", "zeta"]].isel({y_dim: rows, x_dim: columns})
+    fields = ["temp", "salt", "zeta"]
+    if include_velocity:
+        velocity_pattern = re.compile(
+            r"(?:^u$|^v$|^ubar$|^vbar$|velocity|water_u|water_v|u_eastward|v_northward|uvel|vvel)",
+            re.IGNORECASE,
+        )
+        velocity_fields = [
+            name for name in data.data_vars
+            if velocity_pattern.search(name)
+        ]
+        if not velocity_fields:
+            raise ValueError("Requested velocity fields but none are present in this WCOFS source file")
+        for name in velocity_fields:
+            if name not in fields:
+                fields.append(name)
+    subset = data[fields].isel({y_dim: rows, x_dim: columns})
     subset = subset.drop_vars(["Latitude", "Longitude"], errors="ignore").rename({y_dim: "lat", x_dim: "lon"})
     subset = subset.assign_coords(lat=lat[rows], lon=lon[columns])
     subset.attrs = dict(data.attrs)
     subset.attrs["subset_lat_bounds"] = list(lat_bounds)
     subset.attrs["subset_lon_bounds"] = list(lon_bounds)
+    subset.attrs["subset_include_velocity"] = "true" if include_velocity else "false"
     return subset
+
+
+def _has_wcofs_velocity_variables(dataset):
+    names = {name.lower() for name in dataset.data_vars}
+    if {"u", "v"}.issubset(names) or {"ubar", "vbar"}.issubset(names):
+        return True
+    return any(
+        ("velocity" in name)
+        or ("water_u" in name)
+        or ("water_v" in name)
+        or ("u_eastward" in name)
+        or ("v_northward" in name)
+        for name in names
+    )
 
 
 def subset_wcofs_nowcast_elevation(
@@ -665,6 +711,7 @@ def download_wcofs_netcdf(
     lat_bounds=LAT_LON_BOUNDS["lat"],
     lon_bounds=LAT_LON_BOUNDS["lon"],
     overwrite: bool = False,
+    add_vel: bool = False,
 ) -> bool:
     """Download one cycle of regular-grid NetCDF forecasts and save box subsets.
 
@@ -685,6 +732,9 @@ def download_wcofs_netcdf(
         Crop box, defaulting to the download_rtofs.py box.
     overwrite : bool, optional
         Rebuild subsets even when a subset from the same source and box exists.
+    add_vel : bool, optional
+        Ensure subset files include velocity variables; existing subsets
+        without velocity are rebuilt.
 
     Returns
     -------
@@ -705,12 +755,25 @@ def download_wcofs_netcdf(
             logging.warning(f"File not found on S3: {key}")
             success = False
             continue
-        metadata = {"subset_source_key": key, "subset_source_size": str(size), "subset_version": 1}
+        metadata = {
+            "subset_source_key": key,
+            "subset_source_size": str(size),
+            "subset_version": 1,
+            "subset_include_velocity": "true" if add_vel else "false",
+        }
         if not overwrite and output_path.is_file():
             try:
                 with xr.open_dataset(output_path, decode_times=False) as existing:
+                    if add_vel and not _has_wcofs_velocity_variables(existing):
+                        logging.info(
+                            "Subset missing velocity fields; rebuilding with --add-vel: %s",
+                            output_path,
+                        )
+                        raise ValueError("subset missing velocity fields")
                     if (
-                        all(existing.attrs.get(name) == value for name, value in metadata.items())
+                        existing.attrs.get("subset_source_key") == key
+                        and existing.attrs.get("subset_source_size") == str(size)
+                        and existing.attrs.get("subset_version") == 1
                         and list(existing.attrs.get("subset_lat_bounds", [])) == list(lat_bounds)
                         and list(existing.attrs.get("subset_lon_bounds", [])) == list(lon_bounds)
                     ):
@@ -729,7 +792,9 @@ def download_wcofs_netcdf(
                 if source_path.stat().st_size != size:
                     raise ValueError(f"Downloaded size does not match S3 object: {key}")
                 with xr.open_dataset(source_path) as data:
-                    subset = subset_wcofs_dataset(data, lat_bounds, lon_bounds).load()
+                    subset = subset_wcofs_dataset(
+                        data, lat_bounds, lon_bounds, include_velocity=add_vel
+                    ).load()
             subset.attrs.update(metadata)
             for name in subset.variables:
                 subset[name].encoding = {
@@ -776,6 +841,132 @@ def _load_wcofs_series(paths):
     return combined.isel(time=unique).sortby("time")
 
 
+def _extract_wcofs_run_point_timeseries(run_files, processed_dir, run_day, run_cycle):
+    """Write one run's f003-f072 NAVD88 point time series CSV."""
+    import numpy as np
+    import pandas as pd
+    import xarray as xr
+
+    from compare_subtide_schism_ocean import (
+        _convert_wcofs_surface_to_navd88,
+        _fixed_pst_index,
+        _interpolate_wcofs_to_boundary,
+    )
+
+    run_steps = []
+    run_times = []
+    run_surface = []
+    latitude = longitude = None
+    for path in sorted(run_files):
+        name_match = NETCDF_NAME.search(path.name)
+        if name_match is None:
+            raise ValueError(f"Unexpected WCOFS subset filename: {path.name}")
+        _, _, step = name_match.groups()
+        step = int(step)
+        with xr.open_dataset(path) as dataset:
+            required = {"time", "lat", "lon", "zeta"}
+            missing = required.difference(dataset.variables)
+            if missing:
+                raise ValueError(
+                    f"{path} is missing WCOFS variables: {sorted(missing)}"
+                )
+            this_lat = np.asarray(dataset["lat"].values, dtype=float)
+            this_lon = np.asarray(dataset["lon"].values, dtype=float)
+            if this_lat.ndim != 1 or this_lon.ndim != 1:
+                raise ValueError(
+                    f"Subset forecast coordinates must be 1-D in {path}"
+                )
+            zeta = dataset["zeta"]
+            if set(zeta.dims) != {"time", "lat", "lon"}:
+                raise ValueError(
+                    f"WCOFS zeta must have time, lat, and lon dimensions in {path}"
+                )
+            zeta_values = np.asarray(
+                zeta.transpose("time", "lat", "lon").values,
+                dtype=float,
+            )
+            times = pd.to_datetime(dataset["time"].values)
+        if zeta_values.shape[0] != len(times):
+            raise ValueError(f"WCOFS time dimension does not match zeta in {path}")
+        if latitude is None:
+            latitude, longitude = this_lat, this_lon
+        elif not (
+            np.array_equal(this_lat, latitude, equal_nan=True)
+            and np.array_equal(this_lon, longitude, equal_nan=True)
+        ):
+            raise ValueError(f"WCOFS grid differs across run files, including {path}")
+
+        run_steps.extend([step] * len(times))
+        run_times.extend(list(times))
+        run_surface.append(zeta_values)
+
+    required_steps = set(NETCDF_STEPS)
+    present_steps = set(run_steps)
+    missing_steps = sorted(required_steps - present_steps)
+    if missing_steps:
+        missing_text = ", ".join(f"f{value:03d}" for value in missing_steps)
+        raise ValueError(
+            f"Run {run_day:%Y-%m-%d} t{run_cycle:02d}z is missing lead files: {missing_text}"
+        )
+
+    surface = np.concatenate(run_surface, axis=0)
+    frame = pd.DataFrame(
+        {
+            "step": np.asarray(run_steps, dtype=int),
+            "time": pd.to_datetime(run_times),
+        }
+    )
+    time_ns = frame["time"].to_numpy(dtype="datetime64[ns]").astype("int64")
+    order = np.lexsort((time_ns, frame["step"].to_numpy()))
+    frame = frame.iloc[order].reset_index(drop=True)
+    surface = surface[order, :, :]
+    unique = ~frame["step"].duplicated(keep="last")
+    frame = frame.loc[unique, :].sort_values("step")
+    surface = surface[unique.to_numpy(), :, :]
+    time_index = _fixed_pst_index(frame["time"].to_numpy())
+
+    surface_navd88 = _convert_wcofs_surface_to_navd88(
+        processed_dir, latitude, longitude, surface
+    )
+    point_xy = np.asarray(WCOFS_POINT_COORDS_UTM10N, dtype=float)
+    point_indices = np.arange(len(point_xy))
+    point_series = _interpolate_wcofs_to_boundary(
+        time_index,
+        latitude,
+        longitude,
+        surface_navd88,
+        point_indices,
+        point_xy,
+    )
+    columns = [
+        (
+            f"point_{index}_easting_{easting:.3f}_northing_{northing:.3f}"
+            "_NAVD88_m"
+        )
+        for index, (easting, northing) in enumerate(point_xy, start=1)
+    ]
+    point_series.columns = columns
+    missing_points = [
+        column for column in columns if not point_series[column].notna().any()
+    ]
+    if missing_points:
+        raise ValueError(
+            f"No WCOFS surface elevations are available for point(s): "
+            f"{', '.join(missing_points)}"
+        )
+
+    csv_dir = Path(processed_dir).parent / "csv"
+    csv_dir.mkdir(parents=True, exist_ok=True)
+    csv_path = csv_dir / f"forecast_wcofs_{run_day:%Y%m%d}_t{run_cycle:02d}z.csv"
+    point_series.to_csv(
+        csv_path,
+        index_label="time_fixed_PST",
+        date_format="%Y-%m-%d %H:%M:%S",
+    )
+    logging.info("Saved NAVD88 point time series to: %s", csv_path)
+    return csv_path
+
+
 def process_wcofs(input_dir: Path, processed_dir: Path = None, start=None, end=None):
     """Interpolate cropped 3-hourly WCOFS forecasts to hourly fixed-PST daily files.
 
@@ -795,6 +986,8 @@ def process_wcofs(input_dir: Path, processed_dir: Path = None, start=None, end=N
         Files named wcofs_interpolated_hourly_pstYYYYMMDD.nc with unlimited
         24-sample int time (hours since PST midnight), double temp, salt
         (time, depth, lat, lon) and surf_el (time, lat, lon), all depths.
+        One NAVD88 point time series CSV per forecast run is saved under
+        processed_dir.parent / "csv" using lead files f003 through f072.
 
     Notes
     -----
@@ -802,7 +995,9 @@ def process_wcofs(input_dir: Path, processed_dir: Path = None, start=None, end=N
     file's internal time. Duplicate valid times prefer the newest cycle, so
     the previous day's f024 supplies 03Z of the following date. Days that are
     not bracketed by samples at 3-hour or finer spacing are skipped (or rejected
-    when requested explicitly); no extrapolation is performed.
+    when requested explicitly); no extrapolation is performed. Point values
+    use the same WCOFS NAVD88 datum conversion and linear spatial interpolation
+    as compare_subtide_schism_ocean.py.
     """
     import numpy as np
     import pandas as pd
@@ -887,6 +1082,19 @@ def process_wcofs(input_dir: Path, processed_dir: Path = None, start=None, end=N
             partial_path.unlink(missing_ok=True)
         written.append(filename)
         logging.info(f"Saved 24 hourly PST samples to: {filename}")
+
+    runs = {}
+    for path in paths:
+        match = NETCDF_NAME.search(path.name)
+        if match is None:
+            continue
+        cycle, day, _ = match.groups()
+        key = (pd.to_datetime(day, format="%Y%m%d"), int(cycle))
+        runs.setdefault(key, []).append(path)
+    for (run_day, run_cycle), run_files in sorted(runs.items()):
+        _extract_wcofs_run_point_timeseries(
+            run_files, processed_dir, run_day, run_cycle
+        )
     return written
 
 
@@ -906,6 +1114,9 @@ Examples:
   # Download WCOFS regular-grid netcdf (f003-f072) for a date and the day before,
   # crop to the lat/lon box, and write hourly PST files to OUTPUT/wcofs/processed
   python download_wcofs.py wcofs -d 2026-10-13 -f netcdf -o ./data
+
+  # Ensure existing/new NetCDF subsets include velocity variables
+  python download_wcofs.py wcofs -d 2026-10-13 -f netcdf --add-vel -o ./data
   
   # Date range, lead hours 3-24 only
   python download_wcofs.py wcofs -sdate 2026-10-01 -edate 2026-10-07 -f netcdf -fs 3:24 -o ./data
@@ -1011,6 +1222,11 @@ Nowcast elevation notes:
         help="NetCDF crop longitude box in degrees east, 0-360 (default: 236 239)",
     )
     parser.add_argument("--overwrite", action="store_true", help="Rebuild NetCDF subsets even if they already exist")
+    parser.add_argument(
+        "--add-vel",
+        action="store_true",
+        help="NetCDF only: ensure subset files include velocity variables",
+    )
     processing_mode = parser.add_mutually_exclusive_group()
     processing_mode.add_argument(
         "--process-only", action="store_true",
@@ -1045,8 +1261,12 @@ Nowcast elevation notes:
             parser.error("--nowcast-elevation always writes complete daily files and cannot use --skip-processing")
         if args.forecast_steps:
             parser.error("Use --nowcast-steps instead of --forecast-steps with --nowcast-elevation")
+        if args.add_vel:
+            parser.error("--add-vel is not supported with --nowcast-elevation")
     elif args.nowcast_steps:
         parser.error("--nowcast-steps requires --nowcast-elevation")
+    if args.add_vel and args.format != "netcdf":
+        parser.error("--add-vel requires --format netcdf")
     
     # Initialize S3 downloader
     s3_downloader = S3Downloader()
@@ -1223,6 +1443,7 @@ Nowcast elevation notes:
                         lat_bounds=args.lat_bounds,
                         lon_bounds=args.lon_bounds,
                         overwrite=args.overwrite,
+                        add_vel=args.add_vel,
                     )
                 if not result:
                     wcofs_success = False
