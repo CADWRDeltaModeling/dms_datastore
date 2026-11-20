@@ -57,7 +57,7 @@ FIELD_ATTRIBUTES = {
 	"dlwrf": {"units": "W m-2", "long_name": "Downward long-wave radiation flux"},
 	"dswrf": {"units": "W m-2", "long_name": "Downward short-wave radiation flux"},
 }
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dms_datastore.download_gfs" if __name__ == "__main__" else __name__)
 
 
 def forecast_hours(max_hour=384):
@@ -602,7 +602,7 @@ def _validate_max_hour(ctx, param, value):
 Examples:
   python download_gfs.py -d 2026-10-19 -c 0 --dest ./gfs_download
   python download_gfs.py -d 2026-07-23 --source s3 --dest ./gfs_download
-  python download_gfs.py -sdate 2026-10-19 -edate 2026-10-20 -c 0 -c 12
+  python download_gfs.py --start 2026-10-19 --end 2026-10-20 -c 0 -c 12
 
 \b
 Notes:
@@ -651,7 +651,7 @@ def download_gfs_cli(date, start, end, cycles, max_hour, source, lat_bounds, lon
 		package_name="dms_datastore",
 		level=level,
 		console=console,
-		logdir=Path(logdir) if logdir is not None else None,
+		logdir=Path(logdir) if logdir is not None and not dry_run else None,
 		logfile_prefix="download_gfs",
 	)
 	try:
