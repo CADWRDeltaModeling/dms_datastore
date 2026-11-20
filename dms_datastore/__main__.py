@@ -2,6 +2,7 @@ import click
 from dms_datastore.download_noaa import download_noaa_cli
 from dms_datastore.download_hycom import download_hycom_cli
 from dms_datastore.download_hrrr import download_hrrr_cli
+from dms_datastore.download_etss import download_etss_cli
 from dms_datastore.download_cdec import download_cdec_cli
 from dms_datastore.download_nwis import download_nwis_cli
 from dms_datastore.download_des import download_des_cli
@@ -25,8 +26,8 @@ from dms_datastore.caching import data_cache_cli
 from dms_datastore.merge_files import merge_files_cli
 from dms_datastore.dropbox_data import dropbox_cli
 from dms_datastore.coarsen_file import coarsen_ts_cli
-from dms_datastore.update_repo import update_repo
-from dms_datastore.update_flagged_data import update_flagged_data
+from dms_datastore.update_repo import main as update_repo_cli
+from dms_datastore.update_flagged_data import main as update_flagged_data_cli
 from dms_datastore.rationalize_time_partitions import rationalize_time_partitions_cli
 from dms_datastore.des_view_overlap import des_view_overlap_cli
 from dms_datastore.spot_check import spot_check_cli
@@ -49,6 +50,7 @@ def cli():
 cli.add_command(download_noaa_cli, "download_noaa")
 cli.add_command(download_hycom_cli, "download_hycom")
 cli.add_command(download_hrrr_cli, "download_hrrr")
+cli.add_command(download_etss_cli, "download_etss")
 cli.add_command(download_cdec_cli, "download_cdec")
 cli.add_command(download_nwis_cli, "download_nwis")
 cli.add_command(download_des_cli, "download_des")
@@ -72,8 +74,8 @@ cli.add_command(delete_from_filelist_cli, "delete_from_filelist")
 cli.add_command(data_cache_cli, "data_cache")
 cli.add_command(merge_files_cli, "merge_files")
 cli.add_command(coarsen_ts_cli, "coarsen")
-cli.add_command(update_flagged_data,"updated_flagged_data")
-cli.add_command(update_repo,"update_repo")
+cli.add_command(update_flagged_data_cli,"updated_flagged_data")
+cli.add_command(update_repo_cli,"update_repo")
 cli.add_command(rationalize_time_partitions_cli, "rationalize_time_partitions")
 cli.add_command(des_view_overlap_cli, "des_view_overlap")
 cli.add_command(populate_daily_cli, "populate_daily")
