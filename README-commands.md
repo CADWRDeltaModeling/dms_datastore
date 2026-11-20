@@ -24,6 +24,7 @@ download_noaa --help
 download_hycom --help
 download_hrrr --help
 download_etss --help
+download_gfs --help
 download_cdec --help
 download_wdl --help
 download_nwis --help
@@ -96,6 +97,9 @@ download_hrrr --sdate 2024-01-01 --edate 2024-01-03 --dest <hrrr_raw_dir>
 
 # ETSS forecast products (not a station repository download)
 download_etss --date 2026-11-18 --dest <etss_dir> --dry-run
+
+# GFS atmospheric forcing (not a station repository download)
+download_gfs --date 2026-10-19 --dest <gfs_dir> --dry-run
 
 # UCD IPM (positional dates)
 download_ucdipm 2024-01-01 2024-01-31 --stnkey 281
