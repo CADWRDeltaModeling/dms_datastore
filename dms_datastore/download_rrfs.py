@@ -77,7 +77,7 @@ SFLUX_NAMES = {
     "sdlwrf": "dlwrf", "sdswrf": "dswrf",
     "dlwrf": "dlwrf", "dswrf": "dswrf",
 }
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dms_datastore.download_rrfs" if __name__ == "__main__" else __name__)
 
 
 def setup_logging(debug: bool = False, quiet: bool = False, logdir: Path = Path("logs")) -> None:
@@ -698,7 +698,7 @@ Examples:
   python download_rrfs.py -d 2026-10-13 -c 12 -fh 0:48 --vars ":TMP:2 m above ground:" --vars ":UGRD:10 m above ground:"
   python download_rrfs.py -d 2026-10-13 -c 12 --list-vars
   python download_rrfs.py -d 2026-10-13 -c 12 -fh 6 --list-vars
-  python download_rrfs.py -sdate 2026-10-10 -edate 2026-10-13 -c 0 -fh 0:24 --schism-vars --dest ./rrfs_data
+  python download_rrfs.py --start 2026-10-10 --end 2026-10-13 -c 0 -fh 0:24 --schism-vars --dest ./rrfs_data
   python download_rrfs.py --list-dates
   python download_rrfs.py --archive summer --list-dates --days-back 60
   python download_rrfs.py --archive summer -d 2023-07-17 --sflux --dest ./rrfs_retro
@@ -762,7 +762,7 @@ Notes:
 @click.option("--list-dates", is_flag=True, help="List recent cycle dates and exit")
 @click.option("--list-vars", is_flag=True,
               help="List variable/level/forecast records from RRFS .idx files; does not download GRIB data")
-@click.option("--days-back", type=int, default=7, show_default=True,
+@click.option("--days-back", type=click.IntRange(min=1), default=7, show_default=True,
               help="Number of dates to list")
 @click.option("--dry-run", is_flag=True, help="Show selected files and sizes without downloading")
 @click.option("--overwrite", is_flag=True, help="Download again even if a complete file exists")
@@ -823,7 +823,7 @@ def download_rrfs_cli(date, start, end, cycles, forecast_hours, product, domain,
     else:
         forecast_hours = range(0, 85)
 
-    setup_logging(args.debug, quiet=args.quiet, logdir=args.logdir)
+    setup_logging(args.debug, quiet=args.quiet, logdir=None if args.dry_run else args.logdir)
     downloader = S3Downloader(args.bucket)
     variables = SCHISM_VARS if (args.schism_vars or args.sflux) else args.vars
     if not args.sflux and not args.list_vars and not args.list_dates:
