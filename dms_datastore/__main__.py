@@ -4,6 +4,7 @@ from dms_datastore.download_hycom import download_hycom_cli
 from dms_datastore.download_hrrr import download_hrrr_cli
 from dms_datastore.download_etss import download_etss_cli
 from dms_datastore.download_gfs import download_gfs_cli
+from dms_datastore.download_rrfs import download_rrfs_cli
 from dms_datastore.download_cdec import download_cdec_cli
 from dms_datastore.download_nwis import download_nwis_cli
 from dms_datastore.download_des import download_des_cli
@@ -53,6 +54,7 @@ cli.add_command(download_hycom_cli, "download_hycom")
 cli.add_command(download_hrrr_cli, "download_hrrr")
 cli.add_command(download_etss_cli, "download_etss")
 cli.add_command(download_gfs_cli, "download_gfs")
+cli.add_command(download_rrfs_cli, "download_rrfs")
 cli.add_command(download_cdec_cli, "download_cdec")
 cli.add_command(download_nwis_cli, "download_nwis")
 cli.add_command(download_des_cli, "download_des")
