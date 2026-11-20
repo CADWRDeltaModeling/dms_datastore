@@ -40,6 +40,10 @@ import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
 from botocore.exceptions import ClientError
+try:
+    from dms_datastore.logging_config import configure_logging, resolve_loglevel
+except ModuleNotFoundError:  # pragma: no cover - supports direct script execution
+    from logging_config import configure_logging, resolve_loglevel
 
 
 BUCKET = "noaa-nos-ofs-pds"
@@ -54,13 +58,15 @@ WCOFS_POINT_COORDS_UTM10N = (
 )
 
 
-def setup_logging(debug: bool = False) -> None:
+def setup_logging(debug: bool = False, quiet: bool = False, logdir: Path = Path("logs")) -> None:
     """Configure logging."""
-    level = logging.DEBUG if debug else logging.INFO
-    logging.basicConfig(
+    level, console = resolve_loglevel(debug=debug, quiet=quiet)
+    configure_logging(
+        package_name="dms_datastore",
         level=level,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+        console=console,
+        logdir=Path(logdir) if logdir is not None else None,
+        logfile_prefix="download_wcofs",
     )
 
 
@@ -1106,48 +1112,49 @@ def main():
         epilog="""
 Examples:
   # Download latest WCOFS data
-  python download_wcofs.py wcofs -o ./data
+  python download_wcofs.py wcofs --dest ./data
 
   # Download WCOFS from specific date
-  python download_wcofs.py wcofs -d 2026-10-07 -o ./data
+  python download_wcofs.py wcofs -d 2026-10-07 --dest ./data
   
   # Download WCOFS regular-grid netcdf (f003-f072) for a date and the day before,
   # crop to the lat/lon box, and write hourly PST files to OUTPUT/wcofs/processed
-  python download_wcofs.py wcofs -d 2026-10-13 -f netcdf -o ./data
+  python download_wcofs.py wcofs -d 2026-10-13 -f netcdf --dest ./data
 
   # Ensure existing/new NetCDF subsets include velocity variables
-  python download_wcofs.py wcofs -d 2026-10-13 -f netcdf --add-vel -o ./data
+  python download_wcofs.py wcofs -d 2026-10-13 -f netcdf --add-vel --dest ./data
   
   # Date range, lead hours 3-24 only
-  python download_wcofs.py wcofs -sdate 2026-10-01 -edate 2026-10-07 -f netcdf -fs 3:24 -o ./data
+  python download_wcofs.py wcofs -sdate 2026-10-01 -edate 2026-10-07 -f netcdf -fs 3:24 --dest ./data
 
   # Download one complete fixed-PST daily sea-surface-elevation file
-  python download_wcofs.py wcofs -d 2026-11-01 --nowcast-elevation -o ./data
+  python download_wcofs.py wcofs -d 2026-11-01 --nowcast-elevation --dest ./data
 
   # Nowcast mode requires the complete n001-n024 hourly sequence
   python download_wcofs.py wcofs -sdate 2026-11-01 -edate 2026-11-02 \\
-      --nowcast-elevation --nowcast-steps 1:24 -o ./data
+      --nowcast-elevation --nowcast-steps 1:24 --dest ./data
   
   # Reprocess existing subsets without downloading
-  python download_wcofs.py wcofs --process-only -o ./data
+  python download_wcofs.py wcofs --process-only --dest ./data
   
   # Download both WCOFS and RTOFS for date range
-  python download_wcofs.py wcofs rtofs -sdate 2026-10-01 -edate 2026-10-07 -o ./data
+  python download_wcofs.py wcofs rtofs -sdate 2026-10-01 -edate 2026-10-07 --dest ./data
 
 NetCDF notes:
-  fNNN lead hours (003-072, every 3 h) count from the cycle start (t03z); each file's
-  internal time is used. Each source file is ~555 MB, so one requested date (plus the
-  previous day) transfers ~26 GB; only box subsets are kept in OUTPUT/wcofs/subset.
-  Processed files hold temp, salt, surf_el (zeta) on the native 0.04 deg grid within
-  the box, all depths, 24 hourly samples in fixed PST (UTC-8, no daylight saving).
-  Incomplete days are skipped; no extrapolation is performed.
+  - fNNN lead hours (003-072, every 3 h) count from cycle start (t03z).
+  - Each source file's internal time is used.
+  - Each source file is ~555 MB; one requested date (+ previous day) is ~26 GB transfer.
+  - Only box subsets are kept in OUTPUT/wcofs/subset.
+  - Processed files include temp, salt, surf_el (zeta), all depths, 24 hourly fixed-PST samples.
+  - Incomplete days are skipped; no extrapolation is performed.
 
 Nowcast elevation notes:
-  --nowcast-elevation combines hourly 2ds.nNNN samples into one complete
-  24-hour fixed-PST file per requested date, containing zeta, time, lon_rho,
-  lat_rho, and mask_rho under OUTPUT/wcofs/nowcast_elevation. It uses the
-  NOAA source files whose internal times cover that PST day; each source file
-  is about 74 MB. All lead hours 1-24 are required for a complete day.
+  - --nowcast-elevation combines hourly 2ds.nNNN samples into one complete
+    24-hour fixed-PST file per requested date.
+  - Output includes zeta, time, lon_rho, lat_rho, mask_rho under
+    OUTPUT/wcofs/nowcast_elevation.
+  - Each source file is about 74 MB.
+  - All lead hours 1-24 are required for a complete day.
         """,
     )
 
@@ -1180,6 +1187,7 @@ Nowcast elevation notes:
     )
     parser.add_argument(
         "-o",
+        "--dest",
         "--output",
         type=str,
         default="./wcofs_rtofs_data",
@@ -1247,10 +1255,21 @@ Nowcast elevation notes:
         action="store_true",
         help="Enable debug logging",
     )
+    parser.add_argument(
+        "--logdir",
+        type=str,
+        default="logs",
+        help="Directory for log files (default: logs)",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress console logging",
+    )
 
     args = parser.parse_args()
 
-    setup_logging(args.debug)
+    setup_logging(args.debug, quiet=args.quiet, logdir=Path(args.logdir))
 
     if args.nowcast_elevation:
         if args.forecast_type != ["wcofs"]:
