@@ -45,6 +45,10 @@ import click
 from botocore import UNSIGNED
 from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError
+try:
+    from dms_datastore.logging_config import configure_logging, resolve_loglevel
+except ModuleNotFoundError:  # pragma: no cover - supports direct script execution
+    from logging_config import configure_logging, resolve_loglevel
 
 
 BUCKET = "noaa-rrfs-ops-pds"
@@ -73,14 +77,18 @@ SFLUX_NAMES = {
     "sdlwrf": "dlwrf", "sdswrf": "dswrf",
     "dlwrf": "dlwrf", "dswrf": "dswrf",
 }
+logger = logging.getLogger(__name__)
 
 
-def setup_logging(debug: bool = False) -> None:
+def setup_logging(debug: bool = False, quiet: bool = False, logdir: Path = Path("logs")) -> None:
     """Configure CLI logging."""
-    logging.basicConfig(
-        level=logging.DEBUG if debug else logging.INFO,
-        format="%(asctime)s - %(levelname)s - %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
+    level, console = resolve_loglevel(debug=debug, quiet=quiet)
+    configure_logging(
+        package_name="dms_datastore",
+        level=level,
+        console=console,
+        logdir=Path(logdir) if logdir is not None else None,
+        logfile_prefix="download_rrfs",
     )
 
 
@@ -321,7 +329,7 @@ def write_sflux(
         partial_path.replace(output_path)
     finally:
         partial_path.unlink(missing_ok=True)
-    logging.info("Saved sflux file %s (%d times, %d x %d grid)", output_path, len(lead_hours), *grid_lat.shape)
+    logger.info("Saved sflux file %s (%d times, %d x %d grid)", output_path, len(lead_hours), *grid_lat.shape)
     return output_path
 
 
@@ -363,7 +371,7 @@ def process_sflux_days(args, downloader: "S3Downloader", date: datetime, cycle: 
     for local_date, day_hours in day_groups.items():
         target = targets[local_date]
         if target.is_file() and not args.overwrite and not args.dry_run:
-            logging.info("sflux file exists: %s", target)
+            logger.info("sflux file exists: %s", target)
             continue
         gribs = [
             local_path(args.output, rrfs_key(date, cycle, hour, args.product, args.domain,
@@ -375,7 +383,7 @@ def process_sflux_days(args, downloader: "S3Downloader", date: datetime, cycle: 
                 args.output, downloader, date, cycle, day_hours, args.product, args.domain,
                 variables, args.dry_run, args.overwrite, archive=args.archive,
             ):
-                logging.error("Skipping Pacific day %s because forecast hours are missing", local_date)
+                logger.error("Skipping Pacific day %s because forecast hours are missing", local_date)
                 success = False
                 continue
             if args.dry_run:
@@ -612,7 +620,7 @@ def download_rrfs(
         key = rrfs_key(date, cycle, hour, product, domain, archive=archive)
         size = s3_downloader.object_size(key)
         if size is None:
-            logging.warning("Not found: s3://%s/%s", s3_downloader.bucket, key)
+            logger.warning("Not found: s3://%s/%s", s3_downloader.bucket, key)
             success = False
             continue
         ranges = None
@@ -621,27 +629,27 @@ def download_rrfs(
         if variables:
             ranges, unmatched = select_byte_ranges(s3_downloader.read_text(key + ".idx"), size, variables)
             if unmatched:
-                logging.error("No GRIB records in %s match: %s", key, ", ".join(unmatched))
+                logger.error("No GRIB records in %s match: %s", key, ", ".join(unmatched))
                 success = False
                 continue
             expected = sum(end - start + 1 for start, end in ranges)
         total_bytes += expected
         if dry_run:
-            logging.info("s3://%s/%s -> %s (%.1f MB)", s3_downloader.bucket, key, output_path.name, expected / 1e6)
+            logger.info("s3://%s/%s -> %s (%.1f MB)", s3_downloader.bucket, key, output_path.name, expected / 1e6)
             continue
         if not overwrite and output_path.is_file() and output_path.stat().st_size == expected:
-            logging.info("Already downloaded: %s", output_path)
+            logger.info("Already downloaded: %s", output_path)
             continue
         try:
-            logging.info("Downloading %s (%.1f MB)", key, expected / 1e6)
+            logger.info("Downloading %s (%.1f MB)", key, expected / 1e6)
             s3_downloader.download(key, output_path, ranges)
             if output_path.stat().st_size != expected:
                 raise OSError(f"Downloaded size does not match expected {expected} bytes")
         except (BotoCoreError, ClientError, OSError) as error:
-            logging.error("Download failed for %s: %s", key, error)
+            logger.error("Download failed for %s: %s", key, error)
             output_path.unlink(missing_ok=True)
             success = False
-    logging.info("rrfs.%s/%02d: %.1f MB selected", f"{date:%Y%m%d}", cycle, total_bytes / 1e6)
+    logger.info("rrfs.%s/%02d: %.1f MB selected", f"{date:%Y%m%d}", cycle, total_bytes / 1e6)
     return success
 
 
@@ -656,9 +664,9 @@ def list_available_dates(s3_downloader: S3Downloader, days_back: int = 7, archiv
             if match:
                 dates.add(match.group(1))
     if not dates:
-        logging.warning("No RRFS dates found")
+        logger.warning("No RRFS dates found")
     for date in sorted(dates, reverse=True)[:days_back]:
-        logging.info("%s", datetime.strptime(date, "%Y%m%d").date())
+        logger.info("%s", datetime.strptime(date, "%Y%m%d").date())
 
 
 def parse_hours(value: str) -> range:
@@ -681,45 +689,40 @@ def parse_hours(value: str) -> range:
 @click.command(
     context_settings={"help_option_names": ["-h", "--help"]},
     help="Download NOAA RRFS GRIB2 forecasts from public AWS S3 (no credentials required).",
-    epilog="""Examples:
+    epilog="""\
+\b
+Examples:
   python download_rrfs.py -d 2026-10-13 -c 12 -fh 0:24 --dry-run
-  python download_rrfs.py -d 2026-10-13 -c 0 -c 6 -c 12 -c 18 -fh 0:84 -o ./data
+  python download_rrfs.py -d 2026-10-13 -c 0 -c 6 -c 12 -c 18 -fh 0:84 --dest ./rrfs_data
   python download_rrfs.py -d 2026-10-13 -c 12 --product prslev --domain na -fh 0:12:3
   python download_rrfs.py -d 2026-10-13 -c 12 -fh 0:48 --vars ":TMP:2 m above ground:" --vars ":UGRD:10 m above ground:"
-    python download_rrfs.py -d 2026-10-13 -c 12 --list-vars
-    python download_rrfs.py -d 2026-10-13 -c 12 -fh 6 --list-vars
-  python download_rrfs.py -sdate 2026-10-10 -edate 2026-10-13 -c 0 -fh 0:24 --schism-vars -o ./data
+  python download_rrfs.py -d 2026-10-13 -c 12 --list-vars
+  python download_rrfs.py -d 2026-10-13 -c 12 -fh 6 --list-vars
+  python download_rrfs.py -sdate 2026-10-10 -edate 2026-10-13 -c 0 -fh 0:24 --schism-vars --dest ./rrfs_data
   python download_rrfs.py --list-dates
-    python download_rrfs.py --archive summer --list-dates --days-back 60
-    python download_rrfs.py --archive summer -d 2023-07-17 --sflux -o ./rrfs_retro
-    python download_rrfs.py --archive spring -d 2024-05-03 -c 0 -fh 1 --list-vars
-    python download_rrfs.py -d 2026-10-16 --sflux -o ./rrfs_sflux
-    python download_rrfs.py -d 2026-10-16 --sflux -fh 1:84 --lat-bounds 37 39 --lon-bounds -124 -121
+  python download_rrfs.py --archive summer --list-dates --days-back 60
+  python download_rrfs.py --archive summer -d 2023-07-17 --sflux --dest ./rrfs_retro
+  python download_rrfs.py --archive spring -d 2024-05-03 -c 0 -fh 1 --list-vars
+  python download_rrfs.py -d 2026-10-16 --sflux --dest ./rrfs_sflux
+  python download_rrfs.py -d 2026-10-16 --sflux -fh 1:84 --lat-bounds 37 39 --lon-bounds -124 -121
 
-Cycles 00/06/12/18 UTC run to f084; other cycles only provide 2dfld.subh to f018.
---vars uses regular expressions on .idx lines (VAR:LEVEL:TIME); matching records are
-saved as *.subset.grib2. --schism-vars selects MSLET, 10 m U/V, 2 m TMP/SPFH,
-instantaneous PRATE, DSWRF and DLWRF. Output: OUTPUT/rrfs.YYYYMMDD/HH/.
---list-vars prints all indexed records (variable, level, forecast time) for the
-selected cycle/hour without downloading the GRIB2 file. Default listing hour is f000
-(f001 for 2dfld.subh); use -fh to select another hour or range.
-
---sflux defaults to f001-f084 (84 hours) from the 00Z cycle. It writes one file for
-each complete America/Los_Angeles calendar day covered by the forecast, e.g. a
-2026-10-16 run produces rrfs_2026101600.nc, rrfs_2026101700.nc, and
-rrfs_2026101800.nc. The NetCDF time coordinate counts days since the file's local
-midnight; valid_date_pacific records each file's Pacific date. DST is honored.
-Use --records 1, 2, or 3 to limit the forecast to that many 24-hour lead blocks.
-GRIB subsets are deleted after each Pacific day is converted (or fails) unless
---keep-grib is given, so at most one day of subsets is stored at a time. Without
---sflux, no cropping or cleanup is performed; without --vars/--schism-vars, complete
-~340 MB CONUS files are kept.
-
---archive selects noaa-rrfs-pds and its retrospective prslev products. It is not
-a continuous historical archive: currently summer covers July 2023, winter covers
-January 8-February 8, 2024, and spring covers May 2-31, 2024. Some cycles are absent.
-Use --list-dates and --list-vars to inspect availability; dates are never replaced
-by another run. In archive mode --sflux selects the same forcing fields from prslev.
+\b
+Notes:
+  - Cycles 00/06/12/18 UTC run to f084; other cycles only provide 2dfld.subh to f018.
+  - --vars matches .idx records by regex (VAR:LEVEL:TIME) and saves *.subset.grib2.
+  - --schism-vars selects MSLET, 10m U/V, 2m TMP/SPFH, PRATE, DSWRF, DLWRF.
+  - --list-vars prints variable/level/forecast inventory from .idx without GRIB download.
+  - Default --list-vars hour is f000 (f001 for 2dfld.subh); use -fh to change it.
+  - --sflux defaults to f001-f084 from 00Z and writes one file per complete Pacific day.
+  - Example output files: rrfs_2026101600.nc, rrfs_2026101700.nc, rrfs_2026101800.nc.
+  - NetCDF time is days since local midnight; valid_date_pacific stores Pacific date.
+  - DST is honored; use --records 1/2/3 to keep only that many 24-hour lead blocks.
+  - GRIB subsets are deleted after each Pacific day unless --keep-grib is provided.
+  - Without --sflux, no crop/cleanup occurs; without --vars/--schism-vars, full files are kept.
+  - --archive uses noaa-rrfs-pds retrospective prslev products (not a continuous archive).
+  - Coverage currently includes: summer Jul 2023, winter Jan 8-Feb 8 2024, spring May 2-31 2024.
+  - Some cycles are absent; use --list-dates and --list-vars to inspect availability.
+  - In archive mode, --sflux selects the same forcing fields from prslev.
 """,
 )
 @click.option("-d", "--date", type=click.DateTime(formats=["%Y-%m-%d"]),
@@ -751,7 +754,7 @@ by another run. In archive mode --sflux selects the same forcing fields from prs
               metavar="WEST EAST", show_default=True, help="--sflux longitude box")
 @click.option("--keep-grib", is_flag=True,
               help="Keep downloaded GRIB subsets after each --sflux day is converted")
-@click.option("-o", "--output", type=click.Path(path_type=Path), default=Path("./rrfs_data"),
+@click.option("-o", "--dest", "--output", "output", type=click.Path(path_type=Path), default=Path("./rrfs_data"),
               show_default=True, help="Output directory")
 @click.option("--archive", type=click.Choice(ARCHIVE_SEASONS),
               help="Retrospective dataset in noaa-rrfs-pds; selected 2023/2024 periods, not continuous history")
@@ -763,10 +766,14 @@ by another run. In archive mode --sflux selects the same forcing fields from prs
               help="Number of dates to list")
 @click.option("--dry-run", is_flag=True, help="Show selected files and sizes without downloading")
 @click.option("--overwrite", is_flag=True, help="Download again even if a complete file exists")
+@click.option("--logdir", type=click.Path(path_type=Path), default=Path("logs"),
+              show_default=True, help="Directory for log files")
+@click.option("--quiet", is_flag=True, help="Suppress console logging")
 @click.option("--debug", is_flag=True, help="Enable debug logging")
-def main(date, start, end, cycles, forecast_hours, product, domain, variables,
-         schism_vars, sflux, records, lat_bounds, lon_bounds, keep_grib, output,
-         archive, bucket, list_dates, list_vars, days_back, dry_run, overwrite, debug) -> int:
+def download_rrfs_cli(date, start, end, cycles, forecast_hours, product, domain, variables,
+                      schism_vars, sflux, records, lat_bounds, lon_bounds, keep_grib, output,
+                      archive, bucket, list_dates, list_vars, days_back, dry_run, overwrite,
+                      logdir, quiet, debug) -> int:
     """CLI entry point."""
     args = SimpleNamespace(
         date=date, start=start, end=end, cycles=cycles or None,
@@ -775,7 +782,7 @@ def main(date, start, end, cycles, forecast_hours, product, domain, variables,
         records=records, lat_bounds=lat_bounds, lon_bounds=lon_bounds,
         keep_grib=keep_grib, output=output, archive=archive, bucket=bucket,
         list_dates=list_dates, list_vars=list_vars, days_back=days_back,
-        dry_run=dry_run, overwrite=overwrite, debug=debug,
+        dry_run=dry_run, overwrite=overwrite, logdir=logdir, quiet=quiet, debug=debug,
     )
     args.product = args.product or ("prslev" if args.archive else "2dfld")
     args.bucket = args.bucket or (ARCHIVE_BUCKET if args.archive else BUCKET)
@@ -816,12 +823,12 @@ def main(date, start, end, cycles, forecast_hours, product, domain, variables,
     else:
         forecast_hours = range(0, 85)
 
-    setup_logging(args.debug)
+    setup_logging(args.debug, quiet=args.quiet, logdir=args.logdir)
     downloader = S3Downloader(args.bucket)
     variables = SCHISM_VARS if (args.schism_vars or args.sflux) else args.vars
     if not args.sflux and not args.list_vars and not args.list_dates:
-        logging.warning("Without --sflux, GRIB files are neither cropped nor deleted%s",
-                        "; complete ~340 MB CONUS files will be kept" if variables is None else "")
+        logger.warning("Without --sflux, GRIB files are neither cropped nor deleted%s",
+                       "; complete ~340 MB CONUS files will be kept" if variables is None else "")
     try:
         if args.list_dates:
             list_available_dates(downloader, args.days_back, archive=args.archive)
@@ -855,15 +862,15 @@ def main(date, start, end, cycles, forecast_hours, product, domain, variables,
         while date <= end_date:
             for cycle in sorted(set(cycles)):
                 hours = list(forecast_hours)
-                logging.info("Requested initialization: %s %02dZ; bucket=%s; archive=%s",
-                             date.strftime("%Y-%m-%d"), cycle, downloader.bucket, args.archive or "operational")
+                logger.info("Requested initialization: %s %02dZ; bucket=%s; archive=%s",
+                            date.strftime("%Y-%m-%d"), cycle, downloader.bucket, args.archive or "operational")
                 if args.product != "2dfld.subh" and cycle not in SYNOPTIC_CYCLES and max(hours) > 18:
-                    logging.warning("Cycle %02dz has no %s output; use cycles 0 6 12 18 or --product 2dfld.subh", cycle, args.product)
+                    logger.warning("Cycle %02dz has no %s output; use cycles 0 6 12 18 or --product 2dfld.subh", cycle, args.product)
                 if args.product == "2dfld.subh":
                     hours = [hour for hour in hours if 1 <= hour <= 18]
                 day_groups = complete_sflux_days(date, cycle, hours) if args.sflux else None
                 if args.sflux and not day_groups:
-                    logging.warning("Forecast hours do not cover a complete Pacific day for %s %02dz", date.date(), cycle)
+                    logger.warning("Forecast hours do not cover a complete Pacific day for %s %02dz", date.date(), cycle)
                     success = False
                     continue
                 if day_groups is not None:
@@ -873,7 +880,7 @@ def main(date, start, end, cycles, forecast_hours, product, domain, variables,
                     }
                     if all(path.is_file() for path in targets.values()) and not args.overwrite and not args.dry_run:
                         for path in targets.values():
-                            logging.info("sflux file exists: %s", path)
+                            logger.info("sflux file exists: %s", path)
                         continue
                 if not args.sflux:
                     if not download_rrfs(
@@ -885,13 +892,16 @@ def main(date, start, end, cycles, forecast_hours, product, domain, variables,
                 if not process_sflux_days(args, downloader, date, cycle, day_groups, targets, variables):
                     success = False
             date += timedelta(days=1)
-        logging.info("%s", "Completed successfully" if success else "Some files were missing or failed")
+        logger.info("%s", "Completed successfully" if success else "Some files were missing or failed")
         if not success:
             raise click.exceptions.Exit(1)
         return 0
     except (BotoCoreError, ClientError, OSError, ValueError) as error:
-        logging.error("RRFS download failed: %s", error)
+        logger.error("RRFS download failed: %s", error)
         raise click.exceptions.Exit(1) from error
+
+
+main = download_rrfs_cli
 
 
 if __name__ == "__main__":
