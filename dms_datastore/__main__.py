@@ -6,6 +6,7 @@ from dms_datastore.download_etss import download_etss_cli
 from dms_datastore.download_gfs import download_gfs_cli
 from dms_datastore.download_rrfs import download_rrfs_cli
 from dms_datastore.download_wcofs import download_wcofs_cli
+from dms_datastore.download_rtofs import download_rtofs_cli
 from dms_datastore.download_cdec import download_cdec_cli
 from dms_datastore.download_nwis import download_nwis_cli
 from dms_datastore.download_des import download_des_cli
@@ -57,6 +58,7 @@ cli.add_command(download_etss_cli, "download_etss")
 cli.add_command(download_gfs_cli, "download_gfs")
 cli.add_command(download_rrfs_cli, "download_rrfs")
 cli.add_command(download_wcofs_cli, "download_wcofs")
+cli.add_command(download_rtofs_cli, "download_rtofs")
 cli.add_command(download_cdec_cli, "download_cdec")
 cli.add_command(download_nwis_cli, "download_nwis")
 cli.add_command(download_des_cli, "download_des")

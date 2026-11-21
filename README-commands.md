@@ -27,6 +27,7 @@ download_etss --help
 download_gfs --help
 download_rrfs --help
 download_wcofs --help
+download_rtofs --help
 download_cdec --help
 download_wdl --help
 download_nwis --help
@@ -108,6 +109,9 @@ download_rrfs --date 2026-10-16 --sflux --dest <rrfs_dir> --dry-run
 
 # WCOFS forecast products (not a station repository download)
 download_wcofs wcofs --date 2026-10-13 --format netcdf --dest <wcofs_dir> --dry-run
+
+# RTOFS forecast products (not a station repository download)
+download_rtofs --date 2026-10-14 --source nomads --forecast-steps 96:192:6 --dest <rtofs_dir> --dry-run
 
 # UCD IPM (positional dates)
 download_ucdipm 2024-01-01 2024-01-31 --stnkey 281
