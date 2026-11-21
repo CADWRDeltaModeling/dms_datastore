@@ -30,10 +30,14 @@ References:
 
 import os
 import re
+import shutil
 import sys
+import warnings
+from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import NamedTemporaryFile, TemporaryDirectory
+from urllib.request import urlopen
 import argparse
 import logging
 import boto3
@@ -56,6 +60,11 @@ WCOFS_POINT_COORDS_UTM10N = (
     (508879.733, 4157870.920),
     (549801.682, 4139846.580),
     (503429.325, 4204146.620),
+)
+_WCOFS_DATUM_GRID_NAME = "wcofs_vdatums.nc"
+_WCOFS_DATUM_GRID_URL = (
+    "https://noaa-nos-ofs-pds.s3.amazonaws.com/"
+    "OFS_Grid_Datum/wcofs_vdatums.nc"
 )
 logger = logging.getLogger("dms_datastore.download_wcofs" if __name__ == "__main__" else __name__)
 
@@ -877,17 +886,256 @@ def _load_wcofs_series(paths):
     return combined.isel(time=unique).sortby("time")
 
 
+def _fixed_pst_index(index):
+    """Return a timezone-naive index expressed in fixed PST (UTC-08:00)."""
+    import pandas as pd
+
+    index = pd.DatetimeIndex(index)
+    if index.tz is not None:
+        index = index.tz_convert("Etc/GMT+8").tz_localize(None)
+    return index
+
+
+def _ensure_wcofs_datum_grid(data_dir):
+    """Find or download NOAA's WCOFS vertical-datum grid."""
+    import xarray as xr
+
+    data_dir = Path(data_dir)
+    for candidate in (data_dir / _WCOFS_DATUM_GRID_NAME, data_dir.parent / _WCOFS_DATUM_GRID_NAME):
+        if candidate.is_file():
+            return candidate
+
+    matches = list(data_dir.rglob(_WCOFS_DATUM_GRID_NAME))
+    if len(matches) > 1:
+        raise ValueError(f"Multiple WCOFS datum grids found under {data_dir}")
+    if matches:
+        return matches[0]
+
+    output_dir = (
+        data_dir.parent
+        if data_dir.name in {"processed", "nowcast_elevation"}
+        else data_dir
+    )
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / _WCOFS_DATUM_GRID_NAME
+    temporary_path = None
+    try:
+        with NamedTemporaryFile(
+            dir=output_dir, prefix=".wcofs_vdatums_", suffix=".part", delete=False
+        ) as temporary_file:
+            temporary_path = Path(temporary_file.name)
+            with urlopen(_WCOFS_DATUM_GRID_URL, timeout=120) as response:
+                shutil.copyfileobj(response, temporary_file)
+        with xr.open_dataset(temporary_path, decode_times=False) as dataset:
+            required = {"latitude", "longitude", "navd88tomsl"}
+            missing = required.difference(dataset.variables)
+            if missing:
+                raise ValueError(
+                    f"Downloaded WCOFS datum grid is missing variables: {sorted(missing)}"
+                )
+        temporary_path.replace(output_path)
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+    return output_path
+
+
+@contextmanager
+def _wcofs_local_transformer(grid_lon, grid_lat):
+    """Keep local operation selection and use inside the offline PROJ scope."""
+    import numpy as np
+    from pyproj import network
+    from pyproj.aoi import AreaOfInterest
+    from pyproj.transformer import TransformerGroup
+
+    target_lon = np.where(grid_lon > 180.0, grid_lon - 360.0, grid_lon)
+    finite = np.isfinite(target_lon) & np.isfinite(grid_lat)
+    if not finite.any():
+        raise ValueError("No finite WCOFS coordinates for datum-grid projection")
+    enabled = network.is_network_enabled()
+    try:
+        network.set_network_enabled(False)
+        group = TransformerGroup(
+            "EPSG:4326", "EPSG:26910", always_xy=True, allow_ballpark=False,
+            area_of_interest=AreaOfInterest(
+                float(target_lon[finite].min()), float(grid_lat[finite].min()),
+                float(target_lon[finite].max()), float(grid_lat[finite].max()),
+            ),
+        )
+        if not group.transformers:
+            raise ValueError("No local non-ballpark EPSG:26910 transformation for WCOFS")
+        transformer = group.transformers[0]
+        if not group.best_available:
+            warnings.warn(
+                f"Using local WCOFS horizontal transformation: {transformer.description}; "
+                f"stated accuracy {transformer.accuracy:g} m. Optional PROJ grids "
+                "are not downloaded; the 10 km datum-coverage check is unchanged."
+            )
+        yield transformer
+    finally:
+        network.set_network_enabled(enabled)
+
+
+def _project_wcofs_datum_grids(datum_longitude, datum_latitude, grid_lon, grid_lat):
+    """Project both grids consistently without fetching optional PROJ grids."""
+    import numpy as np
+
+    target_lon = np.where(grid_lon > 180.0, grid_lon - 360.0, grid_lon)
+    with _wcofs_local_transformer(grid_lon, grid_lat) as transformer:
+        datum_x, datum_y = transformer.transform(
+            datum_longitude, datum_latitude, errcheck=True
+        )
+        target_x, target_y = transformer.transform(target_lon, grid_lat, errcheck=True)
+    return datum_x, datum_y, target_x, target_y
+
+
+def _convert_wcofs_surface_to_navd88(
+    data_dir, latitude, longitude, surface, mask=None, datum_path=None
+):
+    """Convert MSL to NAVD88 using local projection and offsets within 10 km."""
+    import numpy as np
+    import xarray as xr
+    from scipy.spatial import cKDTree
+
+    datum_path = Path(datum_path) if datum_path is not None else _ensure_wcofs_datum_grid(data_dir)
+    with xr.open_dataset(datum_path, decode_times=False) as dataset:
+        datum_latitude = np.asarray(dataset["latitude"].values, dtype=float)
+        datum_longitude = np.asarray(dataset["longitude"].values, dtype=float)
+        navd88_to_msl = np.asarray(dataset["navd88tomsl"].values, dtype=float).copy()
+        fill_value = dataset["navd88tomsl"].attrs.get("filledvalue")
+    if not (
+        datum_latitude.ndim == datum_longitude.ndim == navd88_to_msl.ndim == 2
+        and datum_latitude.shape == datum_longitude.shape == navd88_to_msl.shape
+    ):
+        raise ValueError(f"Invalid coordinate or offset dimensions in {datum_path}")
+    if fill_value is not None:
+        navd88_to_msl[navd88_to_msl == float(fill_value)] = np.nan
+
+    latitude = np.asarray(latitude, dtype=float)
+    longitude = np.asarray(longitude, dtype=float)
+    if latitude.ndim == 1 and longitude.ndim == 1:
+        grid_lon, grid_lat = np.meshgrid(longitude, latitude)
+    elif latitude.ndim == 2 and longitude.shape == latitude.shape:
+        grid_lat, grid_lon = latitude, longitude
+    else:
+        raise ValueError("WCOFS latitude and longitude must be matching 2-D grids or 1-D axes")
+    if surface.shape[1:] != grid_lat.shape:
+        raise ValueError("WCOFS elevation shape does not match its grid")
+    valid_target = (
+        np.isfinite(grid_lat) & np.isfinite(grid_lon) & np.isfinite(surface).any(axis=0)
+    )
+    if mask is not None:
+        mask = np.asarray(mask, dtype=float)
+        if mask.shape != grid_lat.shape:
+            raise ValueError("WCOFS water mask shape does not match its grid")
+        valid_target &= np.isfinite(mask) & (mask > 0.5)
+    valid_datum = (
+        np.isfinite(datum_latitude) & np.isfinite(datum_longitude) & np.isfinite(navd88_to_msl)
+    )
+    if not valid_datum.any():
+        raise ValueError(f"No valid NAVD88 offsets in {datum_path}")
+    datum_values = navd88_to_msl[valid_datum]
+    datum_x, datum_y, target_x, target_y = _project_wcofs_datum_grids(
+        datum_longitude[valid_datum], datum_latitude[valid_datum], grid_lon, grid_lat
+    )
+    valid_projected_datum = np.isfinite(datum_x) & np.isfinite(datum_y)
+    if not valid_projected_datum.all():
+        invalid_count = int(np.count_nonzero(~valid_projected_datum))
+        warnings.warn(f"Excluding {invalid_count} datum-grid cell(s) with non-finite projected coordinates")
+    datum_points = np.column_stack((datum_x[valid_projected_datum], datum_y[valid_projected_datum]))
+    datum_values = datum_values[valid_projected_datum]
+    if not len(datum_points):
+        raise ValueError(f"No valid projected NAVD88 datum-grid points in {datum_path}")
+    invalid_target = valid_target & ~(np.isfinite(target_x) & np.isfinite(target_y))
+    if invalid_target.any():
+        raise ValueError(
+            f"Could not project {int(np.count_nonzero(invalid_target))} valid "
+            "WCOFS water-grid cell(s) to EPSG:26910"
+        )
+    target_points = np.column_stack((target_x[valid_target], target_y[valid_target]))
+    if not len(target_points):
+        raise ValueError("WCOFS data has no valid wet grid cells to convert")
+    neighbor_count = min(4, len(datum_points))
+    distances, neighbors = cKDTree(datum_points).query(target_points, k=neighbor_count)
+    if neighbor_count == 1:
+        distances = distances[:, np.newaxis]
+        neighbors = neighbors[:, np.newaxis]
+    if np.any(distances[:, 0] > 10000.0):
+        count = int(np.count_nonzero(distances[:, 0] > 10000.0))
+        raise ValueError(
+            f"No nearby NAVD88 datum-grid coverage for {count} WCOFS cell(s) in {datum_path}"
+        )
+    datum_values = datum_values[neighbors]
+    offsets = np.empty(len(target_points), dtype=float)
+    exact = distances[:, 0] <= 1e-3
+    offsets[exact] = datum_values[exact, 0]
+    if (~exact).any():
+        weights = 1.0 / np.square(distances[~exact])
+        offsets[~exact] = np.sum(weights * datum_values[~exact], axis=1) / weights.sum(axis=1)
+    offset_grid = np.full(grid_lat.shape, np.nan, dtype=float)
+    offset_grid[valid_target] = offsets
+    if not np.isfinite(offset_grid[valid_target]).all():
+        raise ValueError("Could not determine NAVD88 offsets for all WCOFS water cells")
+    # navd88tomsl is NAVD88 minus MSL, so subtract it from MSL-referenced zeta.
+    return surface - offset_grid[np.newaxis, :, :]
+
+
+def _project_wcofs_grid(latitude, longitude, surface, mask=None):
+    """Project WCOFS grid coordinates to EPSG:26910 and identify wet cells."""
+    import numpy as np
+
+    latitude = np.asarray(latitude, dtype=float)
+    longitude = np.asarray(longitude, dtype=float)
+    if latitude.ndim == 1 and longitude.ndim == 1:
+        grid_lon, grid_lat = np.meshgrid(longitude, latitude)
+    elif latitude.ndim == 2 and longitude.shape == latitude.shape:
+        grid_lat, grid_lon = latitude, longitude
+    else:
+        raise ValueError("WCOFS latitude and longitude must be matching 2-D grids or 1-D axes")
+    if surface.shape[1:] != grid_lat.shape:
+        raise ValueError("WCOFS elevation shape does not match its grid")
+    lon_180 = np.where(grid_lon > 180.0, grid_lon - 360.0, grid_lon)
+    with _wcofs_local_transformer(grid_lon, grid_lat) as transformer:
+        grid_x, grid_y = transformer.transform(lon_180, grid_lat, errcheck=True)
+    valid_grid = np.isfinite(grid_x) & np.isfinite(grid_y)
+    valid_grid &= np.isfinite(surface).any(axis=0)
+    if mask is not None:
+        mask = np.asarray(mask)
+        if mask.shape != grid_lat.shape:
+            raise ValueError("WCOFS water mask shape does not match its grid")
+        valid_grid &= np.isfinite(mask) & (mask > 0.5)
+    return grid_x, grid_y, valid_grid
+
+
+def _interpolate_wcofs_to_boundary(
+    time_index, latitude, longitude, surface, boundary_nodes, boundary_xy, mask=None
+):
+    """Linearly interpolate WCOFS elevations to projected boundary points."""
+    import numpy as np
+    import pandas as pd
+    from scipy.interpolate import LinearNDInterpolator
+    from scipy.spatial import Delaunay
+
+    grid_x, grid_y, valid_grid = _project_wcofs_grid(latitude, longitude, surface, mask)
+    projected_grid = np.column_stack((grid_x[valid_grid], grid_y[valid_grid]))
+    if len(projected_grid) < 3:
+        raise ValueError("WCOFS grid has fewer than three valid water cells")
+    triangulation = Delaunay(projected_grid)
+    values = surface.transpose(1, 2, 0)[valid_grid]
+    interpolator = LinearNDInterpolator(triangulation, values, fill_value=np.nan)
+    boundary_values = interpolator(boundary_xy)
+    return pd.DataFrame(
+        boundary_values.T,
+        index=pd.DatetimeIndex(time_index, name="time"),
+        columns=pd.Index(boundary_nodes, name="boundary_node_index"),
+    )
+
+
 def _extract_wcofs_run_point_timeseries(run_files, processed_dir, run_day, run_cycle):
     """Write one run's f003-f072 NAVD88 point time series CSV."""
     import numpy as np
     import pandas as pd
     import xarray as xr
-
-    from compare_subtide_schism_ocean import (
-        _convert_wcofs_surface_to_navd88,
-        _fixed_pst_index,
-        _interpolate_wcofs_to_boundary,
-    )
 
     run_steps = []
     run_times = []
@@ -1032,8 +1280,7 @@ def process_wcofs(input_dir: Path, processed_dir: Path = None, start=None, end=N
     the previous day's f024 supplies 03Z of the following date. Days that are
     not bracketed by samples at 3-hour or finer spacing are skipped (or rejected
     when requested explicitly); no extrapolation is performed. Point values
-    use the same WCOFS NAVD88 datum conversion and linear spatial interpolation
-    as compare_subtide_schism_ocean.py.
+    use WCOFS NAVD88 datum offsets and linear spatial interpolation in UTM 10N.
     """
     import numpy as np
     import pandas as pd
