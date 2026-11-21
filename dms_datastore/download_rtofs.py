@@ -52,7 +52,7 @@ RTOFS_POINT_COORDS_UTM10N = (
 	(539094.454,  4140103.110), 
 	(503429.325, 4204146.620),
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("dms_datastore.download_rtofs" if __name__ == "__main__" else __name__)
 
 
 def subset_rtofs_dataset(
@@ -1147,7 +1147,7 @@ def _validate_bounds(ctx, param, value):
 \b
 Examples:
   python download_rtofs.py -d 2026-10-11 -fs 6:24:6 --dry-run
-  python download_rtofs.py -sdate 2026-10-01 -edate 2026-10-07 -fs 6:192:6 --dest ./data
+  python download_rtofs.py --start 2026-10-01 --end 2026-10-07 -fs 6:192:6 --dest ./data
   python download_rtofs.py -d 2026-10-11 --lat-bounds 37 39 --lon-bounds 236 239 -fs 6:24:6
   python download_rtofs.py -d 2026-10-14 --source nomads -fs 96:192:6 --dry-run
   python download_rtofs.py --list-dates
@@ -1228,7 +1228,7 @@ def download_rtofs_cli(
 	if add_vel and no_subset:
 		raise click.UsageError("--add-vel requires subset mode; remove --no-subset")
 
-	setup_logging(debug, quiet=quiet, logdir=logdir)
+	setup_logging(debug, quiet=quiet, logdir=None if dry_run else logdir)
 	downloader = NomadsDownloader() if source == "nomads" else S3Downloader()
 	processing_options = {
 		"input_dir": input_dir or (output if no_subset else output / "subset"),
