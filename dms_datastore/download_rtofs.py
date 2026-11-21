@@ -420,14 +420,73 @@ def _convert_rtofs_surface_to_navd88(surface, latitude, longitude, vdatum_grid):
 	return surface - offset_grid[np.newaxis, :, :]
 
 
+def _project_rtofs_grid(latitude, longitude, surface):
+	"""Project an RTOFS grid to EPSG:26910 and identify wet valid cells."""
+	import numpy as np
+	from pyproj import Transformer, network
+
+	latitude = np.asarray(latitude, dtype=float)
+	longitude = np.asarray(longitude, dtype=float)
+	surface = np.asarray(surface, dtype=float)
+	if latitude.ndim == 1 and longitude.ndim == 1:
+		grid_lon, grid_lat = np.meshgrid(longitude, latitude)
+	elif latitude.ndim == 2 and longitude.shape == latitude.shape:
+		grid_lat, grid_lon = latitude, longitude
+	else:
+		raise ValueError("RTOFS latitude and longitude must be matching 2-D grids or 1-D axes")
+	if surface.shape[1:] != grid_lat.shape:
+		raise ValueError("RTOFS elevation shape does not match its grid")
+	lon_180 = np.where(grid_lon > 180.0, grid_lon - 360.0, grid_lon)
+	network_enabled = network.is_network_enabled()
+	try:
+		network.set_network_enabled(False)
+		transformer = Transformer.from_crs(
+			"EPSG:4326", "EPSG:26910", always_xy=True
+		)
+		grid_x, grid_y = transformer.transform(
+			lon_180, grid_lat, errcheck=True
+		)
+	finally:
+		network.set_network_enabled(network_enabled)
+	valid_grid = np.isfinite(grid_x) & np.isfinite(grid_y)
+	valid_grid &= np.isfinite(surface).any(axis=0)
+	return grid_x, grid_y, valid_grid
+
+
+def _interpolate_rtofs_to_boundary(
+	time_index, latitude, longitude, surface, boundary_nodes, boundary_xy
+):
+	"""Interpolate RTOFS surface elevations from grid cells to target boundary points."""
+	import numpy as np
+	import pandas as pd
+	from scipy.interpolate import LinearNDInterpolator
+	from scipy.spatial import Delaunay
+
+	grid_x, grid_y, valid_grid = _project_rtofs_grid(latitude, longitude, surface)
+	projected_grid = np.column_stack((grid_x[valid_grid], grid_y[valid_grid]))
+	if len(projected_grid) < 3:
+		raise ValueError("RTOFS grid has fewer than three valid water cells")
+	triangulation = Delaunay(projected_grid)
+	values = surface.transpose(1, 2, 0)[valid_grid]
+	interpolator = LinearNDInterpolator(
+		triangulation,
+		values,
+		fill_value=np.nan,
+	)
+	boundary_values = interpolator(boundary_xy)
+	return pd.DataFrame(
+		boundary_values.T,
+		index=pd.DatetimeIndex(time_index, name="time"),
+		columns=pd.Index(boundary_nodes, name="boundary_node_index"),
+	)
+
+
 def _write_rtofs_point_timeseries(
 	time_index, latitude, longitude, surface, csv_dir, forecast_date,
 ):
 	"""Write one forecast's NAVD88 surface time series at the fixed UTM points."""
 	import numpy as np
 	import pandas as pd
-
-	from compare_subtide_schism_ocean import _interpolate_rtofs_to_boundary
 
 	latitude = np.asarray(latitude, dtype=float)
 	longitude = np.asarray(longitude, dtype=float)
