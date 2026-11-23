@@ -113,7 +113,10 @@ download_wcofs wcofs --date 2026-10-13 --format netcdf --dest <wcofs_dir> --dry-
 
 # RTOFS forecast products (not a station repository download)
 download_rtofs --date 2026-10-14 --source nomads --forecast-steps 96:192:6 --dest <rtofs_dir> --dry-run
+
+# Historical ESTOFS t00z CONUS-west water levels
 download_stofs2d --date 2020-12-30 --dest <estofs_dir> --dry-run
+download_stofs2d --date 2020-12-30 --dest <estofs_dir> --vdatum-grid <wcofs_vdatums.nc>
 
 # UCD IPM (positional dates)
 download_ucdipm 2024-01-01 2024-01-31 --stnkey 281
@@ -133,6 +136,17 @@ download_smscg --base-dir smscg --outfile dms_smscg_gate.csv
 # Mokelumne report conversion
 download_mokelumne --fname mokelumne_flow.csv --raw-dir <mokelumne_raw_dir> --converted-dir <formatted_dir>
 ```
+
+`download_stofs2d` targets the historical `estofs.YYYYMMDD` archive, not
+the newer `stofs_2d_glo` products. It selects combined tide and surge, crops
+to the RTOFS box, and writes surface-elevation-only hourly fixed-PST daily
+NetCDF grids and per-run point CSVs. Processing requires a WCOFS `navd88tomsl`
+datum grid: the source is treated as MSL and converted to NAVD88. Cells more
+than 10 km from valid datum coverage are masked with a warning. A selected
+forecast must have hourly coverage; missing hours are not interpolated across.
+Use `--skip-processing` for subsets only or `--process-only` to reuse them.
+For the newly registered standalone command, reinstall the package after
+updating; `dms download_stofs2d` is also available.
 
 ### Stage 2: Reformat raw -> formatted
 

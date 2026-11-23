@@ -17,6 +17,7 @@ import boto3
 import click
 from botocore import UNSIGNED
 from botocore.config import Config
+from botocore.exceptions import BotoCoreError, ClientError
 
 from dms_datastore.download_rtofs import (
     ForecastStepsType,
@@ -395,7 +396,7 @@ def download_stofs2d_cli(date, start, end, dest, forecast_steps, lat_bounds, lon
         if not dry_run and not skip_processing:
             process_stofs2d(dest / "subset", dest / "processed", vdatum_grid,
                             lat_bounds, lon_bounds, lat_count, lon_count, process_start, process_end)
-    except (OSError, ValueError) as error:
+    except (BotoCoreError, ClientError, OSError, ValueError) as error:
         raise click.ClickException(str(error)) from error
 
 
