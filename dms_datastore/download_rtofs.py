@@ -288,8 +288,14 @@ def interpolate_rtofs_day(
 	return result
 
 
-def _convert_rtofs_surface_to_navd88(surface, latitude, longitude, vdatum_grid):
-	"""Convert MSL-referenced RTOFS elevations using the NOAA datum grid."""
+def _convert_rtofs_surface_to_navd88(
+	surface, latitude, longitude, vdatum_grid, *, mask_uncovered=False,
+):
+	"""Convert MSL elevations using the NOAA datum grid.
+
+	By default missing datum coverage is an error. When ``mask_uncovered`` is
+	true, cells more than 10 km from an offset are masked and logged instead.
+	"""
 	import numpy as np
 	import xarray as xr
 	from pyproj import Transformer, network
@@ -395,15 +401,22 @@ def _convert_rtofs_surface_to_navd88(surface, latitude, longitude, vdatum_grid):
 	if neighbor_count == 1:
 		distances = distances[:, np.newaxis]
 		neighbors = neighbors[:, np.newaxis]
-	if np.any(distances[:, 0] > 10000.0):
-		count = int(np.count_nonzero(distances[:, 0] > 10000.0))
-		raise ValueError(
-			f"No nearby datum-grid coverage for {count} wet RTOFS cell(s) "
+	covered = distances[:, 0] <= 10000.0
+	if not covered.all():
+		count = int(np.count_nonzero(~covered))
+		message = (
+			f"No nearby datum-grid coverage for {count} wet grid cell(s) "
 			f"within 10 km in {vdatum_grid}"
 		)
+		if not mask_uncovered:
+			raise ValueError(message)
+		logger.warning("%s; masking these cells", message)
+	if not covered.any():
+		raise ValueError(f"No wet grid cells have datum-grid coverage within 10 km in {vdatum_grid}")
 
-	neighbor_values = datum_values[neighbors]
-	offsets = np.empty(len(target_points), dtype=float)
+	neighbor_values = datum_values[neighbors[covered]]
+	distances = distances[covered]
+	offsets = np.empty(len(distances), dtype=float)
 	exact = distances[:, 0] <= 1e-3
 	offsets[exact] = neighbor_values[exact, 0]
 	if (~exact).any():
@@ -413,8 +426,10 @@ def _convert_rtofs_surface_to_navd88(surface, latitude, longitude, vdatum_grid):
 		) / weights.sum(axis=1)
 
 	offset_grid = np.full(grid_lat.shape, np.nan, dtype=float)
-	offset_grid[valid_target] = offsets
-	if not np.isfinite(offset_grid[valid_target]).all():
+	target_offsets = np.full(len(target_points), np.nan, dtype=float)
+	target_offsets[covered] = offsets
+	offset_grid[valid_target] = target_offsets
+	if not np.isfinite(target_offsets[covered]).all():
 		raise ValueError("Could not determine a NAVD88 offset for every wet RTOFS cell")
 	# navd88tomsl is NAVD88 minus MSL; subtract it from MSL-referenced zeta.
 	return surface - offset_grid[np.newaxis, :, :]
