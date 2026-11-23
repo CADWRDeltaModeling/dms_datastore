@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Download historical ESTOFS t00z CONUS-west combined water levels.
+"""Download ESTOFS/STOFS-2D t00z CONUS-west combined water levels.
 
-The archive's estofs.YYYYMMDD GRIB2 files are converted to cropped NetCDF
-subsets, and processed into hourly fixed-PST daily grids and forecast-run
-point CSVs in NAVD88. ESTOFS provides water levels, not temperature or salinity.
-The later stofs_2d_glo archive uses different names and is not included.
+The archive uses estofs names before 2023-01-08 and stofs_2d_glo names
+thereafter. GRIB2 files are converted to cropped NetCDF subsets, and
+processed into hourly fixed-PST daily grids and forecast-run point CSVs in
+NAVD88. These products provide water levels, not temperature or salinity.
 """
 
 import logging
@@ -31,8 +31,13 @@ from dms_datastore.download_rtofs import (
 from dms_datastore.logging_config import configure_logging, resolve_loglevel
 
 BUCKET = "noaa-gestofs-pds"
-PRODUCT = re.compile(r"estofs\.t00z\.conus\.west\.f(\d{3})\.grib2$")
+PRODUCT = re.compile(r"(estofs|stofs_2d_glo)\.t00z\.conus\.west\.f(\d{3})\.grib2$")
+STOFS_START = datetime(2023, 1, 8).date()
 logger = logging.getLogger("dms_datastore.download_stofs2d" if __name__ == "__main__" else __name__)
+
+
+def _product_name(day):
+    return "estofs" if day.date() < STOFS_START else "stofs_2d_glo"
 
 
 def _client():
@@ -41,15 +46,16 @@ def _client():
 
 def list_run(client, day, forecast_steps=None):
     """List matching GRIB objects and reject explicitly requested missing leads."""
-    prefix = f"estofs.{day:%Y%m%d}/estofs.t00z.conus.west.f"
+    product = _product_name(day)
+    prefix = f"{product}.{day:%Y%m%d}/{product}.t00z.conus.west.f"
     records = {}
     paginator = client.get_paginator("list_objects_v2")
     for page in paginator.paginate(Bucket=BUCKET, Prefix=prefix):
         for item in page.get("Contents", []):
             name = item["Key"].rsplit("/", 1)[-1]
             match = PRODUCT.fullmatch(name)
-            if match:
-                lead = int(match.group(1))
+            if match and match.group(1) == product:
+                lead = int(match.group(2))
                 if forecast_steps is None or lead in forecast_steps:
                     records[lead] = item
     if forecast_steps is not None:
@@ -57,7 +63,7 @@ def list_run(client, day, forecast_steps=None):
         if missing:
             raise ValueError(f"{day:%Y-%m-%d} missing forecast leads: {missing}")
     if not records:
-        raise ValueError(f"No historical ESTOFS t00z CONUS-west forecasts found for {day:%Y-%m-%d}")
+        raise ValueError(f"No {product} t00z CONUS-west forecasts found for {day:%Y-%m-%d}")
     return [records[lead] for lead in sorted(records)]
 
 
@@ -114,7 +120,8 @@ def _subset_grib(path, day, lead, lat_bounds, lon_bounds):
                 "Latitude": (("Y", "X"), lat[ys, xs]),
                 "Longitude": (("Y", "X"), lon[ys, xs]),
             },
-            attrs={"source": "NOAA ESTOFS t00z CONUS west", "source_vertical_datum": "MSL"},
+            attrs={"source": f"NOAA {_product_name(day)} t00z CONUS west",
+                   "source_vertical_datum": "MSL"},
         )
         return result
 
@@ -132,8 +139,9 @@ def download_run(client, day, output, lat_bounds, lon_bounds, forecast_steps=Non
     for item in records:
         key, size = item["Key"], item["Size"]
         name = key.rsplit("/", 1)[-1]
-        lead = int(PRODUCT.fullmatch(name).group(1))
-        target = Path(output) / "subset" / f"estofs.{day:%Y%m%d}" / (name[:-6] + ".nc")
+        lead = int(PRODUCT.fullmatch(name).group(2))
+        target = (Path(output) / "subset" / f"estofs.{day:%Y%m%d}"
+                  / f"estofs.t00z.conus.west.f{lead:03d}.nc")
         metadata = {
             "subset_source_key": key, "subset_source_size": str(size),
             "subset_lat_bounds": list(lat_bounds), "subset_lon_bounds": list(lon_bounds),
@@ -278,7 +286,7 @@ def process_stofs2d(input_dir, processed_dir, vdatum_grid, lat_bounds, lon_bound
                 "lat": ("lat", latitudes, {"units": "degrees_north", "axis": "Y"}),
                 "lon": ("lon", longitudes, {"units": "degrees_east", "axis": "X"}),
             },
-            attrs={"source": "NOAA ESTOFS t00z CONUS west", "vertical_datum": "NAVD88",
+            attrs={"source": "NOAA ESTOFS/STOFS-2D t00z CONUS west", "vertical_datum": "NAVD88",
                    "vertical_datum_grid": vdatum_grid.name,
                    "source_vertical_datum": "MSL",
                    "datum_coverage": "Cells farther than 10 km from the datum grid are missing",
@@ -323,17 +331,19 @@ def process_stofs2d(input_dir, processed_dir, vdatum_grid, lat_bounds, lon_bound
 
 @click.command(
     context_settings={"help_option_names": ["-h", "--help"]},
-    help="Download historical ESTOFS t00z CONUS-west forecasts and process water levels.",
+    help="Download ESTOFS/STOFS-2D t00z CONUS-west forecasts and process water levels.",
     epilog="""\b
 Examples:
   dms download_stofs2d -d 2020-12-30 --dry-run
   dms download_stofs2d -d 2020-12-30 --vdatum-grid ..\\vdatum_crop.nc
+  dms download_stofs2d -d 2023-01-08 --vdatum-grid ..\\vdatum_crop.nc
   dms download_stofs2d --start 2020-12-30 --end 2021-01-02 --vdatum-grid ..\\vdatum_crop.nc
   dms download_stofs2d --process-only --dest ./estofs_data --vdatum-grid ..\\vdatum_crop.nc
 
 \b
-The requested archive uses historical estofs.* names, not newer stofs_2d_glo.*
-products. GRIB parameter 10/3/250 is combined tide and surge in metres.
+Before 2023-01-08 the archive uses estofs.*; from that date it uses
+stofs_2d_glo.*. Local subset and output filenames keep the estofs prefix.
+GRIB parameter 10/3/250 is combined tide and surge in metres.
 Outputs contain surface elevation only; temperature, salinity and velocity
 are not supplied. Daily grids and per-run CSVs use fixed PST and NAVD88.
 Cells without a datum-grid offset within 10 km are masked and reported.
