@@ -116,7 +116,7 @@ Examples
    # RTOFS forecast products (not a station repository download)
    download_rtofs --date 2026-10-14 --source nomads --forecast-steps 96:192:6 --dest <rtofs_dir> --dry-run
 
-   # ESTOFS/STOFS-2D t00z CONUS-west water levels
+   # ESTOFS/STOFS-2D CONUS-west water levels
    download_stofs2d --date 2020-12-30 --dest <estofs_dir> --dry-run
    download_stofs2d --date 2020-12-30 --dest <estofs_dir> --vdatum-grid <wcofs_vdatums.nc>
    download_stofs2d --date 2023-01-08 --dest <estofs_dir> --dry-run
@@ -127,6 +127,12 @@ Examples
 ``download_stofs2d`` uses ``estofs.YYYYMMDD/estofs.*`` before 2023-01-08
 and ``stofs_2d_glo.YYYYMMDD/stofs_2d_glo.*`` on and after that date. Local
 subset and processed filenames retain the ``estofs`` prefix for compatibility.
+The t00z cycle is preferred. If no t00z CONUS-west forecast exists, the tool
+logs a warning and selects the earliest available cycle, such as t06z.
+Subset filenames and forecast valid times retain the chosen cycle. If multiple
+cycles already exist locally, processing uses the earliest cycle for each date
+and warns about the ignored cycles. Missing explicitly requested leads remain
+an error; forecasts from different cycles are not combined to fill them.
 It selects combined tide and surge,
 crops to the RTOFS box, and writes surface-elevation-only hourly fixed-PST
 daily NetCDF grids and per-run point CSVs. Processing requires a WCOFS
