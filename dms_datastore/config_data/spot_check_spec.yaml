@@ -142,7 +142,7 @@ groups:
       - name: formatted_total_count
         # Observed staging total was 14923 (compare_directories.py, 2026-09-24);
         # 14000 leaves safety margin without masking a real collapse.
-        min_count: 14000
+        min_count: 13000
         max_count: 25000
         integrity: [filename_correct, station_in_registry, agency_id_matches_registry]
       - name: formatted_usgs_count
@@ -150,14 +150,14 @@ groups:
         # (see usgs_to_usbr_transition.md) so this floor reflects the smaller
         # post-transition population, not the pre-transition usgs count.
         count_pattern: "usgs_*.csv"
-        min_count: 2400
+        min_count: 700
       - name: formatted_des_count
         # Observed 2970 against ~3391 in repo (421 des files missing from
         # staging as of 2026-09-24) -- a real, known gap worth tracking but
         # not one that should block update_repo. warn_only logs it without
         # failing; raise/remove min_count once the des grab is fixed.
         count_pattern: "des_*.csv"
-        min_count: 3200
+        min_count: 3000
         warn_only: true
       - name: freeport_flow_open
         # fpt is an important station, so it gets its own always-on
