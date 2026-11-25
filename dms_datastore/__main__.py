@@ -5,6 +5,7 @@ from dms_datastore.download_hrrr import download_hrrr_cli
 from dms_datastore.download_etss import download_etss_cli
 from dms_datastore.download_gfs import download_gfs_cli
 from dms_datastore.download_rrfs import download_rrfs_cli
+from dms_datastore.download_rtma import download_rtma_cli
 from dms_datastore.download_wcofs import download_wcofs_cli
 from dms_datastore.download_rtofs import download_rtofs_cli
 from dms_datastore.download_stofs2d import download_stofs2d_cli
@@ -58,6 +59,7 @@ cli.add_command(download_hrrr_cli, "download_hrrr")
 cli.add_command(download_etss_cli, "download_etss")
 cli.add_command(download_gfs_cli, "download_gfs")
 cli.add_command(download_rrfs_cli, "download_rrfs")
+cli.add_command(download_rtma_cli, "download_rtma")
 cli.add_command(download_wcofs_cli, "download_wcofs")
 cli.add_command(download_rtofs_cli, "download_rtofs")
 cli.add_command(download_stofs2d_cli, "download_stofs2d")

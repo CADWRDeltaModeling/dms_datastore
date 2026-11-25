@@ -26,6 +26,7 @@ download_hrrr --help
 download_etss --help
 download_gfs --help
 download_rrfs --help
+download_rtma --help
 download_wcofs --help
 download_rtofs --help
 download_stofs2d --help
@@ -108,6 +109,9 @@ download_gfs --date 2026-10-19 --dest <gfs_dir> --dry-run
 # RRFS atmospheric forcing (not a station repository download)
 download_rrfs --date 2026-10-16 --sflux --dest <rrfs_dir> --dry-run
 
+# RTMA hourly analyses converted to Pacific-civil-day NetCDF
+download_rtma --date 2024-11-25 --dest <rtma_dir> --dry-run
+
 # WCOFS forecast products (not a station repository download)
 download_wcofs wcofs --date 2026-10-13 --format netcdf --dest <wcofs_dir> --dry-run
 download_wcofs wcofs --date 2021-03-23 --format netcdf --native-grid --dest <wcofs_dir> --dry-run
@@ -138,6 +142,25 @@ download_smscg --base-dir smscg --outfile dms_smscg_gate.csv
 # Mokelumne report conversion
 download_mokelumne --fname mokelumne_flow.csv --raw-dir <mokelumne_raw_dir> --converted-dir <formatted_dir>
 ```
+
+`download_rtma` downloads CONUS RTMA analyses from `noaa-rtma-pds`, crops
+to the RRFS/HRRR default box, and writes `YYYY/rtma_YYYYMMDD00.nc` for
+each complete Pacific civil day. Days have 23, 24 or 25 hourly records
+depending on daylight-saving time; source UTC dates can differ from the
+requested Pacific date. Use `--start` and `--end` for inclusive date ranges
+and `--lat-bounds` / `--lon-bounds` to change the crop. Each source record's
+actual GRIB timestamp is checked. Indexed byte-range downloads are temporary;
+`--dry-run` reports source sizes without downloading data.
+
+The NetCDF grid/time layout follows RRFS, but contains only `stmp`, `spfh`,
+`uwind`, `vwind`, and `pres` (surface pressure). RTMA's analysis does not
+provide RRFS's mean-sea-level pressure, precipitation rate or radiation in
+this product; these files alone are not complete RRFS forcing. The default
+date is yesterday in Pacific time. Missing source hours fail the whole day.
+Grid-relative RTMA winds are rotated to eastward/northward components.
+An existing daily file is reused only when its bounds and structure match.
+The standalone command is available after reinstalling the package; the
+grouped `dms download_rtma` command is also registered.
 
 For historical WCOFS forecasts, `--native-grid` downloads complete ROMS
 `fields` NetCDF files from `noaa-ofs-pds` into `wcofs/native`. These are
