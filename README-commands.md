@@ -110,6 +110,7 @@ download_rrfs --date 2026-10-16 --sflux --dest <rrfs_dir> --dry-run
 
 # WCOFS forecast products (not a station repository download)
 download_wcofs wcofs --date 2026-10-13 --format netcdf --dest <wcofs_dir> --dry-run
+download_wcofs wcofs --date 2021-03-23 --format netcdf --native-grid --dest <wcofs_dir> --dry-run
 
 # RTOFS forecast products (not a station repository download)
 download_rtofs --date 2026-10-14 --source nomads --forecast-steps 96:192:6 --dest <rtofs_dir> --dry-run
@@ -137,6 +138,18 @@ download_smscg --base-dir smscg --outfile dms_smscg_gate.csv
 # Mokelumne report conversion
 download_mokelumne --fname mokelumne_flow.csv --raw-dir <mokelumne_raw_dir> --converted-dir <formatted_dir>
 ```
+
+For historical WCOFS forecasts, `--native-grid` downloads complete ROMS
+`fields` NetCDF files from `noaa-ofs-pds` into `wcofs/native`. These are
+native curvilinear/sigma-grid data, not the regular-grid subsets; this mode
+does not crop, interpolate, or produce hourly PST files or point CSVs. The
+archive contains forecasts from 2021-03-23. Names use
+`nos.wcofs.fields.fNNN.YYYYMMDD.t03z.nc` through 2024-09-16 and
+`wcofs.t03z.YYYYMMDD.fields.fNNN.nc` starting 2024-09-17. Use
+`--forecast-steps 3` to download just one lead; the default is 24 files
+per requested cycle, approximately 336–354 MB each. Unlike regular-grid
+processing, native-grid mode does not request the preceding day's cycle.
+Existing files of the expected size are skipped unless `--overwrite` is set.
 
 `download_stofs2d` uses `estofs.YYYYMMDD/estofs.*` before 2023-01-08
 and `stofs_2d_glo.YYYYMMDD/stofs_2d_glo.*` on and after that date. Local

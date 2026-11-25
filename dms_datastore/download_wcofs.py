@@ -20,6 +20,8 @@ both grids, without remote PROJ downloads; offsets must be within 10 km.
 The --nowcast-elevation option downloads WCOFS 2ds.nNNN files, crops them to
 the same box, and combines their elevation and grid data into one hourly
 fixed-PST file for each complete Pacific day.
+The --native-grid option instead downloads unprocessed ROMS forecast fields
+from the noaa-ofs-pds archive, including forecasts starting 2021-03-23.
 
 References:
     - WCOFS S3: https://noaa-nos-ofs-pds.s3.amazonaws.com/wcofs/
@@ -52,6 +54,8 @@ except ModuleNotFoundError:  # pragma: no cover - supports direct script executi
 
 
 BUCKET = "noaa-nos-ofs-pds"
+WCOFS_ARCHIVE_BUCKET = "noaa-ofs-pds"
+WCOFS_ARCHIVE_RENAME = datetime(2024, 9, 17)
 LAT_LON_BOUNDS = {"lat": (37, 39), "lon": (236, 239)}
 NETCDF_STEPS = range(3, 73, 3)
 NOWCAST_STEPS = range(1, 25)
@@ -75,6 +79,14 @@ def _wcofs_key(date, round, product, step, file_format):
     return f"wcofs/{file_format}/{date:%Y/%m/%d}/{filename}"
 
 
+def _wcofs_native_key(date, round, step):
+    if date.date() < WCOFS_ARCHIVE_RENAME.date():
+        filename = f"nos.wcofs.fields.f{step:03d}.{date:%Y%m%d}.t{round:02d}z.nc"
+    else:
+        filename = f"wcofs.t{round:02d}z.{date:%Y%m%d}.fields.f{step:03d}.nc"
+    return f"wcofs.{date:%Y%m%d}/{filename}"
+
+
 def _rtofs_key(date, round, file_format):
     extension = "nc" if file_format == "netcdf" else "grb2"
     return f"rtofs/{file_format}/{date:%Y/%m/%d}/rtofs.t{round:02d}z.{date:%Y%m%d}.{extension}"
@@ -87,9 +99,14 @@ def _nowcast_source_files(date):
     )
 
 
-def plan_downloads(downloader, forecast_type, date, file_format, forecast_steps, nowcast_elevation):
+def plan_downloads(downloader, forecast_type, date, file_format, forecast_steps, nowcast_elevation,
+                   native_grid=False):
     """Report source objects and sizes without downloading or writing files."""
-    if forecast_type == "rtofs":
+    bucket = WCOFS_ARCHIVE_BUCKET if native_grid else BUCKET
+    if native_grid:
+        steps = NETCDF_STEPS if forecast_steps is None else forecast_steps
+        keys = [_wcofs_native_key(date, 3, step) for step in steps]
+    elif forecast_type == "rtofs":
         keys = [_rtofs_key(date, 3, file_format)]
     elif nowcast_elevation:
         keys = [_wcofs_key(source_date, 3, "2ds.n", step, "netcdf")
@@ -102,12 +119,50 @@ def plan_downloads(downloader, forecast_type, date, file_format, forecast_steps,
         keys = [_wcofs_key(date, 3, product, step, file_format) for step in steps]
     success = True
     for key in keys:
-        size = downloader.object_size(BUCKET, key)
+        size = downloader.object_size(bucket, key)
         if size is None:
-            logger.warning("File not found on S3: %s", key)
+            logger.warning("File not found on S3: s3://%s/%s", bucket, key)
             success = False
         else:
-            logger.info("Would download s3://%s/%s (%.1f MiB)", BUCKET, key, size / 1024**2)
+            logger.info("Would download s3://%s/%s (%.1f MiB)", bucket, key, size / 1024**2)
+    return success
+
+
+def download_wcofs_native(output_dir, s3_downloader, date, round=3,
+                          forecast_steps=None, overwrite=False):
+    """Download full native ROMS forecast fields without cropping or processing."""
+    steps = list(NETCDF_STEPS if forecast_steps is None else forecast_steps)
+    if not steps or any(step not in NETCDF_STEPS for step in steps):
+        raise ValueError("Native-grid forecast steps must be lead hours 3, 6, ..., 72")
+    output_dir = Path(output_dir) / "native"
+    success = True
+    for step in steps:
+        key = _wcofs_native_key(date, round, step)
+        try:
+            size = s3_downloader.object_size(WCOFS_ARCHIVE_BUCKET, key)
+            if size is None:
+                logger.warning("File not found on S3: s3://%s/%s", WCOFS_ARCHIVE_BUCKET, key)
+                success = False
+                continue
+            output_path = output_dir / Path(key).name
+            if output_path.is_file() and not overwrite:
+                if output_path.stat().st_size == size:
+                    logger.info("Already available: %s", output_path)
+                    continue
+                logger.warning("Existing file has the wrong size; rebuilding: %s", output_path)
+            output_dir.mkdir(parents=True, exist_ok=True)
+            with TemporaryDirectory(prefix="wcofs_native_", dir=output_dir) as directory:
+                source_path = Path(directory) / output_path.name
+                if not s3_downloader.download_file(WCOFS_ARCHIVE_BUCKET, key, source_path):
+                    success = False
+                    continue
+                if source_path.stat().st_size != size:
+                    raise ValueError(f"Downloaded size does not match S3 object: {key}")
+                source_path.replace(output_path)
+            logger.info("Saved native-grid forecast to: %s", output_path)
+        except (BotoCoreError, ClientError, OSError, ValueError) as error:
+            logger.error("Native-grid download failed for %s: %s", key, error)
+            success = False
     return success
 
 
@@ -1404,6 +1459,9 @@ Examples:
   # Date range, lead hours 3-24 only
   python download_wcofs.py wcofs --start 2026-10-01 --end 2026-10-07 -f netcdf -fs 3:24 --dest ./data
 
+  # Download historical ROMS fields without cropping or processing
+  python download_wcofs.py wcofs -d 2021-03-23 -f netcdf --native-grid --dest ./data
+
   # Download one complete fixed-PST daily sea-surface-elevation file
   python download_wcofs.py wcofs -d 2026-11-01 --nowcast-elevation --dest ./data
 
@@ -1427,6 +1485,13 @@ NetCDF notes:
   - Only box subsets are kept in OUTPUT/wcofs/subset.
   - Processed files include temp, salt, surf_el (zeta), all depths, 24 hourly fixed-PST samples.
   - Incomplete days are skipped; no extrapolation is performed.
+
+Native-grid notes:
+  - --native-grid saves complete ROMS fields under OUTPUT/wcofs/native.
+  - Source files are roughly 336-354 MB each; no subsets, PST files, or CSVs
+    are generated. Only requested cycles are downloaded.
+  - Archive filenames use nos.wcofs.fields before 2024-09-17 and
+    wcofs.t03z.DATE.fields from 2024-09-17 onward.
 
 Nowcast elevation notes:
   - --nowcast-elevation combines hourly 2ds.nNNN samples into one complete
@@ -1497,6 +1562,10 @@ Nowcast elevation notes:
         help="Combine WCOFS 2ds.nNNN elevation nowcasts into one complete fixed-PST file per day",
     )
     parser.add_argument(
+        "--native-grid", action="store_true",
+        help="Download full native ROMS forecast fields from the historical archive, without processing",
+    )
+    parser.add_argument(
         "--nowcast-steps",
         type=str,
         default=None,
@@ -1510,7 +1579,7 @@ Nowcast elevation notes:
         "--lon-bounds", type=float, nargs=2, default=LAT_LON_BOUNDS["lon"], metavar=("WEST", "EAST"),
         help="NetCDF crop longitude box in degrees east, 0-360 (default: 236 239)",
     )
-    parser.add_argument("--overwrite", action="store_true", help="Rebuild NetCDF subsets even if they already exist")
+    parser.add_argument("--overwrite", action="store_true", help="Rebuild NetCDF subsets or replace native files")
     parser.add_argument("--dry-run", action="store_true",
                         help="Inspect source objects and transfer sizes without writing files")
     parser.add_argument(
@@ -1558,6 +1627,14 @@ Nowcast elevation notes:
         parser.error("Use --date or --start/--end, not both")
     if args.dry_run and (args.process_only or args.list_dates):
         parser.error("--dry-run cannot be combined with --process-only or --list-dates")
+    if args.native_grid:
+        if args.forecast_type != ["wcofs"] or args.format != "netcdf":
+            parser.error("--native-grid requires wcofs and --format netcdf")
+        if (args.nowcast_elevation or args.nowcast_steps or args.process_only
+                or args.process_start or args.process_end or args.list_dates or args.add_vel):
+            parser.error("--native-grid cannot be combined with nowcast, processing, list-dates, or --add-vel options")
+        if tuple(args.lat_bounds) != LAT_LON_BOUNDS["lat"] or tuple(args.lon_bounds) != LAT_LON_BOUNDS["lon"]:
+            parser.error("--native-grid downloads full files and does not support crop bounds")
 
     setup_logging(args.debug, quiet=args.quiet, logdir=None if args.dry_run else Path(args.logdir))
 
@@ -1600,7 +1677,7 @@ Nowcast elevation notes:
         if args.format == "netcdf":
             forecast_steps = [step for step in forecast_steps if step in NETCDF_STEPS]
             if not forecast_steps:
-                logger.error("NetCDF regular-grid forecast steps must include lead hours 3, 6, ..., 72")
+                logger.error("NetCDF forecast steps must include lead hours 3, 6, ..., 72")
                 sys.exit(1)
         logger.debug(f"Forecast steps: {list(forecast_steps)}")
 
@@ -1700,6 +1777,7 @@ Nowcast elevation notes:
         "wcofs" in args.forecast_type
         and args.format == "netcdf"
         and not args.nowcast_elevation
+        and not args.native_grid
     )
     netcdf_dates = sorted(set(dates_to_download) | {date - timedelta(days=1) for date in dates_to_download})
 
@@ -1708,7 +1786,7 @@ Nowcast elevation notes:
     wcofs_success = True
     total_files = sum(
         len(netcdf_dates)
-        if forecast_type == "wcofs" and args.format == "netcdf" and not args.nowcast_elevation
+        if forecast_type == "wcofs" and wcofs_netcdf
         else len(dates_to_download)
         for forecast_type in args.forecast_type
     )
@@ -1722,7 +1800,7 @@ Nowcast elevation notes:
         forecast_dir = output_dir / forecast_type
         type_dates = (
             netcdf_dates
-            if forecast_type == "wcofs" and args.format == "netcdf" and not args.nowcast_elevation
+            if forecast_type == "wcofs" and wcofs_netcdf
             else dates_to_download
         )
         
@@ -1735,13 +1813,18 @@ Nowcast elevation notes:
                 try:
                     result = plan_downloads(
                         s3_downloader, forecast_type, date, args.format,
-                        forecast_steps, args.nowcast_elevation,
+                        forecast_steps, args.nowcast_elevation, args.native_grid,
                     )
                 except (BotoCoreError, ClientError, OSError) as error:
                     logger.error("Could not inspect S3 objects: %s", error)
                     result = False
             elif forecast_type == "wcofs":
-                if args.nowcast_elevation:
+                if args.native_grid:
+                    result = download_wcofs_native(
+                        forecast_dir, s3_downloader, date, forecast_steps=forecast_steps,
+                        overwrite=args.overwrite,
+                    )
+                elif args.nowcast_elevation:
                     result = download_wcofs_nowcast_elevation(
                         forecast_dir,
                         s3_downloader,
