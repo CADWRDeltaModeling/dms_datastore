@@ -52,8 +52,8 @@ def test_cimis_recipe_reconciles_actual_annual_writer_outputs(tmp_path, monkeypa
     timestamps = pd.date_range("2019-12-31", periods=48, freq="h")
     source = incoming / "cimis_cms140_140_hourly_2019_2020.csv"
     source.write_text(
-        "datetime,HlyWindSpd.Value,HlyAirTmp.Value\n"
-        + "".join(f"{timestamp},1.5,59\n" for timestamp in timestamps),
+        "datetime,HlyWindSpd.Value,HlyAirTmp.Value,HlyPrecip.Value\n"
+        + "".join(f"{timestamp},1.5,59,0.0\n" for timestamp in timestamps),
         encoding="utf-8",
     )
     config = {
@@ -92,7 +92,7 @@ def test_cimis_recipe_reconciles_actual_annual_writer_outputs(tmp_path, monkeypa
 
     expected = {
         f"cimis_cms140_140_{param}_{year}.csv"
-        for param in ("windspd", "airtemp")
+        for param in ("windspd", "airtemp", "precip")
         for year in (2019, 2020)
     }
     assert {path.name for path in staging.glob("*.csv")} == expected
