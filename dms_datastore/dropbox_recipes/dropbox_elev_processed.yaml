@@ -1,0 +1,149 @@
+
+
+dropbox_home: //cnrastore-bdo/Modeling_Data/repo_processing_scratch/staging   # staging scratch area; the reconcile destination is inferred from repo_name
+modeling_data: //cnrastore-bdo/Modeling_Data/
+target_tz: "Etc/GMT+8"    # Odd, but the correct one in POSIX/pandas for PST.
+target_tz_label: PST
+
+# Gap-filled NOAA ocean elevation (harmonic tide + imputed subtidal) produced by process_elev.
+# Entries are identical apart from station identity; gen_elev2d needs pryc1 and mtyc1.
+
+data:
+  - name: pryc1_elev
+    skip: False
+    collect:
+      file_pattern: "pryc1_elev.csv"
+      wildcard: time_shard   # single file; same convention as the other processed recipes
+      location:   "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: pryc1
+      agency_id: "9415020"
+      source: noaa
+      agency: noaa
+      processor: dms   # required by the 'processed' repo filename templates
+      subloc: default
+      freq: infer
+      param: elev
+      unit: m
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Gap-filled with NOAA harmonic tide plus subtidal regressed on Monterey
+      process_script: process_elev_data.py
+
+    output:
+      repo_name: processed   # pointer to an entry in dstore_config.yaml
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: True   # 6-min data over decades; yearly shards keep reads and reconciles small
+      # repo_data_dir: ./fake_repo   # Use repo_data_dir only for mock experimentation. The destination is normally inferred from the repo
+      reconcile:
+        prefer: staged   # the producer recomputes the whole history
+        allow_new_series: True
+
+  - name: mtyc1_elev
+    skip: False
+    collect:
+      file_pattern: "mtyc1_elev.csv"
+      wildcard: time_shard
+      location:   "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: mtyc1
+      agency_id: "9413450"
+      source: noaa
+      agency: noaa
+      processor: dms
+      subloc: default
+      freq: infer
+      param: elev
+      unit: m
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Gap-filled with NOAA harmonic tide plus subtidal regressed on Point Reyes
+      process_script: process_elev_data.py
+
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: True
+      reconcile:
+        prefer: staged
+        allow_new_series: True
+
+  - name: sffpx_elev
+    skip: False
+    collect:
+      file_pattern: "sffpx_elev.csv"
+      wildcard: time_shard
+      location:   "${modeling_data}/repo_processing_scratch/"
+      recursive_search: False
+      reader: read_ts
+      reader_args:
+         names: ["datetime", "value"]
+         na_values: ["(null)", "null", "NULL", ""]
+         hint: "resort"
+         force_regular: True
+      merge_method: "ts_splice"
+      merge_args:
+         transition: prefer_last
+      selector: null
+    transforms:
+    metadata:
+      station_id: sffpx
+      agency_id: "9414290"
+      source: noaa
+      agency: noaa
+      processor: dms
+      subloc: default
+      freq: infer
+      param: elev
+      unit: m
+      time_zone: ${target_tz}
+      time_zone_label: ${target_tz_label}
+      latitude: registry_lookup
+      longitude: registry_lookup
+      process_method: Gap-filled with NOAA harmonic tide plus subtidal regressed on Point Reyes
+      process_script: process_elev_data.py
+
+    output:
+      repo_name: processed
+      staging:
+        dir: ${dropbox_home}
+        write_args:
+          float_format: "%0.3f"
+          chunk_years: True
+      reconcile:
+        prefer: staged
+        allow_new_series: True

@@ -16,6 +16,16 @@ from vtools.functions.blend import ts_blend
 
 logger = logging.getLogger(__name__)
 
+# Inputs are always the screened NOAA data, never the processed product written by this script.
+SOURCE_REPO = "screened"
+
+# SF observations in this window are known to be bad and are replaced by the filled series.
+SF_BAD_START = pd.Timestamp(2024, 1, 1)
+SF_BAD_END = pd.Timestamp(2024, 8, 1)
+
+# Stable output names (no date range) so a dropbox recipe can match them.
+OUTPUT_FILES = {"ptr": "pryc1_elev.csv", "mtr": "mtyc1_elev.csv", "sf": "sffpx_elev.csv"}
+
 
 def fit_and_impute(dependent: pd.Series,
                    independent: pd.Series,
@@ -103,27 +113,27 @@ def process_elev_data(plot: bool=False,
     """
     # 1) Harmonic predictions -> tidal components
     logger.info("Loading harmonic predictions and extracting tidal comps...")
-    sf_ha = read_ts_repo("sffpx","predictions", start=start, end=end)
+    sf_ha = read_ts_repo("sffpx","predictions", repo=SOURCE_REPO, start=start, end=end)
     sf_ha.columns = ['sf']
     sf_sub = cosine_lanczos(sf_ha,'40h')['sf']
     sf_tidal = sf_ha['sf'] - sf_sub
 
-    ptr_ha = read_ts_repo("pryc1","predictions", start=start, end=end).rename(columns={'value':'ptr'})
+    ptr_ha = read_ts_repo("pryc1","predictions", repo=SOURCE_REPO, start=start, end=end).rename(columns={'value':'ptr'})
     ptr_ha.columns = ['ptr']
     ptr_sub = cosine_lanczos(ptr_ha,'40h')['ptr']
     ptr_tidal = ptr_ha['ptr'] - ptr_sub
 
-    mtr_ha = read_ts_repo("mtyc1","predictions", start=start, end=end).rename(columns={'value':'mtr'})
+    mtr_ha = read_ts_repo("mtyc1","predictions", repo=SOURCE_REPO, start=start, end=end).rename(columns={'value':'mtr'})
     mtr_ha.columns = ['mtr']
     mtr_sub = cosine_lanczos(mtr_ha,'40h')['mtr']
     mtr_tidal = mtr_ha['mtr'] - mtr_sub
 
     # 2) Raw observations -> interpolate small gaps
     logger.info("Loading raw elev and interpolating small gaps...")
-    sf_raw = read_ts_repo("sffpx","elev", start=start, end=end).interpolate(limit=4, method='linear').rename(columns={'value':'sf'})
-    sf_raw.loc[pd.Timestamp(2024,1,1): pd.Timestamp(2024,8,1), :] = np.nan
-    ptr_raw = read_ts_repo("pryc1","elev", start=start, end=end).interpolate(limit=4, method='linear').rename(columns={'value':'ptr'})
-    mtr_raw = read_ts_repo("mtyc1","elev", start=start, end=end).interpolate(limit=4, method='linear').rename(columns={'value':'mtr'})
+    sf_raw = read_ts_repo("sffpx","elev", repo=SOURCE_REPO, start=start, end=end).interpolate(limit=4, method='linear').rename(columns={'value':'sf'})
+    sf_raw.loc[SF_BAD_START:SF_BAD_END, :] = np.nan
+    ptr_raw = read_ts_repo("pryc1","elev", repo=SOURCE_REPO, start=start, end=end).interpolate(limit=4, method='linear').rename(columns={'value':'ptr'})
+    mtr_raw = read_ts_repo("mtyc1","elev", repo=SOURCE_REPO, start=start, end=end).interpolate(limit=4, method='linear').rename(columns={'value':'mtr'})
 
     # 3) Subtidal from raw
     logger.info("Filtering subtidal (40h Lanczos)...")
@@ -191,6 +201,57 @@ def process_elev_data(plot: bool=False,
     return result, models
 
 
+def write_elev_outputs(ts, models, outdir, fit_start, fit_end):
+    """Write the filled Point Reyes, Monterey and SF series to ``outdir``.
+
+    Parameters
+    ----------
+    ts : pd.DataFrame
+        Result of :func:`process_elev_data` with columns 'sf', 'ptr', 'mtr'.
+    models : dict
+        Fitted OLS models with keys 'ptr_mtr', 'mtr_ptr', 'sf_ptr'; their
+        coefficients are recorded in each file's metadata.
+    outdir : str or pathlib.Path
+        Existing or creatable directory. Filenames are given by ``OUTPUT_FILES``.
+    fit_start, fit_end : datetime-like
+        Calibration window, recorded in the metadata.
+
+    Returns
+    -------
+    list of pathlib.Path
+        Paths of the files written.
+    """
+    outdir = Path(outdir)
+    outdir.mkdir(parents=True, exist_ok=True)
+    fit_period = f"{fit_start} to {fit_end} (~1 lunar nodal cycle, 18.6 yr)"
+    base_meta = {"agency": "dms", "units": "m", "datum": "NAVD88",
+                 "comment": "filled data from NOAA tidal station"}
+
+    def _model_meta(model, predictor_name):
+        params = model.params
+        return {
+            "ols_intercept": f"{params.iloc[0]:.6f}",
+            "ols_slope": f"{params.iloc[1]:.6f}",
+            "ols_predictor": predictor_name,
+            "fit_period": fit_period,
+        }
+
+    products = [
+        ("ptr", "Point Reyes", "ptr_mtr", "mtyc1_subtidal"),
+        ("mtr", "Monterey", "mtr_ptr", "pryc1_subtidal"),
+        ("sf", "San Francisco", "sf_ptr", "pryc1_subtidal"),
+    ]
+    written = []
+    for col, station_name, model_key, predictor in products:
+        path = outdir / OUTPUT_FILES[col]
+        write_ts_csv(ts[col].rename("value"), str(path),
+                     metadata={**base_meta, "agency_station_name": station_name,
+                               **_model_meta(models[model_key], predictor)})
+        logger.info("Wrote %s", path)
+        written.append(path)
+    return written
+
+
 # Fit window defaults span ~1 lunar nodal cycle (18.6 yr) ending 2022-10-01.
 # Changing --fit-start/--fit-end will alter regression coefficients and filled values.
 @click.command("process_elev")
@@ -202,6 +263,9 @@ def process_elev_data(plot: bool=False,
               help='OLS calibration window start (~1 nodal cycle before fit-end).')
 @click.option('--fit-end', type=str, default='2022-10-01',
               help='OLS calibration window end.')
+@click.option('--outdir', type=click.Path(path_type=Path),
+              default=r"\\cnrastore-bdo\Modeling_Data\repo_processing_scratch",
+              show_default=True, help='Directory to write output CSVs to.')
 @click.option('--plot', is_flag=True, default=False,
               help='Generate diagnostic plots.')
 @click.option('--no-save', is_flag=True, default=False,
@@ -211,8 +275,12 @@ def process_elev_data(plot: bool=False,
 @click.option('--debug', is_flag=True, help='Enable debug logging.')
 @click.option('--quiet', is_flag=True, help='Suppress console output.')
 @click.help_option("-h", "--help")
-def process_elev_cli(start, end, fit_start, fit_end, plot, no_save, logdir, debug, quiet):
+def process_elev_cli(start, end, fit_start, fit_end, outdir, plot, no_save, logdir, debug, quiet):
     """Process and gap-fill ocean elevation data for SF Bay hindcast.
+
+    Reads screened NOAA elev and predictions for Point Reyes (pryc1),
+    Monterey (mtyc1) and San Francisco (sffpx) and writes pryc1_elev.csv,
+    mtyc1_elev.csv and sffpx_elev.csv to --outdir.
 
     Fit window defaults reflect the calibration epoch 2004-03 to 2022-10
     (~1 lunar nodal cycle, 18.6 yr). Changing --fit-start/--fit-end will
@@ -236,29 +304,7 @@ def process_elev_cli(start, end, fit_start, fit_end, plot, no_save, logdir, debu
     )
 
     if not no_save:
-        fit_period = f"{fit_start} to {fit_end} (~1 lunar nodal cycle, 18.6 yr)"
-        explanation = "filled data from NOAA tidal station"
-
-        def _model_meta(model, predictor_name):
-            params = model.params
-            return {
-                "ols_intercept": f"{params.iloc[0]:.6f}",
-                "ols_slope": f"{params.iloc[1]:.6f}",
-                "ols_predictor": predictor_name,
-                "fit_period": fit_period,
-            }
-
-        base_meta = {"agency": "dms", "units": "m", "datum": "NAVD88", "comment": explanation}
-
-        write_ts_csv(ts.ptr, "dms_ptreyes_pryc1_elev_1999_2026.csv",
-                     metadata={**base_meta, "agency_station_name": "Point Reyes",
-                               **_model_meta(models['ptr_mtr'], 'mtyc1_subtidal')})
-        write_ts_csv(ts.mtr, "dms_monterey_mtyc1_elev_1999_2026.csv",
-                     metadata={**base_meta, "agency_station_name": "Monterey",
-                               **_model_meta(models['mtr_ptr'], 'pryc1_subtidal')})
-        write_ts_csv(ts.sf, "dms_sf_sffpx_elev_1999_2026.csv",
-                     metadata={**base_meta, "agency_station_name": "San Francisco",
-                               **_model_meta(models['sf_ptr'], 'pryc1_subtidal')})
+        write_elev_outputs(ts, models, outdir, fit_start, fit_end)
 
 
 if __name__ == '__main__':
