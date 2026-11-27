@@ -36,6 +36,8 @@ except ModuleNotFoundError as error:  # pragma: no cover - direct script executi
 
 BUCKET = "noaa-rtma-pds"
 PACIFIC = ZoneInfo("America/Los_Angeles")
+EXT_START = datetime(2014, 1, 28, 14, tzinfo=timezone.utc)
+WEXP_START = datetime(2017, 5, 1, 18, tzinfo=timezone.utc)
 FIELD_PATTERNS = {
     "pres": r":PRES:surface:anl:",
     "stmp": r":TMP:2 m above ground:anl:",
@@ -54,8 +56,9 @@ def rtma_key(valid_time):
     valid_time = valid_time.astimezone(timezone.utc)
     if valid_time.minute or valid_time.second or valid_time.microsecond:
         raise ValueError("RTMA analysis time must be on the hour")
+    suffix = "_wexp" if valid_time >= WEXP_START else "_ext" if valid_time >= EXT_START else ""
     return (f"rtma2p5.{valid_time:%Y%m%d}/"
-            f"rtma2p5.t{valid_time:%H}z.2dvaranl_ndfd.grb2_wexp")
+            f"rtma2p5.t{valid_time:%H}z.2dvaranl_ndfd.grb2{suffix}")
 
 
 def pacific_day_hours(day):
@@ -70,8 +73,15 @@ def _selected_ranges(downloader, valid_time):
     size = downloader.object_size(key)
     if size is None:
         raise FileNotFoundError(f"RTMA source not found: s3://{BUCKET}/{key}")
-    index = downloader.read_text(key + ".idx")
+    try:
+        index = downloader.read_text(key + ".idx")
+    except ClientError as error:
+        if error.response.get("Error", {}).get("Code") not in ("404", "NoSuchKey", "NotFound"):
+            raise
+        logger.info("No index for %s; full GRIB object required (%.1f MB)", key, size / 1e6)
+        return key, None, size
     records = parse_grib_index(index)
+    valid_time = valid_time.astimezone(timezone.utc)
     expected_time = f"d={valid_time:%Y%m%d%H}"
     if not records or any(record["reference_time"] != expected_time for record in records):
         raise ValueError(f"Missing or inconsistent analysis timestamps in index for {key}")
@@ -81,8 +91,11 @@ def _selected_ranges(downloader, valid_time):
     return key, ranges, sum(end - start + 1 for start, end in ranges)
 
 
-def read_rtma_fields(grib_path, valid_time, lat_bounds, lon_bounds):
-    """Decode and crop selected records, checking the GRIB analysis time."""
+def read_rtma_fields(grib_path, valid_time, lat_bounds, lon_bounds, full_file=False):
+    """Decode and crop selected records, checking the GRIB analysis time.
+
+    Full source files may contain additional records that are not output.
+    """
     import numpy as np
     from eccodes import codes_get, codes_get_array, codes_get_values, codes_new_from_message, codes_release
 
@@ -107,6 +120,8 @@ def read_rtma_fields(grib_path, valid_time, lat_bounds, lon_bounds):
             try:
                 short_name = codes_get(handle, "shortName")
                 name = SHORT_NAMES.get(short_name)
+                if name is None and full_file:
+                    continue
                 if name is None or name in fields:
                     raise ValueError(f"Unexpected or duplicate GRIB field {short_name} in {grib_path}")
                 actual = (codes_get(handle, "validityDate"), codes_get(handle, "validityTime"))
@@ -291,14 +306,17 @@ def download_rtma(output_dir, downloader, day, lat_bounds=HRRR_LAT_BOUNDS,
             for valid_time in valid_times:
                 key, ranges, size = _selected_ranges(downloader, valid_time)
                 total += size
-                logger.info("s3://%s/%s (%.1f MB selected)", BUCKET, key, size / 1e6)
+                logger.info("s3://%s/%s (%.1f MB %s)", BUCKET, key, size / 1e6,
+                            "full object" if ranges is None else "selected")
                 if dry_run:
                     continue
                 path = Path(temporary) / "analysis.grib2"
                 downloader.download(key, path, ranges)
                 if path.stat().st_size != size:
                     raise OSError(f"Downloaded size mismatch for {key}")
-                fields, lat, lon = read_rtma_fields(path, valid_time, lat_bounds, lon_bounds)
+                fields, lat, lon = read_rtma_fields(
+                    path, valid_time, lat_bounds, lon_bounds, full_file=ranges is None
+                )
                 if grid_lat is None:
                     grid_lat, grid_lon = lat, lon
                 elif lat.shape != grid_lat.shape or not (

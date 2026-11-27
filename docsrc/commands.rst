@@ -29,6 +29,7 @@ Command Help Shortcuts
    download_etss --help
    download_gfs --help
    download_rrfs --help
+   download_rtma --help
    download_wcofs --help
    download_rtofs --help
    download_stofs2d --help
@@ -109,6 +110,7 @@ Examples
 
    # RRFS atmospheric forcing (not a station repository download)
    download_rrfs --date 2026-10-16 --sflux --dest <rrfs_dir> --dry-run
+   download_rtma --date 2024-11-25 --dest <rtma_dir> --dry-run
 
    # WCOFS forecast products (not a station repository download)
    download_wcofs wcofs --date 2026-10-13 --format netcdf --dest <wcofs_dir> --dry-run

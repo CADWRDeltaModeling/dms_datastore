@@ -152,6 +152,13 @@ and `--lat-bounds` / `--lon-bounds` to change the crop. Each source record's
 actual GRIB timestamp is checked. Indexed byte-range downloads are temporary;
 `--dry-run` reports source sizes without downloading data.
 
+The archive uses `.grb2` through 2014-01-28 13Z, `.grb2_ext` from
+2014-01-28 14Z through 2017-05-01 17Z, and `.grb2_wexp` thereafter.
+Historical objects without an adjacent index are downloaded in full (typically
+60–70 MB per hour), then cropped; dry runs report the full object size. Data
+availability is subject to missing archive hours and grid coverage; incomplete
+Pacific days cannot be written.
+
 The NetCDF grid/time layout follows RRFS, but contains only `stmp`, `spfh`,
 `uwind`, `vwind`, and `pres` (surface pressure). RTMA's analysis does not
 provide RRFS's mean-sea-level pressure, precipitation rate or radiation in
